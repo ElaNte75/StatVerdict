@@ -3,9 +3,9 @@ local addonName, ns = ...
 -- Benchmark level = which group of top players the Mythic+ data is built from.
 -- Data cohorts are TOP_25 / TOP_100 / TOP_200; players see Elite / Standard / Broad.
 local LEVELS = {
-    { key = "ELITE", label = "Elite", meaning = "Gear of the top 25 players" },
-    { key = "STANDARD", label = "Standard", meaning = "Gear of the top 100 players" },
-    { key = "BROAD", label = "Broad", meaning = "Gear of the top 200 players" },
+    { key = "ELITE", label = "Elite", meaning = "Gear of the top 25 players", hint = "Strictest" },
+    { key = "STANDARD", label = "Standard", meaning = "Gear of the top 100 players", hint = "Recommended" },
+    { key = "BROAD", label = "Broad", meaning = "Gear of the top 200 players", hint = "Steadiest" },
 }
 local DEFAULT_LEVEL = "STANDARD"
 
@@ -39,6 +39,15 @@ function ns.SetBenchmarkLevel(key)
     if ns.RequestStatAuditRefresh then ns.RequestStatAuditRefresh() end
     if ns.RefreshUpgradeIndicators then ns.RefreshUpgradeIndicators() end
     return true
+end
+
+-- The Benchmark level only matters while the Main Spec build or a configured Off Spec
+-- build uses the Mythic+ goal. The button and the drawer are locked otherwise.
+function ns.IsBenchmarkRelevant()
+    local selection = ns.GetSavedStatAuditSelection and ns.GetSavedStatAuditSelection() or nil
+    if type(selection) ~= "table" then return true end
+    if selection.goalMode == "MYTHIC_PLUS" then return true end
+    return selection.secondaryEnabled == true and selection.secondaryGoalMode == "MYTHIC_PLUS"
 end
 
 -- True when a benchmark's numbers should carry a "less stable" warning: the sample is

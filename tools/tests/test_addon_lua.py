@@ -84,6 +84,23 @@ class BenchmarkCoreTests(unittest.TestCase):
         self.assertEqual(["Elite", "Standard", "Broad"], [levels[i].label for i in (1, 2, 3)])
         self.assertEqual("Gear of the top 25 players", levels[1].meaning)
 
+    def test_benchmark_is_relevant_only_when_a_build_uses_mythic_plus(self) -> None:
+        cases = [
+            ("MYTHIC_PLUS", None, False, True),
+            ("RAID", None, False, False),
+            ("PVP", None, False, False),
+            ("RAID", "MYTHIC_PLUS", True, True),
+            ("RAID", "MYTHIC_PLUS", False, False),  # an Off Spec goal without a configured Off Spec does not count
+            ("PVP", "RAID", True, False),
+        ]
+        for main, off, enabled, expected in cases:
+            selection = self.lua.table(goalMode=main, secondaryGoalMode=off, secondaryEnabled=enabled)
+            self.ns.GetSavedStatAuditSelection = lambda selection=selection: selection
+            self.assertEqual(expected, self.ns.IsBenchmarkRelevant(), (main, off, enabled))
+
+    def test_benchmark_is_relevant_when_selection_is_unavailable(self) -> None:
+        self.assertTrue(self.ns.IsBenchmarkRelevant())
+
     def test_small_sample_warning(self) -> None:
         small = self.lua.table(sampleSize=25, minimumSample=25, confidence="high")
         self.assertTrue(self.ns.IsBenchmarkSampleSmall(small))  # Elite: only the minimum sample
@@ -228,7 +245,29 @@ class PanelModeTests(unittest.TestCase):
         self.lua = new_runtime()
         self.ns = self.lua.table()
         self.lua.globals().StatVerdictDB = self.lua.table()
+        load_addon_file(self.lua, self.ns, "Core/SV_Benchmark.lua")
         load_addon_file(self.lua, self.ns, "UI/SV_RightPanelMode.lua")
+
+    def use_goal(self, goal: str) -> None:
+        selection = self.lua.table(goalMode=goal)
+        self.ns.GetSavedStatAuditSelection = lambda: selection
+
+    def test_benchmark_drawer_closes_itself_when_mythic_plus_is_no_longer_selected(self) -> None:
+        self.use_goal("MYTHIC_PLUS")
+        self.ns.SetRightPanelMode("benchmark")
+        self.assertEqual("benchmark", self.ns.GetRightPanelMode())
+        self.use_goal("RAID")
+        self.assertIsNone(self.ns.GetRightPanelMode())
+        self.use_goal("MYTHIC_PLUS")
+        self.assertIsNone(self.ns.GetRightPanelMode())  # it stays closed until the player opens it again
+
+    def test_benchmark_cannot_be_opened_without_mythic_plus_and_other_panels_stay(self) -> None:
+        self.use_goal("RAID")
+        self.ns.SetRightPanelMode("manual")
+        self.ns.SetRightPanelMode("benchmark")
+        self.assertEqual("manual", self.ns.GetRightPanelMode())
+        self.ns.ToggleRightPanelMode("benchmark")
+        self.assertEqual("manual", self.ns.GetRightPanelMode())
 
     def test_benchmark_is_a_valid_mode_and_summary_is_not(self) -> None:
         self.ns.SetRightPanelMode("benchmark")
@@ -243,6 +282,105 @@ class PanelModeTests(unittest.TestCase):
         names = [path.name for path in toc_lua_files()]
         self.assertIn("SV_BenchmarkDrawerPanel.lua", names)
         self.assertNotIn("SV_CharacterSummaryDrawerPanel.lua", names)
+
+
+
+FRAME_STUB = """
+-- Minimal stand-in for the WoW frame API: every method is a no-op that returns the
+-- object itself, SetText records the text, and numeric getters return numbers.
+local numeric = { GetFrameLevel = 1, GetWidth = 280, GetHeight = 500, GetStringWidth = 40, GetStringHeight = 12 }
+local function Stub()
+    local object = {}
+    return setmetatable(object, { __index = function(t, key)
+        if key == "SetText" then return function(self, value) rawset(self, "text", value) end end
+        if key == "SetShown" then return function(self, value) rawset(self, "shown", value) end end
+        if key == "CreateFontString" or key == "CreateTexture" then return function() return Stub() end end
+        if key == "SetChecked" then return function(self, value) rawset(self, "checked", value) end end
+        if key == "SetScript" then
+            return function(self, name, fn)
+                local scripts = rawget(self, "scripts") or {}
+                scripts[name] = fn
+                rawset(self, "scripts", scripts)
+            end
+        end
+        if key == "Text" then  -- UICheckButtonTemplate provides a label FontString
+            local label = Stub()
+            rawset(t, "Text", label)
+            return label
+        end
+        if numeric[key] then return function() return numeric[key] end end
+        if key == "GetFont" then return function() return "font", 12, "" end end
+        -- WoW methods are PascalCase; lowercase keys are plain fields and are nil until set.
+        if type(key) == "string" and key:match("^%u") then return function(self) return self end end
+        return nil
+    end })
+end
+CreateFrame = function() return Stub() end
+"""
+
+
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class BenchmarkDrawerSmokeTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.lua = new_runtime()
+        self.lua.execute(FRAME_STUB)
+        self.ns = self.lua.table()
+        self.lua.globals().StatVerdictDB = self.lua.table()
+        for relative in ("Core/SV_Benchmark.lua", "UI/SV_RightPanelMode.lua", "UI/SV_BenchmarkDrawerPanel.lua"):
+            load_addon_file(self.lua, self.ns, relative)
+        self.frame = self.lua.eval("CreateFrame")()
+        self.ns.GetStatAuditGoalMode = lambda: "MYTHIC_PLUS"
+        self.ns.GetSavedStatAuditSelection = lambda: self.lua.table(goalMode="MYTHIC_PLUS")
+        self.bench = self.lua.table(sampleSize=100, minimumSample=25, confidence="high")
+        self.available = True
+        self.set_context(self.bench)
+        self.ns.ProfileRepository = self.lua.table(
+            GetDataProvenance=lambda goal: self.lua.table(available=self.available, scrape="2026-09-26")
+        )
+        self.ns.SetRightPanelMode("benchmark")
+
+    def set_context(self, bench) -> None:
+        generated = self.lua.table(benchmark=bench)
+        context = self.lua.table(profile=self.lua.table(generatedContext=generated)) if bench else self.lua.table()
+        self.ns.GetActivePanelContext = lambda: context
+
+    def card(self):
+        self.ns.StatVerdictBenchmarkDrawerPanel.Apply(self.frame)
+        return self.frame.benchmarkDrawerCard
+
+    def test_shows_sample_confidence_and_date_without_warning(self) -> None:
+        card = self.card()
+        self.assertEqual("100 players", card.dataRows[1].value.text)
+        self.assertEqual("High", card.dataRows[2].value.text)
+        self.assertEqual("2026-09-26", card.dataRows[3].value.text)
+        self.assertEqual("", card.warning.text)
+        self.assertEqual("", card.note.text)
+
+    def test_small_sample_shows_the_warning(self) -> None:
+        self.set_context(self.lua.table(sampleSize=25, minimumSample=25, confidence="high"))
+        self.assertIn("Smaller sample", self.card().warning.text)
+
+    def test_clicking_a_level_row_saves_it_and_marks_it(self) -> None:
+        card = self.card()
+        self.assertEqual(["ELITE", "STANDARD", "BROAD"], [card.levelRows[i].key for i in (1, 2, 3)])
+        self.assertTrue(card.levelRows[2].check.checked)
+        card.levelRows[3].scripts.OnClick()
+        self.assertEqual("BROAD", self.ns.GetBenchmarkLevel())
+        self.assertFalse(card.levelRows[2].check.checked)
+        self.assertTrue(card.levelRows[3].check.checked)
+
+    def test_build_that_is_not_mythic_plus_gets_an_explanation(self) -> None:
+        self.ns.GetStatAuditGoalMode = lambda: "RAID"
+        self.assertIn("does not use Mythic+", self.card().note.text)
+
+    def test_out_of_date_data_says_so(self) -> None:
+        self.set_context(None)
+        self.available = False
+        self.assertIn("out of date", self.card().note.text)
+
+    def test_missing_level_data_says_no_data(self) -> None:
+        self.set_context(None)
+        self.assertIn("No data for this build", self.card().note.text)
 
 
 if __name__ == "__main__":

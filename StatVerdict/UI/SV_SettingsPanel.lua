@@ -449,14 +449,47 @@ local function PositionPanelToggleButtons(frame, card)
             label = ns.GetReferenceWording().button
         end
         button.label:SetText(label)
-        if active then
+        -- Benchmark only applies to Mythic+ builds; otherwise the button is locked.
+        local locked = spec.mode == "benchmark" and ns.IsBenchmarkRelevant and not ns.IsBenchmarkRelevant()
+        if locked then
+            button.label:SetTextColor(0.45, 0.45, 0.45)
+        elseif active then
             button.label:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
         else
             button.label:SetTextColor(WHITE[1], WHITE[2], WHITE[3])
         end
+        button:SetAlpha(locked and 0.6 or 1)
         button:SetScript("OnClick", function()
+            if spec.mode == "benchmark" and ns.IsBenchmarkRelevant and not ns.IsBenchmarkRelevant() then
+                return
+            end
             if ns.ToggleRightPanelMode then
                 ns.ToggleRightPanelMode(spec.mode)
+            end
+        end)
+        -- Same hover/pressed look as the other buttons, except a locked one stays flat.
+        button:SetScript("OnEnter", function(self)
+            if not locked then
+                PaintDrawerToggleButton(self, "hover")
+            elseif GameTooltip then
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetText("Benchmark", 1.0, 0.82, 0.0)
+                GameTooltip:AddLine("Available when your Main Spec or Off Spec build uses Mythic+.", 0.85, 0.85, 0.85, true)
+                GameTooltip:Show()
+            end
+        end)
+        button:SetScript("OnLeave", function(self)
+            PaintDrawerToggleButton(self, "normal")
+            if GameTooltip then GameTooltip:Hide() end
+        end)
+        button:SetScript("OnMouseDown", function(self)
+            if not locked then PaintDrawerToggleButton(self, "pushed") end
+        end)
+        button:SetScript("OnMouseUp", function(self)
+            if not locked and self:IsMouseOver() then
+                PaintDrawerToggleButton(self, "hover")
+            else
+                PaintDrawerToggleButton(self, "normal")
             end
         end)
 

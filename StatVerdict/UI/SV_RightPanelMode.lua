@@ -24,7 +24,12 @@ function ns.GetRightPanelMode()
         return "options"
     end
     if db.showBenchmarkPanel == true then
-        return "benchmark"
+        if ns.IsBenchmarkRelevant and not ns.IsBenchmarkRelevant() then
+            -- Mythic+ is no longer selected anywhere: the drawer closes itself.
+            db.showBenchmarkPanel = false
+        else
+            return "benchmark"
+        end
     end
     if db.showTrinketPanel == true then
         return "trinkets"
@@ -41,6 +46,9 @@ function ns.SetRightPanelMode(mode)
     local db = _G.StatVerdictDB
     if not VALID[mode] then
         mode = nil
+    end
+    if mode == "benchmark" and ns.IsBenchmarkRelevant and not ns.IsBenchmarkRelevant() then
+        return
     end
     db.showBisPanel = (mode == "bis")
     db.showTrinketPanel = (mode == "trinkets")

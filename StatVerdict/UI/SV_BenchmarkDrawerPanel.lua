@@ -4,8 +4,18 @@ local Panel = {}
 ns.StatVerdictBenchmarkDrawerPanel = Panel
 
 local DRAWER_PREFERRED_WIDTH = 280
-local LEVEL_STEP = 50
-local CHECK_LABEL_FONT_SIZE = 11
+local MARGIN = 14
+local ROW_HEIGHT = 56
+local ROW_STEP = 64
+local ROWS_TOP = -96
+local INFO_ROW_STEP = 20
+
+local GOLD = { 1.0, 0.82, 0.0 }
+local GREY = { 0.72, 0.72, 0.72 }
+local WHITE = { 1.0, 1.0, 1.0 }
+local ORANGE = { 1.0, 0.5, 0.0 }
+local GREEN = { 0.20, 1.00, 0.35 }
+local LINE = { 0.72, 0.74, 0.78, 0.30 }
 
 local function Offset(key)
     if ns.GetDevLayoutOffset then return ns.GetDevLayoutOffset(key) end
@@ -24,79 +34,100 @@ local function ActiveBenchmark()
     return type(generated) == "table" and generated.benchmark or nil
 end
 
-local function IsMythicPlus()
+local function ActiveGoalIsMythicPlus()
     local goal = ns.GetStatAuditGoalMode and ns.GetStatAuditGoalMode() or "MYTHIC_PLUS"
     return goal == "MYTHIC_PLUS"
 end
 
-local function SyncCard(card)
-    if not card then return end
-    local mythicPlus = IsMythicPlus()
-    local selected = ns.GetBenchmarkLevel()
-    for _, row in ipairs(card.levelRows or {}) do
-        row.check:SetChecked(row.key == selected)
-        if mythicPlus then
-            row.check:Enable()
-            row.check:SetAlpha(1)
-        else
-            row.check:Disable()
-            row.check:SetAlpha(0.5)
-        end
-    end
-
-    local bench = mythicPlus and ActiveBenchmark() or nil
-    if not mythicPlus then
-        card.info:SetText("This choice applies to Mythic+ only. Raid and PvP use their own bundled data.")
-        card.info:SetTextColor(0.72, 0.72, 0.72)
-        card.warning:SetText("")
-        return
-    end
-    if not bench then
-        card.info:SetText("No data for this build at this level.")
-        card.info:SetTextColor(1.0, 0.5, 0.0)
-        card.warning:SetText("")
-        return
-    end
-    local provenance = ns.ProfileRepository and ns.ProfileRepository.GetDataProvenance
-        and ns.ProfileRepository.GetDataProvenance("MYTHIC_PLUS") or nil
-    card.info:SetText(string.format(
-        "Sample: %d players · Confidence: %s\nData from: %s",
-        tonumber(bench.sampleSize) or 0,
-        tostring(bench.confidence or "unknown"),
-        tostring(provenance and provenance.scrape or "unknown")
-    ))
-    card.info:SetTextColor(0.85, 0.85, 0.85)
-    if ns.IsBenchmarkSampleSmall(bench) then
-        card.warning:SetText("Smaller sample: results can be less stable.")
+local function PaintRow(row, selected, hovered)
+    row:SetBackdropColor(selected and 0.16 or 0.05, selected and 0.13 or 0.06, selected and 0.03 or 0.08, 0.92)
+    if selected then
+        row:SetBackdropBorderColor(GOLD[1], GOLD[2], GOLD[3], 0.95)
+        row.label:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
     else
-        card.warning:SetText("")
+        if hovered then
+            row:SetBackdropBorderColor(0.62, 0.64, 0.70, 0.90)
+        else
+            row:SetBackdropBorderColor(0.32, 0.34, 0.40, 0.85)
+        end
+        row.label:SetTextColor(WHITE[1], WHITE[2], WHITE[3])
     end
+end
+
+local function AddLine(card, y)
+    local line = card:CreateTexture(nil, "ARTWORK")
+    line:SetColorTexture(LINE[1], LINE[2], LINE[3], LINE[4])
+    line:SetHeight(1)
+    line:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, y)
+    line:SetPoint("TOPRIGHT", card, "TOPRIGHT", -MARGIN, y)
+    return line
+end
+
+local function AddText(card, template, y, justify)
+    local text = card:CreateFontString(nil, "OVERLAY", template)
+    text:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, y)
+    text:SetPoint("TOPRIGHT", card, "TOPRIGHT", -MARGIN, y)
+    text:SetJustifyH(justify or "LEFT")
+    text:SetWordWrap(true)
+    return text
 end
 
 local function EnsureLevelRow(card, index, level)
     card.levelRows = card.levelRows or {}
-    local row = card.levelRows[index]
-    if row then return row end
-    row = { key = level.key }
-    row.check = CreateFrame("CheckButton", nil, card, "UICheckButtonTemplate")
-    row.check:SetSize(22, 22)
-    if row.check.Text then
-        row.check.Text:SetText(level.label)
-        row.check.Text:SetTextColor(1, 1, 1)
-        local font, _, flags = row.check.Text:GetFont()
-        if font then row.check.Text:SetFont(font, CHECK_LABEL_FONT_SIZE, flags) end
-    end
-    row.meaning = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.meaning:SetTextColor(0.72, 0.72, 0.72)
+    if card.levelRows[index] then return card.levelRows[index] end
+
+    local row = CreateFrame("Button", nil, card, "BackdropTemplate")
+    row.key = level.key
+    row:SetHeight(ROW_HEIGHT)
+    row:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = false,
+        edgeSize = 12,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 },
+    })
+
+    -- Only shows the tick; the whole row is the click target.
+    row.check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
+    row.check:SetSize(24, 24)
+    row.check:SetPoint("LEFT", row, "LEFT", 8, 0)
+    row.check:EnableMouse(false)
+    if row.check.Text then row.check.Text:Hide() end
+
+    row.label = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    row.label:SetPoint("TOPLEFT", row, "TOPLEFT", 42, -11)
+    row.label:SetText(level.label)
+
+    row.hint = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.hint:SetPoint("TOPRIGHT", row, "TOPRIGHT", -12, -13)
+    row.hint:SetJustifyH("RIGHT")
+    row.hint:SetTextColor(GREY[1], GREY[2], GREY[3])
+    row.hint:SetText(level.hint or "")
+
+    row.meaning = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.meaning:SetPoint("TOPLEFT", row.label, "BOTTOMLEFT", 0, -5)
     row.meaning:SetJustifyH("LEFT")
+    row.meaning:SetTextColor(GREY[1], GREY[2], GREY[3])
     row.meaning:SetText(level.meaning)
-    row.check:SetScript("OnClick", function()
-        ns.SetBenchmarkLevel(level.key)
-        SyncCard(card)
+
+    row:SetScript("OnEnter", function(self)
+        self.hovered = true
+        PaintRow(self, ns.GetBenchmarkLevel() == self.key, true)
     end)
+    row:SetScript("OnLeave", function(self)
+        self.hovered = false
+        PaintRow(self, ns.GetBenchmarkLevel() == self.key, false)
+    end)
+    row:SetScript("OnClick", function()
+        ns.SetBenchmarkLevel(level.key)
+        Panel.Sync(card)
+    end)
+
     card.levelRows[index] = row
     return row
 end
+
+local INFO_LABELS = { "Sample", "Confidence", "Data from" }
 
 local function EnsureCard(frame)
     if frame.benchmarkDrawerCard then return frame.benchmarkDrawerCard end
@@ -115,42 +146,104 @@ local function EnsureCard(frame)
     card:SetBackdropBorderColor(0.72, 0.74, 0.78, 0.86)
 
     card.title = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    card.title:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -12)
+    card.title:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, -14)
     card.title:SetText("Benchmark Level")
-    card.title:SetTextColor(1.0, 0.82, 0.0)
+    card.title:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
 
-    card.intro = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    card.intro:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -36)
-    card.intro:SetPoint("TOPRIGHT", card, "TOPRIGHT", -12, -36)
-    card.intro:SetJustifyH("LEFT")
-    card.intro:SetWordWrap(true)
-    card.intro:SetTextColor(0.72, 0.72, 0.72)
+    AddLine(card, -36)
+
+    card.intro = AddText(card, "GameFontHighlightSmall", -48)
+    card.intro:SetTextColor(GREY[1], GREY[2], GREY[3])
     card.intro:SetText("Choose which players your Mythic+ targets and popular gear are based on.")
 
     for index, level in ipairs(ns.GetBenchmarkLevels()) do
         local row = EnsureLevelRow(card, index, level)
-        local top = -84 - ((index - 1) * LEVEL_STEP)
-        row.check:SetPoint("TOPLEFT", card, "TOPLEFT", 10, top)
-        row.meaning:SetPoint("TOPLEFT", card, "TOPLEFT", 40, top - 24)
-        row.meaning:SetPoint("TOPRIGHT", card, "TOPRIGHT", -12, top - 24)
+        local y = ROWS_TOP - ((index - 1) * ROW_STEP)
+        row:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, y)
+        row:SetPoint("TOPRIGHT", card, "TOPRIGHT", -MARGIN, y)
     end
 
-    local infoTop = -84 - (#ns.GetBenchmarkLevels() * LEVEL_STEP) - 8
-    card.info = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    card.info:SetPoint("TOPLEFT", card, "TOPLEFT", 12, infoTop)
-    card.info:SetPoint("TOPRIGHT", card, "TOPRIGHT", -12, infoTop)
-    card.info:SetJustifyH("LEFT")
-    card.info:SetWordWrap(true)
+    local infoTop = ROWS_TOP - (#ns.GetBenchmarkLevels() * ROW_STEP) - 6
+    AddLine(card, infoTop)
 
-    card.warning = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    card.warning:SetPoint("TOPLEFT", card.info, "BOTTOMLEFT", 0, -8)
-    card.warning:SetPoint("TOPRIGHT", card.info, "BOTTOMRIGHT", 0, -8)
-    card.warning:SetJustifyH("LEFT")
-    card.warning:SetWordWrap(true)
-    card.warning:SetTextColor(1.0, 0.5, 0.0)
+    card.infoTitle = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    card.infoTitle:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, infoTop - 14)
+    card.infoTitle:SetText("Current data")
+    card.infoTitle:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+
+    card.dataRows = {}
+    for index, label in ipairs(INFO_LABELS) do
+        local y = infoTop - 40 - ((index - 1) * INFO_ROW_STEP)
+        local row = {}
+        row.label = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        row.label:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, y)
+        row.label:SetTextColor(GREY[1], GREY[2], GREY[3])
+        row.label:SetText(label)
+        row.value = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        row.value:SetPoint("TOPRIGHT", card, "TOPRIGHT", -MARGIN, y)
+        row.value:SetJustifyH("RIGHT")
+        card.dataRows[index] = row
+    end
+
+    card.note = AddText(card, "GameFontHighlightSmall", infoTop - 40)
+    card.warning = AddText(card, "GameFontHighlightSmall", infoTop - 40 - (#INFO_LABELS * INFO_ROW_STEP) - 6)
+    card.warning:SetTextColor(ORANGE[1], ORANGE[2], ORANGE[3])
 
     frame.benchmarkDrawerCard = card
     return card
+end
+
+function Panel.Sync(card)
+    if not card then return end
+
+    local selected = ns.GetBenchmarkLevel()
+    for _, row in ipairs(card.levelRows or {}) do
+        row.check:SetChecked(row.key == selected)
+        PaintRow(row, row.key == selected, row.hovered == true)
+    end
+
+    local mythicPlus = ActiveGoalIsMythicPlus()
+    local bench = mythicPlus and ActiveBenchmark() or nil
+    local provenance = ns.ProfileRepository and ns.ProfileRepository.GetDataProvenance
+        and ns.ProfileRepository.GetDataProvenance("MYTHIC_PLUS") or nil
+
+    for _, row in ipairs(card.dataRows or {}) do
+        row.label:SetShown(bench ~= nil)
+        row.value:SetShown(bench ~= nil)
+    end
+
+    if bench then
+        card.note:SetText("")
+        local confidence = tostring(bench.confidence or "unknown")
+        card.dataRows[1].value:SetText(string.format("%d players", tonumber(bench.sampleSize) or 0))
+        card.dataRows[1].value:SetTextColor(WHITE[1], WHITE[2], WHITE[3])
+        card.dataRows[2].value:SetText(confidence:sub(1, 1):upper() .. confidence:sub(2))
+        if confidence == "high" then
+            card.dataRows[2].value:SetTextColor(GREEN[1], GREEN[2], GREEN[3])
+        else
+            card.dataRows[2].value:SetTextColor(ORANGE[1], ORANGE[2], ORANGE[3])
+        end
+        card.dataRows[3].value:SetText(tostring(provenance and provenance.scrape or "unknown"))
+        card.dataRows[3].value:SetTextColor(WHITE[1], WHITE[2], WHITE[3])
+        if ns.IsBenchmarkSampleSmall(bench) then
+            card.warning:SetText("Smaller sample: results can be less stable.")
+        else
+            card.warning:SetText("")
+        end
+        return
+    end
+
+    card.warning:SetText("")
+    if not mythicPlus then
+        card.note:SetTextColor(GREY[1], GREY[2], GREY[3])
+        card.note:SetText("The build you are viewing does not use Mythic+. This level applies to your other Mythic+ build.")
+    elseif provenance and provenance.available == false then
+        card.note:SetTextColor(ORANGE[1], ORANGE[2], ORANGE[3])
+        card.note:SetText("Benchmark data is out of date. Update StatVerdict to get fresh Mythic+ data.")
+    else
+        card.note:SetTextColor(ORANGE[1], ORANGE[2], ORANGE[3])
+        card.note:SetText("No data for this build at this level.")
+    end
 end
 
 function Panel.IsOpen()
@@ -214,7 +307,7 @@ function Panel.Apply(frame)
         ns.ApplyRightDrawerCardDev(card, "benchmark.card", "Benchmark drawer", "benchmark.width", DRAWER_PREFERRED_WIDTH)
     end
 
-    SyncCard(card)
+    Panel.Sync(card)
 
     if ns.StatVerdictDashboardLayout and ns.StatVerdictDashboardLayout.SyncFrameWidthToRightPanel then
         ns.StatVerdictDashboardLayout.SyncFrameWidthToRightPanel(frame)
