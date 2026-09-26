@@ -120,4 +120,15 @@ jobs:
           git add StatVerdict/Data/Generated/SV_LiveBenchmarkData.lua
           git add tools/data/benchmark_retry_queue.json
           git commit -m "data: retry failed benchmark specs"
-          git push
+          # See weekly-benchmarks.yml's Commit step: only generated data
+          # files changed here, so rebasing onto a moved main is safe.
+          for attempt in 1 2 3 4 5; do
+            if git push; then
+              exit 0
+            fi
+            echo "Push rejected (attempt $attempt/5), rebasing onto latest main and retrying..."
+            git fetch origin main
+            git rebase origin/main
+          done
+          echo "::error::Could not push the retried benchmark update after 5 attempts."
+          exit 1

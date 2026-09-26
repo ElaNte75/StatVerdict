@@ -201,4 +201,17 @@ jobs:
           git add StatVerdict/Data/Generated/SV_LiveBenchmarkData.lua
           git add tools/data/benchmark_retry_queue.json
           git commit -m "data: refresh live benchmarks"
-          git push
+          # main can move while this job runs (a code push, or another
+          # instance of this workflow). Only the generated data files
+          # changed here, so rebasing onto the latest main is safe -
+          # retry a few times instead of losing a successful run's result.
+          for attempt in 1 2 3 4 5; do
+            if git push; then
+              exit 0
+            fi
+            echo "Push rejected (attempt $attempt/5), rebasing onto latest main and retrying..."
+            git fetch origin main
+            git rebase origin/main
+          done
+          echo "::error::Could not push benchmark update after 5 attempts."
+          exit 1
