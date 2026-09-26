@@ -27,7 +27,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
-from tools.wowhead_stat_engine import TooltipCache, reconstruct_loadout
+try:
+    # Normal case: run as `python -m tools.live_benchmark_engine` or
+    # imported by another module (tests, wowhead_proof.py) - repo root is
+    # on sys.path, so the "tools" package resolves.
+    from tools.wowhead_stat_engine import TooltipCache, reconstruct_loadout
+except ImportError:
+    # Every workflow invokes this as `python tools/live_benchmark_engine.py`
+    # (a direct script path), which puts only this file's own directory on
+    # sys.path, not the repo root - so "tools" isn't importable as a
+    # package there. Fall back to a same-directory import.
+    from wowhead_stat_engine import TooltipCache, reconstruct_loadout
 
 try:
     from tools.simc_stat_engine import render_profiles, run_simc
