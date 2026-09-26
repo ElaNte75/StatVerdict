@@ -13,6 +13,7 @@ import json
 import math
 import os
 import statistics
+import subprocess
 import sys
 import threading
 import time
@@ -803,7 +804,7 @@ def reconstruct_stats_with_simc(
             timeout_seconds=timeout_seconds,
             threads=threads,
         )
-    except (OSError, RuntimeError) as exc:
+    except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
         reason = f"SimulationCraft batch failed: {exc}"
         for record in eligible:
             record["statFailureReason"] = reason
@@ -1237,8 +1238,12 @@ def compare_hero_trees(
 
 
 def validate_database(
-    database: dict[str, Any], required_minimum: int, max_insufficient_specs: int = MAX_INSUFFICIENT_SPECS
+    database: dict[str, Any],
+    required_minimum: int,
+    max_insufficient_specs: int = MAX_INSUFFICIENT_SPECS,
+    expected_specs: Iterable[Spec] = SPECS,
 ) -> None:
+    expected_specs = list(expected_specs)
     errors = []
     if database.get("schemaVersion") != SCHEMA_VERSION:
         errors.append("schemaVersion mismatch")
@@ -1251,11 +1256,11 @@ def validate_database(
         if totals.get("reconstructedStats", 0) <= 0:
             errors.append("no Raider.IO loadouts were reconstructed by SimulationCraft")
     profiles = database.get("profiles")
-    if not isinstance(profiles, dict) or len(profiles) != len(SPECS):
-        errors.append(f"expected {len(SPECS)} profiles")
+    if not isinstance(profiles, dict) or len(profiles) != len(expected_specs):
+        errors.append(f"expected {len(expected_specs)} profiles")
         profiles = profiles if isinstance(profiles, dict) else {}
     insufficient_specs = []
-    for spec in SPECS:
+    for spec in expected_specs:
         profile = profiles.get(spec.key)
         cohorts = profile.get("cohorts") if isinstance(profile, dict) else None
         if not isinstance(cohorts, dict):
@@ -1364,6 +1369,57 @@ def to_lua(value: Any, indent: int = 0) -> str:
     raise TypeError(f"Unsupported type: {type(value)}")
 
 
+def merge_partial_databases(paths: Iterable[Path], allow_override: bool = False) -> dict[str, Any]:
+    """Combine partial databases into a single database.
+
+    By default each input must cover a disjoint set of specs (e.g. one file
+    per role-group workflow job) and overlap is an error. With
+    allow_override=True, a later file's spec entries replace an earlier
+    file's matching entries instead (used to fold a retry run's results back
+    into the previously committed database)."""
+    paths = list(paths)
+    if not paths:
+        raise ValueError("--merge-inputs requires at least one file")
+    merged_profiles: dict[str, Any] = {}
+    template: dict[str, Any] | None = None
+    for path in paths:
+        partial = json.loads(path.read_text(encoding="utf-8"))
+        if template is None:
+            template = partial
+        if not allow_override:
+            overlap = sorted(set(merged_profiles) & set(partial.get("profiles") or {}))
+            if overlap:
+                raise ValueError(f"spec keys appear in more than one merge input: {', '.join(overlap)}")
+        merged_profiles.update(partial.get("profiles") or {})
+    assert template is not None
+    database = dict(template)
+    database["generatedAt"] = utc_now()
+    database["profiles"] = merged_profiles
+    source = dict(template.get("source") or {})
+    source["totals"] = {
+        "candidates": sum(profile.get("candidateCount", 0) for profile in merged_profiles.values()),
+        "verifiedRuns": sum(profile.get("verifiedRunCount", 0) for profile in merged_profiles.values()),
+        "reconstructedStats": sum(
+            profile.get("reconstructedStatCount", 0) for profile in merged_profiles.values()
+        ),
+    }
+    database["source"] = source
+    return database
+
+
+def write_retry_queue(database: dict[str, Any], path: Path) -> list[str]:
+    """Write the spec keys whose profile is not 'ok' to a small JSON file so a
+    later run can retry only those, instead of the whole database."""
+    profiles = database.get("profiles") or {}
+    failing = sorted(key for key, profile in profiles.items() if profile.get("status") != "ok")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps({"generatedAt": utc_now(), "specs": failing}, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return failing
+
+
 def write_database(database: dict[str, Any], json_path: Path, lua_path: Path) -> None:
     json_path.parent.mkdir(parents=True, exist_ok=True)
     lua_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1394,9 +1450,10 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
     expansion_id, season = active_season(http)
     season_slug = args.season or season["slug"]
     max_size = max(args.cohorts)
+    active_specs = [spec for spec in SPECS if spec.key in args.specs] if args.specs else list(SPECS)
     profiles: dict[str, Any] = {}
-    for index, spec in enumerate(SPECS, 1):
-        print(f"[{index:02d}/{len(SPECS)}] {spec.key}: discovering candidates", flush=True)
+    for index, spec in enumerate(active_specs, 1):
+        print(f"[{index:02d}/{len(active_specs)}] {spec.key}: discovering candidates", flush=True)
         candidates = discover_candidates(
             http,
             spec,
@@ -1488,10 +1545,17 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
             "heroTalentGearTrees": hero_gear_trees,
             "heroTalentAnalysis": compare_hero_trees(hero_trees, min(args.cohorts)),
         }
+        failure_note = ""
+        if stat_failure_reasons:
+            top = "; ".join(
+                f"{count}x {reason}" for reason, count in stat_failure_reasons.most_common(2)
+            )
+            failure_note = f"; failures={top}"
         print(
             f"  runs={len(run_records)}/{candidates_checked} reconstructedStats={len(stat_records)}; "
             + f"status={profiles[spec.key]['status']}; heroTrees={len(hero_gear_trees)}; "
-            + ", ".join(f"{label}={row['status']}({row['sampleSize']})" for label, row in cohorts.items()),
+            + ", ".join(f"{label}={row['status']}({row['sampleSize']})" for label, row in cohorts.items())
+            + failure_note,
             flush=True,
         )
     database = {
@@ -1521,7 +1585,7 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
         "profiles": profiles,
         "externalSimulations": load_liquid_armory_import(args.liquid_data, season_slug),
     }
-    validate_database(database, min(args.cohorts), args.max_insufficient_specs)
+    validate_database(database, min(args.cohorts), args.max_insufficient_specs, expected_specs=active_specs)
     return database
 
 
@@ -1530,6 +1594,37 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--json-out", type=Path, default=Path("StatVerdict/Data/Generated/SV_LiveBenchmarkData.json"))
     parser.add_argument("--lua-out", type=Path, default=Path("StatVerdict/Data/Generated/SV_LiveBenchmarkData.lua"))
     parser.add_argument("--validate-only", type=Path)
+    parser.add_argument(
+        "--specs",
+        default="",
+        help="Comma-separated spec keys to process (default: all). Lets a run cover only a subset, "
+        "e.g. one role group, so one slow spec can't stall the others.",
+    )
+    parser.add_argument(
+        "--specs-file",
+        type=Path,
+        help="JSON file with a top-level 'specs' list of spec keys, used instead of --specs "
+        "(e.g. a retry queue written by an earlier run).",
+    )
+    parser.add_argument(
+        "--retry-queue-out",
+        type=Path,
+        help="Write spec keys whose profile status is not 'ok' to this JSON file, so a later "
+        "run can retry only those.",
+    )
+    parser.add_argument(
+        "--merge-inputs",
+        default="",
+        help="Comma-separated partial database JSON files to merge into one, instead of building "
+        "fresh data. Combine with --json-out/--lua-out for the merged result.",
+    )
+    parser.add_argument(
+        "--allow-merge-override",
+        action="store_true",
+        help="When merging, let a later --merge-inputs file's specs replace an earlier file's "
+        "matching specs instead of erroring on overlap (used to fold retry results back into "
+        "the previously committed database).",
+    )
     parser.add_argument("--season", help="Emergency Raider.IO season override")
     parser.add_argument("--regions", default=",".join(SUPPORTED_REGIONS))
     parser.add_argument("--cohorts", default=",".join(str(value) for value in DEFAULT_COHORTS))
@@ -1558,20 +1653,46 @@ def parse_args() -> argparse.Namespace:
         parser.error("at least one cohort size is required")
     if args.candidate_multiplier < 1:
         parser.error("candidate-multiplier must be at least 1")
+    spec_keys: set[str] = set()
+    if args.specs_file:
+        payload = json.loads(args.specs_file.read_text(encoding="utf-8"))
+        spec_keys.update(payload.get("specs") or [])
+    if args.specs:
+        spec_keys.update(value.strip() for value in args.specs.split(",") if value.strip())
+    unknown = sorted(key for key in spec_keys if key not in SPEC_BY_KEY)
+    if unknown:
+        parser.error(f"unknown spec keys: {', '.join(unknown)}")
+    args.specs = spec_keys
+    args.merge_inputs = tuple(
+        Path(value.strip()) for value in args.merge_inputs.split(",") if value.strip()
+    )
     return args
 
 
 def main() -> int:
     args = parse_args()
+    expected_specs = [spec for spec in SPECS if spec.key in args.specs] if args.specs else list(SPECS)
     if args.validate_only:
         database = json.loads(args.validate_only.read_text(encoding="utf-8"))
-        validate_database(database, min(args.cohorts), args.max_insufficient_specs)
+        validate_database(
+            database, min(args.cohorts), args.max_insufficient_specs, expected_specs=expected_specs
+        )
         print(f"Validated {len(database['profiles'])} benchmark profiles.")
         return 0
-    database = build_database(args)
+    if args.merge_inputs:
+        database = merge_partial_databases(args.merge_inputs, allow_override=args.allow_merge_override)
+        merged_specs = [spec for spec in SPECS if spec.key in database["profiles"]]
+        validate_database(
+            database, min(args.cohorts), args.max_insufficient_specs, expected_specs=merged_specs
+        )
+    else:
+        database = build_database(args)
     write_database(database, args.json_out, args.lua_out)
     print(f"Wrote {args.json_out}")
     print(f"Wrote {args.lua_out}")
+    if args.retry_queue_out:
+        failing = write_retry_queue(database, args.retry_queue_out)
+        print(f"Wrote {args.retry_queue_out} ({len(failing)} spec(s) to retry: {', '.join(failing) or 'none'})")
     return 0
 
 

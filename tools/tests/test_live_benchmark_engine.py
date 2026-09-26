@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -16,6 +17,7 @@ from tools.live_benchmark_engine import (
     compare_hero_trees,
     gear_fingerprints_match,
     load_liquid_armory_import,
+    merge_partial_databases,
     parse_active_hero_talent,
     parse_blizzard_gear,
     parse_character_stats,
@@ -25,6 +27,7 @@ from tools.live_benchmark_engine import (
     reconstruct_stats_with_simc,
     validate_database,
     utc_now,
+    write_retry_queue,
 )
 
 
@@ -96,6 +99,60 @@ class BenchmarkEngineTests(unittest.TestCase):
         self.assertTrue(run_record["statEligible"])
         self.assertEqual(303, run_record["stats"]["mastery"])
         self.assertEqual("HERO_31", run_record["heroTalent"]["key"])
+
+    def test_simc_batch_failure_marks_every_eligible_run(self) -> None:
+        runs = [
+            {
+                **record(index),
+                "race": "night-elf",
+                "items": {"HEAD": {"itemId": 271474, "itemLevel": 321}},
+                "runTalentLoadout": "CoPAAAA",
+                "statEligible": False,
+            }
+            for index in (1, 2)
+        ]
+        with patch(
+            "tools.live_benchmark_engine.run_simc",
+            side_effect=RuntimeError("heal actor unsupported"),
+        ):
+            accepted, failures = reconstruct_stats_with_simc(
+                Path("simc"), SPECS[0], runs, timeout_seconds=10, threads=1
+            )
+        self.assertEqual([], accepted)
+        self.assertEqual(2, sum(failures.values()))
+        self.assertTrue(
+            all(
+                str(row["statFailureReason"]).startswith("SimulationCraft batch failed:")
+                for row in runs
+            )
+        )
+
+    def test_simc_timeout_is_caught_and_does_not_crash_the_run(self) -> None:
+        # Regression test: a spec whose SimC batch hangs past --simc-timeout
+        # must be recorded as a failure for that spec only, not raise and
+        # take down the whole 40-spec run (this is what happened with
+        # Windwalker Monk in the run that stalled the pipeline).
+        runs = [
+            {
+                **record(1),
+                "race": "night-elf",
+                "items": {"HEAD": {"itemId": 271474, "itemLevel": 321}},
+                "runTalentLoadout": "CoPAAAA",
+                "statEligible": False,
+            }
+        ]
+        with patch(
+            "tools.live_benchmark_engine.run_simc",
+            side_effect=subprocess.TimeoutExpired(cmd="simc", timeout=1800),
+        ):
+            accepted, failures = reconstruct_stats_with_simc(
+                Path("simc"), SPECS[0], runs, timeout_seconds=1800, threads=2
+            )
+        self.assertEqual([], accepted)
+        self.assertEqual(1, sum(failures.values()))
+        self.assertTrue(
+            str(runs[0]["statFailureReason"]).startswith("SimulationCraft batch failed:")
+        )
 
     def test_catalog_has_forty_unique_specs(self) -> None:
         self.assertEqual(40, len(SPECS))
@@ -421,6 +478,86 @@ class BenchmarkEngineTests(unittest.TestCase):
             path.write_text(json.dumps(payload), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "invalid trinket track"):
                 load_liquid_armory_import(path, "season-test")
+
+
+class BenchmarkMergeAndRetryTests(unittest.TestCase):
+    @staticmethod
+    def _fake_profile(spec_key: str, ok: bool) -> dict:
+        spec = next(s for s in SPECS if s.key == spec_key)
+        return {
+            "status": "ok" if ok else "insufficient",
+            "class": spec.class_name,
+            "spec": spec.spec_name,
+            "role": spec.role,
+            "primaryStat": spec.primary,
+            "candidateCount": 1,
+            "verifiedRunCount": 1 if ok else 0,
+            "reconstructedStatCount": 1 if ok else 0,
+            "coverage": {},
+            "runFailureReasons": [],
+            "statMatchFailureReasons": [],
+            "cohorts": {},
+            "gearCohorts": {},
+            "heroTalentTrees": {},
+            "heroTalentGearTrees": {},
+            "heroTalentAnalysis": {},
+        }
+
+    def _write(self, directory: Path, name: str, profiles: dict) -> Path:
+        path = directory / name
+        path.write_text(
+            json.dumps(
+                {
+                    "schemaVersion": SCHEMA_VERSION,
+                    "generatedAt": utc_now(),
+                    "source": {"totals": {"candidates": 0, "verifiedRuns": 0, "reconstructedStats": 0}},
+                    "profiles": profiles,
+                    "externalSimulations": {"status": "unavailable"},
+                }
+            ),
+            encoding="utf-8",
+        )
+        return path
+
+    def test_merge_combines_disjoint_role_group_outputs(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            directory = Path(directory)
+            dps = self._write(
+                directory, "dps.json", {"DEATHKNIGHT_FROST": self._fake_profile("DEATHKNIGHT_FROST", True)}
+            )
+            tank = self._write(
+                directory, "tank.json", {"DEATHKNIGHT_BLOOD": self._fake_profile("DEATHKNIGHT_BLOOD", True)}
+            )
+            merged = merge_partial_databases([dps, tank])
+        self.assertEqual({"DEATHKNIGHT_FROST", "DEATHKNIGHT_BLOOD"}, set(merged["profiles"]))
+        self.assertEqual(2, merged["source"]["totals"]["candidates"])
+
+    def test_merge_rejects_overlap_unless_override_allowed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            directory = Path(directory)
+            older = self._write(
+                directory, "older.json", {"MAGE_FIRE": self._fake_profile("MAGE_FIRE", False)}
+            )
+            retried = self._write(
+                directory, "retried.json", {"MAGE_FIRE": self._fake_profile("MAGE_FIRE", True)}
+            )
+            with self.assertRaisesRegex(ValueError, "MAGE_FIRE"):
+                merge_partial_databases([older, retried])
+            merged = merge_partial_databases([older, retried], allow_override=True)
+        self.assertEqual("ok", merged["profiles"]["MAGE_FIRE"]["status"])
+
+    def test_retry_queue_lists_only_non_ok_specs(self) -> None:
+        database = {
+            "profiles": {
+                "MAGE_FIRE": self._fake_profile("MAGE_FIRE", True),
+                "DRUID_RESTORATION": self._fake_profile("DRUID_RESTORATION", False),
+            }
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "retry.json"
+            failing = write_retry_queue(database, path)
+            self.assertEqual(["DRUID_RESTORATION"], failing)
+            self.assertEqual(["DRUID_RESTORATION"], json.loads(path.read_text())["specs"])
 
 
 if __name__ == "__main__":

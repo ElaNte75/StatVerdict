@@ -1,0 +1,122 @@
+name: Benchmark retry
+
+on:
+  schedule:
+    # A few hours after "Live benchmark refresh" (same days), so that run
+    # has finished. Retries only the specs it recorded as failed/insufficient.
+    - cron: "0 21 1,15 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: live-benchmarks
+  cancel-in-progress: false
+
+jobs:
+  retry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Check retry queue
+        id: queue
+        shell: bash
+        run: |
+          file="tools/data/benchmark_retry_queue.json"
+          if [ ! -f "$file" ]; then
+            echo "No retry queue file yet; nothing to retry."
+            echo "pending=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          count=$(python -c "import json; print(len(json.load(open('$file')).get('specs') or []))")
+          echo "Retry queue has $count spec(s)."
+          if [ "$count" -gt 0 ]; then
+            echo "pending=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "pending=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Python
+        if: steps.queue.outputs.pending == 'true'
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Check out SimulationCraft Midnight
+        if: steps.queue.outputs.pending == 'true'
+        uses: actions/checkout@v5
+        with:
+          repository: simulationcraft/simc
+          ref: midnight
+          path: .simc-source
+          fetch-depth: 1
+
+      - name: Identify SimulationCraft revision
+        if: steps.queue.outputs.pending == 'true'
+        id: simc-ref
+        shell: bash
+        run: echo "sha=$(git -C .simc-source rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore SimulationCraft build
+        if: steps.queue.outputs.pending == 'true'
+        id: simc-cache
+        uses: actions/cache@v5
+        with:
+          path: .simc-build
+          key: ${{ runner.os }}-simc-midnight-${{ steps.simc-ref.outputs.sha }}
+
+      - name: Build SimulationCraft CLI
+        if: steps.queue.outputs.pending == 'true' && steps.simc-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++
+          cmake -S .simc-source -B .simc-build -G Ninja \
+            -DBUILD_GUI=OFF -DSC_NO_NETWORKING=ON -DCMAKE_BUILD_TYPE=Release
+          cmake --build .simc-build --target simc --parallel 2
+
+      - name: Run engine tests
+        if: steps.queue.outputs.pending == 'true'
+        run: python -m unittest discover -s tools/tests -v
+
+      - name: Rebuild only the failed specs
+        if: steps.queue.outputs.pending == 'true'
+        run: |
+          python tools/live_benchmark_engine.py \
+            --specs-file tools/data/benchmark_retry_queue.json \
+            --cohorts 25,100,200 \
+            --max-pages 100 \
+            --regions eu,us,kr,tw \
+            --simc-bin .simc-build/simc \
+            --workers 8 \
+            --json-out retry-partial.json \
+            --lua-out retry-partial.lua
+
+      - name: Fold retried specs back into the committed database
+        if: steps.queue.outputs.pending == 'true'
+        run: |
+          python tools/live_benchmark_engine.py \
+            --cohorts 25,100,200 \
+            --merge-inputs "StatVerdict/Data/Generated/SV_LiveBenchmarkData.json,retry-partial.json" \
+            --allow-merge-override \
+            --retry-queue-out tools/data/benchmark_retry_queue.json
+
+      - name: Commit retried update
+        if: steps.queue.outputs.pending == 'true'
+        shell: bash
+        run: |
+          if [ -z "$(git status --porcelain -- StatVerdict/Data/Generated/SV_LiveBenchmarkData.json StatVerdict/Data/Generated/SV_LiveBenchmarkData.lua tools/data/benchmark_retry_queue.json)" ]; then
+            echo "No benchmark changes."
+            exit 0
+          fi
+          git config user.name "StatVerdict Benchmark Bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add StatVerdict/Data/Generated/SV_LiveBenchmarkData.json
+          git add StatVerdict/Data/Generated/SV_LiveBenchmarkData.lua
+          git add tools/data/benchmark_retry_queue.json
+          git commit -m "data: retry failed benchmark specs"
+          git push

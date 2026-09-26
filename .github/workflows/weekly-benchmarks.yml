@@ -23,9 +23,23 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  update:
+  # Each role group runs as its own job so one slow/stuck spec only affects
+  # its own group, not the other 33 specs. Healer specs are intentionally
+  # left out for now (tracked separately) until their SimulationCraft
+  # reconstruction issue is fixed.
+  collect:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - group: dps-a
+            specs: "DEATHKNIGHT_FROST,DEATHKNIGHT_UNHOLY,DEMONHUNTER_DEVOURER,DEMONHUNTER_HAVOC,DRUID_BALANCE,DRUID_FERAL,EVOKER_AUGMENTATION,EVOKER_DEVASTATION,HUNTER_BEAST_MASTERY,HUNTER_MARKSMANSHIP,HUNTER_SURVIVAL,MAGE_ARCANE,MAGE_FIRE,MAGE_FROST"
+          - group: dps-b
+            specs: "MONK_WINDWALKER,PALADIN_RETRIBUTION,PRIEST_SHADOW,ROGUE_ASSASSINATION,ROGUE_OUTLAW,ROGUE_SUBTLETY,SHAMAN_ELEMENTAL,SHAMAN_ENHANCEMENT,WARLOCK_AFFLICTION,WARLOCK_DEMONOLOGY,WARLOCK_DESTRUCTION,WARRIOR_ARMS,WARRIOR_FURY"
+          - group: tank
+            specs: "DEATHKNIGHT_BLOOD,DEMONHUNTER_VENGEANCE,DRUID_GUARDIAN,MONK_BREWMASTER,PALADIN_PROTECTION,WARRIOR_PROTECTION"
     runs-on: ubuntu-latest
-    timeout-minutes: 350
+    timeout-minutes: 180
     env:
       RAIDERIO_ACCESS_KEY: ${{ secrets.RAIDERIO_ACCESS_KEY }}
 
@@ -70,30 +84,62 @@ jobs:
       - name: Run engine tests
         run: python -m unittest discover -s tools/tests -v
 
-      - name: Build live benchmark database
+      - name: Build partial benchmark database (${{ matrix.group }})
         env:
           COHORTS: ${{ inputs.cohorts || '25,100,200' }}
           MAX_PAGES: ${{ inputs.max_pages || '100' }}
         run: |
           python tools/live_benchmark_engine.py \
+            --specs "${{ matrix.specs }}" \
             --cohorts "$COHORTS" \
             --max-pages "$MAX_PAGES" \
             --regions eu,us,kr,tw \
             --simc-bin .simc-build/simc \
-            --workers 8
+            --workers 8 \
+            --json-out "partial-${{ matrix.group }}.json" \
+            --lua-out "partial-${{ matrix.group }}.lua"
 
-      - name: Validate generated database
+      - name: Upload partial database
+        uses: actions/upload-artifact@v4
+        with:
+          name: partial-${{ matrix.group }}
+          path: partial-${{ matrix.group }}.json
+          retention-days: 3
+
+  merge:
+    needs: collect
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Download partial databases
+        uses: actions/download-artifact@v4
+        with:
+          pattern: partial-*
+          path: partials
+          merge-multiple: true
+
+      - name: Merge, validate, and write benchmark database
         env:
           COHORTS: ${{ inputs.cohorts || '25,100,200' }}
         run: |
           python tools/live_benchmark_engine.py \
             --cohorts "$COHORTS" \
-            --validate-only StatVerdict/Data/Generated/SV_LiveBenchmarkData.json
+            --merge-inputs "partials/partial-dps-a.json,partials/partial-dps-b.json,partials/partial-tank.json" \
+            --retry-queue-out tools/data/benchmark_retry_queue.json
 
       - name: Commit validated update
         shell: bash
         run: |
-          if [ -z "$(git status --porcelain -- StatVerdict/Data/Generated/SV_LiveBenchmarkData.json StatVerdict/Data/Generated/SV_LiveBenchmarkData.lua)" ]; then
+          if [ -z "$(git status --porcelain -- StatVerdict/Data/Generated/SV_LiveBenchmarkData.json StatVerdict/Data/Generated/SV_LiveBenchmarkData.lua tools/data/benchmark_retry_queue.json)" ]; then
             echo "No benchmark changes."
             exit 0
           fi
@@ -101,5 +147,6 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add StatVerdict/Data/Generated/SV_LiveBenchmarkData.json
           git add StatVerdict/Data/Generated/SV_LiveBenchmarkData.lua
+          git add tools/data/benchmark_retry_queue.json
           git commit -m "data: refresh live benchmarks"
           git push
