@@ -114,7 +114,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: partial-${{ matrix.group }}
-          path: partial-${{ matrix.group }}.json
+          path: |
+            partial-${{ matrix.group }}.json
+            partial-${{ matrix.group }}.lua
           retention-days: 3
 
   collect-healer:
@@ -170,7 +172,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: partial-${{ matrix.group }}
-          path: partial-${{ matrix.group }}.json
+          path: |
+            partial-${{ matrix.group }}.json
+            partial-${{ matrix.group }}.lua
           retention-days: 3
 
   merge:
@@ -195,26 +199,57 @@ jobs:
           path: partials
           merge-multiple: true
 
-      - name: Merge, validate, and write benchmark database
+      # No single combined file: one 40-spec database was 170MB+ (past
+      # GitHub's 100MB limit) and not something the addon could load
+      # anyway - a player only ever needs one spec's data. Instead, check
+      # the 9 partials together cover all 40 specs with no gaps/overlap
+      # (throwaway output, not committed - this step is only for that
+      # check and the retry queue), then keep each role group as its own
+      # small, addon-sized file below.
+      - name: Validate full spec coverage across all groups
         env:
           COHORTS: ${{ inputs.cohorts || '25,100,200' }}
         run: |
           python tools/live_benchmark_engine.py \
             --cohorts "$COHORTS" \
             --merge-inputs "partials/partial-dps-1.json,partials/partial-dps-2.json,partials/partial-dps-3.json,partials/partial-dps-4.json,partials/partial-tank.json,partials/partial-healer-1.json,partials/partial-healer-2.json,partials/partial-healer-3.json,partials/partial-healer-4.json" \
+            --json-out /tmp/coverage-check.json \
+            --lua-out /tmp/coverage-check.lua \
             --retry-queue-out tools/data/benchmark_retry_queue.json
+
+      - name: Recombine the 4 healer groups into one Healer file
+        env:
+          COHORTS: ${{ inputs.cohorts || '25,100,200' }}
+        run: |
+          python tools/live_benchmark_engine.py \
+            --cohorts "$COHORTS" \
+            --merge-inputs "partials/partial-healer-1.json,partials/partial-healer-2.json,partials/partial-healer-3.json,partials/partial-healer-4.json" \
+            --json-out StatVerdict/Data/Generated/SV_LiveBenchmarkData_Healer.json \
+            --lua-out StatVerdict/Data/Generated/SV_LiveBenchmarkData_Healer.lua
+
+      - name: Place the DPS/Tank files under their final names
+        shell: bash
+        run: |
+          declare -A rename=(
+            [dps-1]=DPS1 [dps-2]=DPS2 [dps-3]=DPS3 [dps-4]=DPS4 [tank]=Tank
+          )
+          for group in "${!rename[@]}"; do
+            label="${rename[$group]}"
+            cp "partials/partial-${group}.json" "StatVerdict/Data/Generated/SV_LiveBenchmarkData_${label}.json"
+            cp "partials/partial-${group}.lua" "StatVerdict/Data/Generated/SV_LiveBenchmarkData_${label}.lua"
+          done
 
       - name: Commit validated update
         shell: bash
         run: |
-          if [ -z "$(git status --porcelain -- StatVerdict/Data/Generated/SV_LiveBenchmarkData.json StatVerdict/Data/Generated/SV_LiveBenchmarkData.lua tools/data/benchmark_retry_queue.json)" ]; then
+          if [ -z "$(git status --porcelain -- StatVerdict/Data/Generated tools/data/benchmark_retry_queue.json)" ]; then
             echo "No benchmark changes."
             exit 0
           fi
           git config user.name "StatVerdict Benchmark Bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add StatVerdict/Data/Generated/SV_LiveBenchmarkData.json
-          git add StatVerdict/Data/Generated/SV_LiveBenchmarkData.lua
+          git add StatVerdict/Data/Generated/SV_LiveBenchmarkData_*.json
+          git add StatVerdict/Data/Generated/SV_LiveBenchmarkData_*.lua
           git add tools/data/benchmark_retry_queue.json
           git commit -m "data: refresh live benchmarks"
           # main can move while this job runs (a code push, or another

@@ -97,27 +97,68 @@ jobs:
             --json-out retry-partial.json \
             --lua-out retry-partial.lua
 
-      - name: Fold retried specs back into the committed database
+      # There is no single combined file (see weekly-benchmarks.yml) -
+      # data is split per role into SV_LiveBenchmarkData_<Role>.json/.lua,
+      # each with its own disjoint set of specs. A retry batch can contain
+      # specs from several of those files, so route each retried spec back
+      # into whichever file already owns it, instead of merging everything
+      # into one place.
+      - name: Route each retried spec back into its own role file
         if: steps.queue.outputs.pending == 'true'
+        shell: bash
         run: |
+          cat > /tmp/filter_retry.py <<'PYEOF'
+          import json
+          import sys
+
+          target_path, retry_path, out_path = sys.argv[1:4]
+          retried = json.load(open(retry_path))
+          owned = json.load(open(target_path))["profiles"]
+          overlap = {k: v for k, v in retried["profiles"].items() if k in owned}
+          if overlap:
+              out = dict(retried)
+              out["profiles"] = overlap
+              json.dump(out, open(out_path, "w"))
+              print(len(overlap))
+          else:
+              print(0)
+          PYEOF
+
+          for target in StatVerdict/Data/Generated/SV_LiveBenchmarkData_*.json; do
+            lua="${target%.json}.lua"
+            filtered="${target%.json}.retry-filtered.json"
+            count=$(python /tmp/filter_retry.py "$target" retry-partial.json "$filtered")
+            if [ "$count" -gt 0 ]; then
+              echo "Folding $count spec(s) into $target"
+              python tools/live_benchmark_engine.py \
+                --cohorts 25,100,200 \
+                --merge-inputs "$target,$filtered" \
+                --allow-merge-override \
+                --json-out "$target" \
+                --lua-out "$lua"
+              rm -f "$filtered"
+            fi
+          done
+
           python tools/live_benchmark_engine.py \
             --cohorts 25,100,200 \
-            --merge-inputs "StatVerdict/Data/Generated/SV_LiveBenchmarkData.json,retry-partial.json" \
-            --allow-merge-override \
+            --merge-inputs "$(ls StatVerdict/Data/Generated/SV_LiveBenchmarkData_*.json | paste -sd,)" \
+            --json-out /tmp/coverage-check.json \
+            --lua-out /tmp/coverage-check.lua \
             --retry-queue-out tools/data/benchmark_retry_queue.json
 
       - name: Commit retried update
         if: steps.queue.outputs.pending == 'true'
         shell: bash
         run: |
-          if [ -z "$(git status --porcelain -- StatVerdict/Data/Generated/SV_LiveBenchmarkData.json StatVerdict/Data/Generated/SV_LiveBenchmarkData.lua tools/data/benchmark_retry_queue.json)" ]; then
+          if [ -z "$(git status --porcelain -- StatVerdict/Data/Generated tools/data/benchmark_retry_queue.json)" ]; then
             echo "No benchmark changes."
             exit 0
           fi
           git config user.name "StatVerdict Benchmark Bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add StatVerdict/Data/Generated/SV_LiveBenchmarkData.json
-          git add StatVerdict/Data/Generated/SV_LiveBenchmarkData.lua
+          git add StatVerdict/Data/Generated/SV_LiveBenchmarkData_*.json
+          git add StatVerdict/Data/Generated/SV_LiveBenchmarkData_*.lua
           git add tools/data/benchmark_retry_queue.json
           git commit -m "data: retry failed benchmark specs"
           # See weekly-benchmarks.yml's Commit step: only generated data
