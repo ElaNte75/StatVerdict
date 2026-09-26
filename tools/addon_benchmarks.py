@@ -10,7 +10,17 @@ context had, so scoring and the panels do not change.
 
 from __future__ import annotations
 
+import argparse
+import json
+import sys
+from pathlib import Path
 from typing import Any
+
+try:
+    from tools.live_benchmark_engine import to_lua
+except ModuleNotFoundError:
+    # Run as "python tools/addon_benchmarks.py": sys.path[0] is tools/, not the repo root.
+    from live_benchmark_engine import to_lua
 
 SCHEMA_VERSION = 1
 GOAL = "MYTHIC_PLUS"
@@ -42,6 +52,7 @@ TIER_THRESHOLDS: tuple[tuple[str, float], ...] = (("S", 40.0), ("A", 20.0), ("B"
 TRINKET_LIMIT = 16  # rows in the addon's Ranked Trinkets panel
 MIN_SLOTS = 10  # same as the addon's MIN_CONTEXT_ITEMS
 MIN_ITEM_LEVEL = 250.0  # same as the addon's MIN_VALID_MAX_LEVEL_TARGET_ILVL
+MAX_FILE_BYTES = 5 * 1024 * 1024
 TIE_RATIO = 0.05  # a stat within 5% of the previous one shares its priority tier
 # Live database key -> key used in the addon's statTargets / priority rows.
 TARGET_KEYS = {"crit": "critical_strike", "haste": "haste", "mastery": "mastery", "versatility": "versatility"}
@@ -187,3 +198,158 @@ def measured_primary_stat(cohort: dict[str, Any] | None, fallback: str) -> str:
     raw = ((cohort or {}).get("statTargets") or {}).get("stats") or {}
     best = max(PRIMARY_KEYS, key=lambda key: float(raw.get(key) or 0.0))
     return best if float(raw.get(best) or 0.0) > 0 else fallback
+
+
+def _class_token(value: Any) -> str:
+    return "".join(ch for ch in str(value).upper() if ch.isalpha())
+
+
+def build_level_context(profile: dict[str, Any], cohort_key: str) -> dict[str, Any] | None:
+    cohort = (profile.get("cohorts") or {}).get(cohort_key)
+    gear = (profile.get("gearCohorts") or {}).get(cohort_key)
+    if not valid_cohort(cohort) or not isinstance(gear, dict) or gear.get("status") != "ok":
+        return None
+    popular = gear.get("popularItems") or {}
+    slots = pick_popular_slots(popular)
+    average = cohort.get("averageItemLevel")
+    stats = secondary_stats(cohort, TARGET_KEYS)
+    if len(slots) < MIN_SLOTS or not isinstance(average, (int, float)) or average < MIN_ITEM_LEVEL or len(stats) < 2:
+        return None
+    level = next(name for name, key in LEVELS.items() if key == cohort_key)
+    return {
+        "targets": {
+            "averageItemLevel": float(average),
+            "itemCount": len(slots),
+            "itemLevelSlots": len(slots),
+            "statTargets": {"context": "Mythic+", "source": "StatVerdict live benchmarks", "stats": stats},
+            "targetMetadata": {"lowItemReplacements": 0, "unresolvedLowItems": 0},
+            "sourceGoal": GOAL,
+        },
+        "bis": {"label": "Popular", "slots": slots},
+        "trinkets": rank_trinkets(popular),
+        "priorityProfiles": build_priority_profiles(profile, cohort_key, cohort),
+        "benchmark": {
+            "level": level,
+            "cohort": cohort_key,
+            "sampleSize": int(cohort.get("sampleSize") or 0),
+            "minimumSample": int(cohort.get("minimumSample") or 0),
+            "confidence": cohort.get("confidence") or "unknown",
+            "completeness": float(cohort.get("completeness") or 0.0),
+        },
+    }
+
+
+def build_profile(spec_key: str, profile: dict[str, Any]) -> dict[str, Any] | None:
+    if profile.get("status") != "ok":
+        return None
+    levels: dict[str, Any] = {}
+    for level, cohort_key in LEVELS.items():
+        context = build_level_context(profile, cohort_key)
+        if context:
+            levels[level] = context
+    if not levels:
+        return None
+    reference_key = LEVELS["STANDARD"] if "STANDARD" in levels else LEVELS[sorted(levels)[0]]
+    reference = (profile.get("cohorts") or {}).get(reference_key)
+    return {
+        "specKey": spec_key,
+        "classToken": _class_token(profile.get("class")),
+        "primaryStat": measured_primary_stat(reference, str(profile.get("primaryStat") or "")),
+        "levels": levels,
+    }
+
+
+def build_addon_data(databases: list[dict[str, Any]]) -> dict[str, Any]:
+    if not databases:
+        raise ValueError("at least one raw benchmark database is required")
+    stamps = [str(db["generatedAt"]) for db in databases if db.get("generatedAt")]
+    if not stamps:
+        raise ValueError("no raw benchmark database carries generatedAt")
+    profiles: dict[str, Any] = {}
+    for database in databases:
+        for spec_key, profile in (database.get("profiles") or {}).items():
+            built = build_profile(spec_key, profile)
+            if built:
+                profiles[spec_key] = built
+    raw_source = databases[0].get("source") or {}
+    source = {"name": "StatVerdict live benchmarks"}
+    for key in ("season", "regions", "aggregation"):
+        if raw_source.get(key) is not None:
+            source[key] = raw_source[key]
+    return {"schemaVersion": SCHEMA_VERSION, "generatedAt": min(stamps), "source": source, "profiles": profiles}
+
+
+def render_lua(data: dict[str, Any]) -> str:
+    return (
+        "local addonName, ns = ...\n\n"
+        "-- Generated by tools/addon_benchmarks.py from the live benchmark files. Do not edit manually.\n"
+        "ns.MythicPlusBenchmarks = " + to_lua(data) + "\n"
+    )
+
+
+def write_addon_file(data: dict[str, Any], path: Path) -> int:
+    text = render_lua(data)
+    size = len(text.encode("utf-8"))
+    if size > MAX_FILE_BYTES:
+        raise ValueError(f"addon benchmark file is {size} bytes, over the {MAX_FILE_BYTES} byte limit")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    # Write bytes so Windows keeps LF line endings and the size gate stays exact.
+    tmp.write_bytes(text.encode("utf-8"))
+    tmp.replace(path)
+    return size
+
+
+def build_report(data: dict[str, Any]) -> str:
+    """Per-spec numbers used to review tier thresholds and slot favourites."""
+    lines = [f"generatedAt {data['generatedAt']}, {len(data['profiles'])} specs"]
+    for spec_key in sorted(data["profiles"]):
+        profile = data["profiles"][spec_key]
+        for level in ("ELITE", "STANDARD", "BROAD"):
+            context = profile["levels"].get(level)
+            if not context:
+                lines.append(f"{spec_key} {level}: no data")
+                continue
+            slots = context["bis"]["slots"]
+            favourites = sum(1 for s in slots if s["usagePercent"] >= 40.0)
+            counts = {tier: 0 for tier, _ in TIER_THRESHOLDS}
+            for trinket in context["trinkets"]:
+                counts[trinket["tier"]] += 1
+            tiers = " ".join(f"{tier}:{counts[tier]}" for tier, _ in TIER_THRESHOLDS)
+            bench = context["benchmark"]
+            lines.append(
+                f"{spec_key} {level}: sample {bench['sampleSize']} ({bench['confidence']}), "
+                f"primary {profile['primaryStat']}, slots {len(slots)}, "
+                f"clear favourites (>=40%): {favourites}/{len(slots)}, tiers {tiers}"
+            )
+    return "\n".join(lines)
+
+
+def load_databases(directory: Path) -> list[dict[str, Any]]:
+    paths = sorted(directory.glob("SV_LiveBenchmarkData_*.json"))
+    if not paths:
+        raise FileNotFoundError(f"no SV_LiveBenchmarkData_*.json files in {directory}")
+    return [json.loads(path.read_text(encoding="utf-8")) for path in paths]
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--inputs", type=Path, default=Path("tools/data/live"))
+    parser.add_argument("--out", type=Path, default=Path("StatVerdict/Data/Generated/SV_MythicPlusBenchmarks.lua"))
+    parser.add_argument("--report", action="store_true", help="print the per-spec review report and write nothing")
+    args = parser.parse_args(argv)
+
+    data = build_addon_data(load_databases(args.inputs))
+    if args.report:
+        print(build_report(data))
+        return 0
+    if not data["profiles"]:
+        print("No specialization produced usable data; refusing to write the addon file.", file=sys.stderr)
+        return 1
+    size = write_addon_file(data, args.out)
+    print(f"Wrote {args.out} ({size} bytes, {len(data['profiles'])} specs)")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

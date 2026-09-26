@@ -1,18 +1,34 @@
 from __future__ import annotations
 
+import tempfile
 import unittest
+from pathlib import Path
 
 from tools.addon_benchmarks import (
+    MAX_FILE_BYTES,
     TARGET_KEYS,
+    build_addon_data,
+    build_level_context,
+    build_profile,
+    build_report,
     build_priority_profiles,
     measured_primary_stat,
     order_and_tiers,
     pick_popular_slots,
     rank_trinkets,
+    render_lua,
     secondary_stats,
     valid_cohort,
+    write_addon_file,
 )
-from tools.tests.addon_fixtures import make_item, make_popular_items, make_profile, make_stat_cohort
+from tools.tests.addon_fixtures import (
+    make_gear_cohort,
+    make_item,
+    make_popular_items,
+    make_profile,
+    make_raw_database,
+    make_stat_cohort,
+)
 
 
 class PickPopularSlotsTests(unittest.TestCase):
@@ -135,6 +151,90 @@ class TargetsAndPriorityTests(unittest.TestCase):
         self.assertEqual("intellect", measured_primary_stat(cohort, "agility"))
         empty = make_stat_cohort(100, 1, 1, 1, 1, primaries=(0.0, 0.0, 0.0))
         self.assertEqual("agility", measured_primary_stat(empty, "agility"))
+
+
+class AssemblyTests(unittest.TestCase):
+    def test_level_context_has_the_shape_the_addon_reads(self) -> None:
+        profile = make_profile()
+        context = build_level_context(profile, "TOP_100")
+        targets = context["targets"]
+        self.assertEqual("MYTHIC_PLUS", targets["sourceGoal"])
+        self.assertEqual(326.9, targets["averageItemLevel"])
+        self.assertEqual(15, targets["itemCount"])
+        self.assertEqual(
+            {"critical_strike": 1140.0, "haste": 900.0, "mastery": 680.0, "versatility": 430.0},
+            targets["statTargets"]["stats"],
+        )
+        self.assertEqual("Popular", context["bis"]["label"])
+        self.assertEqual(15, len(context["bis"]["slots"]))
+        self.assertEqual(["S", "S", "A"], [t["tier"] for t in context["trinkets"]])
+        self.assertEqual(
+            {"level": "STANDARD", "cohort": "TOP_100", "sampleSize": 100, "minimumSample": 25,
+             "confidence": "high", "completeness": 1.0},
+            context["benchmark"],
+        )
+
+    def test_invalid_cohort_gives_no_context(self) -> None:
+        profile = make_profile()
+        profile["cohorts"]["TOP_25"]["status"] = "insufficient"
+        self.assertIsNone(build_level_context(profile, "TOP_25"))
+        self.assertIsNotNone(build_level_context(profile, "TOP_100"))
+
+    def test_too_few_slots_or_low_item_level_gives_no_context(self) -> None:
+        profile = make_profile()
+        profile["gearCohorts"]["TOP_100"]["popularItems"] = {"HEAD": make_gear_cohort(100)["popularItems"]["HEAD"]}
+        self.assertIsNone(build_level_context(profile, "TOP_100"))
+        profile = make_profile()
+        profile["cohorts"]["TOP_100"]["averageItemLevel"] = 200.0
+        self.assertIsNone(build_level_context(profile, "TOP_100"))
+
+    def test_profile_keeps_only_valid_levels_and_measured_primary(self) -> None:
+        profile = make_profile(spec_key_class="demon-hunter", primary="agility")
+        for cohort in profile["cohorts"].values():
+            cohort["statTargets"]["stats"].update({"strength": 300.0, "agility": 500.0, "intellect": 2400.0})
+        profile["cohorts"]["TOP_25"]["status"] = "insufficient"
+        built = build_profile("DEMONHUNTER_DEVOURER", profile)
+        self.assertEqual("DEMONHUNTER", built["classToken"])
+        self.assertEqual("intellect", built["primaryStat"])
+        self.assertEqual(["BROAD", "STANDARD"], sorted(built["levels"]))
+
+    def test_profile_that_is_not_ok_is_left_out(self) -> None:
+        profile = make_profile()
+        profile["status"] = "failed"
+        self.assertIsNone(build_profile("DEATHKNIGHT_BLOOD", profile))
+
+    def test_addon_data_uses_the_oldest_generated_at(self) -> None:
+        older = make_raw_database("2026-09-01T00:00:00Z")
+        newer = make_raw_database("2026-09-20T00:00:00Z", {"MAGE_FIRE": make_profile("mage", "intellect")})
+        data = build_addon_data([newer, older])
+        self.assertEqual("2026-09-01T00:00:00Z", data["generatedAt"])
+        self.assertEqual(1, data["schemaVersion"])
+        self.assertEqual(["DEATHKNIGHT_BLOOD", "MAGE_FIRE"], sorted(data["profiles"]))
+        self.assertEqual("season-mn-2", data["source"]["season"])
+
+    def test_lua_output_and_size_gate(self) -> None:
+        data = build_addon_data([make_raw_database("2026-09-26T00:00:00Z")])
+        text = render_lua(data)
+        self.assertTrue(text.startswith("local addonName, ns = ...\n"))
+        self.assertIn("ns.MythicPlusBenchmarks = {", text)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "out" / "SV_MythicPlusBenchmarks.lua"
+            size = write_addon_file(data, path)
+            self.assertEqual(size, path.stat().st_size)
+            self.assertLess(size, MAX_FILE_BYTES)
+        oversized = {"schemaVersion": 1, "generatedAt": "x", "source": {}, "profiles": {"a": "x" * (MAX_FILE_BYTES + 1)}}
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(ValueError):
+                write_addon_file(oversized, Path(tmp) / "big.lua")
+            self.assertFalse((Path(tmp) / "big.lua").exists())
+
+    def test_report_lists_each_spec(self) -> None:
+        data = build_addon_data([make_raw_database("2026-09-26T00:00:00Z")])
+        report = build_report(data)
+        self.assertIn("DEATHKNIGHT_BLOOD", report)
+        self.assertIn("STANDARD", report)
+        self.assertIn("tiers S:2 A:1 B:0 C:0", report)
+        self.assertIn("clear favourites (>=40%): 15/15", report)
 
 
 if __name__ == "__main__":
