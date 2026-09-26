@@ -565,6 +565,7 @@ def parse_run_roster_snapshot(
                     "items": items,
                     "heroTalentId": int(hero_id) if isinstance(hero_id, (int, float)) else None,
                     "talentLoadout": talent.get("exportLoadoutText") or talent.get("loadoutText"),
+                    "race": candidate.get("race", {}).get("slug") or candidate.get("race", {}).get("name"),
                 }
             )
     if not snapshots:
@@ -673,6 +674,7 @@ def character_ref(entry: dict[str, Any]) -> dict[str, Any] | None:
     realm = character.get("realm", {}).get("slug")
     name = character.get("name")
     spec_name = character.get("spec", {}).get("name")
+    race = character.get("race", {}).get("slug") or character.get("race", {}).get("name")
     level = safe_number(character.get("level"))
     score = safe_number(entry.get("score"))
     rank = safe_number(entry.get("rank"))
@@ -685,6 +687,7 @@ def character_ref(entry: dict[str, Any]) -> dict[str, Any] | None:
         "realm": realm,
         "name": name,
         "activeSpec": spec_name,
+        "race": race,
         "level": int(level or 0),
         "score": score,
         "rank": int(rank),

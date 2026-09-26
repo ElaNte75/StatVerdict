@@ -1,0 +1,74 @@
+name: SimulationCraft run reconstruction proof
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/simc_stat_engine.py"
+      - "tools/simc_proof.py"
+      - "tools/tests/test_simc_stat_engine.py"
+      - ".github/workflows/simc-proof.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: simc-reconstruction-proof
+  cancel-in-progress: true
+
+jobs:
+  proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Check out StatVerdict
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Run deterministic tests
+        run: python -m unittest discover -s tools/tests -v
+
+      - name: Check out SimulationCraft Midnight
+        uses: actions/checkout@v5
+        with:
+          repository: simulationcraft/simc
+          ref: midnight
+          path: .simc-source
+          fetch-depth: 1
+
+      - name: Identify SimulationCraft revision
+        id: simc-ref
+        shell: bash
+        run: echo "sha=$(git -C .simc-source rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore SimulationCraft build
+        id: simc-cache
+        uses: actions/cache@v5
+        with:
+          path: .simc-build
+          key: ${{ runner.os }}-simc-midnight-${{ steps.simc-ref.outputs.sha }}
+
+      - name: Build SimulationCraft CLI
+        if: steps.simc-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++
+          cmake \
+            -S .simc-source \
+            -B .simc-build \
+            -G Ninja \
+            -DBUILD_GUI=OFF \
+            -DSC_NO_NETWORKING=ON \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build .simc-build --target simc --parallel 2
+
+      - name: Reconstruct verified Blood DK run
+        run: |
+          python -m tools.simc_proof \
+            --simc-bin .simc-build/simc
