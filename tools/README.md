@@ -94,5 +94,13 @@ The workflow:
 4. validates completeness and required ratings;
 5. commits only validated generated files.
 
-Any API, freshness, sample-size, or quality failure stops the workflow and
-preserves the last known-good database.
+Raider.IO rankings cannot be filtered by specialization, so specs that share a
+class/role ranking (for example Fire among Arcane-heavy Mage DPS rankings) are
+searched with a deeper page budget (`--shared-max-pages`, default 4x
+`--max-pages`). A cohort that still reaches less than 90% of its requested size
+is published with `status: "insufficient"` and must not be used as a target.
+A spec whose smallest cohort is insufficient is marked the same way.
+
+Any API, schema, or quality failure, or more than `--max-insufficient-specs`
+(default 4) insufficient specs, stops the workflow and preserves the last
+known-good database.

@@ -4,6 +4,7 @@ import copy
 import unittest
 
 from tools.live_benchmark_engine import (
+    SCHEMA_VERSION,
     SPECS,
     aggregate_cohort,
     parse_character_stats,
@@ -94,9 +95,9 @@ class BenchmarkEngineTests(unittest.TestCase):
     def test_database_validation_requires_all_specs(self) -> None:
         cohort = aggregate_cohort([record(index) for index in range(3)], 3)
         database = {
-            "schemaVersion": 1,
+            "schemaVersion": SCHEMA_VERSION,
             "profiles": {
-                spec.key: {"cohorts": {"TOP_3": copy.deepcopy(cohort)}}
+                spec.key: {"status": "ok", "cohorts": {"TOP_3": copy.deepcopy(cohort)}}
                 for spec in SPECS
             },
         }
@@ -104,6 +105,26 @@ class BenchmarkEngineTests(unittest.TestCase):
         del database["profiles"][SPECS[0].key]
         with self.assertRaisesRegex(ValueError, "expected 40 profiles"):
             validate_database(database, 3)
+
+    def test_rare_spec_is_flagged_insufficient_without_failing_the_run(self) -> None:
+        full = aggregate_cohort([record(index) for index in range(3)], 3)
+        sparse = aggregate_cohort([record(0)], 3)
+        empty = aggregate_cohort([], 3)
+        self.assertEqual("ok", full["status"])
+        self.assertEqual("insufficient", sparse["status"])
+        self.assertEqual("insufficient", empty["status"])
+        profiles = {
+            spec.key: {"status": "ok", "cohorts": {"TOP_3": copy.deepcopy(full)}} for spec in SPECS
+        }
+        profiles[SPECS[0].key] = {"status": "insufficient", "cohorts": {"TOP_3": sparse}}
+        profiles[SPECS[1].key] = {"status": "insufficient", "cohorts": {"TOP_3": empty}}
+        database = {"schemaVersion": SCHEMA_VERSION, "profiles": profiles}
+        validate_database(database, 3, max_insufficient_specs=2)
+        with self.assertRaisesRegex(ValueError, "2 specs lack a complete TOP_3"):
+            validate_database(database, 3, max_insufficient_specs=1)
+        profiles[SPECS[0].key]["status"] = "ok"
+        with self.assertRaisesRegex(ValueError, "profile status does not match"):
+            validate_database(database, 3, max_insufficient_specs=2)
 
 
 if __name__ == "__main__":

@@ -32,7 +32,9 @@ if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 USER_AGENT = "StatVerdict-LiveBenchmark/1.0"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
+MIN_COHORT_COMPLETENESS = 0.9
+MAX_INSUFFICIENT_SPECS = 4
 DEFAULT_COHORTS = (20, 100, 500)
 SUPPORTED_REGIONS = ("eu", "us", "kr", "tw")
 RANKING_REGIONS = ("world",) + SUPPORTED_REGIONS
@@ -479,7 +481,15 @@ def aggregate_items(records: list[dict[str, Any]]) -> dict[str, list[dict[str, A
 def aggregate_cohort(records: list[dict[str, Any]], requested_size: int) -> dict[str, Any]:
     cohort = robust_records(records)[:requested_size]
     if not cohort:
-        raise ValueError("cohort has no valid records")
+        return {
+            "status": "insufficient",
+            "requestedSize": requested_size,
+            "sampleSize": 0,
+            "completeness": 0.0,
+            "confidence": "none",
+            "statTargets": {"method": "median_character_sheet_rating", "stats": {}, "dispersion": {}},
+            "popularItems": {},
+        }
     stat_targets = {}
     dispersions = {}
     for stat_key in STAT_KEYS:
@@ -494,6 +504,7 @@ def aggregate_cohort(records: list[dict[str, Any]], requested_size: int) -> dict
     levels = [row["itemLevel"] for row in cohort]
     completeness = len(cohort) / requested_size
     return {
+        "status": "ok" if completeness >= MIN_COHORT_COMPLETENESS else "insufficient",
         "requestedSize": requested_size,
         "sampleSize": len(cohort),
         "completeness": round(completeness, 4),
@@ -513,7 +524,9 @@ def aggregate_cohort(records: list[dict[str, Any]], requested_size: int) -> dict
     }
 
 
-def validate_database(database: dict[str, Any], required_minimum: int) -> None:
+def validate_database(
+    database: dict[str, Any], required_minimum: int, max_insufficient_specs: int = MAX_INSUFFICIENT_SPECS
+) -> None:
     errors = []
     if database.get("schemaVersion") != SCHEMA_VERSION:
         errors.append("schemaVersion mismatch")
@@ -521,22 +534,38 @@ def validate_database(database: dict[str, Any], required_minimum: int) -> None:
     if not isinstance(profiles, dict) or len(profiles) != len(SPECS):
         errors.append(f"expected {len(SPECS)} profiles")
         profiles = profiles if isinstance(profiles, dict) else {}
+    insufficient_specs = []
     for spec in SPECS:
         profile = profiles.get(spec.key)
         cohorts = profile.get("cohorts") if isinstance(profile, dict) else None
         if not isinstance(cohorts, dict):
             errors.append(f"{spec.key}: cohorts missing")
             continue
+        base_ok = False
         for label, cohort in cohorts.items():
-            sample = cohort.get("sampleSize", 0) if isinstance(cohort, dict) else 0
-            requested = cohort.get("requestedSize", 0) if isinstance(cohort, dict) else 0
-            stats = cohort.get("statTargets", {}).get("stats", {}) if isinstance(cohort, dict) else {}
-            if label == f"TOP_{required_minimum}" and sample < required_minimum:
-                errors.append(f"{spec.key}/{label}: sample {sample} below {required_minimum}")
-            if requested <= 0 or sample / requested < 0.9:
-                errors.append(f"{spec.key}/{label}: cohort completeness below 90%")
-            if not all(key in stats for key in ("stamina", "crit", "haste", "mastery", "versatility")):
+            if not isinstance(cohort, dict):
+                errors.append(f"{spec.key}/{label}: malformed cohort")
+                continue
+            sample = cohort.get("sampleSize", 0)
+            requested = cohort.get("requestedSize", 0)
+            stats = cohort.get("statTargets", {}).get("stats", {})
+            complete = requested > 0 and sample / requested >= MIN_COHORT_COMPLETENESS
+            expected_status = "ok" if complete else "insufficient"
+            if cohort.get("status") != expected_status:
+                errors.append(f"{spec.key}/{label}: status must be {expected_status}")
+            if complete and not all(key in stats for key in ("stamina", "crit", "haste", "mastery", "versatility")):
                 errors.append(f"{spec.key}/{label}: required stat targets missing")
+            if label == f"TOP_{required_minimum}" and complete and sample >= required_minimum:
+                base_ok = True
+        if profile.get("status") != ("ok" if base_ok else "insufficient"):
+            errors.append(f"{spec.key}: profile status does not match its base cohort")
+        if not base_ok:
+            insufficient_specs.append(spec.key)
+    if len(insufficient_specs) > max_insufficient_specs:
+        errors.append(
+            f"{len(insufficient_specs)} specs lack a complete TOP_{required_minimum} cohort "
+            f"(allowed {max_insufficient_specs}): {', '.join(insufficient_specs)}"
+        )
     if errors:
         preview = "\n".join(f"- {message}" for message in errors[:50])
         suffix = f"\n- ... and {len(errors) - 50} more" if len(errors) > 50 else ""
@@ -604,7 +633,7 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
             season=season_slug,
             regions=args.regions,
             target_count=max_size + max(20, max_size // 5),
-            max_pages=args.max_pages,
+            max_pages=args.max_pages if len(STREAM_SPECS[(spec.class_name, spec.role)]) == 1 else args.shared_max_pages,
             access_key=access_key,
         )
         print(f"  candidates={len(candidates)}; collecting Blizzard profiles", flush=True)
@@ -619,26 +648,33 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
                 elif reason:
                     failure_reasons[reason] += 1
         records.sort(key=lambda row: (-row["score"], row["region"], row["realm"], row["name"]))
+        failure_summary = [
+            {"reason": reason, "count": count} for reason, count in failure_reasons.most_common(3)
+        ]
         if not robust_records(records):
-            summary = "; ".join(
-                f"{count}x {reason}" for reason, count in failure_reasons.most_common(3)
-            )
-            raise ValueError(
-                f"{spec.key}: no valid Blizzard character profiles; "
-                f"{summary or 'no detailed failure reason'}"
-            )
+            summary = "; ".join(f"{row['count']}x {row['reason']}" for row in failure_summary)
+            message = f"{spec.key}: no valid Blizzard character profiles; {summary or 'no candidates found'}"
+            print(f"::warning title=Insufficient benchmark data::{message}", file=sys.stderr)
         cohorts = {}
         for size in args.cohorts:
             cohorts[f"TOP_{size}"] = aggregate_cohort(records, size)
+        base = cohorts[f"TOP_{min(args.cohorts)}"]
         profiles[spec.key] = {
+            "status": "ok" if base["status"] == "ok" and base["sampleSize"] >= min(args.cohorts) else "insufficient",
             "class": spec.class_name,
             "spec": spec.spec_name,
             "role": spec.role,
             "primaryStat": spec.primary,
             "candidateCount": len(candidates),
             "validRecordCount": len(robust_records(records)),
+            "failureReasons": failure_summary,
             "cohorts": cohorts,
         }
+        print(
+            f"  valid={profiles[spec.key]['validRecordCount']}; status={profiles[spec.key]['status']}; "
+            + ", ".join(f"{label}={row['status']}({row['sampleSize']})" for label, row in cohorts.items()),
+            flush=True,
+        )
     database = {
         "schemaVersion": SCHEMA_VERSION,
         "generatedAt": utc_now(),
@@ -653,7 +689,7 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
         },
         "profiles": profiles,
     }
-    validate_database(database, min(args.cohorts))
+    validate_database(database, min(args.cohorts), args.max_insufficient_specs)
     return database
 
 
@@ -666,6 +702,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--regions", default="world")
     parser.add_argument("--cohorts", default="20,100,500")
     parser.add_argument("--max-pages", type=int, default=100)
+    parser.add_argument(
+        "--shared-max-pages",
+        type=int,
+        help="Page budget for class/role rankings shared by several specs (defaults to 4x --max-pages)",
+    )
+    parser.add_argument("--max-insufficient-specs", type=int, default=MAX_INSUFFICIENT_SPECS)
     parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--request-delay", type=float, default=0.05)
     parser.add_argument("--blizzard-client-id")
@@ -678,6 +720,8 @@ def parse_args() -> argparse.Namespace:
         parser.error(f"regions must be a subset of {RANKING_REGIONS}")
     if not args.cohorts:
         parser.error("at least one cohort size is required")
+    if args.shared_max_pages is None:
+        args.shared_max_pages = args.max_pages * 4
     return args
 
 
@@ -685,7 +729,7 @@ def main() -> int:
     args = parse_args()
     if args.validate_only:
         database = json.loads(args.validate_only.read_text(encoding="utf-8"))
-        validate_database(database, min(args.cohorts))
+        validate_database(database, min(args.cohorts), args.max_insufficient_specs)
         print(f"Validated {len(database['profiles'])} benchmark profiles.")
         return 0
     database = build_database(args)
