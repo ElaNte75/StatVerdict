@@ -118,9 +118,19 @@ jobs:
           retention-days: 3
 
   collect-healer:
-    name: Collect — Healer
+    name: Collect — ${{ matrix.label }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - group: healer-1
+            label: "Healer Group 1"
+            specs: "DRUID_RESTORATION,EVOKER_PRESERVATION,MONK_MISTWEAVER,PALADIN_HOLY"
+          - group: healer-2
+            label: "Healer Group 2"
+            specs: "PRIEST_DISCIPLINE,PRIEST_HOLY,SHAMAN_RESTORATION"
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 60
     env:
       RAIDERIO_ACCESS_KEY: ${{ secrets.RAIDERIO_ACCESS_KEY }}
 
@@ -136,25 +146,25 @@ jobs:
       - name: Run engine tests
         run: python -m unittest discover -s tools/tests -v
 
-      - name: Build partial benchmark database (Healer)
+      - name: Build partial benchmark database (${{ matrix.label }})
         env:
           COHORTS: ${{ inputs.cohorts || '25,100,200' }}
           MAX_PAGES: ${{ inputs.max_pages || '100' }}
         run: |
           python tools/live_benchmark_engine.py \
-            --specs "DRUID_RESTORATION,EVOKER_PRESERVATION,MONK_MISTWEAVER,PALADIN_HOLY,PRIEST_DISCIPLINE,PRIEST_HOLY,SHAMAN_RESTORATION" \
+            --specs "${{ matrix.specs }}" \
             --cohorts "$COHORTS" \
             --max-pages "$MAX_PAGES" \
             --regions eu,us,kr,tw \
             --workers 8 \
-            --json-out "partial-healer.json" \
-            --lua-out "partial-healer.lua"
+            --json-out "partial-${{ matrix.group }}.json" \
+            --lua-out "partial-${{ matrix.group }}.lua"
 
       - name: Upload partial database
         uses: actions/upload-artifact@v4
         with:
-          name: partial-healer
-          path: partial-healer.json
+          name: partial-${{ matrix.group }}
+          path: partial-${{ matrix.group }}.json
           retention-days: 3
 
   merge:
@@ -185,7 +195,7 @@ jobs:
         run: |
           python tools/live_benchmark_engine.py \
             --cohorts "$COHORTS" \
-            --merge-inputs "partials/partial-dps-1.json,partials/partial-dps-2.json,partials/partial-dps-3.json,partials/partial-dps-4.json,partials/partial-tank.json,partials/partial-healer.json" \
+            --merge-inputs "partials/partial-dps-1.json,partials/partial-dps-2.json,partials/partial-dps-3.json,partials/partial-dps-4.json,partials/partial-tank.json,partials/partial-healer-1.json,partials/partial-healer-2.json" \
             --retry-queue-out tools/data/benchmark_retry_queue.json
 
       - name: Commit validated update
