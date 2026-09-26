@@ -125,10 +125,16 @@ jobs:
         include:
           - group: healer-1
             label: "Healer Group 1"
-            specs: "DRUID_RESTORATION,EVOKER_PRESERVATION,MONK_MISTWEAVER,PALADIN_HOLY"
+            specs: "DRUID_RESTORATION,EVOKER_PRESERVATION"
           - group: healer-2
             label: "Healer Group 2"
-            specs: "PRIEST_DISCIPLINE,PRIEST_HOLY,SHAMAN_RESTORATION"
+            specs: "MONK_MISTWEAVER,PALADIN_HOLY"
+          - group: healer-3
+            label: "Healer Group 3"
+            specs: "PRIEST_DISCIPLINE,PRIEST_HOLY"
+          - group: healer-4
+            label: "Healer Group 4"
+            specs: "SHAMAN_RESTORATION"
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -156,7 +162,7 @@ jobs:
             --cohorts "$COHORTS" \
             --max-pages "$MAX_PAGES" \
             --regions eu,us,kr,tw \
-            --workers 8 \
+            --workers 4 \
             --json-out "partial-${{ matrix.group }}.json" \
             --lua-out "partial-${{ matrix.group }}.lua"
 
@@ -195,7 +201,7 @@ jobs:
         run: |
           python tools/live_benchmark_engine.py \
             --cohorts "$COHORTS" \
-            --merge-inputs "partials/partial-dps-1.json,partials/partial-dps-2.json,partials/partial-dps-3.json,partials/partial-dps-4.json,partials/partial-tank.json,partials/partial-healer-1.json,partials/partial-healer-2.json" \
+            --merge-inputs "partials/partial-dps-1.json,partials/partial-dps-2.json,partials/partial-dps-3.json,partials/partial-dps-4.json,partials/partial-tank.json,partials/partial-healer-1.json,partials/partial-healer-2.json,partials/partial-healer-3.json,partials/partial-healer-4.json" \
             --retry-queue-out tools/data/benchmark_retry_queue.json
 
       - name: Commit validated update
