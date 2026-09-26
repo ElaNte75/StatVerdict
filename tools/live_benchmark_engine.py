@@ -117,7 +117,7 @@ class JsonClient:
         if params:
             url = f"{url}?{urllib.parse.urlencode(params)}"
         request_headers = {"User-Agent": USER_AGENT, **(headers or {})}
-        last_error: Exception | None = None
+        last_error = "unknown error"
         for attempt in range(retries):
             try:
                 if self.delay:
@@ -127,15 +127,17 @@ class JsonClient:
                 with urllib.request.urlopen(request, timeout=30) as response:
                     return json.loads(response.read().decode("utf-8"))
             except urllib.error.HTTPError as exc:
-                last_error = exc
+                last_error = f"HTTP {exc.code} {exc.reason}"
                 if exc.code not in (429, 500, 502, 503, 504):
                     break
                 retry_after = float(exc.headers.get("Retry-After", 0) or 0)
                 time.sleep(max(retry_after, 2**attempt))
             except (OSError, ValueError) as exc:
-                last_error = exc
+                last_error = f"{type(exc).__name__}: {exc}"
                 time.sleep(2**attempt)
-        raise ApiError(f"Request failed: {url}: {last_error}")
+        parsed_url = urllib.parse.urlsplit(url)
+        safe_endpoint = f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path}"
+        raise ApiError(f"Request failed: {safe_endpoint}: {last_error}")
 
 
 class BlizzardClient:
@@ -177,8 +179,8 @@ class BlizzardClient:
             params={
                 "namespace": f"profile-{region}",
                 "locale": "en_US",
-                "access_token": self.token(region),
             },
+            headers={"Authorization": f"Bearer {self.token(region)}"},
         )
 
 
