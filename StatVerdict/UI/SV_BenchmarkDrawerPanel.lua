@@ -6,9 +6,9 @@ ns.StatVerdictBenchmarkDrawerPanel = Panel
 local DRAWER_PREFERRED_WIDTH = 280
 local MARGIN = 14
 local ROW_HEIGHT = 56
-local ROW_STEP = 64
+local ROW_STEP = 62
 local ROWS_TOP = -96
-local INFO_ROW_STEP = 20
+local INFO_ROW_STEP = 18
 
 local GOLD = { 1.0, 0.82, 0.0 }
 local GREY = { 0.72, 0.72, 0.72 }
@@ -127,7 +127,7 @@ local function EnsureLevelRow(card, index, level)
     return row
 end
 
-local INFO_LABELS = { "Sample", "Confidence", "Data from" }
+local INFO_LABELS = { "Sample", "Data from" }
 
 local function EnsureCard(frame)
     if frame.benchmarkDrawerCard then return frame.benchmarkDrawerCard end
@@ -186,8 +186,14 @@ local function EnsureCard(frame)
     end
 
     card.note = AddText(card, "GameFontHighlightSmall", infoTop - 40)
-    card.warning = AddText(card, "GameFontHighlightSmall", infoTop - 40 - (#INFO_LABELS * INFO_ROW_STEP) - 6)
+    local warningY = infoTop - 40 - (#INFO_LABELS * INFO_ROW_STEP) - 4
+    card.warning = AddText(card, "GameFontHighlightSmall", warningY)
     card.warning:SetTextColor(ORANGE[1], ORANGE[2], ORANGE[3])
+
+    -- A short plain-language description of the selected level sits below the data,
+    -- leaving room for a two-line warning above it.
+    card.about = AddText(card, "GameFontHighlightSmall", warningY - 34)
+    card.about:SetTextColor(0.85, 0.85, 0.85)
 
     frame.benchmarkDrawerCard = card
     return card
@@ -201,6 +207,7 @@ function Panel.Sync(card)
         row.check:SetChecked(row.key == selected)
         PaintRow(row, row.key == selected, row.hovered == true)
     end
+    card.about:SetText(ns.GetBenchmarkLevelInfo(selected).about or "")
 
     local mythicPlus = ActiveGoalIsMythicPlus()
     local bench = mythicPlus and ActiveBenchmark() or nil
@@ -215,16 +222,18 @@ function Panel.Sync(card)
     if bench then
         card.note:SetText("")
         local confidence = tostring(bench.confidence or "unknown")
-        card.dataRows[1].value:SetText(string.format("%d players", tonumber(bench.sampleSize) or 0))
-        card.dataRows[1].value:SetTextColor(WHITE[1], WHITE[2], WHITE[3])
-        card.dataRows[2].value:SetText(confidence:sub(1, 1):upper() .. confidence:sub(2))
+        card.dataRows[1].value:SetText(string.format(
+            "%d players · %s confidence",
+            tonumber(bench.sampleSize) or 0,
+            confidence:sub(1, 1):upper() .. confidence:sub(2)
+        ))
         if confidence == "high" then
-            card.dataRows[2].value:SetTextColor(GREEN[1], GREEN[2], GREEN[3])
+            card.dataRows[1].value:SetTextColor(GREEN[1], GREEN[2], GREEN[3])
         else
-            card.dataRows[2].value:SetTextColor(ORANGE[1], ORANGE[2], ORANGE[3])
+            card.dataRows[1].value:SetTextColor(ORANGE[1], ORANGE[2], ORANGE[3])
         end
-        card.dataRows[3].value:SetText(tostring(provenance and provenance.scrape or "unknown"))
-        card.dataRows[3].value:SetTextColor(WHITE[1], WHITE[2], WHITE[3])
+        card.dataRows[2].value:SetText(tostring(provenance and provenance.scrape or "unknown"))
+        card.dataRows[2].value:SetTextColor(WHITE[1], WHITE[2], WHITE[3])
         if ns.IsBenchmarkSampleSmall(bench) then
             card.warning:SetText("Smaller sample: results can be less stable.")
         else
@@ -262,6 +271,20 @@ function Panel.Toggle()
     if ns.ToggleRightPanelMode then ns.ToggleRightPanelMode("benchmark") end
 end
 
+-- The drawer copies the padding of the Features drawer, so its outline sits exactly
+-- like the other drawers; a padding set on this drawer itself wins.
+function Panel.GetCardPad()
+    local function pad(key)
+        return ns.GetRightDrawerCardPad and ns.GetRightDrawerCardPad(key)
+            or { top = 0, bottom = 0, left = 0, right = 0 }
+    end
+    local own = pad("benchmark.card")
+    if (own.top or 0) ~= 0 or (own.bottom or 0) ~= 0 or (own.left or 0) ~= 0 or (own.right or 0) ~= 0 then
+        return own
+    end
+    return pad("options.card")
+end
+
 function Panel.GetPreferredWidth(frame)
     local width = DRAWER_PREFERRED_WIDTH + SizeDelta("benchmark.width")
     if width < 200 then width = 200 end
@@ -290,8 +313,7 @@ function Panel.Apply(frame)
     if ns.StatVerdictDashboardLayout and ns.StatVerdictDashboardLayout.GetRightPanelExtraGap then
         extra = ns.StatVerdictDashboardLayout.GetRightPanelExtraGap()
     end
-    local cardPad = ns.GetRightDrawerCardPad and ns.GetRightDrawerCardPad("benchmark.card")
-        or { top = 0, bottom = 0, left = 0, right = 0 }
+    local cardPad = Panel.GetCardPad()
     if ns.StatVerdictDashboardLayout and ns.StatVerdictDashboardLayout.AnchorAfterPreviousCard and frame.statProgressCard then
         ns.StatVerdictDashboardLayout.AnchorAfterPreviousCard(card, frame.statProgressCard, frame, extra, 0, cardPad)
     elseif ns.StatVerdictDashboardLayout and ns.StatVerdictDashboardLayout.AnchorOuterCard then

@@ -350,11 +350,30 @@ class BenchmarkDrawerSmokeTests(unittest.TestCase):
 
     def test_shows_sample_confidence_and_date_without_warning(self) -> None:
         card = self.card()
-        self.assertEqual("100 players", card.dataRows[1].value.text)
-        self.assertEqual("High", card.dataRows[2].value.text)
-        self.assertEqual("2026-09-26", card.dataRows[3].value.text)
+        self.assertEqual("Sample", card.dataRows[1].label.text)
+        self.assertEqual("100 players · High confidence", card.dataRows[1].value.text)
+        self.assertEqual("Data from", card.dataRows[2].label.text)
+        self.assertEqual("2026-09-26", card.dataRows[2].value.text)
         self.assertEqual("", card.warning.text)
         self.assertEqual("", card.note.text)
+
+    def test_description_follows_the_selected_level(self) -> None:
+        card = self.card()
+        self.assertIn("100 best players", card.about.text)
+        card.levelRows[1].scripts.OnClick()
+        self.assertIn("25 best players", card.about.text)
+        card.levelRows[3].scripts.OnClick()
+        self.assertIn("200 best players", card.about.text)
+
+    def test_card_padding_copies_the_features_drawer(self) -> None:
+        pads = {"options.card.pad": self.lua.table(top=5, bottom=5, left=0, right=0)}
+        zero = self.lua.table(top=0, bottom=0, left=0, right=0)
+        self.ns.GetDevLayoutPadding = lambda key: pads.get(key, zero)
+        pad = self.ns.StatVerdictBenchmarkDrawerPanel.GetCardPad()
+        self.assertEqual((5, 5, 0, 0), (pad.top, pad.bottom, pad.left, pad.right))
+        pads["benchmark.card.pad"] = self.lua.table(top=2, bottom=3, left=0, right=0)
+        pad = self.ns.StatVerdictBenchmarkDrawerPanel.GetCardPad()
+        self.assertEqual((2, 3), (pad.top, pad.bottom))
 
     def test_small_sample_shows_the_warning(self) -> None:
         self.set_context(self.lua.table(sampleSize=25, minimumSample=25, confidence="high"))
