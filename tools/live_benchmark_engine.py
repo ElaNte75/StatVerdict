@@ -32,7 +32,7 @@ if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 USER_AGENT = "StatVerdict-LiveBenchmark/1.0"
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 MIN_COHORT_COMPLETENESS = 0.9
 MAX_INSUFFICIENT_SPECS = 4
 DEFAULT_COHORTS = (20, 100, 500)
@@ -289,6 +289,32 @@ def parse_equipment(equipment: dict[str, Any]) -> tuple[float | None, dict[str, 
     return (statistics.mean(levels) if levels else None), slots
 
 
+def parse_active_hero_talent(
+    specializations: dict[str, Any], expected_spec: str
+) -> tuple[dict[str, Any] | None, str | None]:
+    active_spec = specializations.get("active_specialization")
+    active_spec_name = active_spec.get("name") if isinstance(active_spec, dict) else None
+    if active_spec_name and active_spec_name != expected_spec:
+        return None, f"Active specialization is {active_spec_name}, expected {expected_spec}"
+
+    tree = specializations.get("active_hero_talent_tree")
+    if not isinstance(tree, dict):
+        for specialization in specializations.get("specializations", []):
+            spec_row = specialization.get("specialization", {}) if isinstance(specialization, dict) else {}
+            if spec_row.get("name") != expected_spec:
+                continue
+            for loadout in specialization.get("loadouts", []):
+                if isinstance(loadout, dict) and loadout.get("is_active"):
+                    tree = loadout.get("selected_hero_talent_tree")
+                    break
+
+    tree_id = tree.get("id") if isinstance(tree, dict) else None
+    tree_name = tree.get("name") if isinstance(tree, dict) else None
+    if not isinstance(tree_id, int) or not isinstance(tree_name, str) or not tree_name:
+        return None, "Active hero talent tree missing from Blizzard profile"
+    return {"key": f"HERO_{tree_id}", "id": tree_id, "name": tree_name}, None
+
+
 def active_season(http: JsonClient, expansion_min: int = 10, expansion_max: int = 14) -> tuple[int, dict[str, Any]]:
     now = utc_now()
     candidates: list[tuple[str, int, dict[str, Any]]] = []
@@ -427,12 +453,22 @@ def fetch_record(
         )
     if spec.primary not in stats:
         return None, f"Profile response did not contain {spec.primary}"
+
+    hero_talent = None
+    hero_talent_reason = None
+    try:
+        specializations_raw = blizzard.character_resource(character, "specializations")
+        hero_talent, hero_talent_reason = parse_active_hero_talent(specializations_raw, spec.spec_name)
+    except ApiError as exc:
+        hero_talent_reason = str(exc)
     return (
         {
             **character,
             "stats": stats,
             "itemLevel": item_level,
             "items": items,
+            "heroTalent": hero_talent,
+            "heroTalentReason": hero_talent_reason,
         },
         None,
     )
@@ -524,6 +560,72 @@ def aggregate_cohort(records: list[dict[str, Any]], requested_size: int) -> dict
     }
 
 
+def aggregate_hero_trees(
+    records: list[dict[str, Any]], cohort_sizes: tuple[int, ...]
+) -> dict[str, dict[str, Any]]:
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    metadata: dict[str, dict[str, Any]] = {}
+    for record in records:
+        tree = record.get("heroTalent")
+        if not isinstance(tree, dict) or not tree.get("key"):
+            continue
+        grouped[tree["key"]].append(record)
+        metadata[tree["key"]] = {"id": tree["id"], "name": tree["name"]}
+
+    trees = {}
+    for key in sorted(grouped):
+        tree_records = sorted(
+            grouped[key], key=lambda row: (-row["score"], row["region"], row["realm"], row["name"])
+        )
+        cohorts = {
+            f"TOP_{size}": aggregate_cohort(tree_records, size) for size in cohort_sizes
+        }
+        base = cohorts[f"TOP_{min(cohort_sizes)}"]
+        trees[key] = {
+            **metadata[key],
+            "status": base["status"],
+            "fallback": "spec",
+            "sampleCount": len(robust_records(tree_records)),
+            "cohorts": cohorts,
+        }
+    return trees
+
+
+def compare_hero_trees(
+    hero_trees: dict[str, dict[str, Any]], cohort_size: int
+) -> dict[str, Any]:
+    usable = [
+        tree for tree in hero_trees.values()
+        if tree.get("cohorts", {}).get(f"TOP_{cohort_size}", {}).get("status") == "ok"
+    ]
+    if len(usable) < 2:
+        return {
+            "status": "insufficient",
+            "cohort": f"TOP_{cohort_size}",
+            "reason": "At least two complete hero-tree cohorts are required",
+        }
+
+    stat_ranges = {}
+    for stat in ("crit", "haste", "mastery", "versatility"):
+        values = {
+            tree["name"]: tree["cohorts"][f"TOP_{cohort_size}"]["statTargets"]["stats"][stat]
+            for tree in usable
+        }
+        low = min(values.values())
+        high = max(values.values())
+        stat_ranges[stat] = {
+            "byTree": values,
+            "absoluteRange": round(high - low, 2),
+            "relativeRangePercent": round(((high - low) / low) * 100, 2) if low > 0 else None,
+        }
+    return {
+        "status": "ok",
+        "cohort": f"TOP_{cohort_size}",
+        "treesCompared": len(usable),
+        "statRanges": stat_ranges,
+    }
+
+
 def validate_database(
     database: dict[str, Any], required_minimum: int, max_insufficient_specs: int = MAX_INSUFFICIENT_SPECS
 ) -> None:
@@ -559,6 +661,19 @@ def validate_database(
                 base_ok = True
         if profile.get("status") != ("ok" if base_ok else "insufficient"):
             errors.append(f"{spec.key}: profile status does not match its base cohort")
+        hero_trees = profile.get("heroTalentTrees")
+        if not isinstance(hero_trees, dict):
+            errors.append(f"{spec.key}: heroTalentTrees missing")
+        else:
+            for tree_key, tree in hero_trees.items():
+                tree_cohorts = tree.get("cohorts") if isinstance(tree, dict) else None
+                if not isinstance(tree_cohorts, dict):
+                    errors.append(f"{spec.key}/{tree_key}: hero cohorts missing")
+                    continue
+                base = tree_cohorts.get(f"TOP_{required_minimum}", {})
+                expected = "ok" if base.get("status") == "ok" else "insufficient"
+                if tree.get("status") != expected:
+                    errors.append(f"{spec.key}/{tree_key}: hero-tree status must be {expected}")
         if not base_ok:
             insufficient_specs.append(spec.key)
     if len(insufficient_specs) > max_insufficient_specs:
@@ -658,6 +773,13 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
         cohorts = {}
         for size in args.cohorts:
             cohorts[f"TOP_{size}"] = aggregate_cohort(records, size)
+        hero_trees = aggregate_hero_trees(records, args.cohorts)
+        hero_known = sum(1 for record in records if record.get("heroTalent"))
+        hero_failures = Counter(
+            record["heroTalentReason"]
+            for record in records
+            if not record.get("heroTalent") and record.get("heroTalentReason")
+        )
         base = cohorts[f"TOP_{min(args.cohorts)}"]
         profiles[spec.key] = {
             "status": "ok" if base["status"] == "ok" and base["sampleSize"] >= min(args.cohorts) else "insufficient",
@@ -669,9 +791,21 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
             "validRecordCount": len(robust_records(records)),
             "failureReasons": failure_summary,
             "cohorts": cohorts,
+            "heroTalentCoverage": {
+                "known": hero_known,
+                "total": len(records),
+                "ratio": round(hero_known / len(records), 4) if records else 0.0,
+                "failureReasons": [
+                    {"reason": reason, "count": count}
+                    for reason, count in hero_failures.most_common(3)
+                ],
+            },
+            "heroTalentTrees": hero_trees,
+            "heroTalentAnalysis": compare_hero_trees(hero_trees, min(args.cohorts)),
         }
         print(
             f"  valid={profiles[spec.key]['validRecordCount']}; status={profiles[spec.key]['status']}; "
+            + f"hero={hero_known}/{len(records)} trees={len(hero_trees)}; "
             + ", ".join(f"{label}={row['status']}({row['sampleSize']})" for label, row in cohorts.items()),
             flush=True,
         )
@@ -682,6 +816,7 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
             "ranking": "Raider.IO character rankings",
             "characterStats": "Blizzard Profile API character statistics",
             "equipment": "Blizzard Profile API character equipment",
+            "heroTalents": "Blizzard Profile API character specializations",
             "season": season_slug,
             "expansionId": expansion_id,
             "regions": list(args.regions),

@@ -7,8 +7,8 @@ specializations.
 
 - Raider.IO supplies the current season leaderboard, character identity, score,
   class, role, and specialization discovery.
-- Blizzard Profile API supplies current character-sheet ratings and equipped
-  items.
+- Blizzard Profile API supplies current character-sheet ratings, equipped
+  items, and the active Hero Talent tree.
 - Targets are medians from the selected cohort, not simulated optimums.
 
 The profile APIs show what a character is wearing when indexed. They do not
@@ -28,6 +28,14 @@ cohort includes the smaller one. The engine records:
   Versatility ratings;
 - interquartile ranges so a wide or unstable target is visible;
 - item popularity by equipment slot.
+
+Each specialization also stores the same cohorts separately for every observed
+Hero Talent tree. A tree cohort below 90% completeness is marked
+`status: "insufficient"` and declares `fallback: "spec"`; consumers must use
+the general specialization cohort instead. `heroTalentAnalysis` compares
+secondary-stat medians only when at least two tree cohorts are complete, so the
+database can show whether the split materially matters without inventing a
+conclusion from sparse data.
 
 Character profiles more than 15% away from the sample's median item level are
 rejected as stale/outlier profiles. The generated files replace the previous
