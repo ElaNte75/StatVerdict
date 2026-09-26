@@ -1,15 +1,15 @@
-name: Weekly live benchmarks
+name: Live benchmark refresh
 
 on:
   schedule:
-    # Wednesday 15:00 UTC (18:00 Greece during daylight-saving time).
-    - cron: "0 15 * * 3"
+    # Check twice monthly; unchanged data produces no commit.
+    - cron: "0 15 1,15 * *"
   workflow_dispatch:
     inputs:
       cohorts:
         description: "Comma-separated leaderboard rank ceilings"
         required: true
-        default: "25,100,250"
+        default: "25,100,200"
       max_pages:
         description: "Maximum Raider.IO specialization-ranking pages"
         required: true
@@ -19,7 +19,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: weekly-live-benchmarks
+  group: live-benchmarks
   cancel-in-progress: false
 
 jobs:
@@ -27,8 +27,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 350
     env:
-      BLIZZARD_CLIENT_ID: ${{ secrets.BLIZZARD_CLIENT_ID }}
-      BLIZZARD_CLIENT_SECRET: ${{ secrets.BLIZZARD_CLIENT_SECRET }}
       RAIDERIO_ACCESS_KEY: ${{ secrets.RAIDERIO_ACCESS_KEY }}
 
     steps:
@@ -40,35 +38,53 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Verify required credentials
+      - name: Check out SimulationCraft Midnight
+        uses: actions/checkout@v5
+        with:
+          repository: simulationcraft/simc
+          ref: midnight
+          path: .simc-source
+          fetch-depth: 1
+
+      - name: Identify SimulationCraft revision
+        id: simc-ref
         shell: bash
+        run: echo "sha=$(git -C .simc-source rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore SimulationCraft build
+        id: simc-cache
+        uses: actions/cache@v5
+        with:
+          path: .simc-build
+          key: ${{ runner.os }}-simc-midnight-${{ steps.simc-ref.outputs.sha }}
+
+      - name: Build SimulationCraft CLI
+        if: steps.simc-cache.outputs.cache-hit != 'true'
         run: |
-          test -n "$BLIZZARD_CLIENT_ID" || {
-            echo "::error::Missing BLIZZARD_CLIENT_ID repository secret"
-            exit 1
-          }
-          test -n "$BLIZZARD_CLIENT_SECRET" || {
-            echo "::error::Missing BLIZZARD_CLIENT_SECRET repository secret"
-            exit 1
-          }
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++
+          cmake -S .simc-source -B .simc-build -G Ninja \
+            -DBUILD_GUI=OFF -DSC_NO_NETWORKING=ON -DCMAKE_BUILD_TYPE=Release
+          cmake --build .simc-build --target simc --parallel 2
 
       - name: Run engine tests
         run: python -m unittest discover -s tools/tests -v
 
       - name: Build live benchmark database
         env:
-          COHORTS: ${{ inputs.cohorts || '25,100,250' }}
+          COHORTS: ${{ inputs.cohorts || '25,100,200' }}
           MAX_PAGES: ${{ inputs.max_pages || '100' }}
         run: |
           python tools/live_benchmark_engine.py \
             --cohorts "$COHORTS" \
             --max-pages "$MAX_PAGES" \
-            --regions world \
+            --regions eu,us,kr,tw \
+            --simc-bin .simc-build/simc \
             --workers 8
 
       - name: Validate generated database
         env:
-          COHORTS: ${{ inputs.cohorts || '25,100,250' }}
+          COHORTS: ${{ inputs.cohorts || '25,100,200' }}
         run: |
           python tools/live_benchmark_engine.py \
             --cohorts "$COHORTS" \
@@ -85,5 +101,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add StatVerdict/Data/Generated/SV_LiveBenchmarkData.json
           git add StatVerdict/Data/Generated/SV_LiveBenchmarkData.lua
-          git commit -m "data: refresh weekly live benchmarks"
+          git commit -m "data: refresh live benchmarks"
           git push

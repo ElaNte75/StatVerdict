@@ -61,6 +61,17 @@ def main() -> int:
     ]
     if missing:
         raise RuntimeError(f"SimulationCraft ratings missing: {','.join(missing)}")
+    attributes = stats.get("attributes", {})
+    missing_attributes = [
+        key for key in ("strength", "stamina")
+        if not isinstance(attributes.get(key), (int, float))
+    ]
+    if missing_attributes:
+        raise RuntimeError(
+            f"SimulationCraft attributes missing: {','.join(missing_attributes)}"
+        )
+    if not isinstance(stats.get("health"), (int, float)):
+        raise RuntimeError("SimulationCraft health is missing")
 
     build = report.get("version") or report.get("sim", {}).get("version")
     print(

@@ -5,6 +5,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from tools.live_benchmark_engine import (
     SCHEMA_VERSION,
@@ -21,6 +22,7 @@ from tools.live_benchmark_engine import (
     parse_equipment,
     parse_rio_gear,
     parse_run_roster_snapshot,
+    reconstruct_stats_with_simc,
     validate_database,
     utc_now,
 )
@@ -67,6 +69,34 @@ def gear_cohort_stub(status: str, sample_size: int, minimum_sample: int = 3) -> 
 
 
 class BenchmarkEngineTests(unittest.TestCase):
+    def test_simc_reconstruction_marks_exact_run_eligible(self) -> None:
+        run_record = {
+            **record(1),
+            "race": "night-elf",
+            "items": {"HEAD": {"itemId": 271474, "itemLevel": 321}},
+            "runTalentLoadout": "CoPAAAA",
+            "runHeroTalentId": 31,
+            "statEligible": False,
+        }
+        reconstructed = {
+            "sv_0001": {
+                "ratings": {"crit": 101, "haste": 202, "mastery": 303, "versatility": 404},
+                "percentages": {"crit": 0.1},
+                "attributes": {"strength": 500, "stamina": 600},
+                "health": 7000,
+                "armor": 800,
+            }
+        }
+        with patch("tools.live_benchmark_engine.run_simc", return_value=(reconstructed, {})):
+            accepted, failures = reconstruct_stats_with_simc(
+                Path("simc"), SPECS[0], [run_record], timeout_seconds=10, threads=1
+            )
+        self.assertEqual(1, len(accepted))
+        self.assertFalse(failures)
+        self.assertTrue(run_record["statEligible"])
+        self.assertEqual(303, run_record["stats"]["mastery"])
+        self.assertEqual("HERO_31", run_record["heroTalent"]["key"])
+
     def test_catalog_has_forty_unique_specs(self) -> None:
         self.assertEqual(40, len(SPECS))
         self.assertEqual(40, len({spec.key for spec in SPECS}))
@@ -165,7 +195,7 @@ class BenchmarkEngineTests(unittest.TestCase):
                     "status": "ok",
                     "candidateCount": 3,
                     "verifiedRunCount": 3,
-                    "exactStatMatchCount": 3,
+                    "reconstructedStatCount": 3,
                     "cohorts": {"TOP_3": copy.deepcopy(cohort)},
                     "gearCohorts": {"TOP_3": gear_cohort_stub("ok", 3)},
                     "heroTalentTrees": {},
@@ -175,9 +205,9 @@ class BenchmarkEngineTests(unittest.TestCase):
         }
         validate_database(database, 3)
         database["source"] = {
-            "totals": {"candidates": 3, "verifiedRuns": 1, "exactStatMatches": 0}
+            "totals": {"candidates": 3, "verifiedRuns": 1, "reconstructedStats": 0}
         }
-        with self.assertRaisesRegex(ValueError, "no exact Raider.IO-to-Blizzard"):
+        with self.assertRaisesRegex(ValueError, "no Raider.IO loadouts"):
             validate_database(database, 3)
         del database["source"]
         del database["profiles"][SPECS[0].key]
@@ -196,7 +226,7 @@ class BenchmarkEngineTests(unittest.TestCase):
                 "status": "ok",
                 "candidateCount": 3,
                 "verifiedRunCount": 3,
-                "exactStatMatchCount": 3,
+                "reconstructedStatCount": 3,
                 "cohorts": {"TOP_3": copy.deepcopy(full)},
                 "gearCohorts": {"TOP_3": gear_cohort_stub("ok", 3)},
                 "heroTalentTrees": {},
@@ -207,7 +237,7 @@ class BenchmarkEngineTests(unittest.TestCase):
             "status": "insufficient",
             "candidateCount": 3,
             "verifiedRunCount": 1,
-            "exactStatMatchCount": 1,
+            "reconstructedStatCount": 1,
             "cohorts": {"TOP_3": sparse},
             "gearCohorts": {"TOP_3": gear_cohort_stub("insufficient", 1)},
             "heroTalentTrees": {},
@@ -216,7 +246,7 @@ class BenchmarkEngineTests(unittest.TestCase):
             "status": "insufficient",
             "candidateCount": 3,
             "verifiedRunCount": 0,
-            "exactStatMatchCount": 0,
+            "reconstructedStatCount": 0,
             "cohorts": {"TOP_3": empty},
             "gearCohorts": {"TOP_3": gear_cohort_stub("insufficient", 0)},
             "heroTalentTrees": {},

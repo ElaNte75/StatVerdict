@@ -13,22 +13,19 @@ specializations.
 - The run snapshot supplies the specialization, Hero Talent ID, exact item IDs,
   item levels, bonus IDs, gems, enchants, tier identifiers, and loadout code
   used during the run.
-- Blizzard Profile API statistics are accepted only when the current active
-  specialization and Hero Talent match the run and two Blizzard equipment
-  reads exactly match the run fingerprint and each other.
+- SimulationCraft reconstructs the character-sheet stats from that exact run
+  gear, race, specialization, full talent loadout, and Hero Talent.
 
-This separates two evidence levels. Every verified logged run can contribute
-to observed gear popularity. Only the exact Blizzard-match subset can
-contribute character-sheet stat targets.
+No current Armory profile is used, so later gear/spec changes cannot alter the
+historical run evidence.
 
 ## Cohorts
 
-The default rank ceilings are `TOP_25`, `TOP_100`, and `TOP_250`. They mean
-"characters whose leaderboard rank is at most N", not "the first N records
-that happened to pass validation". The output always reports both the rank
-ceiling and the accepted sample size.
+The default verified cohorts are `TOP_25`, `TOP_100`, and `TOP_200`. Rankings
+from EU, US (including Oceania), KR, and TW are merged by score. The collector
+scans farther down the ranking until it has enough unique verified characters.
 
-For exact stat matches the engine records:
+For reconstructed stat profiles the engine records:
 
 - requested and actual sample size;
 - completeness and confidence;
@@ -73,20 +70,7 @@ export may be ingested only with explicit authorization and must use
 `authorized_export`. Automated bundle parsing, DOM extraction, browser
 automation, and manual dataset mirroring are intentionally unsupported.
 
-## Required credentials
-
-Create a Blizzard API client at:
-
-`https://develop.battle.net/access/clients`
-
-Add these repository secrets under:
-
-`Settings → Secrets and variables → Actions → New repository secret`
-
-- `BLIZZARD_CLIENT_ID`
-- `BLIZZARD_CLIENT_SECRET`
-
-Optional:
+## Optional credential
 
 - `RAIDERIO_ACCESS_KEY` — create a Raider.IO application/key if higher request
   limits are needed. The engine works without it for smaller/manual runs.
@@ -98,33 +82,30 @@ Never commit credentials to this repository.
 PowerShell:
 
 ```powershell
-$env:BLIZZARD_CLIENT_ID = "..."
-$env:BLIZZARD_CLIENT_SECRET = "..."
 $env:RAIDERIO_ACCESS_KEY = "..." # optional
+$env:SIMC_BINARY = "C:\path\to\simc.exe"
 
-python tools/live_benchmark_engine.py --cohorts 25,100,250
+python tools/live_benchmark_engine.py --cohorts 25,100,200
 ```
 
 Fast smoke run:
 
 ```powershell
-python tools/live_benchmark_engine.py --cohorts 3 --max-pages 1 --max-run-checks 1 --max-insufficient-specs 40
+python tools/live_benchmark_engine.py --simc-bin C:\path\to\simc.exe --cohorts 3 --max-pages 1 --max-run-checks 1 --max-insufficient-specs 40
 ```
 
 Validation only:
 
 ```powershell
 python tools/live_benchmark_engine.py `
-  --cohorts 25,100,250 `
+  --cohorts 25,100,200 `
   --validate-only StatVerdict/Data/Generated/SV_LiveBenchmarkData.json
 ```
 
 ## Automation
 
-`.github/workflows/weekly-benchmarks.yml` runs every Wednesday at 15:00 UTC,
-which is 18:00 in Greece during daylight-saving time. GitHub cron uses UTC and
-does not automatically move for winter time. The workflow can also be launched
-manually from the repository's Actions tab with custom cohort sizes.
+`.github/workflows/weekly-benchmarks.yml` checks twice monthly and can also be
+launched manually. It builds and caches SimulationCraft's `midnight` branch.
 
 The workflow:
 
@@ -136,8 +117,8 @@ The workflow:
 
 The engine uses Raider.IO's specialization ranking endpoint directly. Sparse
 cohorts are published as `status: "insufficient"` and must not be used as
-targets. Gear popularity may remain usable even when the stricter Blizzard
-exact-match stat sample is insufficient.
+targets. Gear popularity may remain usable even when too few loadouts can be
+reconstructed by SimulationCraft.
 
 Any API, schema, or quality failure, or more than `--max-insufficient-specs`
 (default 4) insufficient specs, stops the workflow and preserves the last

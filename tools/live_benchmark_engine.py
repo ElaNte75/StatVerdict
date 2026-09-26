@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Build StatVerdict cohort benchmarks from Raider.IO and Blizzard APIs.
+"""Build StatVerdict cohort benchmarks from exact Raider.IO run snapshots.
 
-Raider.IO supplies season rankings and equipped item references. Blizzard's
-profile API supplies the character-sheet ratings. The engine never derives
-ratings from item names or invents missing values.
+Raider.IO supplies rankings, exact combat-log gear, and talent loadouts.
+SimulationCraft reconstructs character-sheet stats from those exact loadouts.
 """
 
 from __future__ import annotations
@@ -27,15 +26,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+try:
+    from tools.simc_stat_engine import render_profiles, run_simc
+except ModuleNotFoundError:
+    from simc_stat_engine import render_profiles, run_simc
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 USER_AGENT = "StatVerdict-LiveBenchmark/1.0"
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 MAX_INSUFFICIENT_SPECS = 4
-DEFAULT_COHORTS = (25, 100, 250)
+DEFAULT_COHORTS = (25, 100, 200)
 DEFAULT_MAX_RUN_CHECKS = 3
 SUPPORTED_REGIONS = ("eu", "us", "kr", "tw")
 RANKING_REGIONS = ("world",) + SUPPORTED_REGIONS
@@ -727,17 +731,24 @@ def discover_candidates(
                 key = f"{ref['region']}:{ref['realm']}:{ref['name']}".lower()
                 previous = discovered.get(key)
                 if previous is None or ref["score"] > previous["score"]:
+                    ref["regionalRank"] = ref["rank"]
                     discovered[key] = ref
-            if page >= last_page or any(row["rank"] >= target_count for row in discovered.values()):
+            region_count = sum(1 for row in discovered.values() if row["region"] == region)
+            if page >= last_page or region_count >= target_count:
                 break
-    ranked = sorted(discovered.values(), key=lambda row: (row["rank"], row["region"], row["realm"], row["name"]))
+    ranked = sorted(
+        discovered.values(),
+        key=lambda row: (-row["score"], row["region"], row["realm"], row["name"]),
+    )
     max_level = max((row["level"] for row in ranked), default=0)
-    return [row for row in ranked if row["level"] == max_level and row["rank"] <= target_count]
+    ranked = [row for row in ranked if row["level"] == max_level][:target_count]
+    for merged_rank, row in enumerate(ranked, 1):
+        row["rank"] = merged_rank
+    return ranked
 
 
 def fetch_record(
     http: JsonClient,
-    blizzard: BlizzardClient,
     spec: Spec,
     character: dict[str, Any],
     season: str,
@@ -757,64 +768,93 @@ def fetch_record(
         },
         "runHeroTalentId": run["heroTalentId"],
         "runTalentLoadout": run.get("talentLoadout"),
+        "race": run.get("race") or character.get("race"),
         "statEligible": False,
         "statFailureReason": None,
     }
-    try:
-        specializations_raw = blizzard.character_resource(character, "specializations")
-        equipment_before = blizzard.character_resource(character, "equipment")
-    except ApiError as exc:
-        record["statFailureReason"] = str(exc)
-        return record, None
-
-    hero_talent, hero_talent_reason = parse_active_hero_talent(specializations_raw, spec.spec_name)
-    if not hero_talent:
-        record["statFailureReason"] = hero_talent_reason
-        return record, None
-    if run["heroTalentId"] is None or hero_talent["id"] != run["heroTalentId"]:
-        record["statFailureReason"] = (
-            f"Hero talent mismatch (run={run['heroTalentId']}, Blizzard={hero_talent['id']})"
-        )
-        return record, None
-
-    before_fingerprint = parse_blizzard_gear(equipment_before)
-    matches, mismatch_reason = gear_fingerprints_match(run["fingerprint"], before_fingerprint)
-    if not matches:
-        record["statFailureReason"] = mismatch_reason
-        return record, None
-    enrich_items_from_blizzard(record["items"], equipment_before)
-
-    try:
-        stats_raw = blizzard.character_resource(character, "statistics")
-        equipment_after = blizzard.character_resource(character, "equipment")
-    except ApiError as exc:
-        record["statFailureReason"] = str(exc)
-        return record, None
-    after_fingerprint = parse_blizzard_gear(equipment_after)
-    if before_fingerprint != after_fingerprint:
-        record["statFailureReason"] = "Blizzard equipment changed during collection"
-        return record, None
-
-    stats = parse_character_stats(stats_raw)
-    required_stats = {"stamina", "crit", "haste", "mastery", "versatility", spec.primary}
-    missing_stats = sorted(required_stats.difference(stats))
-    if missing_stats:
-        parsed_keys = ",".join(sorted(stats.keys())) or "none"
-        record["statFailureReason"] = (
-            "Profile schema mismatch "
-            f"(missing={','.join(missing_stats) or 'none'}; parsed={parsed_keys}; "
-            f"shapes={describe_stat_shapes(stats_raw)})"
-        )
-        return record, None
-
-    record.update(
-        {
-            "stats": stats,
-            "heroTalent": hero_talent,
-            "statEligible": True,
-        }
-    )
     return record, None
+
+
+def reconstruct_stats_with_simc(
+    simc_binary: Path,
+    spec: Spec,
+    records: list[dict[str, Any]],
+    *,
+    timeout_seconds: int,
+    threads: int,
+) -> tuple[list[dict[str, Any]], Counter[str]]:
+    failures: Counter[str] = Counter()
+    eligible = [
+        record for record in records
+        if record.get("runTalentLoadout") and record.get("race") and record.get("items")
+    ]
+    for record in records:
+        if record not in eligible:
+            record["statFailureReason"] = "Run snapshot lacks race, talents, or gear"
+            failures[record["statFailureReason"]] += 1
+    if not eligible:
+        return [], failures
+
+    profile, actor_map = render_profiles(spec, eligible)
+    try:
+        reconstructed, _ = run_simc(
+            simc_binary,
+            profile,
+            timeout_seconds=timeout_seconds,
+            threads=threads,
+        )
+    except (OSError, RuntimeError) as exc:
+        reason = f"SimulationCraft batch failed: {exc}"
+        for record in eligible:
+            record["statFailureReason"] = reason
+        failures[reason] += len(eligible)
+        return [], failures
+
+    accepted = []
+    for actor_name, record in actor_map.items():
+        result = reconstructed.get(actor_name)
+        if not result:
+            record["statFailureReason"] = "SimulationCraft returned no actor stats"
+            failures[record["statFailureReason"]] += 1
+            continue
+        attributes = result.get("attributes") or {}
+        ratings = result.get("ratings") or {}
+        stats = {
+            key: value
+            for key, value in attributes.items()
+            if key in ("strength", "agility", "intellect", "stamina")
+            and isinstance(value, (int, float))
+        }
+        stats.update(
+            {
+                key: ratings.get(key)
+                for key in SECONDARY_STATS
+                if isinstance(ratings.get(key), (int, float))
+            }
+        )
+        required = {"stamina", spec.primary, *SECONDARY_STATS}
+        missing = sorted(required.difference(stats))
+        if missing:
+            record["statFailureReason"] = f"SimulationCraft stats missing: {','.join(missing)}"
+            failures[record["statFailureReason"]] += 1
+            continue
+        hero_id = record.get("runHeroTalentId")
+        record.update(
+            {
+                "stats": stats,
+                "statPercentages": result.get("percentages") or {},
+                "health": result.get("health"),
+                "armor": result.get("armor"),
+                "heroTalent": (
+                    {"id": hero_id, "name": f"Hero Talent {hero_id}", "key": f"HERO_{hero_id}"}
+                    if isinstance(hero_id, int) else None
+                ),
+                "statEligible": True,
+                "statFailureReason": None,
+            }
+        )
+        accepted.append(record)
+    return accepted, failures
 
 
 def percentile(values: list[float], fraction: float) -> float:
@@ -839,7 +879,7 @@ def robust_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def minimum_sample_size(rank_ceiling: int) -> int:
-    configured = {25: 10, 100: 25, 250: 50}
+    configured = {25: 10, 100: 25, 200: 50}
     if rank_ceiling <= 10:
         return rank_ceiling
     return configured.get(rank_ceiling, max(1, math.ceil(rank_ceiling * 0.25)))
@@ -848,7 +888,7 @@ def minimum_sample_size(rank_ceiling: int) -> int:
 def records_within_rank(records: list[dict[str, Any]], rank_ceiling: int) -> list[dict[str, Any]]:
     return [
         row for index, row in enumerate(records, 1)
-        if int(row.get("rank") or index) <= rank_ceiling
+        if int(row.get("verifiedRank") or index) <= rank_ceiling
     ]
 
 
@@ -1064,7 +1104,7 @@ def aggregate_cohort(records: list[dict[str, Any]], requested_size: int) -> dict
             "minimumSample": minimum,
             "completeness": 0.0,
             "confidence": "none",
-            "statTargets": {"method": "median_character_sheet_rating", "stats": {}, "dispersion": {}},
+            "statTargets": {"method": "median_simc_reconstructed_loadout", "stats": {}, "dispersion": {}},
             "popularItems": {},
         }
     stat_targets = {}
@@ -1095,7 +1135,7 @@ def aggregate_cohort(records: list[dict[str, Any]], requested_size: int) -> dict
         "averageItemLevel": round(statistics.median(levels), 2),
         "meanItemLevel": round(statistics.mean(levels), 2),
         "statTargets": {
-            "method": "median_character_sheet_rating",
+            "method": "median_simc_reconstructed_loadout",
             "stats": stat_targets,
             "dispersion": dispersions,
         },
@@ -1208,8 +1248,8 @@ def validate_database(
             errors.append("no ranked candidates were collected")
         if totals.get("verifiedRuns", 0) <= 0:
             errors.append("no combat-log run snapshots were verified")
-        if totals.get("exactStatMatches", 0) <= 0:
-            errors.append("no exact Raider.IO-to-Blizzard stat matches were found")
+        if totals.get("reconstructedStats", 0) <= 0:
+            errors.append("no Raider.IO loadouts were reconstructed by SimulationCraft")
     profiles = database.get("profiles")
     if not isinstance(profiles, dict) or len(profiles) != len(SPECS):
         errors.append(f"expected {len(SPECS)} profiles")
@@ -1242,7 +1282,7 @@ def validate_database(
             errors.append(f"{spec.key}: profile status does not match its base cohort")
         candidate_count = profile.get("candidateCount", 0)
         verified_count = profile.get("verifiedRunCount", 0)
-        stat_count = profile.get("exactStatMatchCount", 0)
+        stat_count = profile.get("reconstructedStatCount", 0)
         if not (0 <= stat_count <= verified_count <= candidate_count):
             errors.append(f"{spec.key}: candidate/run/stat counts are inconsistent")
         gear_cohorts = profile.get("gearCohorts")
@@ -1343,11 +1383,14 @@ def write_database(database: dict[str, Any], json_path: Path, lua_path: Path) ->
 
 
 def build_database(args: argparse.Namespace) -> dict[str, Any]:
-    client_id = args.blizzard_client_id or os.environ.get("BLIZZARD_CLIENT_ID", "")
-    client_secret = args.blizzard_client_secret or os.environ.get("BLIZZARD_CLIENT_SECRET", "")
     access_key = args.raiderio_access_key or os.environ.get("RAIDERIO_ACCESS_KEY") or None
+    simc_value = args.simc_bin or os.environ.get("SIMC_BINARY")
+    if not simc_value:
+        raise ValueError("--simc-bin or SIMC_BINARY is required")
+    simc_binary = Path(simc_value)
+    if not simc_binary.is_file():
+        raise ValueError(f"SimulationCraft binary not found: {simc_binary}")
     http = JsonClient(args.request_delay)
-    blizzard = BlizzardClient(client_id, client_secret, args.request_delay)
     expansion_id, season = active_season(http)
     season_slug = args.season or season["slug"]
     max_size = max(args.cohorts)
@@ -1359,38 +1402,49 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
             spec,
             season=season_slug,
             regions=args.regions,
-            target_count=max_size,
+            target_count=max_size * args.candidate_multiplier,
             max_pages=args.max_pages,
             access_key=access_key,
         )
         print(f"  candidates={len(candidates)}; collecting exact logged runs", flush=True)
         run_records = []
         failure_reasons: Counter[str] = Counter()
+        candidates_checked = 0
+        batch_size = max(args.workers, args.workers * 4)
         with ThreadPoolExecutor(max_workers=args.workers) as pool:
-            futures = {
-                pool.submit(
-                    fetch_record,
-                    http,
-                    blizzard,
-                    spec,
-                    candidate,
-                    season_slug,
-                    args.max_run_checks,
-                ): candidate
-                for candidate in candidates
-            }
-            for future in as_completed(futures):
-                record, reason = future.result()
-                if record:
-                    run_records.append(record)
-                elif reason:
-                    failure_reasons[reason] += 1
-        run_records.sort(key=lambda row: (row["rank"], row["region"], row["realm"], row["name"]))
-        stat_records = [record for record in run_records if record.get("statEligible")]
-        stat_failure_reasons = Counter(
-            record["statFailureReason"]
-            for record in run_records
-            if not record.get("statEligible") and record.get("statFailureReason")
+            for offset in range(0, len(candidates), batch_size):
+                batch = candidates[offset:offset + batch_size]
+                candidates_checked += len(batch)
+                futures = {
+                    pool.submit(
+                        fetch_record,
+                        http,
+                        spec,
+                        candidate,
+                        season_slug,
+                        args.max_run_checks,
+                    ): candidate
+                    for candidate in batch
+                }
+                for future in as_completed(futures):
+                    record, reason = future.result()
+                    if record:
+                        run_records.append(record)
+                    elif reason:
+                        failure_reasons[reason] += 1
+                if len(run_records) >= max_size:
+                    break
+        run_records.sort(key=lambda row: (-row["score"], row["region"], row["realm"], row["name"]))
+        run_records = run_records[:max_size]
+        for verified_rank, record in enumerate(run_records, 1):
+            record["verifiedRank"] = verified_rank
+        print(f"  verifiedRuns={len(run_records)}; reconstructing stats with SimulationCraft", flush=True)
+        stat_records, stat_failure_reasons = reconstruct_stats_with_simc(
+            simc_binary,
+            spec,
+            run_records,
+            timeout_seconds=args.simc_timeout,
+            threads=args.simc_threads,
         )
         failure_summary = [
             {"reason": reason, "count": count} for reason, count in failure_reasons.most_common(3)
@@ -1415,13 +1469,13 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
             "spec": spec.spec_name,
             "role": spec.role,
             "primaryStat": spec.primary,
-            "candidateCount": len(candidates),
+            "candidateCount": candidates_checked,
             "verifiedRunCount": len(run_records),
-            "exactStatMatchCount": len(stat_records),
+            "reconstructedStatCount": len(stat_records),
             "coverage": {
-                "verifiedRunRatio": round(len(run_records) / len(candidates), 4) if candidates else 0.0,
-                "exactStatMatchRatio": round(len(stat_records) / len(candidates), 4) if candidates else 0.0,
-                "exactOfVerifiedRatio": round(len(stat_records) / len(run_records), 4) if run_records else 0.0,
+                "verifiedRunRatio": round(len(run_records) / candidates_checked, 4) if candidates_checked else 0.0,
+                "reconstructedStatRatio": round(len(stat_records) / candidates_checked, 4) if candidates_checked else 0.0,
+                "reconstructedOfVerifiedRatio": round(len(stat_records) / len(run_records), 4) if run_records else 0.0,
             },
             "runFailureReasons": failure_summary,
             "statMatchFailureReasons": [
@@ -1435,7 +1489,7 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
             "heroTalentAnalysis": compare_hero_trees(hero_trees, min(args.cohorts)),
         }
         print(
-            f"  runs={len(run_records)}/{len(candidates)} exactStats={len(stat_records)}; "
+            f"  runs={len(run_records)}/{candidates_checked} reconstructedStats={len(stat_records)}; "
             + f"status={profiles[spec.key]['status']}; heroTrees={len(hero_gear_trees)}; "
             + ", ".join(f"{label}={row['status']}({row['sampleSize']})" for label, row in cohorts.items()),
             flush=True,
@@ -1444,10 +1498,10 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
         "schemaVersion": SCHEMA_VERSION,
         "generatedAt": utc_now(),
         "source": {
-            "ranking": "Raider.IO character rankings",
-            "characterStats": "Blizzard Profile API character statistics",
-            "equipment": "Blizzard Profile API character equipment",
-            "heroTalents": "Blizzard Profile API character specializations",
+            "ranking": "Raider.IO regional specialization rankings merged by score",
+            "characterStats": "SimulationCraft reconstruction of exact run loadouts",
+            "equipment": "Raider.IO combat-log run snapshots",
+            "heroTalents": "Raider.IO combat-log talent loadouts",
             "runSnapshots": "Raider.IO combat-log run details",
             "season": season_slug,
             "expansionId": expansion_id,
@@ -1455,13 +1509,13 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
             "rankCeilings": list(args.cohorts),
             "aggregation": "median with 15% item-level outlier rejection",
             "acceptance": (
-                "Combat-log run gear only; Blizzard statistics accepted only after exact "
-                "spec, hero talent, item, item-level, bonus, gem, and enchant match"
+                "Combat-log run gear and talents only; stats reconstructed from exact item, "
+                "item-level, bonus, gem, enchant, race, spec, and talent data"
             ),
             "totals": {
                 "candidates": sum(profile["candidateCount"] for profile in profiles.values()),
                 "verifiedRuns": sum(profile["verifiedRunCount"] for profile in profiles.values()),
-                "exactStatMatches": sum(profile["exactStatMatchCount"] for profile in profiles.values()),
+                "reconstructedStats": sum(profile["reconstructedStatCount"] for profile in profiles.values()),
             },
         },
         "profiles": profiles,
@@ -1477,15 +1531,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--lua-out", type=Path, default=Path("StatVerdict/Data/Generated/SV_LiveBenchmarkData.lua"))
     parser.add_argument("--validate-only", type=Path)
     parser.add_argument("--season", help="Emergency Raider.IO season override")
-    parser.add_argument("--regions", default="world")
+    parser.add_argument("--regions", default=",".join(SUPPORTED_REGIONS))
     parser.add_argument("--cohorts", default=",".join(str(value) for value in DEFAULT_COHORTS))
     parser.add_argument("--max-pages", type=int, default=100)
     parser.add_argument("--max-insufficient-specs", type=int, default=MAX_INSUFFICIENT_SPECS)
     parser.add_argument("--max-run-checks", type=int, default=DEFAULT_MAX_RUN_CHECKS)
+    parser.add_argument("--candidate-multiplier", type=int, default=3)
     parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--request-delay", type=float, default=0.05)
-    parser.add_argument("--blizzard-client-id")
-    parser.add_argument("--blizzard-client-secret")
+    parser.add_argument("--simc-bin", type=Path)
+    parser.add_argument("--simc-timeout", type=int, default=1800)
+    parser.add_argument("--simc-threads", type=int, default=2)
     parser.add_argument("--raiderio-access-key")
     parser.add_argument(
         "--liquid-data",
@@ -1500,6 +1556,8 @@ def parse_args() -> argparse.Namespace:
         parser.error(f"regions must be a subset of {RANKING_REGIONS}")
     if not args.cohorts:
         parser.error("at least one cohort size is required")
+    if args.candidate_multiplier < 1:
+        parser.error("candidate-multiplier must be at least 1")
     return args
 
 
