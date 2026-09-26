@@ -16,6 +16,7 @@ concurrency:
 
 jobs:
   retry:
+    name: Retry failed specs
     runs-on: ubuntu-latest
     timeout-minutes: 180
 

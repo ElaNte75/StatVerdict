@@ -28,6 +28,7 @@ jobs:
   # left out for now (tracked separately) until their SimulationCraft
   # reconstruction issue is fixed.
   collect:
+    name: Collect — ${{ matrix.group }}
     strategy:
       fail-fast: false
       matrix:
@@ -107,6 +108,7 @@ jobs:
           retention-days: 3
 
   merge:
+    name: Merge & validate
     needs: collect
     runs-on: ubuntu-latest
     timeout-minutes: 30
