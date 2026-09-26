@@ -57,5 +57,46 @@ class AddonLuaSyntaxTests(unittest.TestCase):
             self.assertIsNone(error, f"{path.name}: {error}")
 
 
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class BenchmarkCoreTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.lua = new_runtime()
+        self.ns = self.lua.table()
+        self.lua.globals().StatVerdictDB = self.lua.table()
+        load_addon_file(self.lua, self.ns, "Core/SV_Benchmark.lua")
+
+    def test_default_level_is_standard(self) -> None:
+        self.assertEqual("STANDARD", self.ns.GetBenchmarkLevel())
+
+    def test_set_level_is_saved_and_unknown_is_rejected(self) -> None:
+        self.assertTrue(self.ns.SetBenchmarkLevel("ELITE"))
+        self.assertEqual("ELITE", self.ns.GetBenchmarkLevel())
+        self.assertEqual("ELITE", self.lua.globals().StatVerdictDB.benchmarkLevel)
+        self.assertFalse(self.ns.SetBenchmarkLevel("TOP_25"))
+        self.assertEqual("ELITE", self.ns.GetBenchmarkLevel())
+
+    def test_garbage_saved_value_falls_back_to_default(self) -> None:
+        self.lua.globals().StatVerdictDB.benchmarkLevel = "nonsense"
+        self.assertEqual("STANDARD", self.ns.GetBenchmarkLevel())
+
+    def test_level_names_and_meaning_lines(self) -> None:
+        levels = self.ns.GetBenchmarkLevels()
+        self.assertEqual(["Elite", "Standard", "Broad"], [levels[i].label for i in (1, 2, 3)])
+        self.assertEqual("Gear of the top 25 players", levels[1].meaning)
+
+    def test_wording_is_popular_for_mythic_plus_and_bis_otherwise(self) -> None:
+        mplus = self.ns.GetReferenceWording("MYTHIC_PLUS")
+        self.assertEqual("Popular Gear", mplus.button)
+        self.assertEqual("Main Spec Popular Gear", mplus.main)
+        self.assertEqual("Popular Progress", mplus.progress)
+        self.assertEqual(" · Standard", mplus.progressSuffix)
+        self.assertEqual("Popular", mplus.tag)
+        raid = self.ns.GetReferenceWording("RAID")
+        self.assertEqual("Best in Slot", raid.button)
+        self.assertEqual("BiS Progress", raid.progress)
+        self.assertEqual("", raid.progressSuffix)
+        self.assertEqual("BIS", raid.tag)
+
+
 if __name__ == "__main__":
     unittest.main()
