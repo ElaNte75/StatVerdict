@@ -127,7 +127,14 @@ class JsonClient:
                 with urllib.request.urlopen(request, timeout=30) as response:
                     return json.loads(response.read().decode("utf-8"))
             except urllib.error.HTTPError as exc:
-                last_error = f"HTTP {exc.code} {exc.reason}"
+                detail = ""
+                try:
+                    payload = json.loads(exc.read().decode("utf-8", "replace"))
+                    if isinstance(payload, dict):
+                        detail = str(payload.get("detail") or payload.get("title") or payload.get("type") or "")
+                except (ValueError, OSError):
+                    detail = ""
+                last_error = f"HTTP {exc.code} {exc.reason}" + (f" ({detail})" if detail else "")
                 if exc.code not in (429, 500, 502, 503, 504):
                     break
                 retry_after = float(exc.headers.get("Retry-After", 0) or 0)
@@ -369,25 +376,30 @@ def discover_candidates(
     return [row for row in ranked if row["level"] == max_level][:target_count]
 
 
-def fetch_record(blizzard: BlizzardClient, spec: Spec, character: dict[str, Any]) -> dict[str, Any] | None:
+def fetch_record(
+    blizzard: BlizzardClient, spec: Spec, character: dict[str, Any]
+) -> tuple[dict[str, Any] | None, str | None]:
     try:
         stats_raw = blizzard.character_resource(character, "statistics")
         equipment_raw = blizzard.character_resource(character, "equipment")
     except ApiError as exc:
         print(f"WARN {spec.key} {character['name']}: {exc}", file=sys.stderr)
-        return None
+        return None, str(exc)
     stats = parse_character_stats(stats_raw)
     item_level, items = parse_equipment(equipment_raw)
     if not stats or item_level is None or len(items) < 12:
-        return None
+        return None, "Profile response was incomplete or missing required ratings/equipment"
     if spec.primary not in stats:
-        return None
-    return {
-        **character,
-        "stats": stats,
-        "itemLevel": item_level,
-        "items": items,
-    }
+        return None, f"Profile response did not contain {spec.primary}"
+    return (
+        {
+            **character,
+            "stats": stats,
+            "itemLevel": item_level,
+            "items": items,
+        },
+        None,
+    )
 
 
 def percentile(values: list[float], fraction: float) -> float:
@@ -563,17 +575,23 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
         )
         print(f"  candidates={len(candidates)}; collecting Blizzard profiles", flush=True)
         records = []
+        failure_reasons: Counter[str] = Counter()
         with ThreadPoolExecutor(max_workers=args.workers) as pool:
             futures = {pool.submit(fetch_record, blizzard, spec, candidate): candidate for candidate in candidates}
             for future in as_completed(futures):
-                record = future.result()
+                record, reason = future.result()
                 if record:
                     records.append(record)
+                elif reason:
+                    failure_reasons[reason] += 1
         records.sort(key=lambda row: (-row["score"], row["region"], row["realm"], row["name"]))
         if not robust_records(records):
+            summary = "; ".join(
+                f"{count}x {reason}" for reason, count in failure_reasons.most_common(3)
+            )
             raise ValueError(
                 f"{spec.key}: no valid Blizzard character profiles; "
-                "inspect the preceding sanitized HTTP statuses"
+                f"{summary or 'no detailed failure reason'}"
             )
         cohorts = {}
         for size in args.cohorts:
