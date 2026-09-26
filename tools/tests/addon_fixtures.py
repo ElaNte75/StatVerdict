@@ -98,6 +98,8 @@ def make_profile(spec_key_class: str = "death-knight", primary: str = "strength"
         "TOP_200": make_stat_cohort(200, 1100, 880, 690, 420),
     }
     gear = {"TOP_25": make_gear_cohort(25), "TOP_100": make_gear_cohort(100), "TOP_200": make_gear_cohort(200)}
+    # The Broad group's favourite helm differs, so tests can tell the levels apart.
+    gear["TOP_200"]["popularItems"]["HEAD"][0] = make_item(1500, "HEAD broad favourite", 60, 60.0, [150])
     hero_31 = {
         "id": 31,
         "name": "Hero Talent 31",

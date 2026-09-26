@@ -41,6 +41,15 @@ function ns.SetBenchmarkLevel(key)
     return true
 end
 
+-- True when a benchmark's numbers should carry a "less stable" warning: the sample is
+-- below twice the minimum (Elite always is) or the confidence is not high.
+function ns.IsBenchmarkSampleSmall(bench)
+    if type(bench) ~= "table" then return true end
+    local sample = tonumber(bench.sampleSize) or 0
+    local minimum = tonumber(bench.minimumSample) or 0
+    return tostring(bench.confidence) ~= "high" or sample < (2 * minimum)
+end
+
 -- Mythic+ lists are "most popular among top players", not curated Best in Slot,
 -- so they are labelled honestly. Raid/PvP keep the curated BiS wording.
 function ns.GetReferenceWording(goal)

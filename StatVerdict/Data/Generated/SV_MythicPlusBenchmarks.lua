@@ -11481,25 +11481,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 41.0,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        8793,
-                                        8960,
-                                        12214,
-                                        12497,
-                                        12693,
-                                        13667,
-                                        13751,
-                                        13836,
-                                        14001,
-                                    },
-                                    ["item_id"] = 245769,
-                                    ["name"] = "Aln'hara Lantern",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 33.0,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -11549,8 +11530,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 324.69,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -12763,25 +12744,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 20.5,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        8791,
-                                        8960,
-                                        12214,
-                                        12497,
-                                        13667,
-                                        13751,
-                                        13771,
-                                        13836,
-                                        14001,
-                                    },
-                                    ["item_id"] = 245769,
-                                    ["name"] = "Aln'hara Lantern",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 55.5,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -12859,8 +12821,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 322.0,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -19197,20 +19159,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 23.5,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        6652,
-                                        12701,
-                                        12846,
-                                        13440,
-                                    },
-                                    ["item_id"] = 275070,
-                                    ["name"] = "Sharpened Lightwood Slasher",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 6.0,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -19288,8 +19236,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 324.31,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -19672,20 +19620,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 28.0,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        6652,
-                                        12701,
-                                        12846,
-                                        13440,
-                                    },
-                                    ["item_id"] = 275070,
-                                    ["name"] = "Sharpened Lightwood Slasher",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 12.0,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -19763,8 +19697,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 325.75,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -20116,20 +20050,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 30.0,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        6652,
-                                        12701,
-                                        12846,
-                                        13440,
-                                    },
-                                    ["item_id"] = 275070,
-                                    ["name"] = "Sharpened Lightwood Slasher",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 7.0,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -20207,8 +20127,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 324.84,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -20608,25 +20528,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 45.5,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        8792,
-                                        8960,
-                                        12214,
-                                        12497,
-                                        13667,
-                                        13751,
-                                        13771,
-                                        13836,
-                                        14001,
-                                    },
-                                    ["item_id"] = 245769,
-                                    ["name"] = "Aln'hara Lantern",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 43.5,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -20680,8 +20581,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 327.12,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -20990,25 +20891,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 48.0,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        8790,
-                                        8960,
-                                        12214,
-                                        12497,
-                                        13667,
-                                        13751,
-                                        13771,
-                                        13836,
-                                        14001,
-                                    },
-                                    ["item_id"] = 245769,
-                                    ["name"] = "Aln'hara Lantern",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 36.0,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -21062,8 +20944,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 328.38,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -21389,25 +21271,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 43.0,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        8792,
-                                        8960,
-                                        12214,
-                                        12497,
-                                        13667,
-                                        13751,
-                                        13771,
-                                        13836,
-                                        14001,
-                                    },
-                                    ["item_id"] = 245769,
-                                    ["name"] = "Aln'hara Lantern",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 39.0,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -21461,8 +21324,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 327.56,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -21791,25 +21654,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 49.5,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        8793,
-                                        8960,
-                                        12214,
-                                        12497,
-                                        13667,
-                                        13751,
-                                        13771,
-                                        13836,
-                                        14001,
-                                    },
-                                    ["item_id"] = 245769,
-                                    ["name"] = "Aln'hara Lantern",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 32.0,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -21863,8 +21707,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 322.56,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -22235,25 +22079,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 52.0,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        8793,
-                                        8960,
-                                        12214,
-                                        12497,
-                                        13667,
-                                        13751,
-                                        13771,
-                                        13836,
-                                        14001,
-                                    },
-                                    ["item_id"] = 245769,
-                                    ["name"] = "Aln'hara Lantern",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 44.0,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -22307,8 +22132,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 324.38,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -22675,25 +22500,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 51.0,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        8793,
-                                        8960,
-                                        12214,
-                                        12497,
-                                        13667,
-                                        13751,
-                                        13771,
-                                        13836,
-                                        14001,
-                                    },
-                                    ["item_id"] = 245769,
-                                    ["name"] = "Aln'hara Lantern",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 32.0,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -22747,8 +22553,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 322.97,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -23126,25 +22932,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 58.0,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        8791,
-                                        8960,
-                                        12214,
-                                        12497,
-                                        13667,
-                                        13751,
-                                        13771,
-                                        13836,
-                                        14001,
-                                    },
-                                    ["item_id"] = 245769,
-                                    ["name"] = "Aln'hara Lantern",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 23.0,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -23222,8 +23009,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 323.69,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -23594,25 +23381,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 76.0,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        8791,
-                                        8960,
-                                        12214,
-                                        12497,
-                                        13667,
-                                        13751,
-                                        13771,
-                                        13836,
-                                        14001,
-                                    },
-                                    ["item_id"] = 245769,
-                                    ["name"] = "Aln'hara Lantern",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 20.0,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -23666,8 +23434,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 325.12,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -24041,25 +23809,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 56.0,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        8791,
-                                        8960,
-                                        12214,
-                                        12497,
-                                        13667,
-                                        13751,
-                                        13771,
-                                        13836,
-                                        14001,
-                                    },
-                                    ["item_id"] = 245769,
-                                    ["name"] = "Aln'hara Lantern",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 27.0,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -24137,8 +23886,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 324.28,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -24526,20 +24275,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 41.5,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        6652,
-                                        12701,
-                                        12846,
-                                        13440,
-                                    },
-                                    ["item_id"] = 158714,
-                                    ["name"] = "Swarm's Edge",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 0.5,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -24589,8 +24324,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 324.88,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -25394,25 +25129,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 49.0,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        8795,
-                                        8960,
-                                        12214,
-                                        12497,
-                                        12693,
-                                        13667,
-                                        13751,
-                                        13836,
-                                        14001,
-                                    },
-                                    ["item_id"] = 237850,
-                                    ["name"] = "Farstrider's Chopper",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 1.0,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -25462,8 +25178,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 325.31,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -25849,19 +25565,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 82.0,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        6652,
-                                        12854,
-                                        13334,
-                                    },
-                                    ["item_id"] = 268263,
-                                    ["name"] = "Frostscale's Mystic Frond",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 3.0,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -25915,8 +25618,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 325.22,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -26724,19 +26427,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 83.0,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        6652,
-                                        12854,
-                                        13334,
-                                    },
-                                    ["item_id"] = 268263,
-                                    ["name"] = "Frostscale's Mystic Frond",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 3.0,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -26790,8 +26480,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 326.06,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -27165,24 +26855,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 90.0,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        8793,
-                                        12214,
-                                        12497,
-                                        12715,
-                                        13667,
-                                        13751,
-                                        13836,
-                                        14001,
-                                    },
-                                    ["item_id"] = 237845,
-                                    ["name"] = "Bloomforged Claw",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 0.5,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -27236,8 +26908,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 326.75,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -32068,24 +31740,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 33.5,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        8793,
-                                        8960,
-                                        12214,
-                                        12497,
-                                        13751,
-                                        13771,
-                                        13836,
-                                        14001,
-                                    },
-                                    ["item_id"] = 245769,
-                                    ["name"] = "Aln'hara Lantern",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 43.0,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -32161,8 +31815,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 324.12,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -32999,24 +32653,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 33.0,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        8793,
-                                        8960,
-                                        12214,
-                                        12497,
-                                        13751,
-                                        13771,
-                                        13836,
-                                        14001,
-                                    },
-                                    ["item_id"] = 245769,
-                                    ["name"] = "Aln'hara Lantern",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 40.0,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -33090,8 +32726,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 324.53,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -43676,25 +43312,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 39.5,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        8790,
-                                        8960,
-                                        12214,
-                                        12497,
-                                        13667,
-                                        13751,
-                                        13771,
-                                        13836,
-                                        14001,
-                                    },
-                                    ["item_id"] = 245769,
-                                    ["name"] = "Aln'hara Lantern",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 36.0,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -43748,8 +43365,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 323.31,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -44529,25 +44146,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 37.0,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        8790,
-                                        8960,
-                                        12214,
-                                        12497,
-                                        13667,
-                                        13751,
-                                        13771,
-                                        13836,
-                                        14001,
-                                    },
-                                    ["item_id"] = 245769,
-                                    ["name"] = "Aln'hara Lantern",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 43.0,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -44601,8 +44199,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 323.56,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -46220,25 +45818,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 44.5,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        8790,
-                                        8960,
-                                        12214,
-                                        12497,
-                                        13667,
-                                        13751,
-                                        13771,
-                                        13836,
-                                        14001,
-                                    },
-                                    ["item_id"] = 245769,
-                                    ["name"] = "Aln'hara Lantern",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 29.5,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -46292,8 +45871,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 323.12,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -46659,25 +46238,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 48.0,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        8790,
-                                        8960,
-                                        12214,
-                                        12497,
-                                        13667,
-                                        13751,
-                                        13771,
-                                        13836,
-                                        14001,
-                                    },
-                                    ["item_id"] = 245769,
-                                    ["name"] = "Aln'hara Lantern",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 24.0,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -46727,8 +46287,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 324.88,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",
@@ -47094,25 +46654,6 @@ ns.MythicPlusBenchmarks = {
                                 ["slot"] = "Main Hand",
                                 ["usagePercent"] = 44.0,
                             },
-                            {
-                                ["item"] = {
-                                    ["bonus_ids"] = {
-                                        8790,
-                                        8960,
-                                        12214,
-                                        12497,
-                                        13667,
-                                        13751,
-                                        13771,
-                                        13836,
-                                        14001,
-                                    },
-                                    ["item_id"] = 245769,
-                                    ["name"] = "Aln'hara Lantern",
-                                },
-                                ["slot"] = "Off Hand",
-                                ["usagePercent"] = 31.0,
-                            },
                         },
                     },
                     ["priorityProfiles"] = {
@@ -47166,8 +46707,8 @@ ns.MythicPlusBenchmarks = {
                     },
                     ["targets"] = {
                         ["averageItemLevel"] = 324.09,
-                        ["itemCount"] = 16,
-                        ["itemLevelSlots"] = 16,
+                        ["itemCount"] = 15,
+                        ["itemLevelSlots"] = 15,
                         ["sourceGoal"] = "MYTHIC_PLUS",
                         ["statTargets"] = {
                             ["context"] = "Mythic+",

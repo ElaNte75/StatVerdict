@@ -72,7 +72,10 @@ same shape the addon already consumes from the old file:
   Devourer Demon Hunter, an Intellect spec labelled agility, for Mythic+).
 - `bis` (rendered as "Popular"): `label`, and `slots` in the old order and slot
   names (Helm, Hands, Neck, Waist, Shoulders, Legs, Cloak, Feet, Chest, Ring, Ring,
-  Trinket, Trinket, Bracers, Main Hand, Off Hand when the spec uses one). Each slot
+  Trinket, Bracers, Trinket, Main Hand, Off Hand only when it can pair with the main hand: the raw data has no weapon
+  pairs, so the row is written only when at least 50% of players wear an off hand and
+  the top main hand plus the off hands add up to more than 100%, which shows the top
+  main hand is a one-hander). Each slot
   holds the most popular item of that slot from `popularItems` (`item_id`, `name`,
   `bonus_ids` from its most used variant) plus `usagePercent`. Rings and trinkets
   take the two most popular **distinct** items across both slots. No `source`

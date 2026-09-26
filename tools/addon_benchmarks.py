@@ -50,6 +50,7 @@ SLOT_ORDER: tuple[tuple[str, tuple[str, ...]], ...] = (
 # against real data before they are locked (plan Task 5).
 TIER_THRESHOLDS: tuple[tuple[str, float], ...] = (("S", 40.0), ("A", 20.0), ("B", 8.0), ("C", 3.0))
 TRINKET_LIMIT = 16  # rows in the addon's Ranked Trinkets panel
+OFF_HAND_MIN_SHARE = 50.0  # percent of players that must wear an off hand for the row to be listed
 MIN_SLOTS = 10  # same as the addon's MIN_CONTEXT_ITEMS
 MIN_ITEM_LEVEL = 250.0  # same as the addon's MIN_VALID_MAX_LEVEL_TARGET_ILVL
 MAX_FILE_BYTES = 5 * 1024 * 1024
@@ -95,11 +96,30 @@ def _item_fields(item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _off_hand_is_plausible(popular_items: dict[str, Any]) -> bool:
+    """List an Off Hand only when it can go with the listed Main Hand.
+
+    Two-handed weapons block the off hand, so a popular staff next to a rarely used
+    off hand is an impossible pair. The raw data has no weapon pairs, so this uses
+    usage shares: at least half of the players wear an off hand, and the top main hand
+    plus the off hands add up to more than 100%, which proves they overlap (the top
+    main hand is a one-hander). Otherwise the row is left out.
+    """
+    off_share = sum(float(i.get("usagePercent") or 0.0) for i in popular_items.get("OFF_HAND") or [])
+    if off_share < OFF_HAND_MIN_SHARE:
+        return False
+    top_main = max((float(i.get("usagePercent") or 0.0) for i in popular_items.get("MAIN_HAND") or []), default=0.0)
+    return top_main + off_share > 100.0
+
+
 def pick_popular_slots(popular_items: dict[str, Any]) -> list[dict[str, Any]]:
+    off_hand_ok = _off_hand_is_plausible(popular_items)
     ranked_cache: dict[tuple[str, ...], list[dict[str, Any]]] = {}
     used: dict[str, int] = {}
     slots: list[dict[str, Any]] = []
     for label, keys in SLOT_ORDER:
+        if label == "Off Hand" and not off_hand_ok:
+            continue
         if keys not in ranked_cache:
             ranked_cache[keys] = _pool(popular_items, keys)
         index = used.get(label, 0)

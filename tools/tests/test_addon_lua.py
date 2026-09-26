@@ -84,6 +84,15 @@ class BenchmarkCoreTests(unittest.TestCase):
         self.assertEqual(["Elite", "Standard", "Broad"], [levels[i].label for i in (1, 2, 3)])
         self.assertEqual("Gear of the top 25 players", levels[1].meaning)
 
+    def test_small_sample_warning(self) -> None:
+        small = self.lua.table(sampleSize=25, minimumSample=25, confidence="high")
+        self.assertTrue(self.ns.IsBenchmarkSampleSmall(small))  # Elite: only the minimum sample
+        enough = self.lua.table(sampleSize=100, minimumSample=25, confidence="high")
+        self.assertFalse(self.ns.IsBenchmarkSampleSmall(enough))
+        unsure = self.lua.table(sampleSize=100, minimumSample=25, confidence="medium")
+        self.assertTrue(self.ns.IsBenchmarkSampleSmall(unsure))
+        self.assertTrue(self.ns.IsBenchmarkSampleSmall(None))
+
     def test_wording_is_popular_for_mythic_plus_and_bis_otherwise(self) -> None:
         mplus = self.ns.GetReferenceWording("MYTHIC_PLUS")
         self.assertEqual("Popular Gear", mplus.button)
@@ -202,9 +211,15 @@ class RepositoryTests(unittest.TestCase):
         self.assertIsNone(ns.GetItemReferenceInfo("item:999999", profile))
 
     def test_boost_follows_the_selected_level(self) -> None:
+        # The Broad group's favourite helm (1500) differs from the Standard one (1000).
         lua, ns = self.build_runtime(level="BROAD")
         profile = lua.table(specKey="DEATHKNIGHT_BLOOD", goal="MYTHIC_PLUS")
+        self.assertEqual(8, ns.GetItemReferenceInfo("item:1500", profile).bonus)
+        self.assertIsNone(ns.GetItemReferenceInfo("item:1000", profile))
+        lua, ns = self.build_runtime()
+        profile = lua.table(specKey="DEATHKNIGHT_BLOOD", goal="MYTHIC_PLUS")
         self.assertEqual(8, ns.GetItemReferenceInfo("item:1000", profile).bonus)
+        self.assertIsNone(ns.GetItemReferenceInfo("item:1500", profile))
 
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")

@@ -237,5 +237,30 @@ class AssemblyTests(unittest.TestCase):
         self.assertIn("clear favourites (>=40%): 15/15", report)
 
 
+class OffHandTests(unittest.TestCase):
+    def labels(self, popular) -> list[str]:
+        return [s["slot"] for s in pick_popular_slots(popular)]
+
+    def test_rarely_used_off_hand_is_not_listed(self) -> None:
+        popular = make_popular_items()
+        popular["OFF_HAND"] = [make_item(7001, "Rare Off Hand", 3, 3.0, [1])]
+        self.assertNotIn("Off Hand", self.labels(popular))
+
+    def test_off_hand_next_to_a_two_hander_is_not_listed(self) -> None:
+        # Top main hand 43% + off hands 51% cannot overlap, so the main hand is a two-hander.
+        popular = make_popular_items()
+        popular["MAIN_HAND"] = [make_item(7002, "Staff", 43, 43.0, [1]), make_item(7003, "Wand", 20, 20.0, [1])]
+        popular["OFF_HAND"] = [make_item(7004, "Lantern", 39, 39.0, [1]), make_item(7005, "Orb", 12, 12.0, [1])]
+        self.assertNotIn("Off Hand", self.labels(popular))
+
+    def test_off_hand_that_pairs_with_a_one_hander_is_listed(self) -> None:
+        popular = make_popular_items()
+        popular["MAIN_HAND"] = [make_item(7006, "Sword", 60, 60.0, [1])]
+        popular["OFF_HAND"] = [make_item(7007, "Shield", 95, 95.0, [1])]
+        labels = self.labels(popular)
+        self.assertEqual("Off Hand", labels[-1])
+        self.assertEqual(16, len(labels))
+
+
 if __name__ == "__main__":
     unittest.main()

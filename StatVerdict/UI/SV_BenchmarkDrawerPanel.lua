@@ -66,7 +66,7 @@ local function SyncCard(card)
         tostring(provenance and provenance.scrape or "unknown")
     ))
     card.info:SetTextColor(0.85, 0.85, 0.85)
-    if tostring(bench.confidence) ~= "high" then
+    if ns.IsBenchmarkSampleSmall(bench) then
         card.warning:SetText("Smaller sample: results can be less stable.")
     else
         card.warning:SetText("")
