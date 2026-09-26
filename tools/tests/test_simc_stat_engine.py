@@ -33,7 +33,7 @@ class SimulationCraftStatEngineTests(unittest.TestCase):
             talent_loadout="CoPAAAA",
             items={"HEAD": {"itemId": 271474, "itemLevel": 321}},
         )
-        self.assertIn('death_knight="sv_0001"', profile)
+        self.assertIn('deathknight="sv_0001"', profile)
         self.assertIn("race=night_elf", profile)
         self.assertIn("spec=blood", profile)
         self.assertIn("talents=CoPAAAA", profile)

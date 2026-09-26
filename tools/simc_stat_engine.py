@@ -30,6 +30,11 @@ SIMC_SLOT_MAP = {
     "OFF_HAND": "off_hand",
 }
 
+SIMC_CLASS_MAP = {
+    "death-knight": "deathknight",
+    "demon-hunter": "demonhunter",
+}
+
 
 def simc_token(value: str) -> str:
     token = re.sub(r"[^a-z0-9]+", "_", value.casefold()).strip("_")
@@ -66,8 +71,9 @@ def render_player(
 ) -> str:
     if not talent_loadout:
         raise ValueError(f"{actor_name}: talent loadout is required")
+    class_token = SIMC_CLASS_MAP.get(class_name.casefold(), simc_token(class_name))
     lines = [
-        f'{simc_token(class_name)}="{actor_name}"',
+        f'{class_token}="{actor_name}"',
         f"level={level}",
         f"race={simc_token(race)}",
         f"spec={simc_token(spec_name)}",
