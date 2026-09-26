@@ -1,0 +1,24 @@
+# "Download ZIP" on GitHub builds its archive with these rules: everything marked
+# export-ignore is left out. The zip then holds only the StatVerdict addon folder
+# (the game files), not the tools, docs, bridge addon or dev notes. Normal
+# clone / pull is not affected; the full repository stays available for development.
+
+/.github export-ignore
+/.gitattributes export-ignore
+/.gitignore export-ignore
+/IMPROVEMENTS.md export-ignore
+"/StatVerdict Ship.bat" export-ignore
+/StatVerdictBridge export-ignore
+/_check_profiles.py export-ignore
+/docs export-ignore
+/tools export-ignore
+
+# Development-only files inside the addon folder (same set ship.ps1 keeps out of the CurseForge zip).
+/StatVerdict/STORE.md export-ignore
+/StatVerdict/VERIFICATION.md export-ignore
+/StatVerdict/VERDICT_MODEL.md export-ignore
+/StatVerdict/_check_profiles.py export-ignore
+/StatVerdict/scripts export-ignore
+/StatVerdict/tests export-ignore
+/StatVerdict/Data/Generated/SV_ProfileData.json export-ignore
+/StatVerdict/Media/StatVerdictIcon.png export-ignore
