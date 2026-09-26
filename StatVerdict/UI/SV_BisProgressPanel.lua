@@ -410,7 +410,7 @@ local function EnsurePanel(frame)
 
     card.title = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     card.title:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -12)
-    card.title:SetText("Best in Slot")
+    card.title:SetText(ns.GetReferenceWording and ns.GetReferenceWording().base or "Best in Slot")
     card.title:SetTextColor(1.0, 0.82, 0.0)
 
     card.titleHit = CreateFrame("Frame", nil, card)
@@ -426,7 +426,7 @@ local function EnsurePanel(frame)
 
     card.summary = contentHost:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     card.summary:SetPoint("BOTTOMLEFT", contentHost, "BOTTOMLEFT", 12, 12)
-    card.summary:SetText("BiS Progress: -")
+    card.summary:SetText((ns.GetReferenceWording and ns.GetReferenceWording().progress or "BiS Progress") .. ": -")
 
     card.rows = {}
     for index = 1, MAX_ROWS do
@@ -804,7 +804,14 @@ function Panel.Refresh(frame, profile)
         end
     end
 
-    card.summary:SetText(string.format("BiS Progress: %d/%d", owned, total))
+    local wording = ns.GetReferenceWording and ns.GetReferenceWording() or nil
+    card.summary:SetText(string.format(
+        "%s: %d/%d%s",
+        wording and wording.progress or "BiS Progress",
+        owned,
+        total,
+        wording and wording.progressSuffix or ""
+    ))
     if total > 0 and owned >= total then
         card.summary:SetTextColor(0.20, 1.00, 0.35)
     else

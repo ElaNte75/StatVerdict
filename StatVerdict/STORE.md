@@ -31,7 +31,8 @@ If you already use SimulationCraft for exact character-specific optimization, th
 - Marks supported bag and tooltip items when its model finds an upgrade for your **Main Spec** or **Off Spec**
 - Shows **Stat Progress** toward build targets, with live Weights
 - Lets you **Approve** bag pieces into a virtual loadout for a spec you are not wearing
-- Tracks **Best in Slot** progress for your chosen goal (Mythic+, Raid, PvP)
+- Tracks **Popular Gear** progress (Mythic+, from live top-player data) and **Best in Slot** progress (Raid, PvP)
+- **Benchmark** levels (Elite / Standard / Broad) choose how strict the Mythic+ comparison group is
 
 ---
 
@@ -96,7 +97,7 @@ Keywords: gear, upgrade, bis, offspec, mythic+, loot, stats, trinket, priority
 1. Main window — Stat Progress bars + Weights visible
 2. Bag item with MS / OS upgrade markers
 3. Tooltip verdict on a hovered item
-4. Best in Slot panel
+4. Popular Gear / Best in Slot panel
 5. Approve / virtual loadout moment (optional but strong)
 
 ---

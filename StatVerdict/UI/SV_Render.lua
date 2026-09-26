@@ -106,7 +106,9 @@ function ns.RenderTooltipVerdict(tooltip, context, comparison, isSecondary, show
         AddLine(tooltip, specLine)
     end
     if referenceInfo and referenceInfo.bis then
-        AddLine(tooltip, c.white .. "Reference: " .. "|cff00ccff(BIS)|r" .. c.reset, 1, 1, 1)
+        local wording = ns.GetReferenceWording and ns.GetReferenceWording(context.profile and context.profile.goal) or nil
+        local tag = wording and wording.tag or "BIS"
+        AddLine(tooltip, c.white .. "Reference: " .. "|cff00ccff(" .. tag .. ")|r" .. c.reset, 1, 1, 1)
     end
     if referenceInfo and referenceInfo.trinket then
         local trinket = referenceInfo.trinket
@@ -147,7 +149,7 @@ function ns.RenderTooltipVerdict(tooltip, context, comparison, isSecondary, show
     AddLine(tooltip, "|cff9d9d9dHeuristic comparison; not simulated DPS or healing.|r", 0.62, 0.62, 0.62)
     local provenance = ns.ProfileRepository
         and ns.ProfileRepository.GetDataProvenance
-        and ns.ProfileRepository.GetDataProvenance()
+        and ns.ProfileRepository.GetDataProvenance(context.profile and context.profile.goal)
     if provenance and provenance.scrape then
         AddLine(tooltip, "|cff9d9d9dProfile source: " .. tostring(provenance.sourceName or "bundled data")
             .. " · " .. tostring(provenance.scrape) .. "|r", 0.62, 0.62, 0.62)

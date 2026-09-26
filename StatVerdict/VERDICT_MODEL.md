@@ -12,8 +12,10 @@ percentages.
   rules. It does not mean a measured performance gain.
 - **Live weights** redistribute a capped secondary-stat budget toward profile
   targets. Item level and primary-stat weights remain fixed anchors.
-- **BiS and trinket references** are hints from bundled, goal-specific profile
-  data. They may only affect a verdict when that data passes the profile
+- **Popular and trinket references** (Mythic+: live data, "Popular"; Raid and PvP:
+  bundled curated "BiS") are hints from goal-specific profile data. Mythic+
+  popularity is the share of top players wearing an item at the chosen Benchmark
+  level. They may only affect a verdict when that data passes the profile
   quality and freshness checks.
 - **Main Spec baseline** is currently equipped gear.
 - **Off Spec baseline** is the saved virtual loadout. Dynamic off-spec weights
