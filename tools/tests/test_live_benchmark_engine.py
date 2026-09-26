@@ -174,6 +174,12 @@ class BenchmarkEngineTests(unittest.TestCase):
             },
         }
         validate_database(database, 3)
+        database["source"] = {
+            "totals": {"candidates": 3, "verifiedRuns": 1, "exactStatMatches": 0}
+        }
+        with self.assertRaisesRegex(ValueError, "no exact Raider.IO-to-Blizzard"):
+            validate_database(database, 3)
+        del database["source"]
         del database["profiles"][SPECS[0].key]
         with self.assertRaisesRegex(ValueError, "expected 40 profiles"):
             validate_database(database, 3)

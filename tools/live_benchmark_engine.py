@@ -1199,6 +1199,14 @@ def validate_database(
     errors = []
     if database.get("schemaVersion") != SCHEMA_VERSION:
         errors.append("schemaVersion mismatch")
+    totals = database.get("source", {}).get("totals")
+    if isinstance(totals, dict):
+        if totals.get("candidates", 0) <= 0:
+            errors.append("no ranked candidates were collected")
+        if totals.get("verifiedRuns", 0) <= 0:
+            errors.append("no combat-log run snapshots were verified")
+        if totals.get("exactStatMatches", 0) <= 0:
+            errors.append("no exact Raider.IO-to-Blizzard stat matches were found")
     profiles = database.get("profiles")
     if not isinstance(profiles, dict) or len(profiles) != len(SPECS):
         errors.append(f"expected {len(SPECS)} profiles")
