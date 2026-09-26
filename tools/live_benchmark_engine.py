@@ -207,7 +207,12 @@ def nested_rating(stats: dict[str, Any], keys: Iterable[str]) -> float | None:
     values = []
     for key in keys:
         row = stats.get(key)
-        value = safe_number(row.get("rating")) if isinstance(row, dict) else safe_number(row)
+        if isinstance(row, dict):
+            value = safe_number(row.get("rating_normalized"))
+            if value is None:
+                value = safe_number(row.get("rating"))
+        else:
+            value = safe_number(row)
         if value is not None and value >= 0:
             values.append(value)
     return max(values) if values else None

@@ -47,11 +47,11 @@ class BenchmarkEngineTests(unittest.TestCase):
             "agility": {"base": 10, "effective": 10},
             "intellect": {"base": 20, "effective": 20},
             "stamina": {"base": 900, "effective": 950},
-            "melee_crit": {"rating": 501},
-            "spell_crit": {"rating": 501},
-            "melee_haste": {"rating": 602},
-            "mastery": {"rating": 703},
-            "versatility": 804,
+            "melee_crit": {"rating_bonus": 12.1, "rating_normalized": 501, "value": 17.1},
+            "spell_crit": {"rating_bonus": 12.1, "rating_normalized": 501, "value": 17.1},
+            "melee_haste": {"rating_bonus": 9.4, "rating_normalized": 602, "value": 9.4},
+            "mastery": {"rating_bonus": 20.2, "rating_normalized": 703, "value": 38.0},
+            "versatility": 804.0,
         }
         parsed = parse_character_stats(raw)
         self.assertIsNotNone(parsed)
