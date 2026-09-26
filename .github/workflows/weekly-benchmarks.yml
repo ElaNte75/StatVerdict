@@ -200,12 +200,12 @@ jobs:
           merge-multiple: true
 
       # No single combined file: one 40-spec database was 170MB+ (past
-      # GitHub's 100MB limit) and not something the addon could load
-      # anyway - a player only ever needs one spec's data. Instead, check
-      # the 9 partials together cover all 40 specs with no gaps/overlap
-      # (throwaway output, not committed - this step is only for that
-      # check and the retry queue), then keep each role group as its own
-      # small, addon-sized file below.
+      # GitHub's 100MB limit). Instead, check the 9 partials together cover
+      # all 40 specs with no gaps/overlap (throwaway output, not committed -
+      # this step is only for that check and the retry queue), then keep each
+      # role group as its own raw JSON file in tools/data/live/ (outside the
+      # addon folder). Only the small compact file built from them by
+      # tools/addon_benchmarks.py goes into the addon.
       - name: Validate full spec coverage across all groups
         env:
           COHORTS: ${{ inputs.cohorts || '25,100,200' }}
@@ -224,8 +224,8 @@ jobs:
           python tools/live_benchmark_engine.py \
             --cohorts "$COHORTS" \
             --merge-inputs "partials/partial-healer-1.json,partials/partial-healer-2.json,partials/partial-healer-3.json,partials/partial-healer-4.json" \
-            --json-out StatVerdict/Data/Generated/SV_LiveBenchmarkData_Healer.json \
-            --lua-out StatVerdict/Data/Generated/SV_LiveBenchmarkData_Healer.lua
+            --json-out tools/data/live/SV_LiveBenchmarkData_Healer.json \
+            --lua-out /tmp/healer-raw.lua
 
       - name: Place the DPS/Tank files under their final names
         shell: bash
@@ -235,21 +235,23 @@ jobs:
           )
           for group in "${!rename[@]}"; do
             label="${rename[$group]}"
-            cp "partials/partial-${group}.json" "StatVerdict/Data/Generated/SV_LiveBenchmarkData_${label}.json"
-            cp "partials/partial-${group}.lua" "StatVerdict/Data/Generated/SV_LiveBenchmarkData_${label}.lua"
+            cp "partials/partial-${group}.json" "tools/data/live/SV_LiveBenchmarkData_${label}.json"
           done
+
+      - name: Build the addon's Mythic+ file
+        run: python tools/addon_benchmarks.py --inputs tools/data/live --out StatVerdict/Data/Generated/SV_MythicPlusBenchmarks.lua
 
       - name: Commit validated update
         shell: bash
         run: |
-          if [ -z "$(git status --porcelain -- StatVerdict/Data/Generated tools/data/benchmark_retry_queue.json)" ]; then
+          if [ -z "$(git status --porcelain -- StatVerdict/Data/Generated tools/data/live tools/data/benchmark_retry_queue.json)" ]; then
             echo "No benchmark changes."
             exit 0
           fi
           git config user.name "StatVerdict Benchmark Bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add StatVerdict/Data/Generated/SV_LiveBenchmarkData_*.json
-          git add StatVerdict/Data/Generated/SV_LiveBenchmarkData_*.lua
+          git add tools/data/live/SV_LiveBenchmarkData_*.json
+          git add StatVerdict/Data/Generated/SV_MythicPlusBenchmarks.lua
           git add tools/data/benchmark_retry_queue.json
           git commit -m "data: refresh live benchmarks"
           # main can move while this job runs (a code push, or another

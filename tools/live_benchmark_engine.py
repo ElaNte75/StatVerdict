@@ -1714,8 +1714,8 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--json-out", type=Path, default=Path("StatVerdict/Data/Generated/SV_LiveBenchmarkData.json"))
-    parser.add_argument("--lua-out", type=Path, default=Path("StatVerdict/Data/Generated/SV_LiveBenchmarkData.lua"))
+    parser.add_argument("--json-out", type=Path, default=Path("tools/data/live/SV_LiveBenchmarkData.json"))
+    parser.add_argument("--lua-out", type=Path, default=Path("tools/data/live/SV_LiveBenchmarkData.lua"))
     parser.add_argument("--validate-only", type=Path)
     parser.add_argument(
         "--specs",

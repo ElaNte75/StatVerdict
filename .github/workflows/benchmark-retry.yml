@@ -98,7 +98,7 @@ jobs:
             --lua-out retry-partial.lua
 
       # There is no single combined file (see weekly-benchmarks.yml) -
-      # data is split per role into SV_LiveBenchmarkData_<Role>.json/.lua,
+      # data is split per role into tools/data/live/SV_LiveBenchmarkData_<Role>.json,
       # each with its own disjoint set of specs. A retry batch can contain
       # specs from several of those files, so route each retried spec back
       # into whichever file already owns it, instead of merging everything
@@ -124,8 +124,7 @@ jobs:
               print(0)
           PYEOF
 
-          for target in StatVerdict/Data/Generated/SV_LiveBenchmarkData_*.json; do
-            lua="${target%.json}.lua"
+          for target in tools/data/live/SV_LiveBenchmarkData_*.json; do
             filtered="${target%.json}.retry-filtered.json"
             count=$(python /tmp/filter_retry.py "$target" retry-partial.json "$filtered")
             if [ "$count" -gt 0 ]; then
@@ -135,30 +134,34 @@ jobs:
                 --merge-inputs "$target,$filtered" \
                 --allow-merge-override \
                 --json-out "$target" \
-                --lua-out "$lua"
+                --lua-out /tmp/retry-fold.lua
               rm -f "$filtered"
             fi
           done
 
           python tools/live_benchmark_engine.py \
             --cohorts 25,100,200 \
-            --merge-inputs "$(ls StatVerdict/Data/Generated/SV_LiveBenchmarkData_*.json | paste -sd,)" \
+            --merge-inputs "$(ls tools/data/live/SV_LiveBenchmarkData_*.json | paste -sd,)" \
             --json-out /tmp/coverage-check.json \
             --lua-out /tmp/coverage-check.lua \
             --retry-queue-out tools/data/benchmark_retry_queue.json
+
+      - name: Build the addon's Mythic+ file
+        if: steps.queue.outputs.pending == 'true'
+        run: python tools/addon_benchmarks.py --inputs tools/data/live --out StatVerdict/Data/Generated/SV_MythicPlusBenchmarks.lua
 
       - name: Commit retried update
         if: steps.queue.outputs.pending == 'true'
         shell: bash
         run: |
-          if [ -z "$(git status --porcelain -- StatVerdict/Data/Generated tools/data/benchmark_retry_queue.json)" ]; then
+          if [ -z "$(git status --porcelain -- StatVerdict/Data/Generated tools/data/live tools/data/benchmark_retry_queue.json)" ]; then
             echo "No benchmark changes."
             exit 0
           fi
           git config user.name "StatVerdict Benchmark Bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add StatVerdict/Data/Generated/SV_LiveBenchmarkData_*.json
-          git add StatVerdict/Data/Generated/SV_LiveBenchmarkData_*.lua
+          git add tools/data/live/SV_LiveBenchmarkData_*.json
+          git add StatVerdict/Data/Generated/SV_MythicPlusBenchmarks.lua
           git add tools/data/benchmark_retry_queue.json
           git commit -m "data: retry failed benchmark specs"
           # See weekly-benchmarks.yml's Commit step: only generated data
