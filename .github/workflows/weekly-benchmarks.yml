@@ -1,0 +1,89 @@
+name: Weekly live benchmarks
+
+on:
+  schedule:
+    # Wednesday 15:00 UTC (18:00 Greece during daylight-saving time).
+    - cron: "0 15 * * 3"
+  workflow_dispatch:
+    inputs:
+      cohorts:
+        description: "Comma-separated cohort sizes"
+        required: true
+        default: "20,100,500"
+      max_pages:
+        description: "Maximum Raider.IO ranking pages per class/role"
+        required: true
+        default: "100"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: weekly-live-benchmarks
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    env:
+      BLIZZARD_CLIENT_ID: ${{ secrets.BLIZZARD_CLIENT_ID }}
+      BLIZZARD_CLIENT_SECRET: ${{ secrets.BLIZZARD_CLIENT_SECRET }}
+      RAIDERIO_ACCESS_KEY: ${{ secrets.RAIDERIO_ACCESS_KEY }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify required credentials
+        shell: bash
+        run: |
+          test -n "$BLIZZARD_CLIENT_ID" || {
+            echo "::error::Missing BLIZZARD_CLIENT_ID repository secret"
+            exit 1
+          }
+          test -n "$BLIZZARD_CLIENT_SECRET" || {
+            echo "::error::Missing BLIZZARD_CLIENT_SECRET repository secret"
+            exit 1
+          }
+
+      - name: Run engine tests
+        run: python -m unittest discover -s tools/tests -v
+
+      - name: Build live benchmark database
+        env:
+          COHORTS: ${{ inputs.cohorts || '20,100,500' }}
+          MAX_PAGES: ${{ inputs.max_pages || '100' }}
+        run: |
+          python tools/live_benchmark_engine.py \
+            --cohorts "$COHORTS" \
+            --max-pages "$MAX_PAGES" \
+            --regions world \
+            --workers 8
+
+      - name: Validate generated database
+        env:
+          COHORTS: ${{ inputs.cohorts || '20,100,500' }}
+        run: |
+          python tools/live_benchmark_engine.py \
+            --cohorts "$COHORTS" \
+            --validate-only StatVerdict/Data/Generated/SV_LiveBenchmarkData.json
+
+      - name: Commit validated update
+        shell: bash
+        run: |
+          if [ -z "$(git status --porcelain -- StatVerdict/Data/Generated/SV_LiveBenchmarkData.json StatVerdict/Data/Generated/SV_LiveBenchmarkData.lua)" ]; then
+            echo "No benchmark changes."
+            exit 0
+          fi
+          git config user.name "StatVerdict Benchmark Bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add StatVerdict/Data/Generated/SV_LiveBenchmarkData.json
+          git add StatVerdict/Data/Generated/SV_LiveBenchmarkData.lua
+          git commit -m "data: refresh weekly live benchmarks"
+          git push
