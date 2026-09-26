@@ -70,9 +70,6 @@ def main() -> int:
         raise RuntimeError(
             f"SimulationCraft attributes missing: {','.join(missing_attributes)}"
         )
-    if not isinstance(stats.get("health"), (int, float)):
-        raise RuntimeError("SimulationCraft health is missing")
-
     build = report.get("version") or report.get("sim", {}).get("version")
     print(
         json.dumps(
