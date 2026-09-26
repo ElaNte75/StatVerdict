@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from tools.addon_benchmarks import pick_popular_slots
+from tools.addon_benchmarks import pick_popular_slots, rank_trinkets
 from tools.tests.addon_fixtures import make_item, make_popular_items
 
 
@@ -46,6 +46,45 @@ class PickPopularSlotsTests(unittest.TestCase):
              "Ring", "Ring", "Trinket", "Bracers", "Trinket", "Main Hand"],
             labels,
         )
+
+
+class RankTrinketsTests(unittest.TestCase):
+    def test_pooled_usage_orders_and_assigns_tiers(self) -> None:
+        ranked = rank_trinkets(make_popular_items())
+        self.assertEqual([5001, 5003, 5002], [t["item_id"] for t in ranked])
+        self.assertEqual(["S", "S", "A"], [t["tier"] for t in ranked])
+        self.assertEqual([50.0, 45.0, 35.0], [t["usagePercent"] for t in ranked])
+
+    def test_below_three_percent_is_not_listed(self) -> None:
+        ranked = rank_trinkets(make_popular_items())
+        self.assertNotIn(5004, [t["item_id"] for t in ranked])
+
+    def test_tier_boundaries(self) -> None:
+        popular = {
+            "TRINKET_1": [
+                make_item(1, "s", 40, 40.0, [1]),
+                make_item(2, "a", 20, 20.0, [1]),
+                make_item(3, "b", 8, 8.0, [1]),
+                make_item(4, "c", 3, 3.0, [1]),
+                make_item(5, "none", 2, 2.99, [1]),
+            ]
+        }
+        ranked = rank_trinkets(popular)
+        self.assertEqual(["S", "A", "B", "C"], [t["tier"] for t in ranked])
+
+    def test_same_item_in_both_slots_is_listed_once(self) -> None:
+        popular = {
+            "TRINKET_1": [make_item(9, "x", 30, 30.0, [1])],
+            "TRINKET_2": [make_item(9, "x", 20, 20.0, [1])],
+        }
+        ranked = rank_trinkets(popular)
+        self.assertEqual(1, len(ranked))
+        self.assertEqual(50.0, ranked[0]["usagePercent"])
+        self.assertEqual("S", ranked[0]["tier"])
+
+    def test_list_is_capped_at_the_panel_row_count(self) -> None:
+        popular = {"TRINKET_1": [make_item(i, f"t{i}", 5, 5.0, [1]) for i in range(1, 30)]}
+        self.assertEqual(16, len(rank_trinkets(popular)))
 
 
 if __name__ == "__main__":

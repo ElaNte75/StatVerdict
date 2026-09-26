@@ -36,6 +36,11 @@ SLOT_ORDER: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Off Hand", ("OFF_HAND",)),
 )
 
+# (tier, minimum pooled usage percent). Initial values; reviewed with the user
+# against real data before they are locked (plan Task 5).
+TIER_THRESHOLDS: tuple[tuple[str, float], ...] = (("S", 40.0), ("A", 20.0), ("B", 8.0), ("C", 3.0))
+TRINKET_LIMIT = 16  # rows in the addon's Ranked Trinkets panel
+
 
 def _top_variant(item: dict[str, Any]) -> dict[str, Any] | None:
     variants = item.get("variants") or []
@@ -89,3 +94,23 @@ def pick_popular_slots(popular_items: dict[str, Any]) -> list[dict[str, Any]]:
             {"slot": label, "item": _item_fields(entry["item"]), "usagePercent": round(entry["percent"], 2)}
         )
     return slots
+
+
+def _tier_for(percent: float) -> str | None:
+    for tier, floor in TIER_THRESHOLDS:
+        if percent >= floor:
+            return tier
+    return None
+
+
+def rank_trinkets(popular_items: dict[str, Any]) -> list[dict[str, Any]]:
+    ranked: list[dict[str, Any]] = []
+    for entry in _pool(popular_items, ("TRINKET_1", "TRINKET_2")):
+        percent = round(entry["percent"], 2)
+        tier = _tier_for(percent)
+        if tier is None:
+            continue
+        ranked.append({**_item_fields(entry["item"]), "tier": tier, "usagePercent": percent})
+        if len(ranked) == TRINKET_LIMIT:
+            break
+    return ranked
