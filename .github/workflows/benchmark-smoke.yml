@@ -1,0 +1,48 @@
+name: Benchmark engine smoke test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/live_benchmark_engine.py"
+      - "tools/tests/**"
+      - ".github/workflows/benchmark-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: benchmark-engine-smoke
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BLIZZARD_CLIENT_ID: ${{ secrets.BLIZZARD_CLIENT_ID }}
+      BLIZZARD_CLIENT_SECRET: ${{ secrets.BLIZZARD_CLIENT_SECRET }}
+      RAIDERIO_ACCESS_KEY: ${{ secrets.RAIDERIO_ACCESS_KEY }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Run deterministic tests
+        run: python -m unittest discover -s tools/tests -v
+
+      - name: Verify API pipeline with small cohorts
+        run: |
+          python tools/live_benchmark_engine.py \
+            --cohorts 3 \
+            --max-pages 10 \
+            --regions world \
+            --workers 4 \
+            --json-out "$RUNNER_TEMP/SV_LiveBenchmarkData.json" \
+            --lua-out "$RUNNER_TEMP/SV_LiveBenchmarkData.lua"

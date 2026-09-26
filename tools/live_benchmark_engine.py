@@ -570,6 +570,11 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
                 if record:
                     records.append(record)
         records.sort(key=lambda row: (-row["score"], row["region"], row["realm"], row["name"]))
+        if not robust_records(records):
+            raise ValueError(
+                f"{spec.key}: no valid Blizzard character profiles; "
+                "inspect the preceding sanitized HTTP statuses"
+            )
         cohorts = {}
         for size in args.cohorts:
             cohorts[f"TOP_{size}"] = aggregate_cohort(records, size)
@@ -639,4 +644,9 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except Exception as exc:
+        message = f"{type(exc).__name__}: {exc}".replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+        print(f"::error title=Benchmark engine failed::{message}", file=sys.stderr)
+        raise
