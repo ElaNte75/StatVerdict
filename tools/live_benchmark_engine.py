@@ -213,7 +213,7 @@ def nested_rating(stats: dict[str, Any], keys: Iterable[str]) -> float | None:
     return max(values) if values else None
 
 
-def parse_character_stats(stats: dict[str, Any]) -> dict[str, float] | None:
+def parse_character_stats(stats: dict[str, Any]) -> dict[str, float]:
     parsed: dict[str, float] = {}
     for key in ("strength", "agility", "intellect", "stamina"):
         row = stats.get(key)
@@ -234,8 +234,29 @@ def parse_character_stats(stats: dict[str, Any]) -> dict[str, float] | None:
         value = nested_rating(stats, source_keys)
         if value is not None:
             parsed[output_key] = value
-    required = {"stamina", "crit", "haste", "mastery", "versatility"}
-    return parsed if required.issubset(parsed) else None
+    return parsed
+
+
+def describe_stat_shapes(stats: dict[str, Any]) -> str:
+    keys = (
+        "strength",
+        "agility",
+        "intellect",
+        "stamina",
+        "melee_crit",
+        "melee_haste",
+        "mastery",
+        "versatility",
+    )
+    descriptions = []
+    for key in keys:
+        value = stats.get(key)
+        if isinstance(value, dict):
+            shape = "{" + ",".join(sorted(str(child) for child in value.keys())) + "}"
+        else:
+            shape = type(value).__name__
+        descriptions.append(f"{key}:{shape}")
+    return ",".join(descriptions)
 
 
 def parse_equipment(equipment: dict[str, Any]) -> tuple[float | None, dict[str, dict[str, Any]]]:
@@ -387,13 +408,15 @@ def fetch_record(
         return None, str(exc)
     stats = parse_character_stats(stats_raw)
     item_level, items = parse_equipment(equipment_raw)
-    if not stats or item_level is None or len(items) < 12:
-        stats_keys = ",".join(sorted(str(key) for key in stats_raw.keys()))
-        parsed_keys = ",".join(sorted(stats.keys())) if stats else "none"
+    required_stats = {"stamina", "crit", "haste", "mastery", "versatility", spec.primary}
+    missing_stats = sorted(required_stats.difference(stats))
+    if missing_stats or item_level is None or len(items) < 12:
+        parsed_keys = ",".join(sorted(stats.keys())) or "none"
         return (
             None,
             "Profile schema mismatch "
-            f"(statistics keys={stats_keys}; parsed={parsed_keys}; equipment slots={len(items)})",
+            f"(missing={','.join(missing_stats) or 'none'}; parsed={parsed_keys}; "
+            f"shapes={describe_stat_shapes(stats_raw)}; equipment slots={len(items)})",
         )
     if spec.primary not in stats:
         return None, f"Profile response did not contain {spec.primary}"
