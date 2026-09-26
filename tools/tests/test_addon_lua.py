@@ -295,6 +295,13 @@ local function Stub()
         if key == "SetText" then return function(self, value) rawset(self, "text", value) end end
         if key == "SetShown" then return function(self, value) rawset(self, "shown", value) end end
         if key == "CreateFontString" or key == "CreateTexture" then return function() return Stub() end end
+        if key == "SetPoint" then
+            return function(self, ...)
+                local points = rawget(self, "points") or {}
+                points[#points + 1] = { ... }
+                rawset(self, "points", points)
+            end
+        end
         if key == "SetChecked" then return function(self, value) rawset(self, "checked", value) end end
         if key == "SetScript" then
             return function(self, name, fn)
@@ -364,6 +371,13 @@ class BenchmarkDrawerSmokeTests(unittest.TestCase):
         self.assertIn("25 best players", card.about.text)
         card.levelRows[3].scripts.OnClick()
         self.assertIn("200 best players", card.about.text)
+
+    def test_description_is_tied_to_the_bottom_of_the_card_and_stays_short(self) -> None:
+        card = self.card()
+        anchors = [card.about.points[i][1] for i in range(1, len(card.about.points) + 1)]
+        self.assertIn("BOTTOMLEFT", anchors)  # never placed by a guessed height
+        for level in self.ns.GetBenchmarkLevels().values():
+            self.assertLessEqual(len(level.about), 140, level.key)  # about three lines in the drawer
 
     def test_card_padding_copies_the_features_drawer(self) -> None:
         pads = {"options.card.pad": self.lua.table(top=5, bottom=5, left=0, right=0)}

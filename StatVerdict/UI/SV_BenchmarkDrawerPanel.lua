@@ -5,9 +5,9 @@ ns.StatVerdictBenchmarkDrawerPanel = Panel
 
 local DRAWER_PREFERRED_WIDTH = 280
 local MARGIN = 14
-local ROW_HEIGHT = 56
-local ROW_STEP = 62
-local ROWS_TOP = -96
+local ROW_HEIGHT = 50
+local ROW_STEP = 56
+local ROWS_TOP = -84
 local INFO_ROW_STEP = 18
 
 local GOLD = { 1.0, 0.82, 0.0 }
@@ -95,17 +95,17 @@ local function EnsureLevelRow(card, index, level)
     if row.check.Text then row.check.Text:Hide() end
 
     row.label = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    row.label:SetPoint("TOPLEFT", row, "TOPLEFT", 42, -11)
+    row.label:SetPoint("TOPLEFT", row, "TOPLEFT", 42, -9)
     row.label:SetText(level.label)
 
     row.hint = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.hint:SetPoint("TOPRIGHT", row, "TOPRIGHT", -12, -13)
+    row.hint:SetPoint("TOPRIGHT", row, "TOPRIGHT", -12, -11)
     row.hint:SetJustifyH("RIGHT")
     row.hint:SetTextColor(GREY[1], GREY[2], GREY[3])
     row.hint:SetText(level.hint or "")
 
     row.meaning = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.meaning:SetPoint("TOPLEFT", row.label, "BOTTOMLEFT", 0, -5)
+    row.meaning:SetPoint("TOPLEFT", row.label, "BOTTOMLEFT", 0, -4)
     row.meaning:SetJustifyH("LEFT")
     row.meaning:SetTextColor(GREY[1], GREY[2], GREY[3])
     row.meaning:SetText(level.meaning)
@@ -152,7 +152,7 @@ local function EnsureCard(frame)
 
     AddLine(card, -36)
 
-    card.intro = AddText(card, "GameFontHighlightSmall", -48)
+    card.intro = AddText(card, "GameFontHighlightSmall", -46)
     card.intro:SetTextColor(GREY[1], GREY[2], GREY[3])
     card.intro:SetText("Choose which players your Mythic+ targets and popular gear are based on.")
 
@@ -173,7 +173,7 @@ local function EnsureCard(frame)
 
     card.dataRows = {}
     for index, label in ipairs(INFO_LABELS) do
-        local y = infoTop - 40 - ((index - 1) * INFO_ROW_STEP)
+        local y = infoTop - 34 - ((index - 1) * INFO_ROW_STEP)
         local row = {}
         row.label = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         row.label:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, y)
@@ -185,14 +185,18 @@ local function EnsureCard(frame)
         card.dataRows[index] = row
     end
 
-    card.note = AddText(card, "GameFontHighlightSmall", infoTop - 40)
-    local warningY = infoTop - 40 - (#INFO_LABELS * INFO_ROW_STEP) - 4
+    card.note = AddText(card, "GameFontHighlightSmall", infoTop - 34)
+    local warningY = infoTop - 34 - (#INFO_LABELS * INFO_ROW_STEP) - 4
     card.warning = AddText(card, "GameFontHighlightSmall", warningY)
     card.warning:SetTextColor(ORANGE[1], ORANGE[2], ORANGE[3])
 
-    -- A short plain-language description of the selected level sits below the data,
-    -- leaving room for a two-line warning above it.
-    card.about = AddText(card, "GameFontHighlightSmall", warningY - 34)
+    -- A short plain-language description of the selected level. It is tied to the
+    -- bottom of the card, so it can never fall outside it whatever the card's height.
+    card.about = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    card.about:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", MARGIN, 16)
+    card.about:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -MARGIN, 16)
+    card.about:SetJustifyH("LEFT")
+    card.about:SetWordWrap(true)
     card.about:SetTextColor(0.85, 0.85, 0.85)
 
     frame.benchmarkDrawerCard = card

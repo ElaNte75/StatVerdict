@@ -5,15 +5,15 @@ local addonName, ns = ...
 local LEVELS = {
     {
         key = "ELITE", label = "Elite", meaning = "Gear of the top 25 players", hint = "Strictest",
-        about = "The strictest benchmark. Your targets and popular gear come from the 25 best players, so it shows what top-end play looks like. The group is small, so the numbers can vary more. Best if you want to push for the very top.",
+        about = "Strictest benchmark: the 25 best players. A small group, so numbers can vary more. For pushing for the very top.",
     },
     {
         key = "STANDARD", label = "Standard", meaning = "Gear of the top 100 players", hint = "Recommended",
-        about = "The balanced choice. Your targets and popular gear come from the 100 best players: a demanding but realistic goal, from a group large enough for stable numbers. Recommended for most players.",
+        about = "Balanced benchmark: the 100 best players. A demanding but realistic goal with stable numbers. Recommended for most players.",
     },
     {
         key = "BROAD", label = "Broad", meaning = "Gear of the top 200 players", hint = "Steadiest",
-        about = "The steadiest benchmark. Your targets and popular gear come from the 200 best players, so the numbers are the most stable and a little less demanding than Elite. Good if you want a safe, typical build.",
+        about = "Steadiest benchmark: the 200 best players. The most stable numbers, a little less demanding than Elite. A safe, typical build.",
     },
 }
 local DEFAULT_LEVEL = "STANDARD"
