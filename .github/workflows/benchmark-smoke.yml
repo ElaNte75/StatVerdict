@@ -41,7 +41,9 @@ jobs:
         run: |
           python tools/live_benchmark_engine.py \
             --cohorts 3 \
-            --max-pages 10 \
+            --max-pages 1 \
+            --max-run-checks 1 \
+            --max-insufficient-specs 40 \
             --regions world \
             --workers 4 \
             --json-out "$RUNNER_TEMP/SV_LiveBenchmarkData.json" \

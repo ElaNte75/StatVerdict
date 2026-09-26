@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "name": "Liquid Armory",
+    "url": "https://liquidarmory.com/trinket-tracker",
+    "season": "season-mn-2",
+    "patch": "12.1.0",
+    "capturedAt": "2026-09-26T12:00:00Z",
+    "acquisition": "authorized_export",
+    "simcHash": "replace-with-source-hash"
+  },
+  "profiles": {
+    "DEATHKNIGHT_BLOOD": {
+      "simulations": [
+        {
+          "profileName": "Blood Death Knight Single Target",
+          "fightStyle": "single_target",
+          "heroTalent": "San'layn",
+          "baselineDescription": "No trinkets equipped",
+          "trinkets": [
+            {
+              "itemId": 123456,
+              "name": "Example Trinket",
+              "track": "Myth",
+              "itemLevel": 334,
+              "absoluteValue": 100000,
+              "relativeValue": 1.0,
+              "sourceType": "raid",
+              "sourceName": "Example Boss"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
