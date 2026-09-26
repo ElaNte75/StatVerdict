@@ -101,6 +101,33 @@ class BenchmarkEngineTests(unittest.TestCase):
         self.assertEqual(303, run_record["stats"]["mastery"])
         self.assertEqual("HERO_31", run_record["heroTalent"]["key"])
 
+    def test_simc_missing_secondary_rating_defaults_to_zero_not_failure(self) -> None:
+        # Regression test: SimulationCraft omits a rating key entirely when
+        # it is zero (e.g. a character with no Versatility gear at all)
+        # instead of reporting 0. That must not be treated as a broken
+        # reconstruction and thrown away - it means the character simply
+        # has zero of that stat.
+        run_record = {
+            **record(1),
+            "race": "night-elf",
+            "items": {"HEAD": {"itemId": 271474, "itemLevel": 321}},
+            "runTalentLoadout": "CoPAAAA",
+            "statEligible": False,
+        }
+        reconstructed = {
+            "sv_0001": {
+                "ratings": {"crit": 101, "haste": 202, "mastery": 303},  # no versatility key
+                "attributes": {"strength": 500, "stamina": 600},
+            }
+        }
+        with patch("tools.live_benchmark_engine.run_simc", return_value=(reconstructed, {})):
+            accepted, failures = reconstruct_stats_with_simc(
+                Path("simc"), SPECS[0], [run_record], timeout_seconds=10, threads=1
+            )
+        self.assertEqual(1, len(accepted))
+        self.assertFalse(failures)
+        self.assertEqual(0, run_record["stats"]["versatility"])
+
     def test_simc_batch_failure_marks_every_eligible_run(self) -> None:
         runs = [
             {

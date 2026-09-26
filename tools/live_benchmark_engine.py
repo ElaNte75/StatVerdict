@@ -830,9 +830,13 @@ def reconstruct_stats_with_simc(
         }
         stats.update(
             {
-                key: ratings.get(key)
+                # SimulationCraft omits a rating entirely when it is zero
+                # (e.g. a character with no Versatility on any item) instead
+                # of reporting 0, so a missing key here means "zero", not
+                # "reconstruction failed" - only stamina/primary staying
+                # missing below is treated as a real failure.
+                key: (ratings.get(key) if isinstance(ratings.get(key), (int, float)) else 0)
                 for key in SECONDARY_STATS
-                if isinstance(ratings.get(key), (int, float))
             }
         )
         required = {"stamina", spec.primary, *SECONDARY_STATS}
@@ -901,9 +905,17 @@ def reconstruct_stats_with_wowhead(
         stats = {
             key: value
             for key, value in totals.items()
-            if key in ("strength", "agility", "intellect", "stamina", *SECONDARY_STATS)
+            if key in ("strength", "agility", "intellect", "stamina")
             and isinstance(value, (int, float))
         }
+        # A stat with no item contributing to it at all (e.g. no Crit
+        # anywhere in the loadout) means zero, not "reconstruction failed".
+        stats.update(
+            {
+                key: (totals.get(key) if isinstance(totals.get(key), (int, float)) else 0)
+                for key in SECONDARY_STATS
+            }
+        )
         required = {"stamina", spec.primary, *SECONDARY_STATS}
         missing = sorted(required.difference(stats))
         if missing:
