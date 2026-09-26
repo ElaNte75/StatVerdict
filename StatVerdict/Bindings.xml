@@ -1,0 +1,8 @@
+<Bindings>
+	<!-- Binding name must match BINDING_NAME_* / BINDING_HEADER_* globals set in Lua. -->
+	<Binding name="STATVERDICT_TOGGLE" header="STATVERDICT" category="ADDONS">
+		if StatVerdict_ToggleStatAudit then
+			StatVerdict_ToggleStatAudit()
+		end
+	</Binding>
+</Bindings>

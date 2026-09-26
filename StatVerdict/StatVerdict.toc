@@ -1,0 +1,47 @@
+﻿## Interface: 120100
+## Title: StatVerdict
+## Notes: Gear verdicts for your Main Spec and Off Spec builds.
+## Author: Gchris
+## Version: 1.0.7
+## SavedVariables: StatVerdictDB
+## IconTexture: Interface\Icons\Ability_Mage_BrainFreeze
+## AddonCompartmentFunc: StatVerdict_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: StatVerdict_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: StatVerdict_OnAddonCompartmentLeave
+Data/Generated/SV_ProfileData.lua
+Core/SV_Constants.lua
+Core/SV_CurrentStats.lua
+Core/SV_SpecSnapshot.lua
+Core/SV_SpecMeta.lua
+Core/SV_ProfileRepository.lua
+Core/SV_EvaluationContext.lua
+Core/SV_ProfileLoader.lua
+Core/SV_AuditTargets.lua
+Core/SV_ItemReferenceBonuses.lua
+Core/SV_Modifiers.lua
+Core/SV_LiveWeights.lua
+Core/SV_ItemData.lua
+Core/SV_Scoring.lua
+Core/SV_Rules.lua
+Core/SV_Comparison.lua
+Core/SV_UpgradeIndicatorLogic.lua
+UI/SV_Render.lua
+UI/SV_Tooltip.lua
+UI/SV_WindowChrome.lua
+UI/SV_LayoutOffsets.lua
+UI/SV_ChipDropdown.lua
+UI/SV_SettingsPanel.lua
+UI/SV_RightPanelMode.lua
+UI/SV_OptionsDrawerPanel.lua
+UI/SV_ManualDrawerPanel.lua
+UI/SV_CharacterSummaryDrawerPanel.lua
+UI/SV_StatProgressPanel.lua
+UI/SV_BisProgressPanel.lua
+UI/SV_DashboardLayout.lua
+UI/SV_StatAudit.lua
+UI/SV_MinimapButton.lua
+UI/SV_UpgradeIndicatorView.lua
+UI/SV_AdventureGuideIndicatorSource.lua
+UI/SV_QuestRewardIndicatorSource.lua
+UI/SV_MerchantIndicatorSource.lua
+StatVerdict.lua

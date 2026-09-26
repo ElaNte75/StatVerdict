@@ -1,0 +1,13 @@
+## Interface: 120100
+## Title: StatVerdict Bridge
+## Notes: Dev-only ClassCodex exporter for StatVerdict profile data. Do not ship to Curse.
+## Author: Gchris
+## Version: 1.0.0
+## RequiredDeps: ClassCodex
+## SavedVariables: StatVerdictBridgeDB
+## IconTexture: Interface\Icons\INV_Misc_Note_01
+
+Encode.lua
+Resolver.lua
+Builder.lua
+StatVerdictBridge.lua
