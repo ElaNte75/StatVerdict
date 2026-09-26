@@ -388,7 +388,13 @@ def fetch_record(
     stats = parse_character_stats(stats_raw)
     item_level, items = parse_equipment(equipment_raw)
     if not stats or item_level is None or len(items) < 12:
-        return None, "Profile response was incomplete or missing required ratings/equipment"
+        stats_keys = ",".join(sorted(str(key) for key in stats_raw.keys()))
+        parsed_keys = ",".join(sorted(stats.keys())) if stats else "none"
+        return (
+            None,
+            "Profile schema mismatch "
+            f"(statistics keys={stats_keys}; parsed={parsed_keys}; equipment slots={len(items)})",
+        )
     if spec.primary not in stats:
         return None, f"Profile response did not contain {spec.primary}"
     return (
