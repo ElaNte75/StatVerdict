@@ -40,6 +40,13 @@ SLOT_ORDER: tuple[tuple[str, tuple[str, ...]], ...] = (
 # against real data before they are locked (plan Task 5).
 TIER_THRESHOLDS: tuple[tuple[str, float], ...] = (("S", 40.0), ("A", 20.0), ("B", 8.0), ("C", 3.0))
 TRINKET_LIMIT = 16  # rows in the addon's Ranked Trinkets panel
+MIN_SLOTS = 10  # same as the addon's MIN_CONTEXT_ITEMS
+MIN_ITEM_LEVEL = 250.0  # same as the addon's MIN_VALID_MAX_LEVEL_TARGET_ILVL
+TIE_RATIO = 0.05  # a stat within 5% of the previous one shares its priority tier
+# Live database key -> key used in the addon's statTargets / priority rows.
+TARGET_KEYS = {"crit": "critical_strike", "haste": "haste", "mastery": "mastery", "versatility": "versatility"}
+PRIORITY_KEYS = {"crit": "critical-strike", "haste": "haste", "mastery": "mastery", "versatility": "versatility"}
+PRIMARY_KEYS = ("strength", "agility", "intellect")
 
 
 def _top_variant(item: dict[str, Any]) -> dict[str, Any] | None:
@@ -114,3 +121,69 @@ def rank_trinkets(popular_items: dict[str, Any]) -> list[dict[str, Any]]:
         if len(ranked) == TRINKET_LIMIT:
             break
     return ranked
+
+
+def valid_cohort(cohort: Any) -> bool:
+    if not isinstance(cohort, dict) or cohort.get("status") != "ok":
+        return False
+    minimum = int(cohort.get("minimumSample") or 0)
+    return minimum > 0 and int(cohort.get("sampleSize") or 0) >= minimum
+
+
+def secondary_stats(cohort: dict[str, Any] | None, key_map: dict[str, str]) -> dict[str, float]:
+    raw = ((cohort or {}).get("statTargets") or {}).get("stats") or {}
+    stats: dict[str, float] = {}
+    for source_key, target_key in key_map.items():
+        value = raw.get(source_key)
+        if isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0:
+            stats[target_key] = float(value)
+    return stats
+
+
+def order_and_tiers(stats: dict[str, float]) -> tuple[list[str], list[list[str]]]:
+    ranked = sorted(((k, v) for k, v in stats.items() if v > 0), key=lambda kv: (-kv[1], kv[0]))
+    order = [key for key, _ in ranked]
+    tiers: list[list[str]] = []
+    previous: float | None = None
+    for key, value in ranked:
+        if previous is not None and value >= previous * (1.0 - TIE_RATIO):
+            tiers[-1].append(key)
+        else:
+            tiers.append([key])
+        previous = value
+    return order, tiers
+
+
+def _priority_row(cohort: dict[str, Any], hero_tree_id: int | None) -> dict[str, Any] | None:
+    order, tiers = order_and_tiers(secondary_stats(cohort, PRIORITY_KEYS))
+    if not order:
+        return None
+    row: dict[str, Any] = {"context": "Mythic+", "order": order, "tiers": tiers}
+    if hero_tree_id is not None:
+        row["heroSubTreeID"] = hero_tree_id
+    return row
+
+
+def build_priority_profiles(
+    profile: dict[str, Any], cohort_key: str, spec_cohort: dict[str, Any]
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for tree in (profile.get("heroTalentTrees") or {}).values():
+        tree_id = tree.get("id")
+        cohort = (tree.get("cohorts") or {}).get(cohort_key)
+        if not isinstance(tree_id, int) or not valid_cohort(cohort):
+            continue
+        row = _priority_row(cohort, tree_id)
+        if row:
+            rows.append(row)
+    rows.sort(key=lambda r: r["heroSubTreeID"])
+    general = _priority_row(spec_cohort, None)
+    if general:
+        rows.append(general)
+    return rows
+
+
+def measured_primary_stat(cohort: dict[str, Any] | None, fallback: str) -> str:
+    raw = ((cohort or {}).get("statTargets") or {}).get("stats") or {}
+    best = max(PRIMARY_KEYS, key=lambda key: float(raw.get(key) or 0.0))
+    return best if float(raw.get(best) or 0.0) > 0 else fallback

@@ -2,8 +2,17 @@ from __future__ import annotations
 
 import unittest
 
-from tools.addon_benchmarks import pick_popular_slots, rank_trinkets
-from tools.tests.addon_fixtures import make_item, make_popular_items
+from tools.addon_benchmarks import (
+    TARGET_KEYS,
+    build_priority_profiles,
+    measured_primary_stat,
+    order_and_tiers,
+    pick_popular_slots,
+    rank_trinkets,
+    secondary_stats,
+    valid_cohort,
+)
+from tools.tests.addon_fixtures import make_item, make_popular_items, make_profile, make_stat_cohort
 
 
 class PickPopularSlotsTests(unittest.TestCase):
@@ -85,6 +94,47 @@ class RankTrinketsTests(unittest.TestCase):
     def test_list_is_capped_at_the_panel_row_count(self) -> None:
         popular = {"TRINKET_1": [make_item(i, f"t{i}", 5, 5.0, [1]) for i in range(1, 30)]}
         self.assertEqual(16, len(rank_trinkets(popular)))
+
+
+class TargetsAndPriorityTests(unittest.TestCase):
+    def test_secondary_stats_are_renamed_for_the_addon(self) -> None:
+        cohort = make_stat_cohort(100, 1140, 900, 680, 430)
+        self.assertEqual(
+            {"critical_strike": 1140.0, "haste": 900.0, "mastery": 680.0, "versatility": 430.0},
+            secondary_stats(cohort, TARGET_KEYS),
+        )
+
+    def test_order_and_tiers_group_stats_within_five_percent(self) -> None:
+        order, tiers = order_and_tiers({"haste": 1000.0, "mastery": 900.0, "critical-strike": 600.0, "versatility": 590.0})
+        self.assertEqual(["haste", "mastery", "critical-strike", "versatility"], order)
+        self.assertEqual([["haste"], ["mastery"], ["critical-strike", "versatility"]], tiers)
+
+    def test_priority_rows_per_valid_hero_tree_plus_spec_wide_row(self) -> None:
+        profile = make_profile()
+        rows = build_priority_profiles(profile, "TOP_100", profile["cohorts"]["TOP_100"])
+        self.assertEqual([31, 33, None], [r.get("heroSubTreeID") for r in rows])
+        self.assertEqual(["haste", "mastery", "critical-strike", "versatility"], rows[0]["order"])
+        self.assertEqual(["critical-strike", "mastery", "versatility", "haste"], rows[1]["order"])
+        self.assertEqual(["critical-strike", "haste", "mastery", "versatility"], rows[2]["order"])
+        self.assertTrue(all(r["context"] == "Mythic+" for r in rows))
+
+    def test_insufficient_hero_tree_gets_no_row(self) -> None:
+        profile = make_profile()
+        rows = build_priority_profiles(profile, "TOP_100", profile["cohorts"]["TOP_100"])
+        self.assertNotIn(35, [r.get("heroSubTreeID") for r in rows])
+
+    def test_valid_cohort_needs_ok_status_and_minimum_sample(self) -> None:
+        self.assertTrue(valid_cohort(make_stat_cohort(100, 1, 1, 1, 1)))
+        self.assertFalse(valid_cohort(make_stat_cohort(100, 1, 1, 1, 1, status="insufficient")))
+        self.assertFalse(valid_cohort(make_stat_cohort(20, 1, 1, 1, 1, minimum=25)))
+        self.assertFalse(valid_cohort(None))
+
+    def test_primary_stat_is_measured_not_trusted(self) -> None:
+        # Devourer Demon Hunter is an Intellect spec but the raw label says agility.
+        cohort = make_stat_cohort(100, 1, 1, 1, 1, primaries=(300.0, 500.0, 2400.0))
+        self.assertEqual("intellect", measured_primary_stat(cohort, "agility"))
+        empty = make_stat_cohort(100, 1, 1, 1, 1, primaries=(0.0, 0.0, 0.0))
+        self.assertEqual("agility", measured_primary_stat(empty, "agility"))
 
 
 if __name__ == "__main__":
