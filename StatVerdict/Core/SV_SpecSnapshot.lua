@@ -423,6 +423,13 @@ function ns.GetSnapshotHeroTalentName(profile)
     return nil
 end
 
+function ns.GetSnapshotHeroSubTreeID(profile)
+    local snapshot = GetSnapshot(profile)
+    local id = snapshot and tonumber(snapshot.heroSubTreeID)
+    if id and id > 0 then return id end
+    return nil
+end
+
 function ns.GetActiveSnapshotDisplayStatValue(statKey)
     return ns.GetSnapshotDisplayStatValue(activeProfile, statKey)
 end

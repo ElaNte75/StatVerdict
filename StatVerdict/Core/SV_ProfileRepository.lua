@@ -90,7 +90,36 @@ local function GetRoot()
     return root
 end
 
+local MYTHIC_PLUS_SCHEMA_VERSION = 1
+
+-- Mythic+ data comes from the live benchmark file (tools/addon_benchmarks.py),
+-- one context per benchmark level. Other goals still use the bundled root.
+local function GetMythicPlusRoot()
+    local root = ns.MythicPlusBenchmarks
+    if type(root) ~= "table" or root.schemaVersion ~= MYTHIC_PLUS_SCHEMA_VERSION then
+        return nil
+    end
+    if not IsRecentDate(root.generatedAt, MAX_GENERATED_AGE_DAYS) then
+        return nil
+    end
+    return root
+end
+
+local function GetGoalRoot(goal)
+    if goal == "MYTHIC_PLUS" then return GetMythicPlusRoot() end
+    return GetRoot()
+end
+
 local function GetContext(specKey, goal)
+    if goal == "MYTHIC_PLUS" then
+        local root = GetMythicPlusRoot()
+        local profiles = root and root.profiles
+        local profile = type(profiles) == "table" and profiles[specKey] or nil
+        if type(profile) ~= "table" or type(profile.levels) ~= "table" then return nil, nil end
+        local level = ns.GetBenchmarkLevel and ns.GetBenchmarkLevel() or "STANDARD"
+        local context = profile.levels[level]
+        return type(context) == "table" and context or nil, profile
+    end
     local root = GetRoot()
     local profiles = root and root.profiles
     local profile = type(profiles) == "table" and profiles[specKey] or nil
@@ -150,7 +179,18 @@ local function ValidateGeneratedContext(context, goal)
     return true
 end
 
-function Repository.GetDataProvenance()
+function Repository.GetDataProvenance(goal)
+    if goal == "MYTHIC_PLUS" then
+        local root = ns.MythicPlusBenchmarks
+        local level = ns.GetBenchmarkLevelInfo and ns.GetBenchmarkLevelInfo(ns.GetBenchmarkLevel()) or nil
+        local generatedAt = type(root) == "table" and root.generatedAt or nil
+        return {
+            available = GetMythicPlusRoot() ~= nil,
+            generatedAt = generatedAt,
+            scrape = type(generatedAt) == "string" and generatedAt:sub(1, 10) or nil,
+            sourceName = "StatVerdict live benchmarks" .. (level and (" · " .. level.label) or ""),
+        }
+    end
     local root = ns.GeneratedProfileData
     local source = type(root) == "table" and root.source or nil
     return {
@@ -161,14 +201,18 @@ function Repository.GetDataProvenance()
     }
 end
 
-local function PriorityScore(row, heroTalentName, contextName)
+local function PriorityScore(row, heroTalentName, contextName, heroSubTreeID)
     if type(row) ~= "table" then return -1 end
     local score = 0
     local wantedHero = NormalizeToken(heroTalentName)
     local rowHero = NormalizeToken(row.heroTalent)
-    if wantedHero ~= "" and rowHero == wantedHero then
+    if heroSubTreeID and row.heroSubTreeID ~= nil then
+        if tonumber(row.heroSubTreeID) == tonumber(heroSubTreeID) then
+            score = score + 4
+        end
+    elseif row.heroSubTreeID == nil and wantedHero ~= "" and rowHero == wantedHero then
         score = score + 4
-    elseif rowHero == "" or rowHero == "all" then
+    elseif row.heroSubTreeID == nil and (rowHero == "" or rowHero == "all") then
         score = score + 1
     end
 
@@ -187,7 +231,7 @@ function Repository.GetContext(specKey, goal)
     return GetContext(specKey, goal)
 end
 
-function Repository.GetPriority(specKey, goal, heroTalentName)
+function Repository.GetPriority(specKey, goal, heroTalentName, heroSubTreeID)
     local context = Repository.GetContext(specKey, goal)
     local rows = type(context) == "table" and context.priorityProfiles or nil
     if type(rows) ~= "table" then return nil end
@@ -202,7 +246,7 @@ function Repository.GetPriority(specKey, goal, heroTalentName)
     end
     local best, bestScore
     for _, row in ipairs(rows) do
-        local score = PriorityScore(row, heroTalentName, contextName)
+        local score = PriorityScore(row, heroTalentName, contextName, heroSubTreeID)
         if bestScore == nil or score > bestScore then
             best = row
             bestScore = score
@@ -345,7 +389,9 @@ function Repository.BuildRuntimeProfile(context)
 
     local heroTalentName = context.heroTalentName
         or (ns.GetSnapshotHeroTalentName and ns.GetSnapshotHeroTalentName(context))
-    local priority = Repository.GetPriority(specKey, goal, heroTalentName)
+    local heroSubTreeID = context.heroSubTreeID
+        or (ns.GetSnapshotHeroSubTreeID and ns.GetSnapshotHeroSubTreeID(context))
+    local priority = Repository.GetPriority(specKey, goal, heroTalentName, heroSubTreeID)
     local secondaryOrder = BuildSecondaryOrderFromTargets(generatedContext.targets, priority)
     local primaryStat = STAT_KEY[generatedProfile.primaryStat]
     local role = context.role
@@ -402,7 +448,7 @@ function Repository.BuildRuntimeProfile(context)
 end
 
 function Repository.BuildProviderView(goal)
-    local root = GetRoot()
+    local root = GetGoalRoot(goal)
     local provider = {}
     if not root then return provider end
 

@@ -98,5 +98,114 @@ class BenchmarkCoreTests(unittest.TestCase):
         self.assertEqual("BIS", raid.tag)
 
 
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class RepositoryTests(unittest.TestCase):
+    def build_runtime(self, generated_at: str | None = None, level: str | None = None, profiles: dict | None = None):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        data_path = Path(self.tmp.name) / "SV_MythicPlusBenchmarks.lua"
+        write_data_file(data_path, generated_at or now_stamp(), profiles)
+        lua = new_runtime()
+        ns = lua.table()
+        db = lua.table()
+        if level:
+            db.benchmarkLevel = level
+        lua.globals().StatVerdictDB = db
+        lua.eval("function(path, ns) local f = assert(loadfile(path)) f('StatVerdict', ns) end")(str(data_path), ns)
+        for relative in ("Core/SV_Benchmark.lua", "Core/SV_ProfileRepository.lua", "Core/SV_ItemReferenceBonuses.lua"):
+            load_addon_file(lua, ns, relative)
+        ns.GetStatVerdictSpecIDByKey = lua.eval("function(key) return 250 end")
+        ns.GetStatVerdictRoleBySpecID = lua.eval("function(id) return 'TANK' end")
+        return lua, ns
+
+    def context(self, lua, **extra):
+        table = lua.table(specKey="DEATHKNIGHT_BLOOD", goal="MYTHIC_PLUS", role="TANK", specID=250, classFile="DEATHKNIGHT")
+        for key, value in extra.items():
+            table[key] = value
+        return table
+
+    def targets(self, profile) -> dict:
+        rows = profile.auditTargets.rows
+        return {rows[i].key: rows[i].target for i in range(1, len(rows) + 1)}
+
+    def test_mythic_plus_profile_is_built_from_the_live_file(self) -> None:
+        lua, ns = self.build_runtime()
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        self.assertFalse(profile.invalidGeneratedContext)
+        self.assertEqual("ITEM_MOD_STRENGTH_SHORT", profile.primaryStat)
+        self.assertEqual(1140.0, self.targets(profile)["ITEM_MOD_CRIT_RATING_SHORT"])
+
+    def test_level_choice_changes_the_targets(self) -> None:
+        lua, ns = self.build_runtime(level="ELITE")
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        self.assertEqual(1300.0, self.targets(profile)["ITEM_MOD_CRIT_RATING_SHORT"])
+
+    def test_hero_tree_id_selects_its_priority_and_unknown_uses_spec_wide(self) -> None:
+        lua, ns = self.build_runtime()
+        hero = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua, heroSubTreeID=31))
+        self.assertEqual("ITEM_MOD_HASTE_RATING_SHORT", hero.secondaryOrder[1])
+        self.assertEqual("ITEM_MOD_MASTERY_RATING_SHORT", hero.secondaryOrder[2])
+        other = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua, heroSubTreeID=33))
+        self.assertEqual("ITEM_MOD_CRIT_RATING_SHORT", other.secondaryOrder[1])
+        unknown = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        self.assertEqual(["ITEM_MOD_CRIT_RATING_SHORT", "ITEM_MOD_HASTE_RATING_SHORT"],
+                         [unknown.secondaryOrder[1], unknown.secondaryOrder[2]])
+        mismatch = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua, heroSubTreeID=99))
+        self.assertEqual("ITEM_MOD_CRIT_RATING_SHORT", mismatch.secondaryOrder[1])
+
+    def test_missing_level_shows_no_data_instead_of_another_level(self) -> None:
+        profile = make_profile()
+        profile["cohorts"]["TOP_25"]["status"] = "insufficient"
+        lua, ns = self.build_runtime(level="ELITE", profiles={"DEATHKNIGHT_BLOOD": profile})
+        self.assertIsNone(ns.ProfileRepository.BuildRuntimeProfile(self.context(lua)))
+        lua, ns = self.build_runtime(profiles={"DEATHKNIGHT_BLOOD": profile})
+        self.assertIsNotNone(ns.ProfileRepository.BuildRuntimeProfile(self.context(lua)))
+
+    def test_stale_data_fails_closed(self) -> None:
+        lua, ns = self.build_runtime(generated_at=now_stamp(days_ago=40))
+        self.assertIsNone(ns.ProfileRepository.BuildRuntimeProfile(self.context(lua)))
+
+    def test_raid_still_reads_the_old_file_only(self) -> None:
+        lua, ns = self.build_runtime()
+        self.assertIsNone(ns.ProfileRepository.BuildRuntimeProfile(self.context(lua, goal="RAID")))
+
+    def test_provider_view_lists_specs_from_the_live_file(self) -> None:
+        lua, ns = self.build_runtime()
+        provider = ns.ProfileRepository.RefreshProviderView("MYTHIC_PLUS")
+        self.assertIsNotNone(provider["DEATHKNIGHT"][250].default)
+
+    def test_provenance_uses_the_live_file_for_mythic_plus(self) -> None:
+        lua, ns = self.build_runtime()
+        info = ns.ProfileRepository.GetDataProvenance("MYTHIC_PLUS")
+        self.assertTrue(info.available)
+        self.assertEqual("StatVerdict live benchmarks · Standard", info.sourceName)
+        self.assertEqual(now_stamp()[:10], info.scrape)
+
+    def test_popular_items_and_trinkets_keep_their_boosts(self) -> None:
+        lua, ns = self.build_runtime()
+        profile = lua.table(specKey="DEATHKNIGHT_BLOOD", goal="MYTHIC_PLUS")
+        helm = ns.GetItemReferenceInfo("item:1000", profile)
+        self.assertEqual(8, helm.bonus)
+        self.assertIsNotNone(helm.bis)
+        # The two most popular trinkets are also in the popular-slot list, so they get
+        # the +8 list bonus on top of their tier bonus (same as the old BiS data did).
+        alpha = ns.GetItemReferenceInfo("item:5001", profile)
+        self.assertEqual("S", alpha.trinket.tier)
+        self.assertEqual(108, alpha.bonus)  # list 8 + tier 95 + rank bonus 5
+        gamma = ns.GetItemReferenceInfo("item:5003", profile)
+        self.assertEqual(107, gamma.bonus)  # list 8 + tier 95 + rank bonus 4
+        beta = ns.GetItemReferenceInfo("item:5002", profile)
+        self.assertEqual("A", beta.trinket.tier)
+        self.assertEqual(70, beta.bonus)  # tier 65 + rank bonus 5 (not in the popular-slot list)
+        self.assertIsNone(ns.GetItemReferenceInfo("item:1001", profile))  # second most popular helm: not listed
+        self.assertIsNone(ns.GetItemReferenceInfo("item:5004", profile))  # below the 3% floor
+        self.assertIsNone(ns.GetItemReferenceInfo("item:999999", profile))
+
+    def test_boost_follows_the_selected_level(self) -> None:
+        lua, ns = self.build_runtime(level="BROAD")
+        profile = lua.table(specKey="DEATHKNIGHT_BLOOD", goal="MYTHIC_PLUS")
+        self.assertEqual(8, ns.GetItemReferenceInfo("item:1000", profile).bonus)
+
+
 if __name__ == "__main__":
     unittest.main()

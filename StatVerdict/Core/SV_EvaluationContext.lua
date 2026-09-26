@@ -37,6 +37,17 @@ local function GetCurrentHeroTalentName()
     return nil
 end
 
+local function GetCurrentHeroSubTreeID()
+    local heroSpecID
+    if C_ClassTalents and C_ClassTalents.GetActiveHeroTalentSpec then
+        heroSpecID = SafeCall(C_ClassTalents.GetActiveHeroTalentSpec)
+    end
+    if not heroSpecID and C_ClassTalents and C_ClassTalents.GetActiveHeroTalentSpecID then
+        heroSpecID = SafeCall(C_ClassTalents.GetActiveHeroTalentSpecID)
+    end
+    return tonumber(heroSpecID)
+end
+
 local function BuildCurrentContext()
     local className, classFile = UnitClass("player")
     local specIndex = SafeCall(GetSpecialization)
@@ -54,6 +65,7 @@ local function BuildCurrentContext()
         specName = specName,
         role = role,
         heroTalentName = GetCurrentHeroTalentName(),
+        heroSubTreeID = GetCurrentHeroSubTreeID(),
         source = "current_player_context",
     }
 end
