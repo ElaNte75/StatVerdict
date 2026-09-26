@@ -207,5 +207,28 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(8, ns.GetItemReferenceInfo("item:1000", profile).bonus)
 
 
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class PanelModeTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.lua = new_runtime()
+        self.ns = self.lua.table()
+        self.lua.globals().StatVerdictDB = self.lua.table()
+        load_addon_file(self.lua, self.ns, "UI/SV_RightPanelMode.lua")
+
+    def test_benchmark_is_a_valid_mode_and_summary_is_not(self) -> None:
+        self.ns.SetRightPanelMode("benchmark")
+        self.assertEqual("benchmark", self.ns.GetRightPanelMode())
+        self.ns.SetRightPanelMode("summary")
+        self.assertIsNone(self.ns.GetRightPanelMode())
+
+    def test_window_opens_with_every_panel_closed(self) -> None:
+        self.assertIsNone(self.ns.GetRightPanelMode())
+
+    def test_toc_lists_benchmark_drawer_and_not_summary(self) -> None:
+        names = [path.name for path in toc_lua_files()]
+        self.assertIn("SV_BenchmarkDrawerPanel.lua", names)
+        self.assertNotIn("SV_CharacterSummaryDrawerPanel.lua", names)
+
+
 if __name__ == "__main__":
     unittest.main()

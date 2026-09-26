@@ -35,8 +35,8 @@ UI/SV_ChipDropdown.lua
 UI/SV_SettingsPanel.lua
 UI/SV_RightPanelMode.lua
 UI/SV_OptionsDrawerPanel.lua
+UI/SV_BenchmarkDrawerPanel.lua
 UI/SV_ManualDrawerPanel.lua
-UI/SV_CharacterSummaryDrawerPanel.lua
 UI/SV_StatProgressPanel.lua
 UI/SV_BisProgressPanel.lua
 UI/SV_DashboardLayout.lua

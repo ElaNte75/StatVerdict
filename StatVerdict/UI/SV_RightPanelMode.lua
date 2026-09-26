@@ -1,13 +1,13 @@
 local addonName, ns = ...
 
 -- Single source of truth for the right-side drawer.
--- Modes: "bis" | "trinkets" | "summary" | "options" | "manual" | nil (all closed).
+-- Modes: "bis" | "trinkets" | "benchmark" | "options" | "manual" | nil (all closed).
 -- Exactly one may be open at a time.
 
 local VALID = {
     bis = true,
     trinkets = true,
-    summary = true,
+    benchmark = true,
     options = true,
     manual = true,
 }
@@ -23,8 +23,8 @@ function ns.GetRightPanelMode()
     if db.showOptionsPanel == true then
         return "options"
     end
-    if db.showSummaryPanel == true then
-        return "summary"
+    if db.showBenchmarkPanel == true then
+        return "benchmark"
     end
     if db.showTrinketPanel == true then
         return "trinkets"
@@ -44,7 +44,7 @@ function ns.SetRightPanelMode(mode)
     end
     db.showBisPanel = (mode == "bis")
     db.showTrinketPanel = (mode == "trinkets")
-    db.showSummaryPanel = (mode == "summary")
+    db.showBenchmarkPanel = (mode == "benchmark")
     db.showOptionsPanel = (mode == "options")
     db.showManualPanel = (mode == "manual")
     if ns.RequestStatAuditRefresh then
@@ -73,11 +73,6 @@ local CHIP_MAX_HEIGHT = 48
 -- Unified title chip labels (qualifier first — natural English).
 -- Click cycles Main Spec ↔ Off Spec; the text inside the same button updates.
 local PANEL_TITLES = {
-    summary = {
-        base = "Character Summary",
-        MAIN = "Main Spec Character Summary",
-        OFF = "Off Spec Character Summary",
-    },
     bis = {
         base = "Best in Slot",
         MAIN = "Main Spec Best in Slot",
@@ -106,14 +101,23 @@ local function ResolveActiveView()
     return view
 end
 
+-- The Best in Slot panel reads "Popular Gear" for Mythic+ (see ns.GetReferenceWording).
+local function PanelTitles(panelKind)
+    if panelKind == "bis" and ns.GetReferenceWording then
+        local wording = ns.GetReferenceWording()
+        return { base = wording.base, MAIN = wording.main, OFF = wording.off }
+    end
+    return PANEL_TITLES[panelKind]
+end
+
 local function ResolvePanelKind(panelKind)
     if PANEL_TITLES[panelKind] then
         return panelKind
     end
-    return "summary"
+    return "bis"
 end
 
--- Each panel keeps its own AdvDev keys: summary.* / bis.* / trinkets.*
+-- Each panel keeps its own AdvDev keys: bis.* / trinkets.*
 local function LayoutKeyForPanel(panelKind)
     return ResolvePanelKind(panelKind)
 end
@@ -123,7 +127,7 @@ local function TitleKindsForLayout(layoutPrefix)
 end
 
 local function TitleForPanel(panelKind, view, _osReady)
-    local titles = PANEL_TITLES[ResolvePanelKind(panelKind)]
+    local titles = PanelTitles(ResolvePanelKind(panelKind))
     -- Always "Main Spec …" / "Off Spec …" — never the bare panel name.
     if view == "OFF" then
         return titles.OFF
@@ -226,7 +230,7 @@ local function MeasureStableTitleWidth(button, layoutPrefix)
     local saved = label.GetText and label:GetText() or nil
     local maxW = 0
     for _, kind in ipairs(TitleKindsForLayout(layoutPrefix)) do
-        local titles = PANEL_TITLES[kind]
+        local titles = PanelTitles(kind)
         if titles then
             for _, key in ipairs({ "MAIN", "OFF" }) do
                 label:SetText(titles[key])
@@ -286,7 +290,7 @@ end
 
 local function HideInactiveTitleHandles(parent, activePrefix)
     if not parent then return end
-    local prefixes = { "summary", "bis", "trinkets", "bisTrinkets" }
+    local prefixes = { "bis", "trinkets", "bisTrinkets" }
     if parent._svDevWidthHandles then
         for key, handle in pairs(parent._svDevWidthHandles) do
             if type(key) == "string" and handle and handle.Hide then
@@ -353,7 +357,7 @@ function ns.EnsureMsOsViewTabs(parent)
         local font = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
         button.label:SetFont(font, LABEL_FONT_SIZE, "")
         button.label:SetTextColor(TAB_YELLOW[1], TAB_YELLOW[2], TAB_YELLOW[3])
-        button.label:SetText("Main Spec Character Summary")
+        button.label:SetText("Main Spec Best in Slot")
 
         parent.svViewToggle = button
     end
@@ -364,7 +368,7 @@ end
 function ns.SyncMsOsViewTabs(parent)
     if not parent then return end
     local toggle = ns.EnsureMsOsViewTabs(parent)
-    local panelKind = ResolvePanelKind(toggle.svPanelKind or parent.svTitlePanelKind or "summary")
+    local panelKind = ResolvePanelKind(toggle.svPanelKind or parent.svTitlePanelKind or "bis")
     local view = ResolveActiveView()
     local osReady = IsOffSpecConfigured()
 
@@ -394,7 +398,7 @@ function ns.SyncMsOsViewTabs(parent)
             if GameTooltip then
                 GameTooltip:SetOwner(self, "ANCHOR_TOP")
                 GameTooltip:SetText("Spec view", TAB_YELLOW[1], TAB_YELLOW[2], TAB_YELLOW[3])
-                GameTooltip:AddLine("Click to switch Main Spec / Off Spec for Summary, BiS, and Ranked Trinkets.", 0.85, 0.85, 0.85, true)
+                GameTooltip:AddLine("Click to switch Main Spec / Off Spec for Popular Gear / Best in Slot and Ranked Trinkets.", 0.85, 0.85, 0.85, true)
                 GameTooltip:Show()
             end
         end)
@@ -429,7 +433,7 @@ function ns.SyncMsOsViewTabs(parent)
 end
 
 -- Place the unified title chip at the panel title position (replaces FontString title).
--- panelKind: "summary" | "bis" | "trinkets" — each has independent AdvDev settings.
+-- panelKind: "bis" | "trinkets" — each has independent AdvDev settings.
 function ns.PlaceMsOsTitleChip(parent, _layoutPrefixIgnored, panelKind)
     if not parent then return end
     panelKind = ResolvePanelKind(panelKind or _layoutPrefixIgnored)
@@ -491,9 +495,7 @@ function ns.PlaceMsOsTitleChip(parent, _layoutPrefixIgnored, panelKind)
         end
     end
     local label = "Panel title"
-    if layoutPrefix == "summary" then
-        label = "Summary title (Main/Off Spec)"
-    elseif layoutPrefix == "bis" then
+    if layoutPrefix == "bis" then
         label = "Best in Slot title (Main/Off Spec)"
     elseif layoutPrefix == "trinkets" then
         label = "Ranked Trinkets title (Main/Off Spec)"

@@ -145,7 +145,7 @@ end
 function Layout.GetRightPanelWidth(frame)
     local mode = ns.GetRightPanelMode and ns.GetRightPanelMode() or nil
     if mode == "options" then
-        -- Single source of truth: base + SizeDelta (same as Summary). Do not re-add delta
+        -- Single source of truth: base + SizeDelta (same as the other drawers). Do not re-add delta
         -- on top of a cached preferredWidth — that blocked shrink and double-counted grow.
         if ns.StatVerdictOptionsDrawerPanel and ns.StatVerdictOptionsDrawerPanel.GetPreferredWidth then
             return ns.StatVerdictOptionsDrawerPanel.GetPreferredWidth(frame)
@@ -165,13 +165,11 @@ function Layout.GetRightPanelWidth(frame)
         if preferred and delta < 0 then delta = 0 end
         return Clamp(baseWidth + delta, 200, 520)
     end
-    if mode == "summary" then
-        -- Single source of truth: base + SizeDelta. Do not re-add delta on top of a cached width
-        -- (that made negative nudges no-ops once preferredWidth was stored).
-        if ns.StatVerdictCharacterSummaryDrawerPanel and ns.StatVerdictCharacterSummaryDrawerPanel.GetPreferredWidth then
-            return ns.StatVerdictCharacterSummaryDrawerPanel.GetPreferredWidth(frame)
+    if mode == "benchmark" then
+        if ns.StatVerdictBenchmarkDrawerPanel and ns.StatVerdictBenchmarkDrawerPanel.GetPreferredWidth then
+            return ns.StatVerdictBenchmarkDrawerPanel.GetPreferredWidth(frame)
         end
-        return Clamp(300 + SizeDelta("summary.width"), 160, 520)
+        return Clamp(280 + SizeDelta("benchmark.width"), 200, 520)
     end
     local showTrinkets = mode == "trinkets"
     local showBis = mode == "bis"
@@ -183,7 +181,7 @@ local function SharedRightDockX()
     if x ~= 0 then return x end
     -- Migrate legacy per-drawer X so switching panels keeps the dock the user already set.
     local best, bestAbs = 0, 0
-    for _, key in ipairs({ "summary.card", "options.card", "manual.card", "bis.card" }) do
+    for _, key in ipairs({ "benchmark.card", "options.card", "manual.card", "bis.card" }) do
         local v = select(1, Offset(key))
         local a = math.abs(tonumber(v) or 0)
         if a > bestAbs then
@@ -444,8 +442,8 @@ function Layout.SyncFrameWidthToRightPanel(frame)
         card = frame.optionsDrawerCard
     elseif mode == "manual" then
         card = frame.manualDrawerCard
-    elseif mode == "summary" then
-        card = frame.characterSummaryDrawerCard
+    elseif mode == "benchmark" then
+        card = frame.benchmarkDrawerCard
     end
     local cardX = Layout.GetRightPanelX(frame)
     local cardW = nil
@@ -474,7 +472,7 @@ function Layout.Apply(frame, usedRows, controls)
     local mode = ns.GetRightPanelMode and ns.GetRightPanelMode() or nil
     local showOptions = mode == "options"
     local showManual = mode == "manual"
-    local showSummary = mode == "summary"
+    local showBenchmark = mode == "benchmark"
     local showTrinkets = mode == "trinkets"
     local showBis = mode == "bis"
     local showRightPanel = mode ~= nil
@@ -535,12 +533,9 @@ function Layout.Apply(frame, usedRows, controls)
         if frame.devOptionsWidthRegion then frame.devOptionsWidthRegion:Hide() end
         if frame.manualDrawerCard then frame.manualDrawerCard:Hide() end
         if frame.devManualWidthRegion then frame.devManualWidthRegion:Hide() end
-        if frame.characterSummaryDrawerCard then frame.characterSummaryDrawerCard:Hide() end
-        if frame.devSummaryDrawerWidthRegion then frame.devSummaryDrawerWidthRegion:Hide() end
-        if frame.devSummaryDrawerMoveGrip then frame.devSummaryDrawerMoveGrip:Hide() end
-        -- Drop Summary AdvDev targets whenever it is not the active right panel.
-        if not showSummary and ns.StatVerdictCharacterSummaryDrawerPanel and ns.StatVerdictCharacterSummaryDrawerPanel.ClearDevTargets then
-            ns.StatVerdictCharacterSummaryDrawerPanel.ClearDevTargets(frame)
+        if frame.benchmarkDrawerCard then frame.benchmarkDrawerCard:Hide() end
+        if ns.UnregisterDevLayoutRegion and not showBenchmark then
+            ns.UnregisterDevLayoutRegion("benchmark.card")
         end
         -- Drop orphan AdvDev targets from inactive drawers so cyan ghosts cannot linger.
         if ns.UnregisterDevLayoutRegion then
@@ -569,20 +564,8 @@ function Layout.Apply(frame, usedRows, controls)
         ns.StatVerdictOptionsDrawerPanel.Apply(frame)
     elseif showManual and ns.StatVerdictManualDrawerPanel then
         ns.StatVerdictManualDrawerPanel.Apply(frame)
-    elseif showSummary and ns.StatVerdictCharacterSummaryDrawerPanel then
-        local profile = nil
-        if ns.GetActivePanelContext then
-            local context = ns.GetActivePanelContext()
-            profile = context and context.profile or nil
-        elseif ns.GetTooltipEvaluationContexts then
-            local primaryContext = ns.GetTooltipEvaluationContexts()
-            profile = primaryContext and primaryContext.profile or nil
-        end
-        if not profile and ns.GetEvaluationContext then
-            local context = ns.GetEvaluationContext()
-            profile = context and context.profile or nil
-        end
-        ns.StatVerdictCharacterSummaryDrawerPanel.Apply(frame, profile)
+    elseif showBenchmark and ns.StatVerdictBenchmarkDrawerPanel then
+        ns.StatVerdictBenchmarkDrawerPanel.Apply(frame)
     elseif (showBis or showTrinkets) and ns.StatVerdictBisProgressPanel then
         ns.StatVerdictBisProgressPanel.Apply(frame)
         if frame.bisProgressCard then frame.bisProgressCard:Show() end
@@ -595,8 +578,8 @@ function Layout.Apply(frame, usedRows, controls)
         if ns.StatVerdictManualDrawerPanel and ns.StatVerdictManualDrawerPanel.Apply then
             ns.StatVerdictManualDrawerPanel.Apply(frame)
         end
-        if ns.StatVerdictCharacterSummaryDrawerPanel and ns.StatVerdictCharacterSummaryDrawerPanel.Apply then
-            ns.StatVerdictCharacterSummaryDrawerPanel.Apply(frame)
+        if ns.StatVerdictBenchmarkDrawerPanel and ns.StatVerdictBenchmarkDrawerPanel.Apply then
+            ns.StatVerdictBenchmarkDrawerPanel.Apply(frame)
         end
         Layout.SyncFrameWidthToRightPanel(frame)
     end

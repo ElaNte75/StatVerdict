@@ -415,9 +415,11 @@ local PANEL_TOGGLE_BUTTONS = {
         defaultY = -346,
     },
     {
-        mode = "summary",
-        field = "summaryDrawerButton",
-        label = "Summary",
+        mode = "benchmark",
+        field = "benchmarkDrawerButton",
+        label = "Benchmark",
+        -- Layout key kept from the Summary button this replaced, so saved
+        -- button positions carry over (the button appears where Summary was).
         layoutKey = "setup.summaryButton",
         defaultY = -374,
     },
@@ -442,7 +444,11 @@ local function PositionPanelToggleButtons(frame, card)
     for _, spec in ipairs(PANEL_TOGGLE_BUTTONS) do
         local button = EnsureDrawerToggleButton(card, spec.field)
         local active = activeMode == spec.mode
-        button.label:SetText(spec.label)
+        local label = spec.label
+        if spec.mode == "bis" and ns.GetReferenceWording then
+            label = ns.GetReferenceWording().button
+        end
+        button.label:SetText(label)
         if active then
             button.label:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
         else
