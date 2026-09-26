@@ -28,16 +28,25 @@ jobs:
   # left out for now (tracked separately) until their SimulationCraft
   # reconstruction issue is fixed.
   collect:
-    name: Collect — ${{ matrix.group }}
+    name: Collect — ${{ matrix.label }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - group: dps-a
-            specs: "DEATHKNIGHT_FROST,DEATHKNIGHT_UNHOLY,DEMONHUNTER_DEVOURER,DEMONHUNTER_HAVOC,DRUID_BALANCE,DRUID_FERAL,EVOKER_AUGMENTATION,EVOKER_DEVASTATION,HUNTER_BEAST_MASTERY,HUNTER_MARKSMANSHIP,HUNTER_SURVIVAL,MAGE_ARCANE,MAGE_FIRE,MAGE_FROST"
-          - group: dps-b
-            specs: "MONK_WINDWALKER,PALADIN_RETRIBUTION,PRIEST_SHADOW,ROGUE_ASSASSINATION,ROGUE_OUTLAW,ROGUE_SUBTLETY,SHAMAN_ELEMENTAL,SHAMAN_ENHANCEMENT,WARLOCK_AFFLICTION,WARLOCK_DEMONOLOGY,WARLOCK_DESTRUCTION,WARRIOR_ARMS,WARRIOR_FURY"
+          - group: dps-1
+            label: "DPS Group 1"
+            specs: "DEATHKNIGHT_FROST,DEATHKNIGHT_UNHOLY,DEMONHUNTER_DEVOURER,DEMONHUNTER_HAVOC,DRUID_BALANCE,DRUID_FERAL,EVOKER_AUGMENTATION"
+          - group: dps-2
+            label: "DPS Group 2"
+            specs: "EVOKER_DEVASTATION,HUNTER_BEAST_MASTERY,HUNTER_MARKSMANSHIP,HUNTER_SURVIVAL,MAGE_ARCANE,MAGE_FIRE,MAGE_FROST"
+          - group: dps-3
+            label: "DPS Group 3"
+            specs: "MONK_WINDWALKER,PALADIN_RETRIBUTION,PRIEST_SHADOW,ROGUE_ASSASSINATION,ROGUE_OUTLAW,ROGUE_SUBTLETY,SHAMAN_ELEMENTAL"
+          - group: dps-4
+            label: "DPS Group 4"
+            specs: "SHAMAN_ENHANCEMENT,WARLOCK_AFFLICTION,WARLOCK_DEMONOLOGY,WARLOCK_DESTRUCTION,WARRIOR_ARMS,WARRIOR_FURY"
           - group: tank
+            label: "Tank"
             specs: "DEATHKNIGHT_BLOOD,DEMONHUNTER_VENGEANCE,DRUID_GUARDIAN,MONK_BREWMASTER,PALADIN_PROTECTION,WARRIOR_PROTECTION"
     runs-on: ubuntu-latest
     timeout-minutes: 180
@@ -85,7 +94,7 @@ jobs:
       - name: Run engine tests
         run: python -m unittest discover -s tools/tests -v
 
-      - name: Build partial benchmark database (${{ matrix.group }})
+      - name: Build partial benchmark database (${{ matrix.label }})
         env:
           COHORTS: ${{ inputs.cohorts || '25,100,200' }}
           MAX_PAGES: ${{ inputs.max_pages || '100' }}
@@ -135,7 +144,7 @@ jobs:
         run: |
           python tools/live_benchmark_engine.py \
             --cohorts "$COHORTS" \
-            --merge-inputs "partials/partial-dps-a.json,partials/partial-dps-b.json,partials/partial-tank.json" \
+            --merge-inputs "partials/partial-dps-1.json,partials/partial-dps-2.json,partials/partial-dps-3.json,partials/partial-dps-4.json,partials/partial-tank.json" \
             --retry-queue-out tools/data/benchmark_retry_queue.json
 
       - name: Commit validated update
