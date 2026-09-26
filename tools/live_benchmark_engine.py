@@ -152,11 +152,11 @@ class BlizzardClient:
 
     def token(self, region: str) -> str:
         with self.token_lock:
-            if region in self.tokens:
-                return self.tokens[region]
+            if "global" in self.tokens:
+                return self.tokens["global"]
             credentials = base64.b64encode(f"{self.client_id}:{self.client_secret}".encode()).decode()
             data = self.http.request(
-                f"https://{region}.battle.net/oauth/token",
+                "https://oauth.battle.net/token",
                 method="POST",
                 form={"grant_type": "client_credentials"},
                 headers={
@@ -166,8 +166,8 @@ class BlizzardClient:
             )
             token = data.get("access_token")
             if not isinstance(token, str) or not token:
-                raise ApiError(f"Blizzard OAuth returned no token for {region}")
-            self.tokens[region] = token
+                raise ApiError("Blizzard OAuth returned no access token")
+            self.tokens["global"] = token
             return token
 
     def character_resource(self, character: dict[str, Any], resource: str) -> dict[str, Any]:
@@ -315,6 +315,8 @@ def character_ref(entry: dict[str, Any]) -> dict[str, Any] | None:
     level = safe_number(character.get("level"))
     score = safe_number(entry.get("score"))
     if region not in SUPPORTED_REGIONS or not realm or not name or score is None:
+        return None
+    if str(realm).lower() == "anonymous" or str(name).lower().startswith("anon"):
         return None
     return {
         "region": region,
