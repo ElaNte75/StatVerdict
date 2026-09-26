@@ -302,6 +302,7 @@ local function Stub()
                 rawset(self, "points", points)
             end
         end
+        if key == "SetSpacing" then return function(self, value) rawset(self, "spacing", value) end end
         if key == "SetChecked" then return function(self, value) rawset(self, "checked", value) end end
         if key == "SetScript" then
             return function(self, name, fn)
@@ -372,10 +373,12 @@ class BenchmarkDrawerSmokeTests(unittest.TestCase):
     def test_level_cards_show_confidence_and_update_date(self) -> None:
         self.levels["ELITE"]["confidence"] = "medium"
         card = self.card()
-        orange, green = "|cffff8000", "|cff33ff59"
-        self.assertEqual(orange + "Medium confidence|r · Updated 2026-09-26", card.levelRows[1].meaning.text)
-        self.assertEqual(green + "High confidence|r · Updated 2026-09-26", card.levelRows[2].meaning.text)
-        self.assertEqual(green + "High confidence|r · Updated 2026-09-26", card.levelRows[3].meaning.text)
+        # The date is secondary: dimmed and without the word "Updated" so the line stays short.
+        orange, green, date = "|cffff8000", "|cff33ff59", " |cff8c8c8c· 2026-09-26|r"
+        self.assertEqual(orange + "Medium confidence|r" + date, card.levelRows[1].meaning.text)
+        self.assertEqual(green + "High confidence|r" + date, card.levelRows[2].meaning.text)
+        self.assertEqual(green + "High confidence|r" + date, card.levelRows[3].meaning.text)
+        self.assertLessEqual(len("High confidence · 2026-09-26"), 32)
 
     def test_level_cards_fall_back_to_the_group_size_without_data(self) -> None:
         self.has_data = False
@@ -399,6 +402,10 @@ class BenchmarkDrawerSmokeTests(unittest.TestCase):
         self.assertTrue(self.lua.eval("rawequal")(card.aboutTitle, card.about.points[1][2]))
         for level in self.ns.GetBenchmarkLevels().values():
             self.assertLessEqual(len(level.about), 300, level.key)  # about seven lines in the drawer
+
+    def test_description_lines_have_extra_spacing(self) -> None:
+        card = self.card()
+        self.assertGreaterEqual(card.about.spacing, 3)
 
     def test_no_current_data_block_any_more(self) -> None:
         card = self.card()

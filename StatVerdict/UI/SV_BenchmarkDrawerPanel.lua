@@ -47,12 +47,13 @@ local function LevelBenchmark(levelKey)
     return type(context) == "table" and context.benchmark or nil
 end
 
--- Second line of a level card: how reliable that level's data is and when it was updated.
+-- Second line of a level card: how reliable that level's data is, then the update date
+-- (dimmed: it matters less than the confidence).
 local function CardLine(level, bench, updated)
     if type(bench) ~= "table" or not updated then return level.meaning end
     local confidence = tostring(bench.confidence or "unknown")
     local color = confidence == "high" and "|cff33ff59" or "|cffff8000"
-    return color .. confidence:sub(1, 1):upper() .. confidence:sub(2) .. " confidence|r · Updated " .. tostring(updated)
+    return color .. confidence:sub(1, 1):upper() .. confidence:sub(2) .. " confidence|r |cff8c8c8c· " .. tostring(updated) .. "|r"
 end
 
 local function ActiveGoalIsMythicPlus()
@@ -204,6 +205,7 @@ local function EnsureCard(frame)
     card.about:SetPoint("TOPRIGHT", card.aboutTitle, "BOTTOMRIGHT", 0, -8)
     card.about:SetJustifyH("LEFT")
     card.about:SetWordWrap(true)
+    card.about:SetSpacing(4)
     card.about:SetTextColor(0.85, 0.85, 0.85)
 
     frame.benchmarkDrawerCard = card
