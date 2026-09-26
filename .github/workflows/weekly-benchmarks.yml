@@ -24,9 +24,10 @@ concurrency:
 
 jobs:
   # Each role group runs as its own job so one slow/stuck spec only affects
-  # its own group, not the other 33 specs. Healer specs are intentionally
-  # left out for now (tracked separately) until their SimulationCraft
-  # reconstruction issue is fixed.
+  # its own group, not the other specs. Healers run in their own job below:
+  # SimulationCraft does not simulate healing at all (it is a DPS/damage
+  # simulator), so they use a different, Wowhead-tooltip-based
+  # reconstruction path that needs no SimC build.
   collect:
     name: Collect — ${{ matrix.label }}
     strategy:
@@ -116,9 +117,49 @@ jobs:
           path: partial-${{ matrix.group }}.json
           retention-days: 3
 
+  collect-healer:
+    name: Collect — Healer
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      RAIDERIO_ACCESS_KEY: ${{ secrets.RAIDERIO_ACCESS_KEY }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Run engine tests
+        run: python -m unittest discover -s tools/tests -v
+
+      - name: Build partial benchmark database (Healer)
+        env:
+          COHORTS: ${{ inputs.cohorts || '25,100,200' }}
+          MAX_PAGES: ${{ inputs.max_pages || '100' }}
+        run: |
+          python tools/live_benchmark_engine.py \
+            --specs "DRUID_RESTORATION,EVOKER_PRESERVATION,MONK_MISTWEAVER,PALADIN_HOLY,PRIEST_DISCIPLINE,PRIEST_HOLY,SHAMAN_RESTORATION" \
+            --cohorts "$COHORTS" \
+            --max-pages "$MAX_PAGES" \
+            --regions eu,us,kr,tw \
+            --workers 8 \
+            --json-out "partial-healer.json" \
+            --lua-out "partial-healer.lua"
+
+      - name: Upload partial database
+        uses: actions/upload-artifact@v4
+        with:
+          name: partial-healer
+          path: partial-healer.json
+          retention-days: 3
+
   merge:
     name: Merge & validate
-    needs: collect
+    needs: [collect, collect-healer]
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -144,7 +185,7 @@ jobs:
         run: |
           python tools/live_benchmark_engine.py \
             --cohorts "$COHORTS" \
-            --merge-inputs "partials/partial-dps-1.json,partials/partial-dps-2.json,partials/partial-dps-3.json,partials/partial-dps-4.json,partials/partial-tank.json" \
+            --merge-inputs "partials/partial-dps-1.json,partials/partial-dps-2.json,partials/partial-dps-3.json,partials/partial-dps-4.json,partials/partial-tank.json,partials/partial-healer.json" \
             --retry-queue-out tools/data/benchmark_retry_queue.json
 
       - name: Commit validated update

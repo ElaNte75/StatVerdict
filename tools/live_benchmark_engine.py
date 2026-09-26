@@ -27,6 +27,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+from tools.wowhead_stat_engine import TooltipCache, reconstruct_loadout
+
 try:
     from tools.simc_stat_engine import render_profiles, run_simc
 except ModuleNotFoundError:
@@ -858,6 +860,82 @@ def reconstruct_stats_with_simc(
     return accepted, failures
 
 
+def reconstruct_stats_with_wowhead(
+    spec: Spec,
+    records: list[dict[str, Any]],
+    *,
+    delay: float,
+    workers: int,
+) -> tuple[list[dict[str, Any]], Counter[str]]:
+    """Healer path: SimulationCraft does not simulate healing at all, so
+    healer specs sum each item's Wowhead tooltip ratings instead. This is
+    less precise than SimC (no base class stats, racials, or talent-driven
+    stat conversions) but SimC gives healers nothing, so partial data beats
+    none. Gear still comes from the same combat-log-verified run snapshot
+    as the SimC path, never from a character's current Armory profile,
+    which can reflect a different spec than the one that earned the run."""
+    failures: Counter[str] = Counter()
+    eligible = [record for record in records if record.get("items")]
+    for record in records:
+        if record not in eligible:
+            record["statFailureReason"] = "Run snapshot lacks gear"
+            failures[record["statFailureReason"]] += 1
+    if not eligible:
+        return [], failures
+
+    cache = TooltipCache()
+    accepted: list[dict[str, Any]] = []
+    accepted_lock = threading.Lock()
+
+    def process(record: dict[str, Any]) -> None:
+        try:
+            reconstruction = reconstruct_loadout(
+                record["items"], primary=spec.primary, delay=delay, cache=cache
+            )
+        except Exception as exc:  # noqa: BLE001 - one character must not abort the rest
+            record["statFailureReason"] = f"Wowhead tooltip reconstruction failed: {exc}"
+            with accepted_lock:
+                failures[record["statFailureReason"]] += 1
+            return
+        totals = reconstruction.get("totals") or {}
+        stats = {
+            key: value
+            for key, value in totals.items()
+            if key in ("strength", "agility", "intellect", "stamina", *SECONDARY_STATS)
+            and isinstance(value, (int, float))
+        }
+        required = {"stamina", spec.primary, *SECONDARY_STATS}
+        missing = sorted(required.difference(stats))
+        if missing:
+            record["statFailureReason"] = f"Wowhead tooltip stats missing: {','.join(missing)}"
+            with accepted_lock:
+                failures[record["statFailureReason"]] += 1
+            return
+        hero_id = record.get("runHeroTalentId")
+        record.update(
+            {
+                "stats": stats,
+                "statPercentages": {},
+                "health": None,
+                "armor": None,
+                "heroTalent": (
+                    {"id": hero_id, "name": f"Hero Talent {hero_id}", "key": f"HERO_{hero_id}"}
+                    if isinstance(hero_id, int) else None
+                ),
+                "statEligible": True,
+                "statFailureReason": None,
+                "statReconstructionMethod": "wowhead_tooltip_sum",
+            }
+        )
+        with accepted_lock:
+            accepted.append(record)
+
+    with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
+        list(pool.map(process, eligible))
+
+    return accepted, failures
+
+
 def percentile(values: list[float], fraction: float) -> float:
     ordered = sorted(values)
     if not ordered:
@@ -1093,7 +1171,11 @@ def aggregate_gear_cohort(records: list[dict[str, Any]], rank_ceiling: int) -> d
     }
 
 
-def aggregate_cohort(records: list[dict[str, Any]], requested_size: int) -> dict[str, Any]:
+def aggregate_cohort(
+    records: list[dict[str, Any]],
+    requested_size: int,
+    method: str = "median_simc_reconstructed_loadout",
+) -> dict[str, Any]:
     cohort = robust_records(records_within_rank(records, requested_size))
     minimum = minimum_sample_size(requested_size)
     if not cohort:
@@ -1105,7 +1187,7 @@ def aggregate_cohort(records: list[dict[str, Any]], requested_size: int) -> dict
             "minimumSample": minimum,
             "completeness": 0.0,
             "confidence": "none",
-            "statTargets": {"method": "median_simc_reconstructed_loadout", "stats": {}, "dispersion": {}},
+            "statTargets": {"method": method, "stats": {}, "dispersion": {}},
             "popularItems": {},
         }
     stat_targets = {}
@@ -1136,7 +1218,7 @@ def aggregate_cohort(records: list[dict[str, Any]], requested_size: int) -> dict
         "averageItemLevel": round(statistics.median(levels), 2),
         "meanItemLevel": round(statistics.mean(levels), 2),
         "statTargets": {
-            "method": "median_simc_reconstructed_loadout",
+            "method": method,
             "stats": stat_targets,
             "dispersion": dispersions,
         },
@@ -1145,7 +1227,9 @@ def aggregate_cohort(records: list[dict[str, Any]], requested_size: int) -> dict
 
 
 def aggregate_hero_trees(
-    records: list[dict[str, Any]], cohort_sizes: tuple[int, ...]
+    records: list[dict[str, Any]],
+    cohort_sizes: tuple[int, ...],
+    method: str = "median_simc_reconstructed_loadout",
 ) -> dict[str, dict[str, Any]]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     metadata: dict[str, dict[str, Any]] = {}
@@ -1162,7 +1246,7 @@ def aggregate_hero_trees(
             grouped[key], key=lambda row: (-row["score"], row["region"], row["realm"], row["name"])
         )
         cohorts = {
-            f"TOP_{size}": aggregate_cohort(tree_records, size) for size in cohort_sizes
+            f"TOP_{size}": aggregate_cohort(tree_records, size, method) for size in cohort_sizes
         }
         base = cohorts[f"TOP_{min(cohort_sizes)}"]
         trees[key] = {
@@ -1440,17 +1524,22 @@ def write_database(database: dict[str, Any], json_path: Path, lua_path: Path) ->
 
 def build_database(args: argparse.Namespace) -> dict[str, Any]:
     access_key = args.raiderio_access_key or os.environ.get("RAIDERIO_ACCESS_KEY") or None
-    simc_value = args.simc_bin or os.environ.get("SIMC_BINARY")
-    if not simc_value:
-        raise ValueError("--simc-bin or SIMC_BINARY is required")
-    simc_binary = Path(simc_value)
-    if not simc_binary.is_file():
-        raise ValueError(f"SimulationCraft binary not found: {simc_binary}")
+    active_specs = [spec for spec in SPECS if spec.key in args.specs] if args.specs else list(SPECS)
+    # SimC does not model healing at all, so healer specs use the Wowhead
+    # tooltip-sum path instead (see reconstruct_stats_with_wowhead) and a
+    # healer-only run never needs a SimC binary.
+    simc_binary: Path | None = None
+    if any(spec.role != "healer" for spec in active_specs):
+        simc_value = args.simc_bin or os.environ.get("SIMC_BINARY")
+        if not simc_value:
+            raise ValueError("--simc-bin or SIMC_BINARY is required for non-healer specs")
+        simc_binary = Path(simc_value)
+        if not simc_binary.is_file():
+            raise ValueError(f"SimulationCraft binary not found: {simc_binary}")
     http = JsonClient(args.request_delay)
     expansion_id, season = active_season(http)
     season_slug = args.season or season["slug"]
     max_size = max(args.cohorts)
-    active_specs = [spec for spec in SPECS if spec.key in args.specs] if args.specs else list(SPECS)
     profiles: dict[str, Any] = {}
     for index, spec in enumerate(active_specs, 1):
         print(f"[{index:02d}/{len(active_specs)}] {spec.key}: discovering candidates", flush=True)
@@ -1495,14 +1584,26 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
         run_records = run_records[:max_size]
         for verified_rank, record in enumerate(run_records, 1):
             record["verifiedRank"] = verified_rank
-        print(f"  verifiedRuns={len(run_records)}; reconstructing stats with SimulationCraft", flush=True)
-        stat_records, stat_failure_reasons = reconstruct_stats_with_simc(
-            simc_binary,
-            spec,
-            run_records,
-            timeout_seconds=args.simc_timeout,
-            threads=args.simc_threads,
-        )
+        if spec.role == "healer":
+            print(f"  verifiedRuns={len(run_records)}; reconstructing stats from Wowhead tooltips", flush=True)
+            stat_records, stat_failure_reasons = reconstruct_stats_with_wowhead(
+                spec,
+                run_records,
+                delay=args.wowhead_delay,
+                workers=args.workers,
+            )
+            reconstruction_method = "median_wowhead_tooltip_summed_loadout"
+        else:
+            print(f"  verifiedRuns={len(run_records)}; reconstructing stats with SimulationCraft", flush=True)
+            assert simc_binary is not None
+            stat_records, stat_failure_reasons = reconstruct_stats_with_simc(
+                simc_binary,
+                spec,
+                run_records,
+                timeout_seconds=args.simc_timeout,
+                threads=args.simc_threads,
+            )
+            reconstruction_method = "median_simc_reconstructed_loadout"
         failure_summary = [
             {"reason": reason, "count": count} for reason, count in failure_reasons.most_common(3)
         ]
@@ -1512,12 +1613,12 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
             print(f"::warning title=Insufficient benchmark data::{message}", file=sys.stderr)
         cohorts = {}
         for size in args.cohorts:
-            cohorts[f"TOP_{size}"] = aggregate_cohort(stat_records, size)
+            cohorts[f"TOP_{size}"] = aggregate_cohort(stat_records, size, reconstruction_method)
         gear_cohorts = {
             f"TOP_{size}": aggregate_gear_cohort(run_records, size)
             for size in args.cohorts
         }
-        hero_trees = aggregate_hero_trees(stat_records, args.cohorts)
+        hero_trees = aggregate_hero_trees(stat_records, args.cohorts, reconstruction_method)
         hero_gear_trees = aggregate_hero_gear_trees(run_records, args.cohorts)
         base = cohorts[f"TOP_{min(args.cohorts)}"]
         profiles[spec.key] = {
@@ -1637,6 +1738,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--simc-bin", type=Path)
     parser.add_argument("--simc-timeout", type=int, default=1800)
     parser.add_argument("--simc-threads", type=int, default=2)
+    parser.add_argument(
+        "--wowhead-delay",
+        type=float,
+        default=0.2,
+        help="Seconds to wait before each new (non-cached) Wowhead tooltip request, used for "
+        "the healer stat-reconstruction path.",
+    )
     parser.add_argument("--raiderio-access-key")
     parser.add_argument(
         "--liquid-data",

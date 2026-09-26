@@ -25,6 +25,7 @@ from tools.live_benchmark_engine import (
     parse_rio_gear,
     parse_run_roster_snapshot,
     reconstruct_stats_with_simc,
+    reconstruct_stats_with_wowhead,
     validate_database,
     utc_now,
     write_retry_queue,
@@ -153,6 +154,60 @@ class BenchmarkEngineTests(unittest.TestCase):
         self.assertTrue(
             str(runs[0]["statFailureReason"]).startswith("SimulationCraft batch failed:")
         )
+
+    def test_wowhead_reconstruction_sums_tooltips_for_healers(self) -> None:
+        # SimulationCraft does not simulate healing at all, so healer specs
+        # use this Wowhead-tooltip path instead. Confirms: stats come back
+        # keyed the same way as the SimC path, an item shared by two
+        # characters is only fetched once, and a character with no usable
+        # gear is marked as a failure rather than silently dropped.
+        healer_spec = next(spec for spec in SPECS if spec.role == "healer")
+        shared_item = {"itemId": 100, "name": "Shared Trinket", "itemLevel": 320}
+        run_a = {**record(1), "items": {"HEAD": shared_item, "TRINKET_1": shared_item}}
+        run_b = {**record(2), "items": {"HEAD": shared_item}}
+        run_c = {**record(3), "items": {}}  # no gear at all -> must fail, not crash
+
+        def fake_reconstruct_loadout(items, *, primary, delay, cache):
+            if not items:
+                raise RuntimeError("no items")
+            return {
+                "totals": {
+                    "stamina": 1000,
+                    healer_spec.primary: 500,
+                    "crit": 10,
+                    "haste": 20,
+                    "mastery": 30,
+                    "versatility": 40,
+                }
+            }
+
+        with patch(
+            "tools.live_benchmark_engine.reconstruct_loadout", side_effect=fake_reconstruct_loadout
+        ) as mocked:
+            accepted, failures = reconstruct_stats_with_wowhead(
+                healer_spec, [run_a, run_b, run_c], delay=0, workers=4
+            )
+        self.assertEqual(2, len(accepted))
+        self.assertEqual(1000, accepted[0]["stats"]["stamina"])
+        self.assertTrue(accepted[0]["statEligible"])
+        self.assertEqual("wowhead_tooltip_sum", accepted[0]["statReconstructionMethod"])
+        self.assertEqual("Run snapshot lacks gear", run_c["statFailureReason"])
+        self.assertEqual(1, sum(failures.values()))
+        self.assertEqual(2, mocked.call_count)  # once per record, cache lives inside reconstruct_loadout
+
+    def test_wowhead_reconstruction_fails_closed_on_missing_stats(self) -> None:
+        healer_spec = next(spec for spec in SPECS if spec.role == "healer")
+        run = {**record(1), "items": {"HEAD": {"itemId": 100, "itemLevel": 320}}}
+        with patch(
+            "tools.live_benchmark_engine.reconstruct_loadout",
+            return_value={"totals": {"stamina": 1000}},  # missing primary + secondaries
+        ):
+            accepted, failures = reconstruct_stats_with_wowhead(
+                healer_spec, [run], delay=0, workers=1
+            )
+        self.assertEqual([], accepted)
+        self.assertEqual(1, sum(failures.values()))
+        self.assertTrue(str(run["statFailureReason"]).startswith("Wowhead tooltip stats missing:"))
 
     def test_catalog_has_forty_unique_specs(self) -> None:
         self.assertEqual(40, len(SPECS))
