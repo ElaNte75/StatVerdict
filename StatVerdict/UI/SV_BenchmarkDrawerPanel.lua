@@ -8,13 +8,11 @@ local MARGIN = 14
 local ROW_HEIGHT = 50
 local ROW_STEP = 56
 local ROWS_TOP = -84
-local INFO_ROW_STEP = 18
 
 local GOLD = { 1.0, 0.82, 0.0 }
 local GREY = { 0.72, 0.72, 0.72 }
 local WHITE = { 1.0, 1.0, 1.0 }
 local ORANGE = { 1.0, 0.5, 0.0 }
-local GREEN = { 0.20, 1.00, 0.35 }
 local LINE = { 0.72, 0.74, 0.78, 0.30 }
 
 local function Offset(key)
@@ -27,11 +25,34 @@ local function SizeDelta(key)
     return 0
 end
 
-local function ActiveBenchmark()
+local function ActiveProfile()
     local context = ns.GetActivePanelContext and ns.GetActivePanelContext() or nil
-    local profile = context and context.profile or nil
+    return context and context.profile or nil
+end
+
+local function ActiveBenchmark()
+    local profile = ActiveProfile()
     local generated = type(profile) == "table" and profile.generatedContext or nil
     return type(generated) == "table" and generated.benchmark or nil
+end
+
+-- Benchmark numbers of one level for the build on screen (from the bundled Mythic+ file).
+local function LevelBenchmark(levelKey)
+    local profile = ActiveProfile()
+    local root = ns.MythicPlusBenchmarks
+    local profiles = type(root) == "table" and root.profiles or nil
+    local spec = type(profile) == "table" and type(profiles) == "table" and profiles[profile.specKey] or nil
+    local levels = type(spec) == "table" and spec.levels or nil
+    local context = type(levels) == "table" and levels[levelKey] or nil
+    return type(context) == "table" and context.benchmark or nil
+end
+
+-- Second line of a level card: how reliable that level's data is and when it was updated.
+local function CardLine(level, bench, updated)
+    if type(bench) ~= "table" or not updated then return level.meaning end
+    local confidence = tostring(bench.confidence or "unknown")
+    local color = confidence == "high" and "|cff33ff59" or "|cffff8000"
+    return color .. confidence:sub(1, 1):upper() .. confidence:sub(2) .. " confidence|r · Updated " .. tostring(updated)
 end
 
 local function ActiveGoalIsMythicPlus()
@@ -127,8 +148,6 @@ local function EnsureLevelRow(card, index, level)
     return row
 end
 
-local INFO_LABELS = { "Sample", "Data from" }
-
 local function EnsureCard(frame)
     if frame.benchmarkDrawerCard then return frame.benchmarkDrawerCard end
 
@@ -163,38 +182,26 @@ local function EnsureCard(frame)
         row:SetPoint("TOPRIGHT", card, "TOPRIGHT", -MARGIN, y)
     end
 
-    local infoTop = ROWS_TOP - (#ns.GetBenchmarkLevels() * ROW_STEP) - 6
-    AddLine(card, infoTop)
+    -- Everything below hangs from the element above it, so nothing depends on a guessed
+    -- card height: status line (empty when all is well) > separator > title > description.
+    local rowsBottom = ROWS_TOP - ((#ns.GetBenchmarkLevels() - 1) * ROW_STEP) - ROW_HEIGHT
+    card.status = AddText(card, "GameFontHighlightSmall", rowsBottom - 8)
 
-    card.infoTitle = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    card.infoTitle:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, infoTop - 14)
-    card.infoTitle:SetText("Current data")
-    card.infoTitle:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+    card.separator = card:CreateTexture(nil, "ARTWORK")
+    card.separator:SetColorTexture(LINE[1], LINE[2], LINE[3], LINE[4])
+    card.separator:SetHeight(1)
+    card.separator:SetPoint("TOPLEFT", card.status, "BOTTOMLEFT", 0, -10)
+    card.separator:SetPoint("TOPRIGHT", card.status, "BOTTOMRIGHT", 0, -10)
 
-    card.dataRows = {}
-    for index, label in ipairs(INFO_LABELS) do
-        local y = infoTop - 34 - ((index - 1) * INFO_ROW_STEP)
-        local row = {}
-        row.label = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        row.label:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, y)
-        row.label:SetTextColor(GREY[1], GREY[2], GREY[3])
-        row.label:SetText(label)
-        row.value = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        row.value:SetPoint("TOPRIGHT", card, "TOPRIGHT", -MARGIN, y)
-        row.value:SetJustifyH("RIGHT")
-        card.dataRows[index] = row
-    end
+    card.aboutTitle = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    card.aboutTitle:SetPoint("TOPLEFT", card.separator, "BOTTOMLEFT", 0, -12)
+    card.aboutTitle:SetPoint("TOPRIGHT", card.separator, "BOTTOMRIGHT", 0, -12)
+    card.aboutTitle:SetJustifyH("LEFT")
+    card.aboutTitle:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
 
-    card.note = AddText(card, "GameFontHighlightSmall", infoTop - 34)
-    local warningY = infoTop - 34 - (#INFO_LABELS * INFO_ROW_STEP) - 4
-    card.warning = AddText(card, "GameFontHighlightSmall", warningY)
-    card.warning:SetTextColor(ORANGE[1], ORANGE[2], ORANGE[3])
-
-    -- A short plain-language description of the selected level. It is tied to the
-    -- bottom of the card, so it can never fall outside it whatever the card's height.
     card.about = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    card.about:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", MARGIN, 16)
-    card.about:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -MARGIN, 16)
+    card.about:SetPoint("TOPLEFT", card.aboutTitle, "BOTTOMLEFT", 0, -8)
+    card.about:SetPoint("TOPRIGHT", card.aboutTitle, "BOTTOMRIGHT", 0, -8)
     card.about:SetJustifyH("LEFT")
     card.about:SetWordWrap(true)
     card.about:SetTextColor(0.85, 0.85, 0.85)
@@ -206,57 +213,36 @@ end
 function Panel.Sync(card)
     if not card then return end
 
+    local mythicPlus = ActiveGoalIsMythicPlus()
+    local provenance = ns.ProfileRepository and ns.ProfileRepository.GetDataProvenance
+        and ns.ProfileRepository.GetDataProvenance("MYTHIC_PLUS") or nil
+    local updated = provenance and provenance.scrape or nil
+
     local selected = ns.GetBenchmarkLevel()
     for _, row in ipairs(card.levelRows or {}) do
         row.check:SetChecked(row.key == selected)
         PaintRow(row, row.key == selected, row.hovered == true)
+        local level = ns.GetBenchmarkLevelInfo(row.key)
+        row.meaning:SetText(CardLine(level, mythicPlus and LevelBenchmark(row.key) or nil, updated))
     end
-    card.about:SetText(ns.GetBenchmarkLevelInfo(selected).about or "")
 
-    local mythicPlus = ActiveGoalIsMythicPlus()
+    local info = ns.GetBenchmarkLevelInfo(selected)
+    card.aboutTitle:SetText(info.label .. " benchmark")
+    card.about:SetText(info.about or "")
+
     local bench = mythicPlus and ActiveBenchmark() or nil
-    local provenance = ns.ProfileRepository and ns.ProfileRepository.GetDataProvenance
-        and ns.ProfileRepository.GetDataProvenance("MYTHIC_PLUS") or nil
-
-    for _, row in ipairs(card.dataRows or {}) do
-        row.label:SetShown(bench ~= nil)
-        row.value:SetShown(bench ~= nil)
-    end
-
-    if bench then
-        card.note:SetText("")
-        local confidence = tostring(bench.confidence or "unknown")
-        card.dataRows[1].value:SetText(string.format(
-            "%d players · %s confidence",
-            tonumber(bench.sampleSize) or 0,
-            confidence:sub(1, 1):upper() .. confidence:sub(2)
-        ))
-        if confidence == "high" then
-            card.dataRows[1].value:SetTextColor(GREEN[1], GREEN[2], GREEN[3])
-        else
-            card.dataRows[1].value:SetTextColor(ORANGE[1], ORANGE[2], ORANGE[3])
-        end
-        card.dataRows[2].value:SetText(tostring(provenance and provenance.scrape or "unknown"))
-        card.dataRows[2].value:SetTextColor(WHITE[1], WHITE[2], WHITE[3])
-        if ns.IsBenchmarkSampleSmall(bench) then
-            card.warning:SetText("Smaller sample: results can be less stable.")
-        else
-            card.warning:SetText("")
-        end
-        return
-    end
-
-    card.warning:SetText("")
+    local status, color = "", ORANGE
     if not mythicPlus then
-        card.note:SetTextColor(GREY[1], GREY[2], GREY[3])
-        card.note:SetText("The build you are viewing does not use Mythic+. This level applies to your other Mythic+ build.")
+        status, color = "This view is not Mythic+. Your Mythic+ build uses this level.", GREY
     elseif provenance and provenance.available == false then
-        card.note:SetTextColor(ORANGE[1], ORANGE[2], ORANGE[3])
-        card.note:SetText("Benchmark data is out of date. Update StatVerdict to get fresh Mythic+ data.")
-    else
-        card.note:SetTextColor(ORANGE[1], ORANGE[2], ORANGE[3])
-        card.note:SetText("No data for this build at this level.")
+        status = "Benchmark data is out of date. Update StatVerdict."
+    elseif not bench then
+        status = "No data for this build at this level."
+    elseif ns.IsBenchmarkSampleSmall(bench) then
+        status = "Smaller sample: results can be less stable."
     end
+    card.status:SetTextColor(color[1], color[2], color[3])
+    card.status:SetText(status)
 end
 
 function Panel.IsOpen()

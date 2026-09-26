@@ -5,15 +5,15 @@ local addonName, ns = ...
 local LEVELS = {
     {
         key = "ELITE", label = "Elite", meaning = "Gear of the top 25 players", hint = "Strictest",
-        about = "Strictest benchmark: the 25 best players. A small group, so numbers can vary more. For pushing for the very top.",
+        about = "Built from the top 25 Mythic+ players this season. Your stat targets and Popular Gear come from the gear they actually wore in their runs, so this is the strictest bar to measure against. A small group means the numbers can shift more between updates. For pushing for the very top.",
     },
     {
         key = "STANDARD", label = "Standard", meaning = "Gear of the top 100 players", hint = "Recommended",
-        about = "Balanced benchmark: the 100 best players. A demanding but realistic goal with stable numbers. Recommended for most players.",
+        about = "Built from the top 100 Mythic+ players this season. Your stat targets and Popular Gear come from the gear they actually wore in their runs: a demanding but realistic bar, from a group large enough for steady numbers. The best fit for most players, and the default.",
     },
     {
         key = "BROAD", label = "Broad", meaning = "Gear of the top 200 players", hint = "Steadiest",
-        about = "Steadiest benchmark: the 200 best players. The most stable numbers, a little less demanding than Elite. A safe, typical build.",
+        about = "Built from the top 200 Mythic+ players this season. Your stat targets and Popular Gear come from the gear they actually wore in their runs. The larger group gives the steadiest numbers and a slightly gentler bar than Elite. For a safe, typical build.",
     },
 }
 local DEFAULT_LEVEL = "STANDARD"

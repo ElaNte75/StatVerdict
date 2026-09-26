@@ -338,60 +338,79 @@ class BenchmarkDrawerSmokeTests(unittest.TestCase):
         self.frame = self.lua.eval("CreateFrame")()
         self.ns.GetStatAuditGoalMode = lambda: "MYTHIC_PLUS"
         self.ns.GetSavedStatAuditSelection = lambda: self.lua.table(goalMode="MYTHIC_PLUS")
-        self.bench = self.lua.table(sampleSize=100, minimumSample=25, confidence="high")
         self.available = True
-        self.set_context(self.bench)
+        self.levels = {
+            "ELITE": dict(sampleSize=25, minimumSample=25, confidence="high"),
+            "STANDARD": dict(sampleSize=100, minimumSample=25, confidence="high"),
+            "BROAD": dict(sampleSize=200, minimumSample=25, confidence="high"),
+        }
+        self.has_data = True
+        self.apply_data()
         self.ns.ProfileRepository = self.lua.table(
             GetDataProvenance=lambda goal: self.lua.table(available=self.available, scrape="2026-09-26")
         )
         self.ns.SetRightPanelMode("benchmark")
 
-    def set_context(self, bench) -> None:
-        generated = self.lua.table(benchmark=bench)
-        context = self.lua.table(profile=self.lua.table(generatedContext=generated)) if bench else self.lua.table()
+    def apply_data(self) -> None:
+        """Publish the fake benchmark file and the active profile for the current self.levels."""
+        levels = self.lua.table()
+        for key, values in self.levels.items():
+            levels[key] = self.lua.table(benchmark=self.lua.table(**values))
+        specs = self.lua.table(SPEC=self.lua.table(levels=levels))
+        self.ns.MythicPlusBenchmarks = self.lua.table(profiles=specs)
+        selected = self.levels[self.ns.GetBenchmarkLevel()]
+        generated = self.lua.table(benchmark=self.lua.table(**selected))
+        profile = self.lua.table(specKey="SPEC", generatedContext=generated)
+        context = self.lua.table(profile=profile) if self.has_data else self.lua.table()
         self.ns.GetActivePanelContext = lambda: context
 
     def card(self):
+        self.apply_data()
         self.ns.StatVerdictBenchmarkDrawerPanel.Apply(self.frame)
         return self.frame.benchmarkDrawerCard
 
-    def test_shows_sample_confidence_and_date_without_warning(self) -> None:
+    def test_level_cards_show_confidence_and_update_date(self) -> None:
+        self.levels["ELITE"]["confidence"] = "medium"
         card = self.card()
-        self.assertEqual("Sample", card.dataRows[1].label.text)
-        self.assertEqual("100 players · High confidence", card.dataRows[1].value.text)
-        self.assertEqual("Data from", card.dataRows[2].label.text)
-        self.assertEqual("2026-09-26", card.dataRows[2].value.text)
-        self.assertEqual("", card.warning.text)
-        self.assertEqual("", card.note.text)
+        orange, green = "|cffff8000", "|cff33ff59"
+        self.assertEqual(orange + "Medium confidence|r · Updated 2026-09-26", card.levelRows[1].meaning.text)
+        self.assertEqual(green + "High confidence|r · Updated 2026-09-26", card.levelRows[2].meaning.text)
+        self.assertEqual(green + "High confidence|r · Updated 2026-09-26", card.levelRows[3].meaning.text)
+
+    def test_level_cards_fall_back_to_the_group_size_without_data(self) -> None:
+        self.has_data = False
+        card = self.card()
+        self.assertEqual("Gear of the top 25 players", card.levelRows[1].meaning.text)
 
     def test_description_follows_the_selected_level(self) -> None:
         card = self.card()
-        self.assertIn("100 best players", card.about.text)
+        self.assertEqual("Standard benchmark", card.aboutTitle.text)
+        self.assertIn("top 100", card.about.text)
         card.levelRows[1].scripts.OnClick()
-        self.assertIn("25 best players", card.about.text)
+        self.assertEqual("Elite benchmark", card.aboutTitle.text)
+        self.assertIn("top 25", card.about.text)
         card.levelRows[3].scripts.OnClick()
-        self.assertIn("200 best players", card.about.text)
+        self.assertEqual("Broad benchmark", card.aboutTitle.text)
+        self.assertIn("top 200", card.about.text)
 
-    def test_description_is_tied_to_the_bottom_of_the_card_and_stays_short(self) -> None:
+    def test_description_hangs_from_its_title_so_it_cannot_leave_the_card(self) -> None:
         card = self.card()
-        anchors = [card.about.points[i][1] for i in range(1, len(card.about.points) + 1)]
-        self.assertIn("BOTTOMLEFT", anchors)  # never placed by a guessed height
+        self.assertEqual("TOPLEFT", card.about.points[1][1])
+        self.assertTrue(self.lua.eval("rawequal")(card.aboutTitle, card.about.points[1][2]))
         for level in self.ns.GetBenchmarkLevels().values():
-            self.assertLessEqual(len(level.about), 140, level.key)  # about three lines in the drawer
+            self.assertLessEqual(len(level.about), 300, level.key)  # about seven lines in the drawer
 
-    def test_card_padding_copies_the_features_drawer(self) -> None:
-        pads = {"options.card.pad": self.lua.table(top=5, bottom=5, left=0, right=0)}
-        zero = self.lua.table(top=0, bottom=0, left=0, right=0)
-        self.ns.GetDevLayoutPadding = lambda key: pads.get(key, zero)
-        pad = self.ns.StatVerdictBenchmarkDrawerPanel.GetCardPad()
-        self.assertEqual((5, 5, 0, 0), (pad.top, pad.bottom, pad.left, pad.right))
-        pads["benchmark.card.pad"] = self.lua.table(top=2, bottom=3, left=0, right=0)
-        pad = self.ns.StatVerdictBenchmarkDrawerPanel.GetCardPad()
-        self.assertEqual((2, 3), (pad.top, pad.bottom))
+    def test_no_current_data_block_any_more(self) -> None:
+        card = self.card()
+        self.assertIsNone(card.dataRows)
+        self.assertIsNone(card.infoTitle)
+
+    def test_status_is_empty_when_all_is_well(self) -> None:
+        self.assertEqual("", self.card().status.text)
 
     def test_small_sample_shows_the_warning(self) -> None:
-        self.set_context(self.lua.table(sampleSize=25, minimumSample=25, confidence="high"))
-        self.assertIn("Smaller sample", self.card().warning.text)
+        self.levels["STANDARD"] = dict(sampleSize=25, minimumSample=25, confidence="high")
+        self.assertIn("Smaller sample", self.card().status.text)
 
     def test_clicking_a_level_row_saves_it_and_marks_it(self) -> None:
         card = self.card()
@@ -404,16 +423,26 @@ class BenchmarkDrawerSmokeTests(unittest.TestCase):
 
     def test_build_that_is_not_mythic_plus_gets_an_explanation(self) -> None:
         self.ns.GetStatAuditGoalMode = lambda: "RAID"
-        self.assertIn("does not use Mythic+", self.card().note.text)
+        self.assertIn("not Mythic+", self.card().status.text)
 
     def test_out_of_date_data_says_so(self) -> None:
-        self.set_context(None)
+        self.has_data = False
         self.available = False
-        self.assertIn("out of date", self.card().note.text)
+        self.assertIn("out of date", self.card().status.text)
 
     def test_missing_level_data_says_no_data(self) -> None:
-        self.set_context(None)
-        self.assertIn("No data for this build", self.card().note.text)
+        self.has_data = False
+        self.assertIn("No data for this build", self.card().status.text)
+
+    def test_card_padding_copies_the_features_drawer(self) -> None:
+        pads = {"options.card.pad": self.lua.table(top=5, bottom=5, left=0, right=0)}
+        zero = self.lua.table(top=0, bottom=0, left=0, right=0)
+        self.ns.GetDevLayoutPadding = lambda key: pads.get(key, zero)
+        pad = self.ns.StatVerdictBenchmarkDrawerPanel.GetCardPad()
+        self.assertEqual((5, 5, 0, 0), (pad.top, pad.bottom, pad.left, pad.right))
+        pads["benchmark.card.pad"] = self.lua.table(top=2, bottom=3, left=0, right=0)
+        pad = self.ns.StatVerdictBenchmarkDrawerPanel.GetCardPad()
+        self.assertEqual((2, 3), (pad.top, pad.bottom))
 
 
 if __name__ == "__main__":
