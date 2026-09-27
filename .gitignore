@@ -24,3 +24,6 @@ releases/
 # VS Code / Cursor local settings
 .vscode/
 .cursor/
+
+# superpowers implementation-plan scratch workspace (ledgers, briefs, review packages)
+.superpowers/
