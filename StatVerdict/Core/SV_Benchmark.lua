@@ -7,15 +7,15 @@ local addonName, ns = ...
 local LEVELS = {
     {
         key = "HIGH", label = "Tier 3", meaning = "Players with a highest key of 16 or higher", hint = "Push keys",
-        about = "Built from 100 %sMythic+ players this season whose highest key was 16 or higher. Your stat targets and Popular Gear come from the gear they actually wore in their runs: the bar for players pushing high keys. For a demanding, competitive build.",
+        about = "Built from 100 %sMythic+ players this season with a highest key of 16+. Targets and Popular Gear come from the gear they actually wore. For a demanding, competitive build.",
     },
     {
         key = "MID", label = "Tier 2", meaning = "Players with a highest key between 10 and 15", hint = "Recommended",
-        about = "Built from 100 %sMythic+ players this season whose highest key was between 10 and 15. Your stat targets and Popular Gear come from the gear they actually wore in their runs: the range most active Mythic+ players are in. The best fit for most players, and the default.",
+        about = "Built from 100 %sMythic+ players this season with a highest key of 10-15. Targets and Popular Gear come from the gear they actually wore. The best fit for most players, and the default.",
     },
     {
         key = "LOW", label = "Tier 1", meaning = "Players with a highest key of 9 or lower", hint = "Lower keys",
-        about = "Built from 100 %sMythic+ players this season whose highest key was 9 or lower. Your stat targets and Popular Gear come from the gear they actually wore in their runs, so this matches players at your own pace if you are still working up to higher keys. For players mostly running lower keys.",
+        about = "Built from 100 %sMythic+ players this season with a highest key of 9 or under. Targets and Popular Gear come from the gear they actually wore, matching players at your own pace.",
     },
 }
 local DEFAULT_LEVEL = "MID"

@@ -345,7 +345,7 @@ class BenchmarkDrawerSmokeTests(unittest.TestCase):
         # RAID_CLASS_COLORS is a real WoW client global; stub the one entry the spec-name
         # prefix's class-colour needs (see SpecDisplayPrefix).
         self.lua.globals().RAID_CLASS_COLORS = self.lua.table(
-            DEATHKNIGHT=self.lua.table(colorStr="c41f3b")
+            DEATHKNIGHT=self.lua.table(colorStr="ffc41f3b")
         )
         self.ns.GetSnapshotHeroTalentName = lambda profile: "Deathbringer"
         self.available = True
@@ -412,20 +412,25 @@ class BenchmarkDrawerSmokeTests(unittest.TestCase):
     def test_description_follows_the_selected_level(self) -> None:
         card = self.card()
         self.assertEqual("Tier 2 benchmark", card.aboutTitle.text)  # default level is MID
-        self.assertIn("between 10 and 15", card.about.text)
+        self.assertIn("10-15", card.about.text)
         card.levelRows[1].scripts.OnClick()  # HIGH, now on top
         self.assertEqual("Tier 3 benchmark", card.aboutTitle.text)
-        self.assertIn("16 or higher", card.about.text)
+        self.assertIn("16+", card.about.text)
         card.levelRows[3].scripts.OnClick()  # LOW, now on the bottom
         self.assertEqual("Tier 1 benchmark", card.aboutTitle.text)
-        self.assertIn("9 or lower", card.about.text)
+        self.assertIn("9 or under", card.about.text)
 
     def test_description_hangs_from_its_title_so_it_cannot_leave_the_card(self) -> None:
         card = self.card()
         self.assertEqual("TOPLEFT", card.about.points[1][1])
         self.assertTrue(self.lua.eval("rawequal")(card.aboutTitle, card.about.points[1][2]))
+        # Budget the WORST-CASE formatted length (template + the longest real spec/class/
+        # hero combo, e.g. "Preservation Evoker (Flameshaper) "), not just the raw template -
+        # the %s prefix is real, visible text and must fit the card too.
+        worst_case_prefix = "Preservation Evoker (Flameshaper) "
         for level in self.ns.GetBenchmarkLevels().values():
-            self.assertLessEqual(len(level.about), 300, level.key)  # about seven lines in the drawer
+            formatted_length = len(level.about % worst_case_prefix) if "%s" in level.about else len(level.about)
+            self.assertLessEqual(formatted_length, 300, level.key)  # about seven lines in the drawer
 
     def test_description_lines_have_extra_spacing(self) -> None:
         card = self.card()

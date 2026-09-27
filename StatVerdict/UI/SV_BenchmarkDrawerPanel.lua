@@ -54,9 +54,13 @@ local function SpecDisplayPrefix()
     if not (specName and className) then return "" end
 
     local classFile = type(context) == "table" and context.classFile or nil
+    -- RAID_CLASS_COLORS[classFile].colorStr already carries the alpha byte (e.g.
+    -- "ffc41f3b") - matching GetClassColorPrefix in SV_Render.lua, which is why the
+    -- markup here is "|c" .. colorStr, not "|cff" .. colorStr (that doubled the alpha
+    -- and broke the escape sequence, showing raw hex digits as text).
     local classColor = classFile and RAID_CLASS_COLORS and RAID_CLASS_COLORS[classFile]
     local coloredClassName = classColor and classColor.colorStr
-        and ("|cff" .. classColor.colorStr .. className .. "|r") or className
+        and ("|c" .. classColor.colorStr .. className .. "|r") or className
 
     local heroName = nil
     if ns.GetSnapshotHeroTalentName then
