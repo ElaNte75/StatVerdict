@@ -771,5 +771,30 @@ class DiscoverCandidatesByCeilingTests(unittest.TestCase):
         self.assertEqual(["UsPlayer1", "UsPlayer2", "UsPlayer3", "EuTop"], [row["name"] for row in result])
 
 
+class BracketCohortKeyTests(unittest.TestCase):
+    def test_cohort_keys_cover_every_bracket_and_size(self):
+        records = [
+            {
+                "name": f"P{i}", "realm": "r", "region": "eu", "score": 1000 - i,
+                "itemLevel": 320, "verifiedRank": i,
+                "stats": {k: 1000 + i for k in ("strength", "agility", "intellect", "stamina",
+                                                  "crit", "haste", "mastery", "versatility")},
+                "items": {},
+            }
+            for i in range(1, 25)
+        ]
+        cohorts = {
+            f"{bracket}_{size}": aggregate_cohort(records, size)
+            for bracket in BRACKET_CEILINGS for size in SAMPLE_SIZES
+        }
+        self.assertEqual(9, len(cohorts))
+        self.assertIn("LOW_20", cohorts)
+        self.assertIn("MID_50", cohorts)
+        self.assertIn("HIGH_100", cohorts)
+        # 24 records is enough for the 20-cohort (min sample 5) but not the 100-cohort.
+        self.assertEqual("ok", cohorts["LOW_20"]["status"])
+        self.assertEqual("insufficient", cohorts["LOW_100"]["status"])
+
+
 if __name__ == "__main__":
     unittest.main()

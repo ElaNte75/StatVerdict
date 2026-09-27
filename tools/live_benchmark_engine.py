@@ -52,7 +52,6 @@ if hasattr(sys.stderr, "reconfigure"):
 USER_AGENT = "StatVerdict-LiveBenchmark/1.0"
 SCHEMA_VERSION = 5
 MAX_INSUFFICIENT_SPECS = 4
-DEFAULT_COHORTS = (25, 100, 200)
 # Key-level difficulty brackets, agreed with the user 2026-09-27. A character's bracket is
 # decided by the HIGHEST Mythic+ key they ran this season, across ALL their ranked runs (not
 # only combat-log-tracked ones) - the best available skill signal. None means "no ceiling".
@@ -1686,126 +1685,104 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
     http = JsonClient(args.request_delay)
     expansion_id, season = active_season(http)
     season_slug = args.season or season["slug"]
-    max_size = max(args.cohorts)
+    max_size = max(args.sample_sizes)
     profiles: dict[str, Any] = {}
     for index, spec in enumerate(active_specs, 1):
-        print(f"[{index:02d}/{len(active_specs)}] {spec.key}: discovering candidates", flush=True)
-        candidates = discover_candidates(
-            http,
-            spec,
-            season=season_slug,
-            regions=args.regions,
-            target_count=max_size * args.candidate_multiplier,
-            max_pages=args.max_pages,
-            access_key=access_key,
-        )
-        print(f"  candidates={len(candidates)}; collecting exact logged runs", flush=True)
-        run_records = []
-        failure_reasons: Counter[str] = Counter()
-        candidates_checked = 0
-        batch_size = max(args.workers, args.workers * 4)
-        with ThreadPoolExecutor(max_workers=args.workers) as pool:
-            for offset in range(0, len(candidates), batch_size):
-                batch = candidates[offset:offset + batch_size]
-                candidates_checked += len(batch)
-                futures = {
-                    pool.submit(
-                        fetch_record,
-                        http,
-                        spec,
-                        candidate,
-                        season_slug,
-                        args.max_run_checks,
-                    ): candidate
-                    for candidate in batch
-                }
-                for future in as_completed(futures):
-                    record, reason = future.result()
-                    if record:
-                        run_records.append(record)
-                    elif reason:
-                        failure_reasons[reason] += 1
-                if len(run_records) >= max_size:
-                    break
-        run_records.sort(key=lambda row: (-row["score"], row["region"], row["realm"], row["name"]))
-        run_records = run_records[:max_size]
-        for verified_rank, record in enumerate(run_records, 1):
-            record["verifiedRank"] = verified_rank
-        if spec.role == "healer":
-            print(f"  verifiedRuns={len(run_records)}; reconstructing stats from Wowhead tooltips", flush=True)
-            stat_records, stat_failure_reasons = reconstruct_stats_with_wowhead(
-                spec,
-                run_records,
-                delay=args.wowhead_delay,
-                workers=args.workers,
+        bracket_cohorts: dict[str, Any] = {}
+        bracket_gear_cohorts: dict[str, Any] = {}
+        bracket_hero_trees: dict[str, Any] = {}
+        bracket_hero_gear_trees: dict[str, Any] = {}
+        bracket_run_counts: dict[str, int] = {}
+        bracket_candidate_counts: dict[str, int] = {}
+        bracket_stat_counts: dict[str, int] = {}
+        for bracket, ceiling in BRACKET_CEILINGS.items():
+            print(f"[{index:02d}/{len(active_specs)}] {spec.key}/{bracket}: discovering candidates", flush=True)
+            if ceiling is None:
+                candidates = discover_candidates(
+                    http, spec, season=season_slug, regions=args.regions,
+                    target_count=max_size * args.candidate_multiplier,
+                    max_pages=args.max_pages, access_key=access_key,
+                )
+            else:
+                candidates = discover_candidates_by_ceiling(
+                    http, spec, season=season_slug, regions=args.regions, ceiling=ceiling,
+                    target_count=max_size * args.candidate_multiplier,
+                    max_pages=args.max_pages, access_key=access_key,
+                )
+            print(f"  candidates={len(candidates)}; collecting exact logged runs", flush=True)
+            run_records = []
+            failure_reasons: Counter[str] = Counter()
+            candidates_checked = 0
+            batch_size = max(args.workers, args.workers * 4)
+            with ThreadPoolExecutor(max_workers=args.workers) as pool:
+                for offset in range(0, len(candidates), batch_size):
+                    batch = candidates[offset:offset + batch_size]
+                    candidates_checked += len(batch)
+                    futures = {
+                        pool.submit(fetch_record, http, spec, candidate, season_slug, args.max_run_checks): candidate
+                        for candidate in batch
+                    }
+                    for future in as_completed(futures):
+                        record, reason = future.result()
+                        if record:
+                            run_records.append(record)
+                        elif reason:
+                            failure_reasons[reason] += 1
+                    if len(run_records) >= max_size:
+                        break
+            run_records.sort(key=lambda row: (-row["score"], row["region"], row["realm"], row["name"]))
+            run_records = run_records[:max_size]
+            for verified_rank, record in enumerate(run_records, 1):
+                record["verifiedRank"] = verified_rank
+            if spec.role == "healer":
+                print(f"  verifiedRuns={len(run_records)}; reconstructing stats from Wowhead tooltips", flush=True)
+                stat_records, stat_failure_reasons = reconstruct_stats_with_wowhead(
+                    spec, run_records, delay=args.wowhead_delay, workers=args.workers,
+                )
+                reconstruction_method = "median_wowhead_tooltip_summed_loadout"
+            else:
+                print(f"  verifiedRuns={len(run_records)}; reconstructing stats with SimulationCraft", flush=True)
+                assert simc_binary is not None
+                stat_records, stat_failure_reasons = reconstruct_stats_with_simc(
+                    simc_binary, spec, run_records, timeout_seconds=args.simc_timeout, threads=args.simc_threads,
+                )
+                reconstruction_method = "median_simc_reconstructed_loadout"
+            if not run_records:
+                summary = "; ".join(f"{count}x {reason}" for reason, count in failure_reasons.most_common(3))
+                message = f"{spec.key}/{bracket}: no exact logged-run snapshots; {summary or 'no candidates found'}"
+                print(f"::warning title=Insufficient benchmark data::{message}", file=sys.stderr)
+            for size in args.sample_sizes:
+                bracket_cohorts[f"{bracket}_{size}"] = aggregate_cohort(stat_records, size, reconstruction_method)
+                bracket_gear_cohorts[f"{bracket}_{size}"] = aggregate_gear_cohort(run_records, size)
+            hero_trees = aggregate_hero_trees(stat_records, args.sample_sizes, reconstruction_method)
+            hero_gear_trees = aggregate_hero_gear_trees(run_records, args.sample_sizes)
+            for tree_key, tree in hero_trees.items():
+                bracket_hero_trees[f"{bracket}:{tree_key}"] = tree
+            for tree_key, tree in hero_gear_trees.items():
+                bracket_hero_gear_trees[f"{bracket}:{tree_key}"] = tree
+            bracket_run_counts[bracket] = len(run_records)
+            bracket_candidate_counts[bracket] = candidates_checked
+            bracket_stat_counts[bracket] = len(stat_records)
+            print(
+                f"  {bracket}: runs={len(run_records)}/{candidates_checked} reconstructedStats={len(stat_records)}; "
+                + ", ".join(f"{size}={bracket_cohorts[f'{bracket}_{size}']['status']}" for size in args.sample_sizes),
+                flush=True,
             )
-            reconstruction_method = "median_wowhead_tooltip_summed_loadout"
-        else:
-            print(f"  verifiedRuns={len(run_records)}; reconstructing stats with SimulationCraft", flush=True)
-            assert simc_binary is not None
-            stat_records, stat_failure_reasons = reconstruct_stats_with_simc(
-                simc_binary,
-                spec,
-                run_records,
-                timeout_seconds=args.simc_timeout,
-                threads=args.simc_threads,
-            )
-            reconstruction_method = "median_simc_reconstructed_loadout"
-        failure_summary = [
-            {"reason": reason, "count": count} for reason, count in failure_reasons.most_common(3)
-        ]
-        if not run_records:
-            summary = "; ".join(f"{row['count']}x {row['reason']}" for row in failure_summary)
-            message = f"{spec.key}: no exact logged-run snapshots; {summary or 'no candidates found'}"
-            print(f"::warning title=Insufficient benchmark data::{message}", file=sys.stderr)
-        cohorts = {}
-        for size in args.cohorts:
-            cohorts[f"TOP_{size}"] = aggregate_cohort(stat_records, size, reconstruction_method)
-        gear_cohorts = {
-            f"TOP_{size}": aggregate_gear_cohort(run_records, size)
-            for size in args.cohorts
-        }
-        hero_trees = aggregate_hero_trees(stat_records, args.cohorts, reconstruction_method)
-        hero_gear_trees = aggregate_hero_gear_trees(run_records, args.cohorts)
-        base = cohorts[f"TOP_{min(args.cohorts)}"]
+        base = bracket_cohorts[f"LOW_{min(args.sample_sizes)}"]
         profiles[spec.key] = {
             "status": base["status"],
             "class": spec.class_name,
             "spec": spec.spec_name,
             "role": spec.role,
             "primaryStat": spec.primary,
-            "candidateCount": candidates_checked,
-            "verifiedRunCount": len(run_records),
-            "reconstructedStatCount": len(stat_records),
-            "coverage": {
-                "verifiedRunRatio": round(len(run_records) / candidates_checked, 4) if candidates_checked else 0.0,
-                "reconstructedStatRatio": round(len(stat_records) / candidates_checked, 4) if candidates_checked else 0.0,
-                "reconstructedOfVerifiedRatio": round(len(stat_records) / len(run_records), 4) if run_records else 0.0,
-            },
-            "runFailureReasons": failure_summary,
-            "statMatchFailureReasons": [
-                {"reason": reason, "count": count}
-                for reason, count in stat_failure_reasons.most_common(5)
-            ],
-            "cohorts": cohorts,
-            "gearCohorts": gear_cohorts,
-            "heroTalentTrees": hero_trees,
-            "heroTalentGearTrees": hero_gear_trees,
-            "heroTalentAnalysis": compare_hero_trees(hero_trees, min(args.cohorts)),
+            "candidateCount": sum(bracket_candidate_counts.values()),
+            "verifiedRunCount": sum(bracket_run_counts.values()),
+            "reconstructedStatCount": sum(bracket_stat_counts.values()),
+            "cohorts": bracket_cohorts,
+            "gearCohorts": bracket_gear_cohorts,
+            "heroTalentTrees": bracket_hero_trees,
+            "heroTalentGearTrees": bracket_hero_gear_trees,
         }
-        failure_note = ""
-        if stat_failure_reasons:
-            top = "; ".join(
-                f"{count}x {reason}" for reason, count in stat_failure_reasons.most_common(2)
-            )
-            failure_note = f"; failures={top}"
-        print(
-            f"  runs={len(run_records)}/{candidates_checked} reconstructedStats={len(stat_records)}; "
-            + f"status={profiles[spec.key]['status']}; heroTrees={len(hero_gear_trees)}; "
-            + ", ".join(f"{label}={row['status']}({row['sampleSize']})" for label, row in cohorts.items())
-            + failure_note,
-            flush=True,
-        )
     database = {
         "schemaVersion": SCHEMA_VERSION,
         "generatedAt": utc_now(),
@@ -1818,7 +1795,8 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
             "season": season_slug,
             "expansionId": expansion_id,
             "regions": list(args.regions),
-            "rankCeilings": list(args.cohorts),
+            "sampleSizes": list(args.sample_sizes),
+            "keyBrackets": {name: ceiling for name, ceiling in BRACKET_CEILINGS.items()},
             "aggregation": "median with 15% item-level outlier rejection",
             "acceptance": (
                 "Combat-log run gear and talents only; stats reconstructed from exact item, "
@@ -1833,7 +1811,7 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
         "profiles": profiles,
         "externalSimulations": load_liquid_armory_import(args.liquid_data, season_slug),
     }
-    validate_database(database, min(args.cohorts), args.max_insufficient_specs, expected_specs=active_specs)
+    validate_database(database, min(args.sample_sizes), args.max_insufficient_specs, expected_specs=active_specs)
     return database
 
 
@@ -1875,7 +1853,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--season", help="Emergency Raider.IO season override")
     parser.add_argument("--regions", default=",".join(SUPPORTED_REGIONS))
-    parser.add_argument("--cohorts", default=",".join(str(value) for value in DEFAULT_COHORTS))
+    parser.add_argument("--sample-sizes", default=",".join(str(value) for value in SAMPLE_SIZES))
     parser.add_argument("--max-pages", type=int, default=100)
     parser.add_argument("--max-insufficient-specs", type=int, default=MAX_INSUFFICIENT_SPECS)
     parser.add_argument("--max-run-checks", type=int, default=DEFAULT_MAX_RUN_CHECKS)
@@ -1901,11 +1879,13 @@ def parse_args() -> argparse.Namespace:
     )
     args = parser.parse_args()
     args.regions = tuple(value.strip().lower() for value in args.regions.split(",") if value.strip())
-    args.cohorts = tuple(sorted({int(value) for value in args.cohorts.split(",") if int(value) > 0}))
+    args.sample_sizes = tuple(
+        sorted({int(value) for value in args.sample_sizes.split(",") if int(value) > 0})
+    )
     if not args.regions or not set(args.regions).issubset(RANKING_REGIONS):
         parser.error(f"regions must be a subset of {RANKING_REGIONS}")
-    if not args.cohorts:
-        parser.error("at least one cohort size is required")
+    if not args.sample_sizes:
+        parser.error("at least one sample size is required")
     if args.candidate_multiplier < 1:
         parser.error("candidate-multiplier must be at least 1")
     spec_keys: set[str] = set()
@@ -1930,7 +1910,7 @@ def main() -> int:
     if args.validate_only:
         database = json.loads(args.validate_only.read_text(encoding="utf-8"))
         validate_database(
-            database, min(args.cohorts), args.max_insufficient_specs, expected_specs=expected_specs
+            database, min(args.sample_sizes), args.max_insufficient_specs, expected_specs=expected_specs
         )
         print(f"Validated {len(database['profiles'])} benchmark profiles.")
         return 0
@@ -1938,7 +1918,7 @@ def main() -> int:
         database = merge_partial_databases(args.merge_inputs, allow_override=args.allow_merge_override)
         merged_specs = [spec for spec in SPECS if spec.key in database["profiles"]]
         validate_database(
-            database, min(args.cohorts), args.max_insufficient_specs, expected_specs=merged_specs
+            database, min(args.sample_sizes), args.max_insufficient_specs, expected_specs=merged_specs
         )
     else:
         database = build_database(args)
