@@ -2,19 +2,20 @@ local addonName, ns = ...
 
 -- Benchmark level = which key-level difficulty bracket the Mythic+ data is built from,
 -- based on players' highest key this season (agreed with the user 2026-09-27). Data
--- cohorts are LOW / MID / HIGH directly; players see Low / Mid / High.
+-- cohorts are LOW / MID / HIGH; players see Tier 3 (High) at the top down to Tier 1 (Low)
+-- at the bottom, like a leaderboard.
 local LEVELS = {
     {
-        key = "LOW", label = "Low", meaning = "Players with a highest key of 9 or lower", hint = "Lower keys",
-        about = "Built from 100 Mythic+ players this season whose highest key was 9 or lower. Your stat targets and Popular Gear come from the gear they actually wore in their runs, so this matches players at your own pace if you are still working up to higher keys. For players mostly running lower keys.",
+        key = "HIGH", label = "Tier 3", meaning = "Players with a highest key of 16 or higher", hint = "Push keys",
+        about = "Built from 100 Mythic+ players this season whose highest key was 16 or higher. Your stat targets and Popular Gear come from the gear they actually wore in their runs: the bar for players pushing high keys. For a demanding, competitive build.",
     },
     {
-        key = "MID", label = "Mid", meaning = "Players with a highest key between 10 and 15", hint = "Recommended",
+        key = "MID", label = "Tier 2", meaning = "Players with a highest key between 10 and 15", hint = "Recommended",
         about = "Built from 100 Mythic+ players this season whose highest key was between 10 and 15. Your stat targets and Popular Gear come from the gear they actually wore in their runs: the range most active Mythic+ players are in. The best fit for most players, and the default.",
     },
     {
-        key = "HIGH", label = "High", meaning = "Players with a highest key of 16 or higher", hint = "Push keys",
-        about = "Built from 100 Mythic+ players this season whose highest key was 16 or higher. Your stat targets and Popular Gear come from the gear they actually wore in their runs: the bar for players pushing high keys. For a demanding, competitive build.",
+        key = "LOW", label = "Tier 1", meaning = "Players with a highest key of 9 or lower", hint = "Lower keys",
+        about = "Built from 100 Mythic+ players this season whose highest key was 9 or lower. Your stat targets and Popular Gear come from the gear they actually wore in their runs, so this matches players at your own pace if you are still working up to higher keys. For players mostly running lower keys.",
     },
 }
 local DEFAULT_LEVEL = "MID"

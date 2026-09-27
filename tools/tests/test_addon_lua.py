@@ -80,9 +80,10 @@ class BenchmarkCoreTests(unittest.TestCase):
         self.assertEqual("MID", self.ns.GetBenchmarkLevel())
 
     def test_level_names_and_meaning_lines(self) -> None:
+        # Top-to-bottom order is Tier 3 (highest) down to Tier 1 (lowest), like a leaderboard.
         levels = self.ns.GetBenchmarkLevels()
-        self.assertEqual(["Low", "Mid", "High"], [levels[i].label for i in (1, 2, 3)])
-        self.assertEqual("Players with a highest key of 9 or lower", levels[1].meaning)
+        self.assertEqual(["Tier 3", "Tier 2", "Tier 1"], [levels[i].label for i in (1, 2, 3)])
+        self.assertEqual("Players with a highest key of 16 or higher", levels[1].meaning)
 
     def test_benchmark_is_relevant_only_when_a_build_uses_mythic_plus(self) -> None:
         cases = [
@@ -115,7 +116,7 @@ class BenchmarkCoreTests(unittest.TestCase):
         self.assertEqual("Popular Gear", mplus.button)
         self.assertEqual("Main Spec Popular Gear", mplus.main)
         self.assertEqual("Popular Progress", mplus.progress)
-        self.assertEqual(" · Mid", mplus.progressSuffix)
+        self.assertEqual(" · Tier 2", mplus.progressSuffix)
         self.assertEqual("Popular", mplus.tag)
         raid = self.ns.GetReferenceWording("RAID")
         self.assertEqual("Best in Slot", raid.button)
@@ -206,7 +207,7 @@ class RepositoryTests(unittest.TestCase):
         lua, ns = self.build_runtime()
         info = ns.ProfileRepository.GetDataProvenance("MYTHIC_PLUS")
         self.assertTrue(info.available)
-        self.assertEqual("StatVerdict live benchmarks · Mid", info.sourceName)
+        self.assertEqual("StatVerdict live benchmarks · Tier 2", info.sourceName)
         self.assertEqual(now_stamp()[:10], info.scrape)
 
     def test_popular_items_and_trinkets_keep_their_boosts(self) -> None:
@@ -373,30 +374,34 @@ class BenchmarkDrawerSmokeTests(unittest.TestCase):
         return self.frame.benchmarkDrawerCard
 
     def test_level_cards_show_confidence_and_update_date(self) -> None:
+        # Row order top-to-bottom is now Tier 3 (HIGH), Tier 2 (MID), Tier 1 (LOW) - a
+        # leaderboard shape, highest tier on top.
         self.levels["LOW"]["confidence"] = "medium"
         card = self.card()
-        # The date is secondary: dimmed and without the word "Updated" so the line stays short.
-        orange, green, date = "|cffff8000", "|cff33ff59", " |cff8c8c8c· 2026-09-26|r"
-        self.assertEqual(orange + "Medium confidence|r" + date, card.levelRows[1].meaning.text)
-        self.assertEqual(green + "High confidence|r" + date, card.levelRows[2].meaning.text)
-        self.assertEqual(green + "High confidence|r" + date, card.levelRows[3].meaning.text)
-        self.assertLessEqual(len("High confidence · 2026-09-26"), 32)
+        orange, green = "|cffff8000", "|cff33ff59"
+        self.assertEqual(green + "High confidence|r", card.levelRows[1].meaning.text)  # HIGH
+        self.assertEqual(green + "High confidence|r", card.levelRows[2].meaning.text)  # MID
+        self.assertEqual(orange + "Medium confidence|r", card.levelRows[3].meaning.text)  # LOW
+        # The date is right-aligned on its own, the same way the hint is (per the user's request).
+        self.assertEqual("2026-09-26", card.levelRows[1].date.text)
+        self.assertEqual("2026-09-26", card.levelRows[3].date.text)
 
     def test_level_cards_fall_back_to_the_group_size_without_data(self) -> None:
         self.has_data = False
         card = self.card()
-        self.assertEqual("Players with a highest key of 9 or lower", card.levelRows[1].meaning.text)
+        self.assertEqual("Players with a highest key of 16 or higher", card.levelRows[1].meaning.text)  # HIGH
+        self.assertEqual("", card.levelRows[1].date.text)  # no live data: nothing to date
 
     def test_description_follows_the_selected_level(self) -> None:
         card = self.card()
-        self.assertEqual("Mid benchmark", card.aboutTitle.text)
+        self.assertEqual("Tier 2 benchmark", card.aboutTitle.text)  # default level is MID
         self.assertIn("between 10 and 15", card.about.text)
-        card.levelRows[1].scripts.OnClick()
-        self.assertEqual("Low benchmark", card.aboutTitle.text)
-        self.assertIn("9 or lower", card.about.text)
-        card.levelRows[3].scripts.OnClick()
-        self.assertEqual("High benchmark", card.aboutTitle.text)
+        card.levelRows[1].scripts.OnClick()  # HIGH, now on top
+        self.assertEqual("Tier 3 benchmark", card.aboutTitle.text)
         self.assertIn("16 or higher", card.about.text)
+        card.levelRows[3].scripts.OnClick()  # LOW, now on the bottom
+        self.assertEqual("Tier 1 benchmark", card.aboutTitle.text)
+        self.assertIn("9 or lower", card.about.text)
 
     def test_description_hangs_from_its_title_so_it_cannot_leave_the_card(self) -> None:
         card = self.card()
@@ -423,10 +428,10 @@ class BenchmarkDrawerSmokeTests(unittest.TestCase):
 
     def test_clicking_a_level_row_saves_it_and_marks_it(self) -> None:
         card = self.card()
-        self.assertEqual(["LOW", "MID", "HIGH"], [card.levelRows[i].key for i in (1, 2, 3)])
-        self.assertTrue(card.levelRows[2].check.checked)
-        card.levelRows[3].scripts.OnClick()
-        self.assertEqual("HIGH", self.ns.GetBenchmarkLevel())
+        self.assertEqual(["HIGH", "MID", "LOW"], [card.levelRows[i].key for i in (1, 2, 3)])
+        self.assertTrue(card.levelRows[2].check.checked)  # MID is the default
+        card.levelRows[3].scripts.OnClick()  # LOW, now on the bottom
+        self.assertEqual("LOW", self.ns.GetBenchmarkLevel())
         self.assertFalse(card.levelRows[2].check.checked)
         self.assertTrue(card.levelRows[3].check.checked)
 

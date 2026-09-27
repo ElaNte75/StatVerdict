@@ -47,13 +47,14 @@ local function LevelBenchmark(levelKey)
     return type(context) == "table" and context.benchmark or nil
 end
 
--- Second line of a level card: how reliable that level's data is, then the update date
--- (dimmed: it matters less than the confidence).
-local function CardLine(level, bench, updated)
-    if type(bench) ~= "table" or not updated then return level.meaning end
+-- Second line of a level card: how reliable that level's data is (the update date sits to
+-- its right, on its own right-aligned line - see row.date - the same way row.hint sits to
+-- the right of row.label).
+local function CardLine(level, bench)
+    if type(bench) ~= "table" then return level.meaning end
     local confidence = tostring(bench.confidence or "unknown")
     local color = confidence == "high" and "|cff33ff59" or "|cffff8000"
-    return color .. confidence:sub(1, 1):upper() .. confidence:sub(2) .. " confidence|r |cff8c8c8c· " .. tostring(updated) .. "|r"
+    return color .. confidence:sub(1, 1):upper() .. confidence:sub(2) .. " confidence|r"
 end
 
 local function ActiveGoalIsMythicPlus()
@@ -131,6 +132,13 @@ local function EnsureLevelRow(card, index, level)
     row.meaning:SetJustifyH("LEFT")
     row.meaning:SetTextColor(GREY[1], GREY[2], GREY[3])
     row.meaning:SetText(level.meaning)
+
+    -- Right-aligned under row.hint, the same way row.hint sits right-aligned under the row.
+    row.date = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.date:SetPoint("TOPRIGHT", row.hint, "BOTTOMRIGHT", 0, -4)
+    row.date:SetJustifyH("RIGHT")
+    row.date:SetTextColor(GREY[1], GREY[2], GREY[3])
+    row.date:SetText("")
 
     row:SetScript("OnEnter", function(self)
         self.hovered = true
@@ -225,7 +233,9 @@ function Panel.Sync(card)
         row.check:SetChecked(row.key == selected)
         PaintRow(row, row.key == selected, row.hovered == true)
         local level = ns.GetBenchmarkLevelInfo(row.key)
-        row.meaning:SetText(CardLine(level, mythicPlus and LevelBenchmark(row.key) or nil, updated))
+        local bench = mythicPlus and LevelBenchmark(row.key) or nil
+        row.meaning:SetText(CardLine(level, bench))
+        row.date:SetText((type(bench) == "table" and updated) and tostring(updated) or "")
     end
 
     local info = ns.GetBenchmarkLevelInfo(selected)
