@@ -5,7 +5,9 @@ import unittest
 from pathlib import Path
 
 from tools.addon_benchmarks import (
+    BRACKETS,
     MAX_FILE_BYTES,
+    SAMPLE_SIZES,
     TARGET_KEYS,
     build_addon_data,
     build_level_context,
@@ -22,11 +24,11 @@ from tools.addon_benchmarks import (
     write_addon_file,
 )
 from tools.tests.addon_fixtures import (
+    make_bracket_profile,
+    make_bracket_raw_database,
     make_gear_cohort,
     make_item,
     make_popular_items,
-    make_profile,
-    make_raw_database,
     make_stat_cohort,
 )
 
@@ -126,8 +128,8 @@ class TargetsAndPriorityTests(unittest.TestCase):
         self.assertEqual([["haste"], ["mastery"], ["critical-strike", "versatility"]], tiers)
 
     def test_priority_rows_per_valid_hero_tree_plus_spec_wide_row(self) -> None:
-        profile = make_profile()
-        rows = build_priority_profiles(profile, "TOP_100", profile["cohorts"]["TOP_100"])
+        profile = make_bracket_profile()
+        rows = build_priority_profiles(profile, "MID", "TOP_100", profile["cohorts"]["MID_100"])
         self.assertEqual([31, 33, None], [r.get("heroSubTreeID") for r in rows])
         self.assertEqual(["haste", "mastery", "critical-strike", "versatility"], rows[0]["order"])
         self.assertEqual(["critical-strike", "mastery", "versatility", "haste"], rows[1]["order"])
@@ -135,9 +137,18 @@ class TargetsAndPriorityTests(unittest.TestCase):
         self.assertTrue(all(r["context"] == "Mythic+" for r in rows))
 
     def test_insufficient_hero_tree_gets_no_row(self) -> None:
-        profile = make_profile()
-        rows = build_priority_profiles(profile, "TOP_100", profile["cohorts"]["TOP_100"])
+        profile = make_bracket_profile()
+        rows = build_priority_profiles(profile, "MID", "TOP_100", profile["cohorts"]["MID_100"])
         self.assertNotIn(35, [r.get("heroSubTreeID") for r in rows])
+
+    def test_hero_tree_rows_are_scoped_to_their_own_bracket(self) -> None:
+        # A hero tree's inner cohort keys (TOP_20/50/100) are shared naming across brackets -
+        # build_priority_profiles must not pull a MID hero-tree row into the LOW context.
+        profile = make_bracket_profile()
+        low_rows = build_priority_profiles(profile, "LOW", "TOP_20", profile["cohorts"]["LOW_20"])
+        mid_rows = build_priority_profiles(profile, "MID", "TOP_100", profile["cohorts"]["MID_100"])
+        self.assertEqual([31, 33, None], [r.get("heroSubTreeID") for r in low_rows])
+        self.assertEqual([31, 33, None], [r.get("heroSubTreeID") for r in mid_rows])
 
     def test_valid_cohort_needs_ok_status_and_minimum_sample(self) -> None:
         self.assertTrue(valid_cohort(make_stat_cohort(100, 1, 1, 1, 1)))
@@ -155,8 +166,8 @@ class TargetsAndPriorityTests(unittest.TestCase):
 
 class AssemblyTests(unittest.TestCase):
     def test_level_context_has_the_shape_the_addon_reads(self) -> None:
-        profile = make_profile()
-        context = build_level_context(profile, "TOP_100")
+        profile = make_bracket_profile()
+        context = build_level_context(profile, "MID", "MID_100")
         targets = context["targets"]
         self.assertEqual("MYTHIC_PLUS", targets["sourceGoal"])
         self.assertEqual(326.9, targets["averageItemLevel"])
@@ -169,43 +180,48 @@ class AssemblyTests(unittest.TestCase):
         self.assertEqual(15, len(context["bis"]["slots"]))
         self.assertEqual(["S", "S", "A"], [t["tier"] for t in context["trinkets"]])
         self.assertEqual(
-            {"level": "STANDARD", "cohort": "TOP_100", "sampleSize": 100, "minimumSample": 25,
+            {"level": "MID", "cohort": "MID_100", "sampleSize": 100, "minimumSample": 25,
              "confidence": "high", "completeness": 1.0},
             context["benchmark"],
         )
 
     def test_invalid_cohort_gives_no_context(self) -> None:
-        profile = make_profile()
-        profile["cohorts"]["TOP_25"]["status"] = "insufficient"
-        self.assertIsNone(build_level_context(profile, "TOP_25"))
-        self.assertIsNotNone(build_level_context(profile, "TOP_100"))
+        profile = make_bracket_profile()
+        profile["cohorts"]["LOW_20"]["status"] = "insufficient"
+        self.assertIsNone(build_level_context(profile, "LOW", "LOW_20"))
+        self.assertIsNotNone(build_level_context(profile, "MID", "MID_100"))
 
     def test_too_few_slots_or_low_item_level_gives_no_context(self) -> None:
-        profile = make_profile()
-        profile["gearCohorts"]["TOP_100"]["popularItems"] = {"HEAD": make_gear_cohort(100)["popularItems"]["HEAD"]}
-        self.assertIsNone(build_level_context(profile, "TOP_100"))
-        profile = make_profile()
-        profile["cohorts"]["TOP_100"]["averageItemLevel"] = 200.0
-        self.assertIsNone(build_level_context(profile, "TOP_100"))
+        profile = make_bracket_profile()
+        profile["gearCohorts"]["MID_100"]["popularItems"] = {"HEAD": make_gear_cohort(100)["popularItems"]["HEAD"]}
+        self.assertIsNone(build_level_context(profile, "MID", "MID_100"))
+        profile = make_bracket_profile()
+        profile["cohorts"]["MID_100"]["averageItemLevel"] = 200.0
+        self.assertIsNone(build_level_context(profile, "MID", "MID_100"))
 
     def test_profile_keeps_only_valid_levels_and_measured_primary(self) -> None:
-        profile = make_profile(spec_key_class="demon-hunter", primary="agility")
+        profile = make_bracket_profile(spec_key_class="demon-hunter", primary="agility")
         for cohort in profile["cohorts"].values():
             cohort["statTargets"]["stats"].update({"strength": 300.0, "agility": 500.0, "intellect": 2400.0})
-        profile["cohorts"]["TOP_25"]["status"] = "insufficient"
+        profile["cohorts"]["LOW_20"]["status"] = "insufficient"
         built = build_profile("DEMONHUNTER_DEVOURER", profile)
         self.assertEqual("DEMONHUNTER", built["classToken"])
         self.assertEqual("intellect", built["primaryStat"])
-        self.assertEqual(["BROAD", "STANDARD"], sorted(built["levels"]))
+        # LOW_20 was invalidated; the other two LOW sizes and both other brackets stay whole.
+        self.assertEqual(["100", "50"], sorted(built["levels"]["LOW"]))
+        self.assertEqual(["100", "20", "50"], sorted(built["levels"]["MID"]))
+        self.assertEqual(["100", "20", "50"], sorted(built["levels"]["HIGH"]))
 
     def test_profile_that_is_not_ok_is_left_out(self) -> None:
-        profile = make_profile()
+        profile = make_bracket_profile()
         profile["status"] = "failed"
         self.assertIsNone(build_profile("DEATHKNIGHT_BLOOD", profile))
 
     def test_addon_data_uses_the_oldest_generated_at(self) -> None:
-        older = make_raw_database("2026-09-01T00:00:00Z")
-        newer = make_raw_database("2026-09-20T00:00:00Z", {"MAGE_FIRE": make_profile("mage", "intellect")})
+        older = make_bracket_raw_database("2026-09-01T00:00:00Z")
+        newer = make_bracket_raw_database(
+            "2026-09-20T00:00:00Z", {"MAGE_FIRE": make_bracket_profile("mage", "intellect")}
+        )
         data = build_addon_data([newer, older])
         self.assertEqual("2026-09-01T00:00:00Z", data["generatedAt"])
         self.assertEqual(1, data["schemaVersion"])
@@ -213,7 +229,7 @@ class AssemblyTests(unittest.TestCase):
         self.assertEqual("season-mn-2", data["source"]["season"])
 
     def test_lua_output_and_size_gate(self) -> None:
-        data = build_addon_data([make_raw_database("2026-09-26T00:00:00Z")])
+        data = build_addon_data([make_bracket_raw_database("2026-09-26T00:00:00Z")])
         text = render_lua(data)
         self.assertTrue(text.startswith("local addonName, ns = ...\n"))
         self.assertIn("ns.MythicPlusBenchmarks = {", text)
@@ -229,12 +245,30 @@ class AssemblyTests(unittest.TestCase):
             self.assertFalse((Path(tmp) / "big.lua").exists())
 
     def test_report_lists_each_spec(self) -> None:
-        data = build_addon_data([make_raw_database("2026-09-26T00:00:00Z")])
+        data = build_addon_data([make_bracket_raw_database("2026-09-26T00:00:00Z")])
         report = build_report(data)
         self.assertIn("DEATHKNIGHT_BLOOD", report)
-        self.assertIn("STANDARD", report)
+        self.assertIn("MID_100", report)
         self.assertIn("tiers S:2 A:1 B:0 C:0", report)
         self.assertIn("clear favourites (>=40%): 15/15", report)
+
+
+class TwoAxisLevelsTests(unittest.TestCase):
+    def test_levels_nested_by_bracket_then_sample_size(self) -> None:
+        profile = make_bracket_profile()
+        built = build_profile("DEATHKNIGHT_BLOOD", profile)
+        self.assertEqual(sorted(BRACKETS), sorted(built["levels"]))
+        for bracket in BRACKETS:
+            self.assertEqual(sorted(str(s) for s in SAMPLE_SIZES), sorted(built["levels"][bracket]))
+        self.assertEqual("MID", built["levels"]["MID"]["100"]["benchmark"]["level"])
+        self.assertEqual("MID_100", built["levels"]["MID"]["100"]["benchmark"]["cohort"])
+
+    def test_high_bracket_gear_differs_from_low_and_mid(self) -> None:
+        profile = make_bracket_profile()
+        built = build_profile("DEATHKNIGHT_BLOOD", profile)
+        high_helm = built["levels"]["HIGH"]["100"]["bis"]["slots"][0]["item"]["item_id"]
+        mid_helm = built["levels"]["MID"]["100"]["bis"]["slots"][0]["item"]["item_id"]
+        self.assertNotEqual(high_helm, mid_helm)
 
 
 class OffHandTests(unittest.TestCase):

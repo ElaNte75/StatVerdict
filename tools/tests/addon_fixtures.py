@@ -141,6 +141,78 @@ def make_profile(spec_key_class: str = "death-knight", primary: str = "strength"
     }
 
 
+BRACKET_STATS: dict[str, tuple[float, float, float, float]] = {
+    "LOW": (1300.0, 950.0, 700.0, 450.0),
+    "MID": (1140.0, 900.0, 680.0, 430.0),
+    "HIGH": (1100.0, 880.0, 690.0, 420.0),
+}
+BRACKET_SAMPLE_SIZES: tuple[int, ...] = (20, 50, 100)
+_MINIMUM_BY_SIZE = {20: 5, 50: 13, 100: 25}
+
+
+def make_bracket_profile(spec_key_class: str = "death-knight", primary: str = "strength") -> dict[str, Any]:
+    """Same shape as make_profile, but keyed LOW/MID/HIGH x 20/50/100 (see BRACKET_CEILINGS
+    and SAMPLE_SIZES in tools/live_benchmark_engine.py) instead of TOP_25/TOP_100/TOP_200.
+    Kept separate from make_profile so tools/tests/test_addon_lua.py (out of scope for this
+    plan - it exercises the still-unchanged ELITE/STANDARD/BROAD Lua selector) is untouched."""
+    cohorts: dict[str, Any] = {}
+    gear: dict[str, Any] = {}
+    for bracket, (crit, haste, mastery, versatility) in BRACKET_STATS.items():
+        for size in BRACKET_SAMPLE_SIZES:
+            key = f"{bracket}_{size}"
+            cohorts[key] = make_stat_cohort(size, crit, haste, mastery, versatility, minimum=_MINIMUM_BY_SIZE[size])
+            gear[key] = make_gear_cohort(size)
+    # HIGH's favourite helm differs, so tests can tell brackets apart.
+    for size in BRACKET_SAMPLE_SIZES:
+        gear[f"HIGH_{size}"]["popularItems"]["HEAD"][0] = make_item(1500, "HEAD high-bracket favourite", 60, 60.0, [150])
+
+    def hero_tree_cohorts(crit: float, haste: float, mastery: float, versatility: float) -> dict[str, Any]:
+        # A hero tree's own "cohorts" sub-dict is built by aggregate_hero_trees, which is
+        # unchanged by the bracket work and still names its slices TOP_{size} - only the
+        # OUTER heroTalentTrees dict key carries the bracket prefix (see build_profile).
+        return {
+            f"TOP_{size}": make_stat_cohort(size, crit, haste, mastery, versatility, minimum=_MINIMUM_BY_SIZE[size])
+            for size in BRACKET_SAMPLE_SIZES
+        }
+
+    hero_trees: dict[str, Any] = {}
+    for bracket in BRACKET_STATS:
+        hero_trees[f"{bracket}:HERO_31"] = {
+            "id": 31, "name": "Hero Talent 31", "status": "ok", "fallback": "spec",
+            "cohorts": hero_tree_cohorts(600, 1000, 900, 590),
+        }
+        hero_trees[f"{bracket}:HERO_33"] = {
+            "id": 33, "name": "Hero Talent 33", "status": "ok", "fallback": "spec",
+            "cohorts": hero_tree_cohorts(1300, 400, 1000, 700),
+        }
+        hero_trees[f"{bracket}:HERO_35"] = {
+            "id": 35, "name": "Hero Talent 35", "status": "insufficient", "fallback": "spec",
+            "cohorts": {"TOP_100": make_stat_cohort(3, 1, 1, 1, 1, status="insufficient")},
+        }
+    return {
+        "status": "ok",
+        "class": spec_key_class,
+        "spec": "Blood",
+        "role": "tank",
+        "primaryStat": primary,
+        "cohorts": cohorts,
+        "gearCohorts": gear,
+        "heroTalentTrees": hero_trees,
+    }
+
+
+def make_bracket_raw_database(
+    generated_at: str, profiles: dict[str, dict[str, Any]] | None = None
+) -> dict[str, Any]:
+    return {
+        "schemaVersion": 5,
+        "generatedAt": generated_at,
+        "source": {"season": "season-mn-2", "regions": ["eu", "us"], "aggregation": "median"},
+        "profiles": profiles if profiles is not None else {"DEATHKNIGHT_BLOOD": make_bracket_profile()},
+        "externalSimulations": {"status": "unavailable"},
+    }
+
+
 def make_raw_database(generated_at: str, profiles: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
     return {
         "schemaVersion": 5,
