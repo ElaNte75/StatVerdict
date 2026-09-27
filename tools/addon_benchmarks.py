@@ -17,15 +17,17 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from tools.live_benchmark_engine import to_lua
+    from tools.live_benchmark_engine import BRACKET_CEILINGS, SAMPLE_SIZES, to_lua
 except ModuleNotFoundError:
     # Run as "python tools/addon_benchmarks.py": sys.path[0] is tools/, not the repo root.
-    from live_benchmark_engine import to_lua
+    from live_benchmark_engine import BRACKET_CEILINGS, SAMPLE_SIZES, to_lua
 
 SCHEMA_VERSION = 1
 GOAL = "MYTHIC_PLUS"
-BRACKETS = ("LOW", "MID", "HIGH")
-SAMPLE_SIZES = (20, 50, 100)
+# Imported (not redefined) so this file can never drift from what the collection engine
+# actually produced - a size or bracket here that the engine doesn't have would silently
+# empty every level instead of failing loudly.
+BRACKETS = tuple(BRACKET_CEILINGS)
 
 # Panel row order; a label that repeats (Ring, Trinket) takes the next-ranked item.
 SLOT_ORDER: tuple[tuple[str, tuple[str, ...]], ...] = (
@@ -269,8 +271,10 @@ def build_level_context(profile: dict[str, Any], bracket: str, cohort_key: str) 
 
 
 def build_profile(spec_key: str, profile: dict[str, Any]) -> dict[str, Any] | None:
-    if profile.get("status") != "ok":
-        return None
+    # profile["status"] is "insufficient" as soon as ANY one bracket comes up short (see
+    # live_benchmark_engine.build_database) - that must not drop the spec's other, perfectly
+    # good brackets. Each (bracket, size) is validated on its own below; a spec with nothing
+    # usable in it falls out naturally via the "if not levels" check.
     levels: dict[str, dict[str, Any]] = {}
     for bracket in BRACKETS:
         for size in SAMPLE_SIZES:

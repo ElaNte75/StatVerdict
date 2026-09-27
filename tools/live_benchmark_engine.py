@@ -878,7 +878,11 @@ def discover_candidates_by_ceiling(
     ranked = sorted(
         discovered.values(),
         key=lambda row: (-row["score"], row["region"], row["realm"], row["name"]),
-    )[:target_count]
+    )
+    # Same defensive filter as discover_candidates: drop any character below the max level
+    # seen (e.g. a twink), which would otherwise contaminate this bracket's gear/stat data.
+    max_level = max((row["level"] for row in ranked), default=0)
+    ranked = [row for row in ranked if row["level"] == max_level][:target_count]
     for merged_rank, row in enumerate(ranked, 1):
         row["rank"] = merged_rank
     return ranked
@@ -1775,9 +1779,16 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
                 + ", ".join(f"{size}={bracket_cohorts[f'{bracket}_{size}']['status']}" for size in args.sample_sizes),
                 flush=True,
             )
-        base = bracket_cohorts[f"LOW_{min(args.sample_sizes)}"]
+        # A spec only counts as "ok" when every bracket's smallest cohort is - matching
+        # validate_database's own all-brackets gate (see the ledger, Task 4). Checking only
+        # LOW let a transient MID/HIGH collection failure mark the whole spec "ok" while the
+        # validator, which is stricter, disagreed and raised.
+        min_size = min(args.sample_sizes)
+        status = "ok" if all(
+            bracket_cohorts[f"{bracket}_{min_size}"]["status"] == "ok" for bracket in BRACKET_CEILINGS
+        ) else "insufficient"
         profiles[spec.key] = {
-            "status": base["status"],
+            "status": status,
             "class": spec.class_name,
             "spec": spec.spec_name,
             "role": spec.role,

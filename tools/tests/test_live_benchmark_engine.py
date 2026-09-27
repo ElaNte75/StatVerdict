@@ -4,7 +4,9 @@ import copy
 import json
 import subprocess
 import tempfile
+import types
 import unittest
+from collections import Counter
 from pathlib import Path
 from unittest.mock import patch
 
@@ -13,10 +15,12 @@ from tools.live_benchmark_engine import (
     SAMPLE_SIZES,
     SCHEMA_VERSION,
     SPECS,
+    STAT_KEYS,
     aggregate_cohort,
     aggregate_gear_cohort,
     aggregate_hero_trees,
     best_key_level,
+    build_database,
     compare_hero_trees,
     discover_candidates_by_ceiling,
     gear_fingerprints_match,
@@ -731,23 +735,92 @@ class DiscoverCandidatesByCeilingTests(unittest.TestCase):
         self.assertEqual([], result)
 
     def test_stops_once_target_count_reached_without_reading_every_page(self):
-        # 20 pages, all qualifying; only a handful should ever be requested for target_count=10.
+        # 50 pages: 0-39 all above the ceiling, 40-49 all at/under it. A plain linear scan
+        # from page 0 would need to read pages 0..40 (41 requests) before finding the first
+        # qualifying entry. The binary search must do much better than that.
         pages = [
-            [_spec_ref(f"P{page}_{i}", i, 1000 - page * 10 - i, [{"mythicLevel": 5}]) for i in range(1, 6)]
-            for page in range(20)
+            [_spec_ref(f"High{page}_{i}", i, 5000 - page * 10 - i, [{"mythicLevel": 25}]) for i in range(1, 6)]
+            for page in range(40)
+        ] + [
+            [_spec_ref(f"Low{page}_{i}", i, 1000 - page * 10 - i, [{"mythicLevel": 5}]) for i in range(1, 6)]
+            for page in range(40, 50)
         ]
         fake = FakeRankingHttp(pages)
         with self._patch_ranking_page(fake):
             result = discover_candidates_by_ceiling(
                 object(), self.spec, season="test-season", regions=("eu",),
-                ceiling=9, target_count=10, max_pages=20, access_key=None,
+                ceiling=9, target_count=10, max_pages=50, access_key=None,
             )
         self.assertEqual(10, len(result))
-        # The binary search always probes the last page once up front (to fast-reject a spec
-        # where nobody qualifies at all - see test_returns_empty_when_nobody_qualifies), so
-        # page 19 is always among the calls. What must NOT happen is a full linear scan of all
-        # 20 pages once enough qualifying candidates are found.
-        self.assertLess(len(fake.calls), 20, "should not have scanned every page once target_count was met")
+        self.assertTrue(all(row["name"].startswith("Low") for row in result))
+        self.assertLess(
+            len(fake.calls), 20,
+            "a linear-from-zero scan would need ~41 calls to reach the first qualifying page; "
+            "the binary search must do far fewer",
+        )
+
+    def test_deep_pivot_is_found_without_scanning_every_page_up_to_it(self):
+        # 2000 pages, qualifying entries only start at page 1500 - mirrors the real spike
+        # finding (popular specs need 1000+ pages of depth for a low ceiling). A linear scan
+        # would need 1500+ requests; the binary search should need on the order of log2(2000)
+        # (~11) plus a handful of scan pages, nowhere close to that.
+        pages = [
+            [_spec_ref(f"High{page}_{i}", i, 9000 - page * 3 - i, [{"mythicLevel": 25}]) for i in range(1, 4)]
+            for page in range(1500)
+        ] + [
+            [_spec_ref(f"Low{page}_{i}", i, 1000 - page * 3 - i, [{"mythicLevel": 5}]) for i in range(1, 4)]
+            for page in range(1500, 2000)
+        ]
+        fake = FakeRankingHttp(pages)
+        with self._patch_ranking_page(fake):
+            result = discover_candidates_by_ceiling(
+                object(), self.spec, season="test-season", regions=("eu",),
+                ceiling=9, target_count=5, max_pages=2000, access_key=None,
+            )
+        self.assertEqual(5, len(result))
+        self.assertTrue(all(row["name"].startswith("Low") for row in result))
+        self.assertLess(len(fake.calls), 30, "binary search over 2000 pages should need on the order of ~15 calls")
+
+    def test_straddling_page_keeps_scanning_past_a_non_qualifying_entry(self):
+        # One page whose entries alternate above/below the ceiling - the scan after the pivot
+        # must not stop at the first miss.
+        mixed_page = [
+            _spec_ref("Above1", 1, 900, [{"mythicLevel": 20}]),
+            _spec_ref("Below1", 2, 890, [{"mythicLevel": 8}]),
+            _spec_ref("Above2", 3, 880, [{"mythicLevel": 20}]),
+            _spec_ref("Below2", 4, 870, [{"mythicLevel": 8}]),
+            _spec_ref("NoRuns", 5, 860, []),
+            _spec_ref("Above3", 6, 850, [{"mythicLevel": 20}]),
+            _spec_ref("Below3", 7, 840, [{"mythicLevel": 8}]),
+        ]
+        fake = FakeRankingHttp([mixed_page])
+        with self._patch_ranking_page(fake):
+            result = discover_candidates_by_ceiling(
+                object(), self.spec, season="test-season", regions=("eu",),
+                ceiling=9, target_count=10, max_pages=10, access_key=None,
+            )
+        self.assertEqual(["Below1", "Below2", "Below3"], [row["name"] for row in result])
+
+    def test_excludes_characters_below_the_max_level_seen(self):
+        # Parity with discover_candidates (tools/live_benchmark_engine.py:772-773): a lower-
+        # level character (e.g. a twink) must not contaminate the bracket's gear/stat data.
+        def ref_at_level(name: str, rank: int, score: float, level: int) -> dict:
+            row = _spec_ref(name, rank, score, [{"mythicLevel": 8}])
+            row["character"]["level"] = level
+            return row
+
+        pages = [[
+            ref_at_level("MaxLevel1", 1, 900, 80),
+            ref_at_level("Twink1", 2, 890, 20),
+            ref_at_level("MaxLevel2", 3, 880, 80),
+        ]]
+        fake = FakeRankingHttp(pages)
+        with self._patch_ranking_page(fake):
+            result = discover_candidates_by_ceiling(
+                object(), self.spec, season="test-season", regions=("eu",),
+                ceiling=9, target_count=5, max_pages=10, access_key=None,
+            )
+        self.assertEqual(["MaxLevel1", "MaxLevel2"], [row["name"] for row in result])
 
     def test_merges_across_regions_globally_by_score_no_region_quota(self):
         eu_pages = [[_spec_ref("EuTop", 1, 500, [{"mythicLevel": 8}])]]
@@ -842,6 +915,65 @@ class ValidateDatabaseBracketGateTests(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             validate_database(database, min(SAMPLE_SIZES), 0, expected_specs=specs)
         self.assertIn("LOW", str(ctx.exception))
+
+
+class BuildDatabasePartialBracketTests(unittest.TestCase):
+    """Exercises build_database end-to-end (discovery, fetch, reconstruction all mocked) to
+    pin down what a real partial-bracket failure does to a spec's profile status - the gap
+    the code-review's Critical #1 finding identified: ValidateDatabaseBracketGateTests only
+    ever built status by the CORRECT rule directly, so it could not catch build_database
+    itself computing status by a different (wrong) rule."""
+
+    def test_partial_bracket_failure_marks_spec_insufficient_not_ok(self) -> None:
+        spec = next(s for s in SPECS if s.key == "DRUID_RESTORATION")  # healer: no SimC needed
+
+        def fake_record(name: str) -> dict:
+            return {
+                "name": name, "realm": "r", "region": "eu", "score": 1000.0, "rank": 1,
+                "itemLevel": 320.0,
+                "stats": {key: 1000.0 for key in STAT_KEYS},
+                "items": {},
+                "run": {"mythicLevel": 10},
+            }
+
+        def fake_discover_ceiling(http, spec, *, ceiling, target_count, **kw):
+            # MID (ceiling 15) comes up short of the minimum sample; LOW and HIGH get plenty.
+            count = 2 if ceiling == 15 else target_count
+            return [{"name": f"C{i}", "realm": "r", "region": "eu", "score": 1000 - i, "runs": []} for i in range(count)]
+
+        def fake_discover(http, spec, *, target_count, **kw):
+            return [{"name": f"C{i}", "realm": "r", "region": "eu", "score": 1000 - i, "runs": []} for i in range(target_count)]
+
+        def fake_fetch_record(http, spec, candidate, season, max_checks):
+            return fake_record(candidate["name"]), None
+
+        def fake_wowhead(spec, run_records, *, delay, workers):
+            return run_records, Counter()
+
+        args = types.SimpleNamespace(
+            specs={spec.key}, regions=("eu",), sample_sizes=(20,), max_pages=5,
+            candidate_multiplier=1, workers=2, request_delay=0.0, max_run_checks=1,
+            wowhead_delay=0.0, simc_timeout=60, simc_threads=1, simc_bin=None,
+            season=None, raiderio_access_key=None, liquid_data=Path("does-not-exist.json"),
+            max_insufficient_specs=40,
+        )
+
+        with patch("tools.live_benchmark_engine.active_season", return_value=(14, {"slug": "test-season"})), \
+             patch("tools.live_benchmark_engine.discover_candidates", side_effect=fake_discover), \
+             patch("tools.live_benchmark_engine.discover_candidates_by_ceiling", side_effect=fake_discover_ceiling), \
+             patch("tools.live_benchmark_engine.fetch_record", side_effect=fake_fetch_record), \
+             patch("tools.live_benchmark_engine.reconstruct_stats_with_wowhead", side_effect=fake_wowhead):
+            database = build_database(args)
+
+        profile = database["profiles"][spec.key]
+        self.assertEqual("ok", profile["cohorts"]["LOW_20"]["status"])
+        self.assertEqual("insufficient", profile["cohorts"]["MID_20"]["status"])
+        self.assertEqual("ok", profile["cohorts"]["HIGH_20"]["status"])
+        self.assertEqual(
+            "insufficient", profile["status"],
+            "one short bracket (MID) must make the whole spec insufficient, not ok - "
+            "otherwise validate_database's all-brackets gate and this profile disagree",
+        )
 
 
 if __name__ == "__main__":

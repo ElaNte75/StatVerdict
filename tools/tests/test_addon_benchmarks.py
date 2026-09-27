@@ -129,7 +129,7 @@ class TargetsAndPriorityTests(unittest.TestCase):
 
     def test_priority_rows_per_valid_hero_tree_plus_spec_wide_row(self) -> None:
         profile = make_bracket_profile()
-        rows = build_priority_profiles(profile, "MID", "TOP_100", profile["cohorts"]["MID_100"])
+        rows = build_priority_profiles(profile, "LOW", "TOP_100", profile["cohorts"]["LOW_100"])
         self.assertEqual([31, 33, None], [r.get("heroSubTreeID") for r in rows])
         self.assertEqual(["haste", "mastery", "critical-strike", "versatility"], rows[0]["order"])
         self.assertEqual(["critical-strike", "mastery", "versatility", "haste"], rows[1]["order"])
@@ -138,17 +138,21 @@ class TargetsAndPriorityTests(unittest.TestCase):
 
     def test_insufficient_hero_tree_gets_no_row(self) -> None:
         profile = make_bracket_profile()
-        rows = build_priority_profiles(profile, "MID", "TOP_100", profile["cohorts"]["MID_100"])
+        rows = build_priority_profiles(profile, "LOW", "TOP_100", profile["cohorts"]["LOW_100"])
         self.assertNotIn(35, [r.get("heroSubTreeID") for r in rows])
 
     def test_hero_tree_rows_are_scoped_to_their_own_bracket(self) -> None:
         # A hero tree's inner cohort keys (TOP_20/50/100) are shared naming across brackets -
         # build_priority_profiles must not pull a MID hero-tree row into the LOW context.
+        # The fixture deliberately swaps HERO_31's crit/haste for MID (see addon_fixtures.py),
+        # so a bracket mix-up shows up as a visibly WRONG order, not just an extra/leaked row.
         profile = make_bracket_profile()
         low_rows = build_priority_profiles(profile, "LOW", "TOP_20", profile["cohorts"]["LOW_20"])
         mid_rows = build_priority_profiles(profile, "MID", "TOP_100", profile["cohorts"]["MID_100"])
         self.assertEqual([31, 33, None], [r.get("heroSubTreeID") for r in low_rows])
         self.assertEqual([31, 33, None], [r.get("heroSubTreeID") for r in mid_rows])
+        self.assertEqual(["haste", "mastery", "critical-strike", "versatility"], low_rows[0]["order"])
+        self.assertEqual(["critical-strike", "mastery", "haste", "versatility"], mid_rows[0]["order"])
 
     def test_valid_cohort_needs_ok_status_and_minimum_sample(self) -> None:
         self.assertTrue(valid_cohort(make_stat_cohort(100, 1, 1, 1, 1)))
@@ -212,10 +216,25 @@ class AssemblyTests(unittest.TestCase):
         self.assertEqual(["100", "20", "50"], sorted(built["levels"]["MID"]))
         self.assertEqual(["100", "20", "50"], sorted(built["levels"]["HIGH"]))
 
-    def test_profile_that_is_not_ok_is_left_out(self) -> None:
+    def test_completely_invalid_profile_is_left_out(self) -> None:
         profile = make_bracket_profile()
-        profile["status"] = "failed"
+        for cohort in profile["cohorts"].values():
+            cohort["status"] = "insufficient"
         self.assertIsNone(build_profile("DEATHKNIGHT_BLOOD", profile))
+
+    def test_profile_status_does_not_gate_out_still_valid_brackets(self) -> None:
+        # A spec is "insufficient" overall when even one bracket comes up short (see
+        # live_benchmark_engine.build_database), but the OTHER brackets can still be
+        # perfectly good - the addon should ship those instead of dropping the whole spec.
+        profile = make_bracket_profile()
+        profile["status"] = "insufficient"
+        for size in (20, 50, 100):
+            profile["cohorts"][f"LOW_{size}"]["status"] = "insufficient"
+        built = build_profile("DEATHKNIGHT_BLOOD", profile)
+        self.assertIsNotNone(built)
+        self.assertNotIn("LOW", built["levels"])
+        self.assertIn("MID", built["levels"])
+        self.assertIn("HIGH", built["levels"])
 
     def test_addon_data_uses_the_oldest_generated_at(self) -> None:
         older = make_bracket_raw_database("2026-09-01T00:00:00Z")
@@ -251,6 +270,14 @@ class AssemblyTests(unittest.TestCase):
         self.assertIn("MID_100", report)
         self.assertIn("tiers S:2 A:1 B:0 C:0", report)
         self.assertIn("clear favourites (>=40%): 15/15", report)
+
+
+class ConstantsMatchTheEngineTests(unittest.TestCase):
+    def test_brackets_and_sample_sizes_are_imported_not_redefined(self) -> None:
+        from tools.live_benchmark_engine import BRACKET_CEILINGS, SAMPLE_SIZES as ENGINE_SAMPLE_SIZES
+
+        self.assertEqual(tuple(BRACKET_CEILINGS), BRACKETS)
+        self.assertIs(ENGINE_SAMPLE_SIZES, SAMPLE_SIZES)
 
 
 class TwoAxisLevelsTests(unittest.TestCase):

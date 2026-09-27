@@ -175,11 +175,16 @@ def make_bracket_profile(spec_key_class: str = "death-knight", primary: str = "s
             for size in BRACKET_SAMPLE_SIZES
         }
 
+    # HERO_31's crit/haste are swapped for MID (relative to LOW/HIGH), on purpose: it makes
+    # the stat PRIORITY ORDER itself differ by bracket, so a test that reads the wrong
+    # bracket's hero tree gets a visibly wrong order, not just a leaked/duplicated row.
+    hero_31_stats = {"LOW": (600, 1000, 900, 590), "MID": (1000, 600, 900, 590), "HIGH": (600, 1000, 900, 590)}
+
     hero_trees: dict[str, Any] = {}
     for bracket in BRACKET_STATS:
         hero_trees[f"{bracket}:HERO_31"] = {
             "id": 31, "name": "Hero Talent 31", "status": "ok", "fallback": "spec",
-            "cohorts": hero_tree_cohorts(600, 1000, 900, 590),
+            "cohorts": hero_tree_cohorts(*hero_31_stats[bracket]),
         }
         hero_trees[f"{bracket}:HERO_33"] = {
             "id": 33, "name": "Hero Talent 33", "status": "ok", "fallback": "spec",
