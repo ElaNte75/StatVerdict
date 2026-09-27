@@ -9,12 +9,16 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tools.live_benchmark_engine import (
+    BRACKET_CEILINGS,
+    SAMPLE_SIZES,
     SCHEMA_VERSION,
     SPECS,
     aggregate_cohort,
     aggregate_gear_cohort,
     aggregate_hero_trees,
+    best_key_level,
     compare_hero_trees,
+    discover_candidates_by_ceiling,
     gear_fingerprints_match,
     load_liquid_armory_import,
     merge_partial_databases,
@@ -640,6 +644,131 @@ class BenchmarkMergeAndRetryTests(unittest.TestCase):
             failing = write_retry_queue(database, path)
             self.assertEqual(["DRUID_RESTORATION"], failing)
             self.assertEqual(["DRUID_RESTORATION"], json.loads(path.read_text())["specs"])
+
+
+class BestKeyLevelTests(unittest.TestCase):
+    def test_uses_highest_mythic_level_across_runs(self):
+        runs = [{"mythicLevel": 7}, {"mythicLevel": 12}, {"mythicLevel": 3}]
+        self.assertEqual(12, best_key_level(runs))
+
+    def test_ignores_runs_without_a_usable_level(self):
+        runs = [{"mythicLevel": None}, {}, {"mythicLevel": "not-a-number"}]
+        self.assertIsNone(best_key_level(runs))
+
+    def test_empty_runs_list_returns_none(self):
+        self.assertIsNone(best_key_level([]))
+
+    def test_mixed_valid_and_invalid_runs(self):
+        runs = [{"mythicLevel": None}, {"mythicLevel": 5}]
+        self.assertEqual(5, best_key_level(runs))
+
+
+def _spec_ref(name: str, rank: int, score: float, runs: list) -> dict:
+    return {
+        "character": {
+            "name": name,
+            "realm": {"slug": "test-realm"},
+            "region": {"slug": "eu"},
+            "spec": {"name": "Blood"},
+            "race": {"slug": "human"},
+            "level": 80,
+        },
+        "rank": rank,
+        "score": score,
+        "runs": runs,
+    }
+
+
+class FakeRankingHttp:
+    """Serves canned ranking pages for one spec/region, one call per page."""
+
+    def __init__(self, pages: list) -> None:
+        self.pages = pages  # index 0 = page 0, etc.
+        self.calls: list = []
+
+    def ranking_page_for(self, *, season, region, class_name, spec_name, page, page_size, access_key):
+        self.calls.append(page)
+        last_page = len(self.pages) - 1
+        if page > last_page:
+            return [], last_page
+        return self.pages[page], last_page
+
+
+class DiscoverCandidatesByCeilingTests(unittest.TestCase):
+    def setUp(self):
+        self.spec = next(s for s in SPECS if s.key == "DEATHKNIGHT_BLOOD")
+
+    def _patch_ranking_page(self, fake: FakeRankingHttp):
+        return patch(
+            "tools.live_benchmark_engine.ranking_page",
+            side_effect=lambda http, **kw: fake.ranking_page_for(**kw),
+        )
+
+    def test_finds_candidates_at_or_under_ceiling_and_skips_above(self):
+        # Page 0: everyone above the ceiling (best key 20). Page 1: everyone at/under it.
+        pages = [
+            [_spec_ref(f"High{i}", i, 4000 - i, [{"mythicLevel": 20}]) for i in range(1, 6)],
+            [_spec_ref(f"Low{i}", i, 1000 - i, [{"mythicLevel": 8}]) for i in range(1, 6)],
+        ]
+        fake = FakeRankingHttp(pages)
+        with self._patch_ranking_page(fake):
+            result = discover_candidates_by_ceiling(
+                object(), self.spec, season="test-season", regions=("eu",),
+                ceiling=9, target_count=5, max_pages=10, access_key=None,
+            )
+        self.assertEqual(5, len(result))
+        self.assertTrue(all(row["name"].startswith("Low") for row in result))
+        self.assertEqual(list(range(1, 6)), [row["rank"] for row in result])
+
+    def test_returns_empty_when_nobody_qualifies(self):
+        pages = [[_spec_ref(f"High{i}", i, 4000 - i, [{"mythicLevel": 25}]) for i in range(1, 6)]]
+        fake = FakeRankingHttp(pages)
+        with self._patch_ranking_page(fake):
+            result = discover_candidates_by_ceiling(
+                object(), self.spec, season="test-season", regions=("eu",),
+                ceiling=9, target_count=5, max_pages=10, access_key=None,
+            )
+        self.assertEqual([], result)
+
+    def test_stops_once_target_count_reached_without_reading_every_page(self):
+        # 20 pages, all qualifying; only a handful should ever be requested for target_count=10.
+        pages = [
+            [_spec_ref(f"P{page}_{i}", i, 1000 - page * 10 - i, [{"mythicLevel": 5}]) for i in range(1, 6)]
+            for page in range(20)
+        ]
+        fake = FakeRankingHttp(pages)
+        with self._patch_ranking_page(fake):
+            result = discover_candidates_by_ceiling(
+                object(), self.spec, season="test-season", regions=("eu",),
+                ceiling=9, target_count=10, max_pages=20, access_key=None,
+            )
+        self.assertEqual(10, len(result))
+        # The binary search always probes the last page once up front (to fast-reject a spec
+        # where nobody qualifies at all - see test_returns_empty_when_nobody_qualifies), so
+        # page 19 is always among the calls. What must NOT happen is a full linear scan of all
+        # 20 pages once enough qualifying candidates are found.
+        self.assertLess(len(fake.calls), 20, "should not have scanned every page once target_count was met")
+
+    def test_merges_across_regions_globally_by_score_no_region_quota(self):
+        eu_pages = [[_spec_ref("EuTop", 1, 500, [{"mythicLevel": 8}])]]
+        us_pages = [
+            [_spec_ref(f"UsPlayer{i}", i, 900 - i, [{"mythicLevel": 8}]) for i in range(1, 4)]
+        ]
+        fake_eu = FakeRankingHttp(eu_pages)
+        fake_us = FakeRankingHttp(us_pages)
+
+        def routed(http, **kw):
+            fake = fake_eu if kw["region"] == "eu" else fake_us
+            return fake.ranking_page_for(**kw)
+
+        with patch("tools.live_benchmark_engine.ranking_page", side_effect=routed):
+            result = discover_candidates_by_ceiling(
+                object(), self.spec, season="test-season", regions=("eu", "us"),
+                ceiling=9, target_count=4, max_pages=10, access_key=None,
+            )
+        self.assertEqual(4, len(result))
+        # US players (score 899/898/897) must outrank the single EU player (score 500).
+        self.assertEqual(["UsPlayer1", "UsPlayer2", "UsPlayer3", "EuTop"], [row["name"] for row in result])
 
 
 if __name__ == "__main__":

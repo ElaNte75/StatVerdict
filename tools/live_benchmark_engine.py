@@ -53,6 +53,12 @@ USER_AGENT = "StatVerdict-LiveBenchmark/1.0"
 SCHEMA_VERSION = 5
 MAX_INSUFFICIENT_SPECS = 4
 DEFAULT_COHORTS = (25, 100, 200)
+# Key-level difficulty brackets, agreed with the user 2026-09-27. A character's bracket is
+# decided by the HIGHEST Mythic+ key they ran this season, across ALL their ranked runs (not
+# only combat-log-tracked ones) - the best available skill signal. None means "no ceiling".
+# Change these two numbers only here; nothing else in the pipeline hard-codes them.
+BRACKET_CEILINGS: dict[str, int | None] = {"LOW": 9, "MID": 15, "HIGH": None}
+SAMPLE_SIZES: tuple[int, ...] = (20, 50, 100)
 DEFAULT_MAX_RUN_CHECKS = 3
 SUPPORTED_REGIONS = ("eu", "us", "kr", "tw")
 RANKING_REGIONS = ("world",) + SUPPORTED_REGIONS
@@ -712,6 +718,17 @@ def character_ref(entry: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+def best_key_level(runs: list[dict[str, Any]]) -> int | None:
+    """Highest mythicLevel across a character's runs, or None if none is usable."""
+    levels = [
+        int(run["mythicLevel"])
+        for run in runs
+        if isinstance(run, dict) and isinstance(run.get("mythicLevel"), (int, float))
+        and not isinstance(run.get("mythicLevel"), bool)
+    ]
+    return max(levels) if levels else None
+
+
 def discover_candidates(
     http: JsonClient,
     spec: Spec,
@@ -755,6 +772,114 @@ def discover_candidates(
     )
     max_level = max((row["level"] for row in ranked), default=0)
     ranked = [row for row in ranked if row["level"] == max_level][:target_count]
+    for merged_rank, row in enumerate(ranked, 1):
+        row["rank"] = merged_rank
+    return ranked
+
+
+def _page_has_qualifying_entry(
+    http: JsonClient, spec: Spec, *, season: str, region: str, page: int, page_size: int,
+    ceiling: int, access_key: str | None,
+) -> tuple[bool, list[dict[str, Any]], int]:
+    entries, last_page = ranking_page(
+        http, season=season, region=region, class_name=spec.class_name,
+        spec_name=spec.spec_name, page=page, page_size=page_size, access_key=access_key,
+    )
+    qualifying = False
+    for entry in entries:
+        ref = character_ref(entry)
+        if not ref or ref.get("activeSpec") != spec.spec_name:
+            continue
+        level = best_key_level(ref.get("runs") or [])
+        if level is not None and level <= ceiling:
+            qualifying = True
+            break
+    return qualifying, entries, last_page
+
+
+def _locate_ceiling_pivot(
+    http: JsonClient, spec: Spec, *, season: str, region: str, ceiling: int,
+    last_page: int, access_key: str | None,
+) -> int | None:
+    """Binary search for the shallowest page containing a qualifying (best key <= ceiling)
+    entry. Score decreases monotonically with page depth, and key level correlates with score,
+    so pages containing a qualifying entry form a (roughly) contiguous tail run from some pivot
+    page to last_page. Returns None if no page in [0, last_page] qualifies."""
+    has_any, _, _ = _page_has_qualifying_entry(
+        http, spec, season=season, region=region, page=last_page, page_size=100,
+        ceiling=ceiling, access_key=access_key,
+    )
+    if not has_any:
+        return None
+    low, high = 0, last_page
+    while low < high:
+        mid = (low + high) // 2
+        found, _, _ = _page_has_qualifying_entry(
+            http, spec, season=season, region=region, page=mid, page_size=100,
+            ceiling=ceiling, access_key=access_key,
+        )
+        if found:
+            high = mid
+        else:
+            low = mid + 1
+    return low
+
+
+def discover_candidates_by_ceiling(
+    http: JsonClient,
+    spec: Spec,
+    *,
+    season: str,
+    regions: tuple[str, ...],
+    ceiling: int,
+    target_count: int,
+    max_pages: int,
+    access_key: str | None,
+) -> list[dict[str, Any]]:
+    """Like discover_candidates, but only for characters whose best key this season is <=
+    ceiling. Locates the right paging depth per region with a binary search (see
+    _locate_ceiling_pivot) instead of scanning linearly from page 0, since qualifying
+    candidates for a low ceiling can sit 1000+ pages deep for a popular spec."""
+    discovered: dict[str, dict[str, Any]] = {}
+    for region in regions:
+        _, probe_last_page = ranking_page(
+            http, season=season, region=region, class_name=spec.class_name,
+            spec_name=spec.spec_name, page=0, page_size=100, access_key=access_key,
+        )
+        pivot = _locate_ceiling_pivot(
+            http, spec, season=season, region=region, ceiling=ceiling,
+            last_page=probe_last_page, access_key=access_key,
+        )
+        if pivot is None:
+            continue
+        page = pivot
+        pages_scanned = 0
+        while page <= probe_last_page and pages_scanned < max_pages:
+            entries, last_page = ranking_page(
+                http, season=season, region=region, class_name=spec.class_name,
+                spec_name=spec.spec_name, page=page, page_size=100, access_key=access_key,
+            )
+            pages_scanned += 1
+            for entry in entries:
+                ref = character_ref(entry)
+                if not ref or ref.get("activeSpec") != spec.spec_name:
+                    continue
+                level = best_key_level(ref.get("runs") or [])
+                if level is None or level > ceiling:
+                    continue
+                key = f"{ref['region']}:{ref['realm']}:{ref['name']}".lower()
+                previous = discovered.get(key)
+                if previous is None or ref["score"] > previous["score"]:
+                    ref["regionalRank"] = ref["rank"]
+                    discovered[key] = ref
+            region_count = sum(1 for row in discovered.values() if row["region"] == region)
+            if page >= last_page or region_count >= target_count:
+                break
+            page += 1
+    ranked = sorted(
+        discovered.values(),
+        key=lambda row: (-row["score"], row["region"], row["realm"], row["name"]),
+    )[:target_count]
     for merged_rank, row in enumerate(ranked, 1):
         row["rank"] = merged_rank
     return ranked
