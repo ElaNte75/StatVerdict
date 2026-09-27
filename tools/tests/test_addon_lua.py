@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from tools.addon_benchmarks import build_addon_data, render_lua
-from tools.tests.addon_fixtures import make_profile, make_raw_database
+from tools.tests.addon_fixtures import make_bracket_profile, make_bracket_raw_database
 
 try:
     from lupa import LuaRuntime
@@ -38,7 +38,7 @@ def load_addon_file(lua, ns, relative_path: str) -> None:
 
 
 def write_data_file(path: Path, generated_at: str, profiles: dict | None = None) -> None:
-    data = build_addon_data([make_raw_database(generated_at, profiles)])
+    data = build_addon_data([make_bracket_raw_database(generated_at, profiles)])
     path.write_text(render_lua(data), encoding="utf-8")
 
 
@@ -65,24 +65,24 @@ class BenchmarkCoreTests(unittest.TestCase):
         self.lua.globals().StatVerdictDB = self.lua.table()
         load_addon_file(self.lua, self.ns, "Core/SV_Benchmark.lua")
 
-    def test_default_level_is_standard(self) -> None:
-        self.assertEqual("STANDARD", self.ns.GetBenchmarkLevel())
+    def test_default_level_is_mid(self) -> None:
+        self.assertEqual("MID", self.ns.GetBenchmarkLevel())
 
     def test_set_level_is_saved_and_unknown_is_rejected(self) -> None:
-        self.assertTrue(self.ns.SetBenchmarkLevel("ELITE"))
-        self.assertEqual("ELITE", self.ns.GetBenchmarkLevel())
-        self.assertEqual("ELITE", self.lua.globals().StatVerdictDB.benchmarkLevel)
+        self.assertTrue(self.ns.SetBenchmarkLevel("LOW"))
+        self.assertEqual("LOW", self.ns.GetBenchmarkLevel())
+        self.assertEqual("LOW", self.lua.globals().StatVerdictDB.benchmarkLevel)
         self.assertFalse(self.ns.SetBenchmarkLevel("TOP_25"))
-        self.assertEqual("ELITE", self.ns.GetBenchmarkLevel())
+        self.assertEqual("LOW", self.ns.GetBenchmarkLevel())
 
     def test_garbage_saved_value_falls_back_to_default(self) -> None:
         self.lua.globals().StatVerdictDB.benchmarkLevel = "nonsense"
-        self.assertEqual("STANDARD", self.ns.GetBenchmarkLevel())
+        self.assertEqual("MID", self.ns.GetBenchmarkLevel())
 
     def test_level_names_and_meaning_lines(self) -> None:
         levels = self.ns.GetBenchmarkLevels()
-        self.assertEqual(["Elite", "Standard", "Broad"], [levels[i].label for i in (1, 2, 3)])
-        self.assertEqual("Gear of the top 25 players", levels[1].meaning)
+        self.assertEqual(["Low", "Mid", "High"], [levels[i].label for i in (1, 2, 3)])
+        self.assertEqual("Players with a highest key of 9 or lower", levels[1].meaning)
 
     def test_benchmark_is_relevant_only_when_a_build_uses_mythic_plus(self) -> None:
         cases = [
@@ -103,7 +103,7 @@ class BenchmarkCoreTests(unittest.TestCase):
 
     def test_small_sample_warning(self) -> None:
         small = self.lua.table(sampleSize=25, minimumSample=25, confidence="high")
-        self.assertTrue(self.ns.IsBenchmarkSampleSmall(small))  # Elite: only the minimum sample
+        self.assertTrue(self.ns.IsBenchmarkSampleSmall(small))  # right at the minimum
         enough = self.lua.table(sampleSize=100, minimumSample=25, confidence="high")
         self.assertFalse(self.ns.IsBenchmarkSampleSmall(enough))
         unsure = self.lua.table(sampleSize=100, minimumSample=25, confidence="medium")
@@ -115,7 +115,7 @@ class BenchmarkCoreTests(unittest.TestCase):
         self.assertEqual("Popular Gear", mplus.button)
         self.assertEqual("Main Spec Popular Gear", mplus.main)
         self.assertEqual("Popular Progress", mplus.progress)
-        self.assertEqual(" · Standard", mplus.progressSuffix)
+        self.assertEqual(" · Mid", mplus.progressSuffix)
         self.assertEqual("Popular", mplus.tag)
         raid = self.ns.GetReferenceWording("RAID")
         self.assertEqual("Best in Slot", raid.button)
@@ -159,17 +159,19 @@ class RepositoryTests(unittest.TestCase):
         profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
         self.assertFalse(profile.invalidGeneratedContext)
         self.assertEqual("ITEM_MOD_STRENGTH_SHORT", profile.primaryStat)
-        self.assertEqual(1140.0, self.targets(profile)["ITEM_MOD_CRIT_RATING_SHORT"])
+        self.assertEqual(1140.0, self.targets(profile)["ITEM_MOD_CRIT_RATING_SHORT"])  # default level is MID
 
     def test_level_choice_changes_the_targets(self) -> None:
-        lua, ns = self.build_runtime(level="ELITE")
+        lua, ns = self.build_runtime(level="LOW")
         profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
         self.assertEqual(1300.0, self.targets(profile)["ITEM_MOD_CRIT_RATING_SHORT"])
 
     def test_hero_tree_id_selects_its_priority_and_unknown_uses_spec_wide(self) -> None:
-        lua, ns = self.build_runtime()
+        lua, ns = self.build_runtime()  # default level MID
+        # The fixture swaps HERO_31's crit/haste specifically for MID (see addon_fixtures.py),
+        # so this also proves the addon is really reading MID's own hero-tree row, not LOW/HIGH's.
         hero = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua, heroSubTreeID=31))
-        self.assertEqual("ITEM_MOD_HASTE_RATING_SHORT", hero.secondaryOrder[1])
+        self.assertEqual("ITEM_MOD_CRIT_RATING_SHORT", hero.secondaryOrder[1])
         self.assertEqual("ITEM_MOD_MASTERY_RATING_SHORT", hero.secondaryOrder[2])
         other = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua, heroSubTreeID=33))
         self.assertEqual("ITEM_MOD_CRIT_RATING_SHORT", other.secondaryOrder[1])
@@ -180,11 +182,11 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual("ITEM_MOD_CRIT_RATING_SHORT", mismatch.secondaryOrder[1])
 
     def test_missing_level_shows_no_data_instead_of_another_level(self) -> None:
-        profile = make_profile()
-        profile["cohorts"]["TOP_25"]["status"] = "insufficient"
-        lua, ns = self.build_runtime(level="ELITE", profiles={"DEATHKNIGHT_BLOOD": profile})
+        profile = make_bracket_profile()
+        profile["cohorts"]["LOW"]["status"] = "insufficient"
+        lua, ns = self.build_runtime(level="LOW", profiles={"DEATHKNIGHT_BLOOD": profile})
         self.assertIsNone(ns.ProfileRepository.BuildRuntimeProfile(self.context(lua)))
-        lua, ns = self.build_runtime(profiles={"DEATHKNIGHT_BLOOD": profile})
+        lua, ns = self.build_runtime(profiles={"DEATHKNIGHT_BLOOD": profile})  # default level MID: still ok
         self.assertIsNotNone(ns.ProfileRepository.BuildRuntimeProfile(self.context(lua)))
 
     def test_stale_data_fails_closed(self) -> None:
@@ -204,7 +206,7 @@ class RepositoryTests(unittest.TestCase):
         lua, ns = self.build_runtime()
         info = ns.ProfileRepository.GetDataProvenance("MYTHIC_PLUS")
         self.assertTrue(info.available)
-        self.assertEqual("StatVerdict live benchmarks · Standard", info.sourceName)
+        self.assertEqual("StatVerdict live benchmarks · Mid", info.sourceName)
         self.assertEqual(now_stamp()[:10], info.scrape)
 
     def test_popular_items_and_trinkets_keep_their_boosts(self) -> None:
@@ -228,12 +230,12 @@ class RepositoryTests(unittest.TestCase):
         self.assertIsNone(ns.GetItemReferenceInfo("item:999999", profile))
 
     def test_boost_follows_the_selected_level(self) -> None:
-        # The Broad group's favourite helm (1500) differs from the Standard one (1000).
-        lua, ns = self.build_runtime(level="BROAD")
+        # The High bracket's favourite helm (1500) differs from Low/Mid's (1000).
+        lua, ns = self.build_runtime(level="HIGH")
         profile = lua.table(specKey="DEATHKNIGHT_BLOOD", goal="MYTHIC_PLUS")
         self.assertEqual(8, ns.GetItemReferenceInfo("item:1500", profile).bonus)
         self.assertIsNone(ns.GetItemReferenceInfo("item:1000", profile))
-        lua, ns = self.build_runtime()
+        lua, ns = self.build_runtime()  # default level MID
         profile = lua.table(specKey="DEATHKNIGHT_BLOOD", goal="MYTHIC_PLUS")
         self.assertEqual(8, ns.GetItemReferenceInfo("item:1000", profile).bonus)
         self.assertIsNone(ns.GetItemReferenceInfo("item:1500", profile))
@@ -341,9 +343,9 @@ class BenchmarkDrawerSmokeTests(unittest.TestCase):
         self.ns.GetSavedStatAuditSelection = lambda: self.lua.table(goalMode="MYTHIC_PLUS")
         self.available = True
         self.levels = {
-            "ELITE": dict(sampleSize=25, minimumSample=25, confidence="high"),
-            "STANDARD": dict(sampleSize=100, minimumSample=25, confidence="high"),
-            "BROAD": dict(sampleSize=200, minimumSample=25, confidence="high"),
+            "LOW": dict(sampleSize=100, minimumSample=25, confidence="high"),
+            "MID": dict(sampleSize=100, minimumSample=25, confidence="high"),
+            "HIGH": dict(sampleSize=100, minimumSample=25, confidence="high"),
         }
         self.has_data = True
         self.apply_data()
@@ -371,7 +373,7 @@ class BenchmarkDrawerSmokeTests(unittest.TestCase):
         return self.frame.benchmarkDrawerCard
 
     def test_level_cards_show_confidence_and_update_date(self) -> None:
-        self.levels["ELITE"]["confidence"] = "medium"
+        self.levels["LOW"]["confidence"] = "medium"
         card = self.card()
         # The date is secondary: dimmed and without the word "Updated" so the line stays short.
         orange, green, date = "|cffff8000", "|cff33ff59", " |cff8c8c8c· 2026-09-26|r"
@@ -383,18 +385,18 @@ class BenchmarkDrawerSmokeTests(unittest.TestCase):
     def test_level_cards_fall_back_to_the_group_size_without_data(self) -> None:
         self.has_data = False
         card = self.card()
-        self.assertEqual("Gear of the top 25 players", card.levelRows[1].meaning.text)
+        self.assertEqual("Players with a highest key of 9 or lower", card.levelRows[1].meaning.text)
 
     def test_description_follows_the_selected_level(self) -> None:
         card = self.card()
-        self.assertEqual("Standard benchmark", card.aboutTitle.text)
-        self.assertIn("top 100", card.about.text)
+        self.assertEqual("Mid benchmark", card.aboutTitle.text)
+        self.assertIn("between 10 and 15", card.about.text)
         card.levelRows[1].scripts.OnClick()
-        self.assertEqual("Elite benchmark", card.aboutTitle.text)
-        self.assertIn("top 25", card.about.text)
+        self.assertEqual("Low benchmark", card.aboutTitle.text)
+        self.assertIn("9 or lower", card.about.text)
         card.levelRows[3].scripts.OnClick()
-        self.assertEqual("Broad benchmark", card.aboutTitle.text)
-        self.assertIn("top 200", card.about.text)
+        self.assertEqual("High benchmark", card.aboutTitle.text)
+        self.assertIn("16 or higher", card.about.text)
 
     def test_description_hangs_from_its_title_so_it_cannot_leave_the_card(self) -> None:
         card = self.card()
@@ -416,15 +418,15 @@ class BenchmarkDrawerSmokeTests(unittest.TestCase):
         self.assertEqual("", self.card().status.text)
 
     def test_small_sample_shows_the_warning(self) -> None:
-        self.levels["STANDARD"] = dict(sampleSize=25, minimumSample=25, confidence="high")
+        self.levels["MID"] = dict(sampleSize=25, minimumSample=25, confidence="high")
         self.assertIn("Smaller sample", self.card().status.text)
 
     def test_clicking_a_level_row_saves_it_and_marks_it(self) -> None:
         card = self.card()
-        self.assertEqual(["ELITE", "STANDARD", "BROAD"], [card.levelRows[i].key for i in (1, 2, 3)])
+        self.assertEqual(["LOW", "MID", "HIGH"], [card.levelRows[i].key for i in (1, 2, 3)])
         self.assertTrue(card.levelRows[2].check.checked)
         card.levelRows[3].scripts.OnClick()
-        self.assertEqual("BROAD", self.ns.GetBenchmarkLevel())
+        self.assertEqual("HIGH", self.ns.GetBenchmarkLevel())
         self.assertFalse(card.levelRows[2].check.checked)
         self.assertTrue(card.levelRows[3].check.checked)
 

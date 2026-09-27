@@ -1,22 +1,23 @@
 local addonName, ns = ...
 
--- Benchmark level = which group of top players the Mythic+ data is built from.
--- Data cohorts are TOP_25 / TOP_100 / TOP_200; players see Elite / Standard / Broad.
+-- Benchmark level = which key-level difficulty bracket the Mythic+ data is built from,
+-- based on players' highest key this season (agreed with the user 2026-09-27). Data
+-- cohorts are LOW / MID / HIGH directly; players see Low / Mid / High.
 local LEVELS = {
     {
-        key = "ELITE", label = "Elite", meaning = "Gear of the top 25 players", hint = "Strictest",
-        about = "Built from the top 25 Mythic+ players this season. Your stat targets and Popular Gear come from the gear they actually wore in their runs, so this is the strictest bar to measure against. A small group means the numbers can shift more between updates. For pushing for the very top.",
+        key = "LOW", label = "Low", meaning = "Players with a highest key of 9 or lower", hint = "Lower keys",
+        about = "Built from 100 Mythic+ players this season whose highest key was 9 or lower. Your stat targets and Popular Gear come from the gear they actually wore in their runs, so this matches players at your own pace if you are still working up to higher keys. For players mostly running lower keys.",
     },
     {
-        key = "STANDARD", label = "Standard", meaning = "Gear of the top 100 players", hint = "Recommended",
-        about = "Built from the top 100 Mythic+ players this season. Your stat targets and Popular Gear come from the gear they actually wore in their runs: a demanding but realistic bar, from a group large enough for steady numbers. The best fit for most players, and the default.",
+        key = "MID", label = "Mid", meaning = "Players with a highest key between 10 and 15", hint = "Recommended",
+        about = "Built from 100 Mythic+ players this season whose highest key was between 10 and 15. Your stat targets and Popular Gear come from the gear they actually wore in their runs: the range most active Mythic+ players are in. The best fit for most players, and the default.",
     },
     {
-        key = "BROAD", label = "Broad", meaning = "Gear of the top 200 players", hint = "Steadiest",
-        about = "Built from the top 200 Mythic+ players this season. Your stat targets and Popular Gear come from the gear they actually wore in their runs. The larger group gives the steadiest numbers and a slightly gentler bar than Elite. For a safe, typical build.",
+        key = "HIGH", label = "High", meaning = "Players with a highest key of 16 or higher", hint = "Push keys",
+        about = "Built from 100 Mythic+ players this season whose highest key was 16 or higher. Your stat targets and Popular Gear come from the gear they actually wore in their runs: the bar for players pushing high keys. For a demanding, competitive build.",
     },
 }
-local DEFAULT_LEVEL = "STANDARD"
+local DEFAULT_LEVEL = "MID"
 
 local BY_KEY = {}
 for _, level in ipairs(LEVELS) do
@@ -60,7 +61,7 @@ function ns.IsBenchmarkRelevant()
 end
 
 -- True when a benchmark's numbers should carry a "less stable" warning: the sample is
--- below twice the minimum (Elite always is) or the confidence is not high.
+-- below twice the minimum, or the confidence is not high.
 function ns.IsBenchmarkSampleSmall(bench)
     if type(bench) ~= "table" then return true end
     local sample = tonumber(bench.sampleSize) or 0

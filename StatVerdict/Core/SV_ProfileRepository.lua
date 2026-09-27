@@ -116,7 +116,7 @@ local function GetContext(specKey, goal)
         local profiles = root and root.profiles
         local profile = type(profiles) == "table" and profiles[specKey] or nil
         if type(profile) ~= "table" or type(profile.levels) ~= "table" then return nil, nil end
-        local level = ns.GetBenchmarkLevel and ns.GetBenchmarkLevel() or "STANDARD"
+        local level = ns.GetBenchmarkLevel and ns.GetBenchmarkLevel() or "MID"
         local context = profile.levels[level]
         return type(context) == "table" and context or nil, profile
     end
