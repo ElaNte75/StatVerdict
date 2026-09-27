@@ -1490,13 +1490,14 @@ def validate_database(
         errors.append(f"expected {len(expected_specs)} profiles")
         profiles = profiles if isinstance(profiles, dict) else {}
     insufficient_specs = []
+    insufficient_brackets: dict[str, list[str]] = {}
     for spec in expected_specs:
         profile = profiles.get(spec.key)
         cohorts = profile.get("cohorts") if isinstance(profile, dict) else None
         if not isinstance(cohorts, dict):
             errors.append(f"{spec.key}: cohorts missing")
             continue
-        base_ok = False
+        bracket_ok = {bracket: False for bracket in BRACKET_CEILINGS}
         for label, cohort in cohorts.items():
             if not isinstance(cohort, dict):
                 errors.append(f"{spec.key}/{label}: malformed cohort")
@@ -1511,8 +1512,10 @@ def validate_database(
                 errors.append(f"{spec.key}/{label}: status must be {expected_status}")
             if complete and not all(key in stats for key in ("stamina", "crit", "haste", "mastery", "versatility")):
                 errors.append(f"{spec.key}/{label}: required stat targets missing")
-            if label == f"TOP_{required_minimum}" and complete:
-                base_ok = True
+            bracket, _, size_text = label.partition("_")
+            if bracket in bracket_ok and size_text == str(required_minimum) and complete:
+                bracket_ok[bracket] = True
+        base_ok = all(bracket_ok.values())
         if profile.get("status") != ("ok" if base_ok else "insufficient"):
             errors.append(f"{spec.key}: profile status does not match its base cohort")
         candidate_count = profile.get("candidateCount", 0)
@@ -1563,10 +1566,14 @@ def validate_database(
                     errors.append(f"{spec.key}/{tree_key}: hero-tree status must be {expected}")
         if not base_ok:
             insufficient_specs.append(spec.key)
+            insufficient_brackets[spec.key] = [bracket for bracket, ok in bracket_ok.items() if not ok]
     if len(insufficient_specs) > max_insufficient_specs:
+        detail = ", ".join(
+            f"{key} (missing {', '.join(insufficient_brackets[key])})" for key in insufficient_specs
+        )
         errors.append(
-            f"{len(insufficient_specs)} specs lack a complete TOP_{required_minimum} cohort "
-            f"(allowed {max_insufficient_specs}): {', '.join(insufficient_specs)}"
+            f"{len(insufficient_specs)} specs lack a complete {required_minimum}-sample cohort in "
+            f"every bracket (allowed {max_insufficient_specs}): {detail}"
         )
     if errors:
         preview = "\n".join(f"- {message}" for message in errors[:50])

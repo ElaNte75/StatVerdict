@@ -339,8 +339,8 @@ class BenchmarkEngineTests(unittest.TestCase):
                     "candidateCount": 3,
                     "verifiedRunCount": 3,
                     "reconstructedStatCount": 3,
-                    "cohorts": {"TOP_3": copy.deepcopy(cohort)},
-                    "gearCohorts": {"TOP_3": gear_cohort_stub("ok", 3)},
+                    "cohorts": {f"{bracket}_3": copy.deepcopy(cohort) for bracket in BRACKET_CEILINGS},
+                    "gearCohorts": {f"{bracket}_3": gear_cohort_stub("ok", 3) for bracket in BRACKET_CEILINGS},
                     "heroTalentTrees": {},
                 }
                 for spec in SPECS
@@ -370,8 +370,8 @@ class BenchmarkEngineTests(unittest.TestCase):
                 "candidateCount": 3,
                 "verifiedRunCount": 3,
                 "reconstructedStatCount": 3,
-                "cohorts": {"TOP_3": copy.deepcopy(full)},
-                "gearCohorts": {"TOP_3": gear_cohort_stub("ok", 3)},
+                "cohorts": {f"{bracket}_3": copy.deepcopy(full) for bracket in BRACKET_CEILINGS},
+                "gearCohorts": {f"{bracket}_3": gear_cohort_stub("ok", 3) for bracket in BRACKET_CEILINGS},
                 "heroTalentTrees": {},
             }
             for spec in SPECS
@@ -381,8 +381,8 @@ class BenchmarkEngineTests(unittest.TestCase):
             "candidateCount": 3,
             "verifiedRunCount": 1,
             "reconstructedStatCount": 1,
-            "cohorts": {"TOP_3": sparse},
-            "gearCohorts": {"TOP_3": gear_cohort_stub("insufficient", 1)},
+            "cohorts": {f"{bracket}_3": copy.deepcopy(sparse) for bracket in BRACKET_CEILINGS},
+            "gearCohorts": {f"{bracket}_3": gear_cohort_stub("insufficient", 1) for bracket in BRACKET_CEILINGS},
             "heroTalentTrees": {},
         }
         profiles[SPECS[1].key] = {
@@ -390,13 +390,13 @@ class BenchmarkEngineTests(unittest.TestCase):
             "candidateCount": 3,
             "verifiedRunCount": 0,
             "reconstructedStatCount": 0,
-            "cohorts": {"TOP_3": empty},
-            "gearCohorts": {"TOP_3": gear_cohort_stub("insufficient", 0)},
+            "cohorts": {f"{bracket}_3": copy.deepcopy(empty) for bracket in BRACKET_CEILINGS},
+            "gearCohorts": {f"{bracket}_3": gear_cohort_stub("insufficient", 0) for bracket in BRACKET_CEILINGS},
             "heroTalentTrees": {},
         }
         database = {"schemaVersion": SCHEMA_VERSION, "profiles": profiles}
         validate_database(database, 3, max_insufficient_specs=2)
-        with self.assertRaisesRegex(ValueError, "2 specs lack a complete TOP_3"):
+        with self.assertRaisesRegex(ValueError, "2 specs lack a complete 3-sample cohort"):
             validate_database(database, 3, max_insufficient_specs=1)
         profiles[SPECS[0].key]["status"] = "ok"
         with self.assertRaisesRegex(ValueError, "profile status does not match"):
@@ -794,6 +794,54 @@ class BracketCohortKeyTests(unittest.TestCase):
         # 24 records is enough for the 20-cohort (min sample 5) but not the 100-cohort.
         self.assertEqual("ok", cohorts["LOW_20"]["status"])
         self.assertEqual("insufficient", cohorts["LOW_100"]["status"])
+
+
+class ValidateDatabaseBracketGateTests(unittest.TestCase):
+    def _profile(self, ok_brackets: set) -> dict:
+        cohorts = {}
+        gear_cohorts = {}
+        for bracket in BRACKET_CEILINGS:
+            for size in SAMPLE_SIZES:
+                sample = size if bracket in ok_brackets else 0
+                cohorts[f"{bracket}_{size}"] = {
+                    "status": "ok" if bracket in ok_brackets else "insufficient",
+                    "requestedSize": size, "sampleSize": sample, "minimumSample": min(size, 5),
+                    "statTargets": {"stats": {
+                        "stamina": 1, "crit": 1, "haste": 1, "mastery": 1, "versatility": 1,
+                    }},
+                }
+                gear_cohorts[f"{bracket}_{size}"] = {
+                    "status": "ok" if bracket in ok_brackets else "insufficient",
+                    "sampleSize": sample, "minimumSample": min(size, 5),
+                    "popularItems": {}, "popularTrinketPairs": [], "popularRingPairs": [],
+                    "setConfigurations": [], "socketAndEnchantUsage": {}, "talentLoadouts": [],
+                    "runMetrics": {}, "qualityCoverage": {},
+                }
+        return {
+            "status": "ok" if ok_brackets == set(BRACKET_CEILINGS) else "insufficient",
+            "class": "death-knight", "spec": "Blood", "role": "tank", "primaryStat": "strength",
+            "candidateCount": 60, "verifiedRunCount": 60, "reconstructedStatCount": 60,
+            "cohorts": cohorts, "gearCohorts": gear_cohorts, "heroTalentTrees": {},
+        }
+
+    def _database(self, profile: dict):
+        spec = next(s for s in SPECS if s.key == "DEATHKNIGHT_BLOOD")
+        database = {
+            "schemaVersion": SCHEMA_VERSION, "generatedAt": utc_now(),
+            "source": {"totals": {"candidates": 60, "verifiedRuns": 60, "reconstructedStats": 60}},
+            "profiles": {spec.key: profile},
+        }
+        return database, [spec]
+
+    def test_all_brackets_ok_passes(self):
+        database, specs = self._database(self._profile(set(BRACKET_CEILINGS)))
+        validate_database(database, min(SAMPLE_SIZES), 0, expected_specs=specs)  # must not raise
+
+    def test_missing_low_bracket_fails(self):
+        database, specs = self._database(self._profile({"MID", "HIGH"}))
+        with self.assertRaises(ValueError) as ctx:
+            validate_database(database, min(SAMPLE_SIZES), 0, expected_specs=specs)
+        self.assertIn("LOW", str(ctx.exception))
 
 
 if __name__ == "__main__":
