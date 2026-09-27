@@ -342,6 +342,12 @@ class BenchmarkDrawerSmokeTests(unittest.TestCase):
         self.frame = self.lua.eval("CreateFrame")()
         self.ns.GetStatAuditGoalMode = lambda: "MYTHIC_PLUS"
         self.ns.GetSavedStatAuditSelection = lambda: self.lua.table(goalMode="MYTHIC_PLUS")
+        # RAID_CLASS_COLORS is a real WoW client global; stub the one entry the spec-name
+        # prefix's class-colour needs (see SpecDisplayPrefix).
+        self.lua.globals().RAID_CLASS_COLORS = self.lua.table(
+            DEATHKNIGHT=self.lua.table(colorStr="c41f3b")
+        )
+        self.ns.GetSnapshotHeroTalentName = lambda profile: "Deathbringer"
         self.available = True
         self.levels = {
             "LOW": dict(sampleSize=100, minimumSample=25, confidence="high"),
@@ -364,13 +370,12 @@ class BenchmarkDrawerSmokeTests(unittest.TestCase):
         self.ns.MythicPlusBenchmarks = self.lua.table(profiles=specs)
         selected = self.levels[self.ns.GetBenchmarkLevel()]
         generated = self.lua.table(benchmark=self.lua.table(**selected))
-        # specName/className match the real field names BuildRuntimeProfile returns
-        # (SV_ProfileRepository.lua) - NOT classToken, which the runtime profile never has.
-        profile = self.lua.table(
-            specKey="DEATHKNIGHT_BLOOD", specName="Blood", className="Death Knight",
-            generatedContext=generated,
-        )
-        context = self.lua.table(profile=profile) if self.has_data else self.lua.table()
+        # specName/className/classFile live on the CONTEXT (see BuildSpecDisplayTitle in
+        # SV_StatAudit.lua, the proven mechanism this mirrors) - not reliably on the profile.
+        profile = self.lua.table(specKey="DEATHKNIGHT_BLOOD", generatedContext=generated)
+        context = self.lua.table(
+            profile=profile, specName="Blood", className="Death Knight", classFile="DEATHKNIGHT",
+        ) if self.has_data else self.lua.table()
         self.ns.GetActivePanelContext = lambda: context
 
     def card(self):
@@ -399,7 +404,10 @@ class BenchmarkDrawerSmokeTests(unittest.TestCase):
 
     def test_description_names_the_spec_it_is_describing(self) -> None:
         card = self.card()
-        self.assertIn("Built from 100 Blood Death Knight Mythic+ players", card.about.text)
+        self.assertIn(
+            "Built from 100 Blood |cffc41f3bDeath Knight|r (Deathbringer) Mythic+ players",
+            card.about.text,
+        )
 
     def test_description_follows_the_selected_level(self) -> None:
         card = self.card()

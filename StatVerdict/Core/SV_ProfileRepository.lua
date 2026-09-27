@@ -460,6 +460,7 @@ function Repository.BuildProviderView(goal)
                 specKey = specKey,
                 specID = specID,
                 classFile = classToken,
+                className = LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[classToken],
                 specName = ns.GetStatVerdictSpecNameByKey and ns.GetStatVerdictSpecNameByKey(specKey),
                 role = ns.GetStatVerdictRoleBySpecID and ns.GetStatVerdictRoleBySpecID(specID),
                 goal = goal,

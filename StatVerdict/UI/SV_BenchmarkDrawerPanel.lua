@@ -36,17 +36,41 @@ local function ActiveBenchmark()
     return type(generated) == "table" and generated.benchmark or nil
 end
 
--- "Blood Death Knight " (with a trailing space) for the %s in a level's about text, so the
--- description names the build it is actually describing. specName/className already sit
--- directly on the runtime profile (Repository.BuildRuntimeProfile in
--- SV_ProfileRepository.lua) - no separate lookup needed. Empty string (not nil) when either
--- is unavailable, so the about text still reads cleanly without it.
+-- "Blood |cffc41f3bDeath Knight|r (Deathbringer) " (with a trailing space) for the %s in a
+-- level's about text, so the description names the build it is actually describing. This
+-- mirrors BuildSpecDisplayTitle in SV_StatAudit.lua (same three pieces, same fallback order),
+-- which is how the main panel's "Blood Death Knight / Deathbringer" title is built - specName
+-- and className must come from the CONTEXT, not context.profile (the runtime profile itself
+-- only carries them reliably for the live-player path; the class-color addition is new here).
+-- Empty string (not nil) when spec/class are unavailable, so the about text still reads
+-- cleanly without it.
 local function SpecDisplayPrefix()
-    local profile = ActiveProfile()
-    local specName = type(profile) == "table" and profile.specName or nil
-    local className = type(profile) == "table" and profile.className or nil
-    if specName and className then return specName .. " " .. className .. " " end
-    return ""
+    local context = ns.GetActivePanelContext and ns.GetActivePanelContext() or nil
+    local profile = type(context) == "table" and context.profile or nil
+    local specName = (type(context) == "table" and context.specName)
+        or (type(profile) == "table" and profile.specName) or nil
+    local className = (type(context) == "table" and context.className)
+        or (type(profile) == "table" and profile.className) or nil
+    if not (specName and className) then return "" end
+
+    local classFile = type(context) == "table" and context.classFile or nil
+    local classColor = classFile and RAID_CLASS_COLORS and RAID_CLASS_COLORS[classFile]
+    local coloredClassName = classColor and classColor.colorStr
+        and ("|cff" .. classColor.colorStr .. className .. "|r") or className
+
+    local heroName = nil
+    if ns.GetSnapshotHeroTalentName then
+        heroName = ns.GetSnapshotHeroTalentName(profile)
+    end
+    if (not heroName or heroName == "") and type(context) == "table" then
+        heroName = context.heroTalentName
+    end
+
+    local label = specName .. " " .. coloredClassName
+    if type(heroName) == "string" and heroName ~= "" then
+        label = label .. " (" .. heroName .. ")"
+    end
+    return label .. " "
 end
 
 -- Benchmark numbers of one level for the build on screen (from the bundled Mythic+ file).
