@@ -57,7 +57,10 @@ MAX_INSUFFICIENT_SPECS = 4
 # only combat-log-tracked ones) - the best available skill signal. None means "no ceiling".
 # Change these two numbers only here; nothing else in the pipeline hard-codes them.
 BRACKET_CEILINGS: dict[str, int | None] = {"LOW": 9, "MID": 15, "HIGH": None}
-SAMPLE_SIZES: tuple[int, ...] = (20, 50, 100)
+# One objective, well-documented sample size per bracket (agreed with the user 2026-09-27,
+# after confirming with real data that even rare specs clear 100 candidates per bracket
+# worldwide) - no separate "tightness" choice; a bracket's cohort is exactly this size.
+BRACKET_SAMPLE_SIZE = 100
 DEFAULT_MAX_RUN_CHECKS = 3
 SUPPORTED_REGIONS = ("eu", "us", "kr", "tw")
 RANKING_REGIONS = ("world",) + SUPPORTED_REGIONS
@@ -1516,9 +1519,8 @@ def validate_database(
                 errors.append(f"{spec.key}/{label}: status must be {expected_status}")
             if complete and not all(key in stats for key in ("stamina", "crit", "haste", "mastery", "versatility")):
                 errors.append(f"{spec.key}/{label}: required stat targets missing")
-            bracket, _, size_text = label.partition("_")
-            if bracket in bracket_ok and size_text == str(required_minimum) and complete:
-                bracket_ok[bracket] = True
+            if label in bracket_ok and complete:
+                bracket_ok[label] = True
         base_ok = all(bracket_ok.values())
         if profile.get("status") != ("ok" if base_ok else "insufficient"):
             errors.append(f"{spec.key}: profile status does not match its base cohort")
@@ -1696,7 +1698,7 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
     http = JsonClient(args.request_delay)
     expansion_id, season = active_season(http)
     season_slug = args.season or season["slug"]
-    max_size = max(args.sample_sizes)
+    sample_size = args.sample_size
     profiles: dict[str, Any] = {}
     for index, spec in enumerate(active_specs, 1):
         bracket_cohorts: dict[str, Any] = {}
@@ -1711,13 +1713,13 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
             if ceiling is None:
                 candidates = discover_candidates(
                     http, spec, season=season_slug, regions=args.regions,
-                    target_count=max_size * args.candidate_multiplier,
+                    target_count=sample_size * args.candidate_multiplier,
                     max_pages=args.max_pages, access_key=access_key,
                 )
             else:
                 candidates = discover_candidates_by_ceiling(
                     http, spec, season=season_slug, regions=args.regions, ceiling=ceiling,
-                    target_count=max_size * args.candidate_multiplier,
+                    target_count=sample_size * args.candidate_multiplier,
                     max_pages=args.max_pages, access_key=access_key,
                 )
             print(f"  candidates={len(candidates)}; collecting exact logged runs", flush=True)
@@ -1739,10 +1741,10 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
                             run_records.append(record)
                         elif reason:
                             failure_reasons[reason] += 1
-                    if len(run_records) >= max_size:
+                    if len(run_records) >= sample_size:
                         break
             run_records.sort(key=lambda row: (-row["score"], row["region"], row["realm"], row["name"]))
-            run_records = run_records[:max_size]
+            run_records = run_records[:sample_size]
             for verified_rank, record in enumerate(run_records, 1):
                 record["verifiedRank"] = verified_rank
             if spec.role == "healer":
@@ -1762,11 +1764,10 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
                 summary = "; ".join(f"{count}x {reason}" for reason, count in failure_reasons.most_common(3))
                 message = f"{spec.key}/{bracket}: no exact logged-run snapshots; {summary or 'no candidates found'}"
                 print(f"::warning title=Insufficient benchmark data::{message}", file=sys.stderr)
-            for size in args.sample_sizes:
-                bracket_cohorts[f"{bracket}_{size}"] = aggregate_cohort(stat_records, size, reconstruction_method)
-                bracket_gear_cohorts[f"{bracket}_{size}"] = aggregate_gear_cohort(run_records, size)
-            hero_trees = aggregate_hero_trees(stat_records, args.sample_sizes, reconstruction_method)
-            hero_gear_trees = aggregate_hero_gear_trees(run_records, args.sample_sizes)
+            bracket_cohorts[bracket] = aggregate_cohort(stat_records, sample_size, reconstruction_method)
+            bracket_gear_cohorts[bracket] = aggregate_gear_cohort(run_records, sample_size)
+            hero_trees = aggregate_hero_trees(stat_records, (sample_size,), reconstruction_method)
+            hero_gear_trees = aggregate_hero_gear_trees(run_records, (sample_size,))
             for tree_key, tree in hero_trees.items():
                 bracket_hero_trees[f"{bracket}:{tree_key}"] = tree
             for tree_key, tree in hero_gear_trees.items():
@@ -1775,17 +1776,16 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
             bracket_candidate_counts[bracket] = candidates_checked
             bracket_stat_counts[bracket] = len(stat_records)
             print(
-                f"  {bracket}: runs={len(run_records)}/{candidates_checked} reconstructedStats={len(stat_records)}; "
-                + ", ".join(f"{size}={bracket_cohorts[f'{bracket}_{size}']['status']}" for size in args.sample_sizes),
+                f"  {bracket}: runs={len(run_records)}/{candidates_checked} "
+                f"reconstructedStats={len(stat_records)}; status={bracket_cohorts[bracket]['status']}",
                 flush=True,
             )
-        # A spec only counts as "ok" when every bracket's smallest cohort is - matching
+        # A spec only counts as "ok" when every bracket's cohort is - matching
         # validate_database's own all-brackets gate (see the ledger, Task 4). Checking only
         # LOW let a transient MID/HIGH collection failure mark the whole spec "ok" while the
         # validator, which is stricter, disagreed and raised.
-        min_size = min(args.sample_sizes)
         status = "ok" if all(
-            bracket_cohorts[f"{bracket}_{min_size}"]["status"] == "ok" for bracket in BRACKET_CEILINGS
+            bracket_cohorts[bracket]["status"] == "ok" for bracket in BRACKET_CEILINGS
         ) else "insufficient"
         profiles[spec.key] = {
             "status": status,
@@ -1813,7 +1813,7 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
             "season": season_slug,
             "expansionId": expansion_id,
             "regions": list(args.regions),
-            "sampleSizes": list(args.sample_sizes),
+            "sampleSize": args.sample_size,
             "keyBrackets": {name: ceiling for name, ceiling in BRACKET_CEILINGS.items()},
             "aggregation": "median with 15% item-level outlier rejection",
             "acceptance": (
@@ -1829,7 +1829,7 @@ def build_database(args: argparse.Namespace) -> dict[str, Any]:
         "profiles": profiles,
         "externalSimulations": load_liquid_armory_import(args.liquid_data, season_slug),
     }
-    validate_database(database, min(args.sample_sizes), args.max_insufficient_specs, expected_specs=active_specs)
+    validate_database(database, args.sample_size, args.max_insufficient_specs, expected_specs=active_specs)
     return database
 
 
@@ -1871,7 +1871,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--season", help="Emergency Raider.IO season override")
     parser.add_argument("--regions", default=",".join(SUPPORTED_REGIONS))
-    parser.add_argument("--sample-sizes", default=",".join(str(value) for value in SAMPLE_SIZES))
+    parser.add_argument("--sample-size", type=int, default=BRACKET_SAMPLE_SIZE)
     parser.add_argument("--max-pages", type=int, default=100)
     parser.add_argument("--max-insufficient-specs", type=int, default=MAX_INSUFFICIENT_SPECS)
     parser.add_argument("--max-run-checks", type=int, default=DEFAULT_MAX_RUN_CHECKS)
@@ -1897,13 +1897,10 @@ def parse_args() -> argparse.Namespace:
     )
     args = parser.parse_args()
     args.regions = tuple(value.strip().lower() for value in args.regions.split(",") if value.strip())
-    args.sample_sizes = tuple(
-        sorted({int(value) for value in args.sample_sizes.split(",") if int(value) > 0})
-    )
     if not args.regions or not set(args.regions).issubset(RANKING_REGIONS):
         parser.error(f"regions must be a subset of {RANKING_REGIONS}")
-    if not args.sample_sizes:
-        parser.error("at least one sample size is required")
+    if args.sample_size <= 0:
+        parser.error("sample-size must be a positive number")
     if args.candidate_multiplier < 1:
         parser.error("candidate-multiplier must be at least 1")
     spec_keys: set[str] = set()
@@ -1928,7 +1925,7 @@ def main() -> int:
     if args.validate_only:
         database = json.loads(args.validate_only.read_text(encoding="utf-8"))
         validate_database(
-            database, min(args.sample_sizes), args.max_insufficient_specs, expected_specs=expected_specs
+            database, args.sample_size, args.max_insufficient_specs, expected_specs=expected_specs
         )
         print(f"Validated {len(database['profiles'])} benchmark profiles.")
         return 0
@@ -1936,7 +1933,7 @@ def main() -> int:
         database = merge_partial_databases(args.merge_inputs, allow_override=args.allow_merge_override)
         merged_specs = [spec for spec in SPECS if spec.key in database["profiles"]]
         validate_database(
-            database, min(args.sample_sizes), args.max_insufficient_specs, expected_specs=merged_specs
+            database, args.sample_size, args.max_insufficient_specs, expected_specs=merged_specs
         )
     else:
         database = build_database(args)

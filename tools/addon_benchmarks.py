@@ -17,10 +17,10 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from tools.live_benchmark_engine import BRACKET_CEILINGS, SAMPLE_SIZES, to_lua
+    from tools.live_benchmark_engine import BRACKET_CEILINGS, BRACKET_SAMPLE_SIZE, to_lua
 except ModuleNotFoundError:
     # Run as "python tools/addon_benchmarks.py": sys.path[0] is tools/, not the repo root.
-    from live_benchmark_engine import BRACKET_CEILINGS, SAMPLE_SIZES, to_lua
+    from live_benchmark_engine import BRACKET_CEILINGS, BRACKET_SAMPLE_SIZE, to_lua
 
 SCHEMA_VERSION = 1
 GOAL = "MYTHIC_PLUS"
@@ -234,9 +234,12 @@ def _class_token(value: Any) -> str:
     return "".join(ch for ch in str(value).upper() if ch.isalpha())
 
 
-def build_level_context(profile: dict[str, Any], bracket: str, cohort_key: str) -> dict[str, Any] | None:
-    cohort = (profile.get("cohorts") or {}).get(cohort_key)
-    gear = (profile.get("gearCohorts") or {}).get(cohort_key)
+def build_level_context(profile: dict[str, Any], bracket: str) -> dict[str, Any] | None:
+    # A bracket's cohort is stored under its own name directly - one objective, fixed-size
+    # sample per bracket, no separate "tightness" choice (agreed with the user 2026-09-27,
+    # after the first version's 9-entries-per-spec shape made the addon file too big).
+    cohort = (profile.get("cohorts") or {}).get(bracket)
+    gear = (profile.get("gearCohorts") or {}).get(bracket)
     if not valid_cohort(cohort) or not isinstance(gear, dict) or gear.get("status") != "ok":
         return None
     popular = gear.get("popularItems") or {}
@@ -245,23 +248,18 @@ def build_level_context(profile: dict[str, Any], bracket: str, cohort_key: str) 
     stats = secondary_stats(cohort, TARGET_KEYS)
     if len(slots) < MIN_SLOTS or not isinstance(average, (int, float)) or average < MIN_ITEM_LEVEL or len(stats) < 2:
         return None
-    # A hero tree's own cohorts are still keyed TOP_{size} (see build_priority_profiles).
-    size_text = cohort_key.rsplit("_", 1)[1]
+    # A hero tree's own cohorts are keyed TOP_{BRACKET_SAMPLE_SIZE} (see build_priority_profiles).
     return {
         "targets": {
             "averageItemLevel": float(average),
             "itemCount": len(slots),
-            "itemLevelSlots": len(slots),
             "statTargets": {"context": "Mythic+", "source": "StatVerdict live benchmarks", "stats": stats},
-            "targetMetadata": {"lowItemReplacements": 0, "unresolvedLowItems": 0},
             "sourceGoal": GOAL,
         },
         "bis": {"label": "Popular", "slots": slots},
         "trinkets": rank_trinkets(popular),
-        "priorityProfiles": build_priority_profiles(profile, bracket, f"TOP_{size_text}", cohort),
+        "priorityProfiles": build_priority_profiles(profile, bracket, f"TOP_{BRACKET_SAMPLE_SIZE}", cohort),
         "benchmark": {
-            "level": bracket,
-            "cohort": cohort_key,
             "sampleSize": int(cohort.get("sampleSize") or 0),
             "minimumSample": int(cohort.get("minimumSample") or 0),
             "confidence": cohort.get("confidence") or "unknown",
@@ -273,22 +271,17 @@ def build_level_context(profile: dict[str, Any], bracket: str, cohort_key: str) 
 def build_profile(spec_key: str, profile: dict[str, Any]) -> dict[str, Any] | None:
     # profile["status"] is "insufficient" as soon as ANY one bracket comes up short (see
     # live_benchmark_engine.build_database) - that must not drop the spec's other, perfectly
-    # good brackets. Each (bracket, size) is validated on its own below; a spec with nothing
-    # usable in it falls out naturally via the "if not levels" check.
+    # good brackets. Each bracket is validated on its own below; a spec with nothing usable in
+    # it falls out naturally via the "if not levels" check.
     levels: dict[str, dict[str, Any]] = {}
     for bracket in BRACKETS:
-        for size in SAMPLE_SIZES:
-            cohort_key = f"{bracket}_{size}"
-            context = build_level_context(profile, bracket, cohort_key)
-            if context:
-                levels.setdefault(bracket, {})[str(size)] = context
+        context = build_level_context(profile, bracket)
+        if context:
+            levels[bracket] = context
     if not levels:
         return None
     cohorts = profile.get("cohorts") or {}
-    reference_key = next(
-        (f"{b}_100" for b in ("HIGH", "MID", "LOW") if valid_cohort(cohorts.get(f"{b}_100"))),
-        None,
-    )
+    reference_key = next((b for b in ("HIGH", "MID", "LOW") if valid_cohort(cohorts.get(b))), None)
     reference = cohorts.get(reference_key) if reference_key else None
     return {
         "specKey": spec_key,
@@ -345,24 +338,22 @@ def build_report(data: dict[str, Any]) -> str:
     for spec_key in sorted(data["profiles"]):
         profile = data["profiles"][spec_key]
         for bracket in BRACKETS:
-            for size in SAMPLE_SIZES:
-                label = f"{bracket}_{size}"
-                context = profile["levels"].get(bracket, {}).get(str(size))
-                if not context:
-                    lines.append(f"{spec_key} {label}: no data")
-                    continue
-                slots = context["bis"]["slots"]
-                favourites = sum(1 for s in slots if s["usagePercent"] >= 40.0)
-                counts = {tier: 0 for tier, _ in TIER_THRESHOLDS}
-                for trinket in context["trinkets"]:
-                    counts[trinket["tier"]] += 1
-                tiers = " ".join(f"{tier}:{counts[tier]}" for tier, _ in TIER_THRESHOLDS)
-                bench = context["benchmark"]
-                lines.append(
-                    f"{spec_key} {label}: sample {bench['sampleSize']} ({bench['confidence']}), "
-                    f"primary {profile['primaryStat']}, slots {len(slots)}, "
-                    f"clear favourites (>=40%): {favourites}/{len(slots)}, tiers {tiers}"
-                )
+            context = profile["levels"].get(bracket)
+            if not context:
+                lines.append(f"{spec_key} {bracket}: no data")
+                continue
+            slots = context["bis"]["slots"]
+            favourites = sum(1 for s in slots if s["usagePercent"] >= 40.0)
+            counts = {tier: 0 for tier, _ in TIER_THRESHOLDS}
+            for trinket in context["trinkets"]:
+                counts[trinket["tier"]] += 1
+            tiers = " ".join(f"{tier}:{counts[tier]}" for tier, _ in TIER_THRESHOLDS)
+            bench = context["benchmark"]
+            lines.append(
+                f"{spec_key} {bracket}: sample {bench['sampleSize']} ({bench['confidence']}), "
+                f"primary {profile['primaryStat']}, slots {len(slots)}, "
+                f"clear favourites (>=40%): {favourites}/{len(slots)}, tiers {tiers}"
+            )
     return "\n".join(lines)
 
 

@@ -5,9 +5,9 @@ import unittest
 from pathlib import Path
 
 from tools.addon_benchmarks import (
+    BRACKET_SAMPLE_SIZE,
     BRACKETS,
     MAX_FILE_BYTES,
-    SAMPLE_SIZES,
     TARGET_KEYS,
     build_addon_data,
     build_level_context,
@@ -129,7 +129,9 @@ class TargetsAndPriorityTests(unittest.TestCase):
 
     def test_priority_rows_per_valid_hero_tree_plus_spec_wide_row(self) -> None:
         profile = make_bracket_profile()
-        rows = build_priority_profiles(profile, "LOW", "TOP_100", profile["cohorts"]["LOW_100"])
+        rows = build_priority_profiles(
+            profile, "LOW", f"TOP_{BRACKET_SAMPLE_SIZE}", profile["cohorts"]["LOW"]
+        )
         self.assertEqual([31, 33, None], [r.get("heroSubTreeID") for r in rows])
         self.assertEqual(["haste", "mastery", "critical-strike", "versatility"], rows[0]["order"])
         self.assertEqual(["critical-strike", "mastery", "versatility", "haste"], rows[1]["order"])
@@ -138,17 +140,20 @@ class TargetsAndPriorityTests(unittest.TestCase):
 
     def test_insufficient_hero_tree_gets_no_row(self) -> None:
         profile = make_bracket_profile()
-        rows = build_priority_profiles(profile, "LOW", "TOP_100", profile["cohorts"]["LOW_100"])
+        rows = build_priority_profiles(
+            profile, "LOW", f"TOP_{BRACKET_SAMPLE_SIZE}", profile["cohorts"]["LOW"]
+        )
         self.assertNotIn(35, [r.get("heroSubTreeID") for r in rows])
 
     def test_hero_tree_rows_are_scoped_to_their_own_bracket(self) -> None:
-        # A hero tree's inner cohort keys (TOP_20/50/100) are shared naming across brackets -
-        # build_priority_profiles must not pull a MID hero-tree row into the LOW context.
+        # build_priority_profiles must not pull a MID hero-tree row into the LOW context, even
+        # though every bracket's hero tree shares the same inner cohort key (TOP_{sample size}).
         # The fixture deliberately swaps HERO_31's crit/haste for MID (see addon_fixtures.py),
         # so a bracket mix-up shows up as a visibly WRONG order, not just an extra/leaked row.
         profile = make_bracket_profile()
-        low_rows = build_priority_profiles(profile, "LOW", "TOP_20", profile["cohorts"]["LOW_20"])
-        mid_rows = build_priority_profiles(profile, "MID", "TOP_100", profile["cohorts"]["MID_100"])
+        inner_key = f"TOP_{BRACKET_SAMPLE_SIZE}"
+        low_rows = build_priority_profiles(profile, "LOW", inner_key, profile["cohorts"]["LOW"])
+        mid_rows = build_priority_profiles(profile, "MID", inner_key, profile["cohorts"]["MID"])
         self.assertEqual([31, 33, None], [r.get("heroSubTreeID") for r in low_rows])
         self.assertEqual([31, 33, None], [r.get("heroSubTreeID") for r in mid_rows])
         self.assertEqual(["haste", "mastery", "critical-strike", "versatility"], low_rows[0]["order"])
@@ -171,7 +176,7 @@ class TargetsAndPriorityTests(unittest.TestCase):
 class AssemblyTests(unittest.TestCase):
     def test_level_context_has_the_shape_the_addon_reads(self) -> None:
         profile = make_bracket_profile()
-        context = build_level_context(profile, "MID", "MID_100")
+        context = build_level_context(profile, "MID")
         targets = context["targets"]
         self.assertEqual("MYTHIC_PLUS", targets["sourceGoal"])
         self.assertEqual(326.9, targets["averageItemLevel"])
@@ -184,37 +189,35 @@ class AssemblyTests(unittest.TestCase):
         self.assertEqual(15, len(context["bis"]["slots"]))
         self.assertEqual(["S", "S", "A"], [t["tier"] for t in context["trinkets"]])
         self.assertEqual(
-            {"level": "MID", "cohort": "MID_100", "sampleSize": 100, "minimumSample": 25,
-             "confidence": "high", "completeness": 1.0},
+            {"sampleSize": BRACKET_SAMPLE_SIZE, "minimumSample": 25, "confidence": "high", "completeness": 1.0},
             context["benchmark"],
         )
 
     def test_invalid_cohort_gives_no_context(self) -> None:
         profile = make_bracket_profile()
-        profile["cohorts"]["LOW_20"]["status"] = "insufficient"
-        self.assertIsNone(build_level_context(profile, "LOW", "LOW_20"))
-        self.assertIsNotNone(build_level_context(profile, "MID", "MID_100"))
+        profile["cohorts"]["LOW"]["status"] = "insufficient"
+        self.assertIsNone(build_level_context(profile, "LOW"))
+        self.assertIsNotNone(build_level_context(profile, "MID"))
 
     def test_too_few_slots_or_low_item_level_gives_no_context(self) -> None:
         profile = make_bracket_profile()
-        profile["gearCohorts"]["MID_100"]["popularItems"] = {"HEAD": make_gear_cohort(100)["popularItems"]["HEAD"]}
-        self.assertIsNone(build_level_context(profile, "MID", "MID_100"))
+        profile["gearCohorts"]["MID"]["popularItems"] = {
+            "HEAD": make_gear_cohort(BRACKET_SAMPLE_SIZE)["popularItems"]["HEAD"]
+        }
+        self.assertIsNone(build_level_context(profile, "MID"))
         profile = make_bracket_profile()
-        profile["cohorts"]["MID_100"]["averageItemLevel"] = 200.0
-        self.assertIsNone(build_level_context(profile, "MID", "MID_100"))
+        profile["cohorts"]["MID"]["averageItemLevel"] = 200.0
+        self.assertIsNone(build_level_context(profile, "MID"))
 
     def test_profile_keeps_only_valid_levels_and_measured_primary(self) -> None:
         profile = make_bracket_profile(spec_key_class="demon-hunter", primary="agility")
         for cohort in profile["cohorts"].values():
             cohort["statTargets"]["stats"].update({"strength": 300.0, "agility": 500.0, "intellect": 2400.0})
-        profile["cohorts"]["LOW_20"]["status"] = "insufficient"
+        profile["cohorts"]["LOW"]["status"] = "insufficient"
         built = build_profile("DEMONHUNTER_DEVOURER", profile)
         self.assertEqual("DEMONHUNTER", built["classToken"])
         self.assertEqual("intellect", built["primaryStat"])
-        # LOW_20 was invalidated; the other two LOW sizes and both other brackets stay whole.
-        self.assertEqual(["100", "50"], sorted(built["levels"]["LOW"]))
-        self.assertEqual(["100", "20", "50"], sorted(built["levels"]["MID"]))
-        self.assertEqual(["100", "20", "50"], sorted(built["levels"]["HIGH"]))
+        self.assertEqual(["HIGH", "MID"], sorted(built["levels"]))
 
     def test_completely_invalid_profile_is_left_out(self) -> None:
         profile = make_bracket_profile()
@@ -228,8 +231,7 @@ class AssemblyTests(unittest.TestCase):
         # perfectly good - the addon should ship those instead of dropping the whole spec.
         profile = make_bracket_profile()
         profile["status"] = "insufficient"
-        for size in (20, 50, 100):
-            profile["cohorts"][f"LOW_{size}"]["status"] = "insufficient"
+        profile["cohorts"]["LOW"]["status"] = "insufficient"
         built = build_profile("DEATHKNIGHT_BLOOD", profile)
         self.assertIsNotNone(built)
         self.assertNotIn("LOW", built["levels"])
@@ -267,34 +269,34 @@ class AssemblyTests(unittest.TestCase):
         data = build_addon_data([make_bracket_raw_database("2026-09-26T00:00:00Z")])
         report = build_report(data)
         self.assertIn("DEATHKNIGHT_BLOOD", report)
-        self.assertIn("MID_100", report)
+        self.assertIn("MID", report)
         self.assertIn("tiers S:2 A:1 B:0 C:0", report)
         self.assertIn("clear favourites (>=40%): 15/15", report)
 
 
 class ConstantsMatchTheEngineTests(unittest.TestCase):
-    def test_brackets_and_sample_sizes_are_imported_not_redefined(self) -> None:
-        from tools.live_benchmark_engine import BRACKET_CEILINGS, SAMPLE_SIZES as ENGINE_SAMPLE_SIZES
+    def test_brackets_and_sample_size_are_imported_not_redefined(self) -> None:
+        from tools.live_benchmark_engine import (
+            BRACKET_CEILINGS,
+            BRACKET_SAMPLE_SIZE as ENGINE_BRACKET_SAMPLE_SIZE,
+        )
 
         self.assertEqual(tuple(BRACKET_CEILINGS), BRACKETS)
-        self.assertIs(ENGINE_SAMPLE_SIZES, SAMPLE_SIZES)
+        self.assertIs(ENGINE_BRACKET_SAMPLE_SIZE, BRACKET_SAMPLE_SIZE)
 
 
-class TwoAxisLevelsTests(unittest.TestCase):
-    def test_levels_nested_by_bracket_then_sample_size(self) -> None:
+class LevelsByBracketTests(unittest.TestCase):
+    def test_levels_keyed_by_bracket(self) -> None:
         profile = make_bracket_profile()
         built = build_profile("DEATHKNIGHT_BLOOD", profile)
         self.assertEqual(sorted(BRACKETS), sorted(built["levels"]))
-        for bracket in BRACKETS:
-            self.assertEqual(sorted(str(s) for s in SAMPLE_SIZES), sorted(built["levels"][bracket]))
-        self.assertEqual("MID", built["levels"]["MID"]["100"]["benchmark"]["level"])
-        self.assertEqual("MID_100", built["levels"]["MID"]["100"]["benchmark"]["cohort"])
+        self.assertEqual(BRACKET_SAMPLE_SIZE, built["levels"]["MID"]["benchmark"]["sampleSize"])
 
     def test_high_bracket_gear_differs_from_low_and_mid(self) -> None:
         profile = make_bracket_profile()
         built = build_profile("DEATHKNIGHT_BLOOD", profile)
-        high_helm = built["levels"]["HIGH"]["100"]["bis"]["slots"][0]["item"]["item_id"]
-        mid_helm = built["levels"]["MID"]["100"]["bis"]["slots"][0]["item"]["item_id"]
+        high_helm = built["levels"]["HIGH"]["bis"]["slots"][0]["item"]["item_id"]
+        mid_helm = built["levels"]["MID"]["bis"]["slots"][0]["item"]["item_id"]
         self.assertNotEqual(high_helm, mid_helm)
 
 

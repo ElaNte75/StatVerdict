@@ -146,34 +146,29 @@ BRACKET_STATS: dict[str, tuple[float, float, float, float]] = {
     "MID": (1140.0, 900.0, 680.0, 430.0),
     "HIGH": (1100.0, 880.0, 690.0, 420.0),
 }
-BRACKET_SAMPLE_SIZES: tuple[int, ...] = (20, 50, 100)
-_MINIMUM_BY_SIZE = {20: 5, 50: 13, 100: 25}
+BRACKET_SAMPLE_SIZE = 100
 
 
 def make_bracket_profile(spec_key_class: str = "death-knight", primary: str = "strength") -> dict[str, Any]:
-    """Same shape as make_profile, but keyed LOW/MID/HIGH x 20/50/100 (see BRACKET_CEILINGS
-    and SAMPLE_SIZES in tools/live_benchmark_engine.py) instead of TOP_25/TOP_100/TOP_200.
-    Kept separate from make_profile so tools/tests/test_addon_lua.py (out of scope for this
-    plan - it exercises the still-unchanged ELITE/STANDARD/BROAD Lua selector) is untouched."""
+    """Same shape as make_profile, but keyed LOW/MID/HIGH (see BRACKET_CEILINGS in
+    tools/live_benchmark_engine.py) instead of TOP_25/TOP_100/TOP_200 - one objective,
+    fixed-size sample per bracket, no separate "tightness" choice (agreed with the user
+    2026-09-27, after the 9-entries-per-spec shape made the addon file too big). Kept separate
+    from make_profile so tools/tests/test_addon_lua.py (out of scope for this plan - it
+    exercises the still-unchanged ELITE/STANDARD/BROAD Lua selector) is untouched."""
     cohorts: dict[str, Any] = {}
     gear: dict[str, Any] = {}
     for bracket, (crit, haste, mastery, versatility) in BRACKET_STATS.items():
-        for size in BRACKET_SAMPLE_SIZES:
-            key = f"{bracket}_{size}"
-            cohorts[key] = make_stat_cohort(size, crit, haste, mastery, versatility, minimum=_MINIMUM_BY_SIZE[size])
-            gear[key] = make_gear_cohort(size)
+        cohorts[bracket] = make_stat_cohort(BRACKET_SAMPLE_SIZE, crit, haste, mastery, versatility)
+        gear[bracket] = make_gear_cohort(BRACKET_SAMPLE_SIZE)
     # HIGH's favourite helm differs, so tests can tell brackets apart.
-    for size in BRACKET_SAMPLE_SIZES:
-        gear[f"HIGH_{size}"]["popularItems"]["HEAD"][0] = make_item(1500, "HEAD high-bracket favourite", 60, 60.0, [150])
+    gear["HIGH"]["popularItems"]["HEAD"][0] = make_item(1500, "HEAD high-bracket favourite", 60, 60.0, [150])
 
     def hero_tree_cohorts(crit: float, haste: float, mastery: float, versatility: float) -> dict[str, Any]:
         # A hero tree's own "cohorts" sub-dict is built by aggregate_hero_trees, which is
-        # unchanged by the bracket work and still names its slices TOP_{size} - only the
-        # OUTER heroTalentTrees dict key carries the bracket prefix (see build_profile).
-        return {
-            f"TOP_{size}": make_stat_cohort(size, crit, haste, mastery, versatility, minimum=_MINIMUM_BY_SIZE[size])
-            for size in BRACKET_SAMPLE_SIZES
-        }
+        # unchanged by the bracket work and still names its slice TOP_{BRACKET_SAMPLE_SIZE} -
+        # only the OUTER heroTalentTrees dict key carries the bracket prefix (see build_profile).
+        return {f"TOP_{BRACKET_SAMPLE_SIZE}": make_stat_cohort(BRACKET_SAMPLE_SIZE, crit, haste, mastery, versatility)}
 
     # HERO_31's crit/haste are swapped for MID (relative to LOW/HIGH), on purpose: it makes
     # the stat PRIORITY ORDER itself differ by bracket, so a test that reads the wrong
@@ -192,7 +187,7 @@ def make_bracket_profile(spec_key_class: str = "death-knight", primary: str = "s
         }
         hero_trees[f"{bracket}:HERO_35"] = {
             "id": 35, "name": "Hero Talent 35", "status": "insufficient", "fallback": "spec",
-            "cohorts": {"TOP_100": make_stat_cohort(3, 1, 1, 1, 1, status="insufficient")},
+            "cohorts": {f"TOP_{BRACKET_SAMPLE_SIZE}": make_stat_cohort(3, 1, 1, 1, 1, status="insufficient")},
         }
     return {
         "status": "ok",
