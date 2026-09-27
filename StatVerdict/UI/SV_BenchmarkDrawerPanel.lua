@@ -69,10 +69,15 @@ local function SpecDisplayPrefix()
     if (not heroName or heroName == "") and type(context) == "table" then
         heroName = context.heroTalentName
     end
+    -- Same class colour as the class name, and no parentheses - "Blood Death Knight
+    -- Deathbringer" already reads as one build, the class is obvious from context.
+    local coloredHeroName = (type(heroName) == "string" and heroName ~= "")
+        and (classColor and classColor.colorStr and ("|c" .. classColor.colorStr .. heroName .. "|r") or heroName)
+        or nil
 
     local label = specName .. " " .. coloredClassName
-    if type(heroName) == "string" and heroName ~= "" then
-        label = label .. " (" .. heroName .. ")"
+    if coloredHeroName then
+        label = label .. " " .. coloredHeroName
     end
     return label .. " "
 end

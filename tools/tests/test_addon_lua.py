@@ -405,7 +405,7 @@ class BenchmarkDrawerSmokeTests(unittest.TestCase):
     def test_description_names_the_spec_it_is_describing(self) -> None:
         card = self.card()
         self.assertIn(
-            "Built from 100 Blood |cffc41f3bDeath Knight|r (Deathbringer) Mythic+ players",
+            "Built from 100 Blood |cffc41f3bDeath Knight|r |cffc41f3bDeathbringer|r Mythic+ players",
             card.about.text,
         )
 
