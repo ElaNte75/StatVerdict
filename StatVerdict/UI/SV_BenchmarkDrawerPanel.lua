@@ -36,6 +36,19 @@ local function ActiveBenchmark()
     return type(generated) == "table" and generated.benchmark or nil
 end
 
+-- "Blood Death Knight " (with a trailing space) for the %s in a level's about text, so the
+-- description names the build it is actually describing. Empty string (not nil) when either
+-- piece is unavailable, so the about text still reads cleanly without it.
+local function SpecDisplayPrefix()
+    local profile = ActiveProfile()
+    local specKey = type(profile) == "table" and profile.specKey or nil
+    local classToken = type(profile) == "table" and profile.classToken or nil
+    local specName = specKey and ns.GetStatVerdictSpecNameByKey and ns.GetStatVerdictSpecNameByKey(specKey) or nil
+    local className = classToken and LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[classToken] or nil
+    if specName and className then return specName .. " " .. className .. " " end
+    return ""
+end
+
 -- Benchmark numbers of one level for the build on screen (from the bundled Mythic+ file).
 local function LevelBenchmark(levelKey)
     local profile = ActiveProfile()
@@ -240,7 +253,7 @@ function Panel.Sync(card)
 
     local info = ns.GetBenchmarkLevelInfo(selected)
     card.aboutTitle:SetText(info.label .. " benchmark")
-    card.about:SetText(info.about or "")
+    card.about:SetText((info.about or ""):format(SpecDisplayPrefix()))
 
     local bench = mythicPlus and ActiveBenchmark() or nil
     local status, color = "", ORANGE

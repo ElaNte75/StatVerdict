@@ -342,6 +342,10 @@ class BenchmarkDrawerSmokeTests(unittest.TestCase):
         self.frame = self.lua.eval("CreateFrame")()
         self.ns.GetStatAuditGoalMode = lambda: "MYTHIC_PLUS"
         self.ns.GetSavedStatAuditSelection = lambda: self.lua.table(goalMode="MYTHIC_PLUS")
+        # LOCALIZED_CLASS_NAMES_MALE is a real WoW client global; stub it for the class-name
+        # half of the about text's spec-name prefix (see SpecDisplayPrefix).
+        self.lua.globals().LOCALIZED_CLASS_NAMES_MALE = self.lua.table(DEATHKNIGHT="Death Knight")
+        self.ns.GetStatVerdictSpecNameByKey = lambda key: "Blood" if key == "DEATHKNIGHT_BLOOD" else None
         self.available = True
         self.levels = {
             "LOW": dict(sampleSize=100, minimumSample=25, confidence="high"),
@@ -360,11 +364,13 @@ class BenchmarkDrawerSmokeTests(unittest.TestCase):
         levels = self.lua.table()
         for key, values in self.levels.items():
             levels[key] = self.lua.table(benchmark=self.lua.table(**values))
-        specs = self.lua.table(SPEC=self.lua.table(levels=levels))
+        specs = self.lua.table(DEATHKNIGHT_BLOOD=self.lua.table(levels=levels))
         self.ns.MythicPlusBenchmarks = self.lua.table(profiles=specs)
         selected = self.levels[self.ns.GetBenchmarkLevel()]
         generated = self.lua.table(benchmark=self.lua.table(**selected))
-        profile = self.lua.table(specKey="SPEC", generatedContext=generated)
+        profile = self.lua.table(
+            specKey="DEATHKNIGHT_BLOOD", classToken="DEATHKNIGHT", generatedContext=generated
+        )
         context = self.lua.table(profile=profile) if self.has_data else self.lua.table()
         self.ns.GetActivePanelContext = lambda: context
 
@@ -391,6 +397,10 @@ class BenchmarkDrawerSmokeTests(unittest.TestCase):
         card = self.card()
         self.assertEqual("Players with a highest key of 16 or higher", card.levelRows[1].meaning.text)  # HIGH
         self.assertEqual("", card.levelRows[1].date.text)  # no live data: nothing to date
+
+    def test_description_names_the_spec_it_is_describing(self) -> None:
+        card = self.card()
+        self.assertIn("Built from 100 Blood Death Knight Mythic+ players", card.about.text)
 
     def test_description_follows_the_selected_level(self) -> None:
         card = self.card()
