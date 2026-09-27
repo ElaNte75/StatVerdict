@@ -37,14 +37,14 @@ local function ActiveBenchmark()
 end
 
 -- "Blood Death Knight " (with a trailing space) for the %s in a level's about text, so the
--- description names the build it is actually describing. Empty string (not nil) when either
--- piece is unavailable, so the about text still reads cleanly without it.
+-- description names the build it is actually describing. specName/className already sit
+-- directly on the runtime profile (Repository.BuildRuntimeProfile in
+-- SV_ProfileRepository.lua) - no separate lookup needed. Empty string (not nil) when either
+-- is unavailable, so the about text still reads cleanly without it.
 local function SpecDisplayPrefix()
     local profile = ActiveProfile()
-    local specKey = type(profile) == "table" and profile.specKey or nil
-    local classToken = type(profile) == "table" and profile.classToken or nil
-    local specName = specKey and ns.GetStatVerdictSpecNameByKey and ns.GetStatVerdictSpecNameByKey(specKey) or nil
-    local className = classToken and LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[classToken] or nil
+    local specName = type(profile) == "table" and profile.specName or nil
+    local className = type(profile) == "table" and profile.className or nil
     if specName and className then return specName .. " " .. className .. " " end
     return ""
 end
