@@ -58,7 +58,7 @@ jobs:
           cmake --build .simc-build --target simc --parallel 2
 
       - name: Run existing tests
-        run: python -m unittest discover -s tools/tests -v
+        run: python -m unittest discover -s tools/tests
 
       - name: Build ClassCodex stat weights
         run: python tools/classcodex_weights_cli.py --simc-bin .simc-build/simc
