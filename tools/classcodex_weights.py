@@ -1,8 +1,7 @@
 """Extracts real per-secondary-stat DPS/HPS-per-point weights from a
 SimulationCraft calculate_scale_factors=1 json2 report. Field names here
-are pinned to a real captured report -- see
-tools/tests/fixtures/simc_scale_factor_report.json and
-tools/tests/test_simc_scale_factor_report_fixture.py, produced by
+are pinned to the documented-shape fixture (not a live capture; see README) at
+tools/tests/fixtures/simc_scale_factor_report.json, produced by
 docs/superpowers/plans/2026-09-28-classcodex-target-weight-pipeline.md Task 8.
 """
 from __future__ import annotations
