@@ -1,15 +1,11 @@
 # StatVerdict ship script
-# 1) Reads StatVerdictBridge SavedVariables export
-# 2) Writes Data/Generated/SV_ProfileData.*
-# 3) Bumps addon version
-# 4) Builds Desktop\StatVerdict-x.y.z.zip for Curse
+# 1) Bumps addon version
+# 2) Builds Desktop\StatVerdict-x.y.z.zip for Curse
 
 [CmdletBinding()]
 param(
-    [string]$WowRoot = "D:\Battlenet Games\World of Warcraft\_retail_",
     [switch]$SkipBump,
-    [switch]$SkipZip,
-    [switch]$ExtractOnly
+    [switch]$SkipZip
 )
 
 $ErrorActionPreference = "Stop"
@@ -19,33 +15,11 @@ if (-not (Test-Path -LiteralPath (Join-Path $ProjectRoot "StatVerdict.toc"))) {
     throw "Cannot find StatVerdict.toc under $ProjectRoot"
 }
 
-$GeneratedDir = Join-Path $ProjectRoot "Data\Generated"
 $DesktopDir = [Environment]::GetFolderPath("Desktop")
-$WtfAccount = Join-Path $WowRoot "WTF\Account"
-$ExtractPy = Join-Path $PSScriptRoot "extract_bridge_export.py"
 $TocPath = Join-Path $ProjectRoot "StatVerdict.toc"
 $LuaPath = Join-Path $ProjectRoot "StatVerdict.lua"
 
 Write-Host "Project: $ProjectRoot"
-Write-Host "WTF Account root: $WtfAccount"
-
-if (-not (Test-Path -LiteralPath $WtfAccount)) {
-    throw "WTF Account folder not found: $WtfAccount"
-}
-
-$python = Get-Command python -ErrorAction SilentlyContinue
-if (-not $python) {
-    $python = Get-Command py -ErrorAction SilentlyContinue
-}
-if (-not $python) {
-    throw "Python is required (python or py on PATH)."
-}
-
-Write-Host "Extracting bridge export..."
-& $python.Source $ExtractPy --wtf-account $WtfAccount --out $GeneratedDir
-if ($LASTEXITCODE -ne 0) {
-    throw "extract_bridge_export.py failed with exit code $LASTEXITCODE"
-}
 
 function Get-TocValue([string]$path, [string]$key) {
     $line = Get-Content -LiteralPath $path | Where-Object { $_ -match ("^##\s*" + [regex]::Escape($key) + "\s*:") } | Select-Object -First 1
@@ -76,7 +50,7 @@ if (-not $version) { $version = "1.0.0" }
 # Ensure Interface is current for live.
 Set-TocValue $TocPath "Interface" "120100"
 
-if (-not $SkipBump -and -not $ExtractOnly) {
+if (-not $SkipBump) {
     if ($version -match "^(\d+)\.(\d+)\.(\d+)$") {
         $major = [int]$Matches[1]
         $minor = [int]$Matches[2]
@@ -95,11 +69,6 @@ if (-not $SkipBump -and -not $ExtractOnly) {
     Write-Host "Version bumped to $version"
 } else {
     Write-Host "Version left at $version"
-}
-
-if ($ExtractOnly) {
-    Write-Host "Extract-only done."
-    exit 0
 }
 
 if ($SkipZip) {
@@ -172,6 +141,5 @@ Remove-Item -LiteralPath $staging -Recurse -Force
 
 Write-Host ""
 Write-Host "DONE"
-Write-Host "Profile data updated in Data\Generated"
 Write-Host "Zip ready on Desktop: $zipPath"
 Write-Host "Upload that zip to CurseForge."

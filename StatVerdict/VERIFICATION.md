@@ -4,11 +4,9 @@ Run the automated gate first:
 
 ```powershell
 python -m unittest discover -s tests -v
-python scripts/extract_bridge_export.py --wtf-account "<retail>\WTF\Account" --out Data\Generated
 ```
 
-The second command must finish without profile-quality errors. Never bypass it
-to create a release archive.
+Never bypass it to create a release archive.
 
 ## In-game matrix
 

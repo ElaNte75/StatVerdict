@@ -1,6 +1,6 @@
 # "Download ZIP" on GitHub builds its archive with these rules: everything marked
 # export-ignore is left out. The zip then holds only the StatVerdict addon folder
-# (the game files), not the tools, docs, bridge addon or dev notes. Normal
+# (the game files), not the tools, docs or dev notes. Normal
 # clone / pull is not affected; the full repository stays available for development.
 
 /.github export-ignore
@@ -8,7 +8,6 @@
 /.gitignore export-ignore
 /IMPROVEMENTS.md export-ignore
 "/StatVerdict Ship.bat" export-ignore
-/StatVerdictBridge export-ignore
 /_check_profiles.py export-ignore
 /docs export-ignore
 /tools export-ignore
