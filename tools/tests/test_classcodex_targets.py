@@ -3,6 +3,8 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
+from pathlib import Path
+
 from tools.classcodex_targets import (
     GOAL_CONTEXT_KEY,
     select_context,
@@ -12,6 +14,7 @@ from tools.classcodex_targets import (
     build_trinkets,
     build_priority_row,
     build_target_context,
+    build_all,
 )
 from tools.live_benchmark_engine import SPEC_BY_KEY
 
@@ -190,6 +193,34 @@ class BuildTargetContextTests(unittest.TestCase):
         reconstructed = {"ratings": {"crit": 501.0}}
         with patch("tools.classcodex_targets.run_simc", return_value=({"sv_0001": reconstructed}, {})):
             self.assertIsNone(build_target_context(spec, "RAID", gear, talents, "all", "raid"))
+
+
+class BuildAllTests(unittest.TestCase):
+    def test_builds_one_profile_per_spec_with_a_context_per_goal_and_hero_talent(self) -> None:
+        specs = {
+            "DEATHKNIGHT_blood": {
+                "gear": {"value": {"all": {"mplus": [{"itemId": 1, "slot": "Head", "ilvl": 330}], "raid": [{"itemId": 2, "slot": "Head", "ilvl": 330}]}}, "source": "ugg"},
+                "talents": {"value": {"all": {"mplus": [{"export": "M", "recommended": True}], "raid": [{"export": "R", "recommended": True}]}}, "source": "ugg"},
+                "trinkets": {"value": {"all": {"mplus": [{"itemId": 9, "tier": "S"}]}}, "source": "ugg"},
+                "statPriority": {"value": {"all": {"mplus": {"secondary": [["crit"], ["haste"]]}}}, "source": "ugg"},
+            }
+        }
+        reconstructed = {"ratings": {"crit": 500.0, "haste": 500.0, "mastery": 500.0, "versatility": 500.0}}
+        with patch("tools.classcodex_targets.run_simc", return_value=({"sv_0001": reconstructed}, {})):
+            data = build_all(specs, Path("simc"), goals=("MYTHIC_PLUS", "RAID"))
+
+        profile = data["profiles"]["DEATHKNIGHT_blood"]
+        self.assertEqual("DEATHKNIGHT", profile["classToken"])
+        mplus_context = profile["goals"]["MYTHIC_PLUS"]["heroTalents"]["all"]
+        self.assertIn("targets", mplus_context)
+        self.assertEqual([{"item_id": 9, "bonus_ids": [], "tier": "S"}], mplus_context["trinkets"])
+        self.assertEqual(1, len(mplus_context["priorityProfiles"]))
+        self.assertNotIn("PVP", profile["goals"])  # no PVP data anywhere in this fixture
+
+    def test_skips_a_spec_key_not_in_the_catalog(self) -> None:
+        specs = {"NOTASPEC_madeup": {"gear": {"value": {}, "source": "ugg"}}}
+        data = build_all(specs, Path("simc"))
+        self.assertEqual({}, data["profiles"])
 
 
 if __name__ == "__main__":

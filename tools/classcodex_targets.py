@@ -13,8 +13,10 @@ from typing import Any
 
 try:
     from tools.simc_stat_engine import render_profiles, run_simc
+    from tools.live_benchmark_engine import SPEC_BY_KEY
 except ModuleNotFoundError:
     from simc_stat_engine import render_profiles, run_simc
+    from live_benchmark_engine import SPEC_BY_KEY
 
 CLASSCODEX_SLOT_TO_SIMC: dict[str, str] = {
     "Head": "HEAD",
@@ -187,6 +189,7 @@ def build_target_context(
     talents_value: dict[str, Any] | None,
     hero_talent_key: str,
     context_key: str,
+    simc_binary: Path = Path("simc"),
 ) -> dict[str, Any] | None:
     """Reconstructs the `targets`/`bis` half of a ClassCodex per-goal profile
     by running the BiS gear loadout for one spec/goal/hero-talent through
@@ -202,7 +205,7 @@ def build_target_context(
     record = {"race": "human", "runTalentLoadout": talent_loadout, "items": items, "level": 90}
     profile_text, actor_map = render_profiles(spec, [record])
     try:
-        stats_by_actor, _report = run_simc(Path("simc"), profile_text)
+        stats_by_actor, _report = run_simc(simc_binary, profile_text)
     except Exception:  # noqa: BLE001 - fail closed; caller skips this combo
         return None
     actor_name = next(iter(actor_map))
@@ -236,3 +239,78 @@ def build_target_context(
         },
         "bis": {"label": "ClassCodex BiS", "slots": bis_slots},
     }
+
+
+CONTEXT_LABEL = {"mplus": "Mythic+", "raid": "Raid", "pvp": "PvP", "all": "General"}
+
+
+def _classcodex_key_to_catalog_key(spec_key: str) -> str:
+    class_folder, _, spec_token = spec_key.partition("_")
+    return f"{class_folder}_{spec_token.upper().replace('-', '_')}"
+
+
+def _hero_talent_keys(gear_value: dict[str, Any] | None, talents_value: dict[str, Any] | None) -> set[str]:
+    keys: set[str] = set()
+    if isinstance(gear_value, dict):
+        keys.update(gear_value.keys())
+    if isinstance(talents_value, dict):
+        keys.update(talents_value.keys())
+    return keys
+
+
+def build_all(
+    specs: dict[str, dict[str, Any]],
+    simc_binary: Path,
+    goals: tuple[str, ...] = ("MYTHIC_PLUS", "RAID", "PVP"),
+) -> dict[str, Any]:
+    """Loops over every ClassCodex spec/goal/hero-talent combo, reconstructing
+    stat targets via SimC for each, and assembles the full per-spec document.
+    Skips spec keys not in the SPEC_BY_KEY catalog and goals with no usable
+    hero-talent context anywhere."""
+    profiles: dict[str, Any] = {}
+    for spec_key, fields in specs.items():
+        catalog_key = _classcodex_key_to_catalog_key(spec_key)
+        spec = SPEC_BY_KEY.get(catalog_key)
+        if spec is None:
+            continue
+
+        gear_value = (fields.get("gear") or {}).get("value")
+        talents_value = (fields.get("talents") or {}).get("value")
+        trinkets_value = (fields.get("trinkets") or {}).get("value")
+        stat_priority_value = (fields.get("statPriority") or {}).get("value")
+
+        goals_out: dict[str, Any] = {}
+        for goal in goals:
+            context_key = GOAL_CONTEXT_KEY[goal]
+            hero_talents_out: dict[str, Any] = {}
+            for hero_talent_key in _hero_talent_keys(gear_value, talents_value):
+                gear_list = select_context(gear_value, hero_talent_key, context_key)
+                if not isinstance(gear_list, list) or not gear_list:
+                    continue
+                target_context = build_target_context(
+                    spec, goal, gear_list, talents_value, hero_talent_key, context_key, simc_binary
+                )
+                if target_context is None:
+                    continue
+                target_context["trinkets"] = build_trinkets(trinkets_value, hero_talent_key, context_key)
+                row = build_priority_row(
+                    stat_priority_value,
+                    hero_talent_key,
+                    context_key,
+                    CONTEXT_LABEL[context_key],
+                    hero_talent_key,
+                )
+                target_context["priorityProfiles"] = [row] if row else []
+                hero_talents_out[hero_talent_key] = target_context
+            if hero_talents_out:
+                goals_out[goal] = {"heroTalents": hero_talents_out}
+
+        if goals_out:
+            profiles[spec_key] = {
+                "specKey": spec_key,
+                "classToken": spec_key.split("_", 1)[0],
+                "primaryStat": spec.primary,
+                "goals": goals_out,
+            }
+
+    return {"profiles": profiles}
