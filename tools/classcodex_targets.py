@@ -8,7 +8,13 @@ for the full design and the real data shapes this module relies on.
 """
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
+
+try:
+    from tools.simc_stat_engine import render_profiles, run_simc
+except ModuleNotFoundError:
+    from simc_stat_engine import render_profiles, run_simc
 
 CLASSCODEX_SLOT_TO_SIMC: dict[str, str] = {
     "Head": "HEAD",
@@ -163,4 +169,70 @@ def build_priority_row(
         "heroTalent": hero_talent_name,
         "order": order,
         "tiers": tie_groups,
+    }
+
+
+SIMC_TO_CANONICAL_STAT = {
+    "crit": "critical_strike",
+    "haste": "haste",
+    "mastery": "mastery",
+    "versatility": "versatility",
+}
+
+
+def build_target_context(
+    spec: Any,
+    goal: str,
+    gear_list: list[dict[str, Any]] | None,
+    talents_value: dict[str, Any] | None,
+    hero_talent_key: str,
+    context_key: str,
+) -> dict[str, Any] | None:
+    """Reconstructs the `targets`/`bis` half of a ClassCodex per-goal profile
+    by running the BiS gear loadout for one spec/goal/hero-talent through
+    SimulationCraft. Returns None if there is no gear, no talent export, or
+    the SimC run fails or yields fewer than two usable secondary stats."""
+    items = build_simc_items(gear_list)
+    if not items:
+        return None
+    talent_loadout = select_talent_export(talents_value, hero_talent_key, context_key)
+    if not talent_loadout:
+        return None
+
+    record = {"race": "human", "runTalentLoadout": talent_loadout, "items": items, "level": 90}
+    profile_text, actor_map = render_profiles(spec, [record])
+    try:
+        stats_by_actor, _report = run_simc(Path("simc"), profile_text)
+    except Exception:  # noqa: BLE001 - fail closed; caller skips this combo
+        return None
+    actor_name = next(iter(actor_map))
+    reconstructed = stats_by_actor.get(actor_name)
+    if not reconstructed:
+        return None
+    ratings = reconstructed.get("ratings", {})
+    stats = {
+        canonical: float(ratings[raw])
+        for raw, canonical in SIMC_TO_CANONICAL_STAT.items()
+        if isinstance(ratings.get(raw), (int, float))
+    }
+    if len(stats) < 2:
+        return None
+
+    average_ilvl = average_item_level(gear_list)
+    bis_slots = [
+        {"slot": entry["slot"], "item": {"item_id": int(entry["itemId"]), **({"bonus_ids": [int(v) for v in entry["bonusIDs"] if isinstance(v, (int, float))]} if isinstance(entry.get("bonusIDs"), list) else {})}}
+        for entry in (gear_list or [])
+        if isinstance(entry, dict) and isinstance(entry.get("itemId"), (int, float)) and entry.get("slot") in CLASSCODEX_SLOT_TO_SIMC
+    ]
+
+    return {
+        "targets": {
+            "averageItemLevel": average_ilvl,
+            "itemCount": len(items),
+            "itemLevelSlots": len(items),
+            "statTargets": {"context": goal, "source": "ClassCodex BiS + SimulationCraft", "stats": stats},
+            "targetMetadata": {"lowItemReplacements": 0, "unresolvedLowItems": 0},
+            "sourceGoal": goal,
+        },
+        "bis": {"label": "ClassCodex BiS", "slots": bis_slots},
     }

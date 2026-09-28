@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from tools.classcodex_targets import (
     GOAL_CONTEXT_KEY,
@@ -10,7 +11,9 @@ from tools.classcodex_targets import (
     select_talent_export,
     build_trinkets,
     build_priority_row,
+    build_target_context,
 )
+from tools.live_benchmark_engine import SPEC_BY_KEY
 
 
 class SelectContextTests(unittest.TestCase):
@@ -131,6 +134,54 @@ class BuildTrinketsAndPriorityTests(unittest.TestCase):
             },
             row,
         )
+
+
+class BuildTargetContextTests(unittest.TestCase):
+    def test_reconstructs_targets_and_bis_from_gear_and_a_simc_run(self) -> None:
+        spec = SPEC_BY_KEY["DEATHKNIGHT_BLOOD"]
+        gear = [
+            {"itemId": 271474, "slot": "Head", "bonusIDs": [1], "ilvl": 334},
+            {"itemId": 268265, "slot": "Neck", "bonusIDs": [2], "ilvl": 344},
+        ]
+        talents = {"all": {"mplus": [{"export": "TALENTSTRING", "recommended": True}]}}
+        reconstructed = {
+            "ratings": {"crit": 501.0, "haste": 602.0, "mastery": 703.0, "versatility": 804.0},
+        }
+        with patch("tools.classcodex_targets.run_simc", return_value=({"sv_0001": reconstructed}, {})) as mock_run:
+            context = build_target_context(spec, "MYTHIC_PLUS", gear, talents, "all", "mplus")
+
+        self.assertEqual(
+            {"critical_strike": 501.0, "haste": 602.0, "mastery": 703.0, "versatility": 804.0},
+            context["targets"]["statTargets"]["stats"],
+        )
+        self.assertEqual(2, context["targets"]["itemCount"])
+        self.assertEqual(339.0, context["targets"]["averageItemLevel"])
+        self.assertEqual("MYTHIC_PLUS", context["targets"]["sourceGoal"])
+        self.assertEqual(
+            [
+                {"slot": "Head", "item": {"item_id": 271474, "bonus_ids": [1]}},
+                {"slot": "Neck", "item": {"item_id": 268265, "bonus_ids": [2]}},
+            ],
+            context["bis"]["slots"],
+        )
+        mock_run.assert_called_once()
+
+    def test_returns_none_when_no_talent_export_is_available(self) -> None:
+        spec = SPEC_BY_KEY["DEATHKNIGHT_BLOOD"]
+        gear = [{"itemId": 1, "slot": "Head", "ilvl": 300}]
+        self.assertIsNone(build_target_context(spec, "PVP", gear, {}, "all", "pvp"))
+
+    def test_returns_none_when_gear_list_is_empty(self) -> None:
+        spec = SPEC_BY_KEY["DEATHKNIGHT_BLOOD"]
+        talents = {"all": {"raid": [{"export": "X", "recommended": True}]}}
+        self.assertIsNone(build_target_context(spec, "RAID", [], talents, "all", "raid"))
+
+    def test_returns_none_when_simc_raises(self) -> None:
+        spec = SPEC_BY_KEY["DEATHKNIGHT_BLOOD"]
+        gear = [{"itemId": 1, "slot": "Head", "ilvl": 300}]
+        talents = {"all": {"raid": [{"export": "X", "recommended": True}]}}
+        with patch("tools.classcodex_targets.run_simc", side_effect=RuntimeError("boom")):
+            self.assertIsNone(build_target_context(spec, "RAID", gear, talents, "all", "raid"))
 
 
 if __name__ == "__main__":
