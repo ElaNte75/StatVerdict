@@ -87,3 +87,20 @@ def average_item_level(gear_list: list[dict[str, Any]] | None) -> float | None:
     if not levels:
         return None
     return sum(levels) / len(levels)
+
+
+def select_talent_export(talents_value: dict[str, Any] | None, hero_talent_key: str, context_key: str) -> str | None:
+    """Selects a talent export string for a goal/hero-talent combo. Returns the
+    export string marked as recommended if present, else the export string of the
+    first entry, or None if no valid entry exists."""
+    entries = select_context(talents_value, hero_talent_key, context_key)
+    if not isinstance(entries, list) or not entries:
+        return None
+    for entry in entries:
+        if isinstance(entry, dict) and entry.get("recommended") is True:
+            export = entry.get("export")
+            if isinstance(export, str) and export:
+                return export
+    first = entries[0]
+    export = first.get("export") if isinstance(first, dict) else None
+    return export if isinstance(export, str) and export else None

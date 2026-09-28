@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from tools.classcodex_targets import GOAL_CONTEXT_KEY, select_context, build_simc_items, average_item_level
+from tools.classcodex_targets import GOAL_CONTEXT_KEY, select_context, build_simc_items, average_item_level, select_talent_export
 
 
 class SelectContextTests(unittest.TestCase):
@@ -55,6 +55,27 @@ class BuildSimcItemsTests(unittest.TestCase):
 
     def test_average_item_level_is_none_when_nothing_has_ilvl(self) -> None:
         self.assertIsNone(average_item_level([{"itemId": 1, "slot": "Head"}]))
+
+
+class SelectTalentExportTests(unittest.TestCase):
+    def test_prefers_the_entry_marked_recommended(self) -> None:
+        talents = {
+            "deathbringer": {
+                "mplus": [
+                    {"export": "AAA", "label": "DW Frostbane"},
+                    {"export": "BBB", "label": "DW Breath", "recommended": True},
+                ]
+            }
+        }
+        self.assertEqual("BBB", select_talent_export(talents, "deathbringer", "mplus"))
+
+    def test_falls_back_to_the_first_entry_when_none_is_recommended(self) -> None:
+        talents = {"deathbringer": {"raid": [{"export": "CCC", "label": "Raid"}]}}
+        self.assertEqual("CCC", select_talent_export(talents, "deathbringer", "raid"))
+
+    def test_returns_none_when_the_context_has_no_entries(self) -> None:
+        talents = {"deathbringer": {"all": []}}
+        self.assertIsNone(select_talent_export(talents, "deathbringer", "pvp"))
 
 
 if __name__ == "__main__":
