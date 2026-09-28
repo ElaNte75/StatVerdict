@@ -2,7 +2,15 @@ from __future__ import annotations
 
 import unittest
 
-from tools.classcodex_targets import GOAL_CONTEXT_KEY, select_context, build_simc_items, average_item_level, select_talent_export
+from tools.classcodex_targets import (
+    GOAL_CONTEXT_KEY,
+    select_context,
+    build_simc_items,
+    average_item_level,
+    select_talent_export,
+    build_trinkets,
+    build_priority_row,
+)
 
 
 class SelectContextTests(unittest.TestCase):
@@ -76,6 +84,37 @@ class SelectTalentExportTests(unittest.TestCase):
     def test_returns_none_when_the_context_has_no_entries(self) -> None:
         talents = {"deathbringer": {"all": []}}
         self.assertIsNone(select_talent_export(talents, "deathbringer", "pvp"))
+
+
+class BuildTrinketsAndPriorityTests(unittest.TestCase):
+    def test_build_trinkets_passes_through_tier_and_bonus_ids(self) -> None:
+        trinkets = {"all": {"raid": [{"itemId": 270175, "bonusIDs": [13848], "tier": "S"}]}}
+        result = build_trinkets(trinkets, "all", "raid")
+        self.assertEqual([{"item_id": 270175, "bonus_ids": [13848], "tier": "S"}], result)
+
+    def test_build_trinkets_defaults_missing_bonus_ids_to_empty_list(self) -> None:
+        trinkets = {"all": {"all": [{"itemId": 1, "tier": "A"}]}}
+        result = build_trinkets(trinkets, "all", "pvp")
+        self.assertEqual([{"item_id": 1, "bonus_ids": [], "tier": "A"}], result)
+
+    def test_build_priority_row_converts_tier_groups_to_order_and_tiers(self) -> None:
+        stat_priority = {
+            "deathbringer": {"mplus": {"secondary": [["crit"], ["haste", "mastery"], ["versatility"]]}}
+        }
+        row = build_priority_row(stat_priority, "deathbringer", "mplus", "Mythic+", "deathbringer")
+        self.assertEqual(
+            {
+                "context": "Mythic+",
+                "heroTalent": "deathbringer",
+                "order": ["crit", "haste", "mastery", "versatility"],
+                "tiers": [["haste", "mastery"]],
+            },
+            row,
+        )
+
+    def test_build_priority_row_returns_none_when_no_secondary_list(self) -> None:
+        stat_priority = {"deathbringer": {"raid": {}}}
+        self.assertIsNone(build_priority_row(stat_priority, "deathbringer", "raid", "Raid", "deathbringer"))
 
 
 if __name__ == "__main__":

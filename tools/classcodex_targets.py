@@ -104,3 +104,59 @@ def select_talent_export(talents_value: dict[str, Any] | None, hero_talent_key: 
     first = entries[0]
     export = first.get("export") if isinstance(first, dict) else None
     return export if isinstance(export, str) and export else None
+
+
+def build_trinkets(trinkets_value: dict[str, Any] | None, hero_talent_key: str, context_key: str) -> list[dict[str, Any]]:
+    """Converts a ClassCodex trinket list (tiered S/A/B/C/D) into the addon's
+    expected shape. Returns a list of dicts with item_id, bonus_ids, and tier."""
+    entries = select_context(trinkets_value, hero_talent_key, context_key)
+    if not isinstance(entries, list):
+        return []
+    result = []
+    for entry in entries:
+        if not isinstance(entry, dict) or not isinstance(entry.get("itemId"), (int, float)):
+            continue
+        tier = entry.get("tier")
+        if not isinstance(tier, str) or not tier:
+            continue
+        bonus_ids = entry.get("bonusIDs")
+        result.append(
+            {
+                "item_id": int(entry["itemId"]),
+                "bonus_ids": [int(v) for v in bonus_ids if isinstance(v, (int, float))] if isinstance(bonus_ids, list) else [],
+                "tier": tier,
+            }
+        )
+    return result
+
+
+def build_priority_row(
+    stat_priority_value: dict[str, Any] | None,
+    hero_talent_key: str,
+    context_key: str,
+    context_label: str,
+    hero_talent_name: str,
+) -> dict[str, Any] | None:
+    """Converts ClassCodex's stat-priority tier-groups into an order/tiers row
+    matching what the WoW addon's SV_ProfileRepository.lua validates. Returns
+    a dict with context, heroTalent, order, and tiers, or None if no secondary list."""
+    context = select_context(stat_priority_value, hero_talent_key, context_key)
+    tiers = context.get("secondary") if isinstance(context, dict) else None
+    if not isinstance(tiers, list) or not tiers:
+        return None
+    order: list[str] = []
+    tie_groups: list[list[str]] = []
+    for group in tiers:
+        if not isinstance(group, list) or not group:
+            continue
+        order.extend(group)
+        if len(group) > 1:
+            tie_groups.append(list(group))
+    if not order:
+        return None
+    return {
+        "context": context_label,
+        "heroTalent": hero_talent_name,
+        "order": order,
+        "tiers": tie_groups,
+    }
