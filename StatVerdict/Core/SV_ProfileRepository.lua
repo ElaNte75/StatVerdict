@@ -3,7 +3,6 @@ local addonName, ns = ...
 local Repository = {}
 ns.ProfileRepository = Repository
 
-local SCHEMA_VERSION = 1
 local VALID_GOALS = {
     MYTHIC_PLUS = true,
     RAID = true,
@@ -47,7 +46,6 @@ local function NormalizeToken(value)
 end
 
 local MAX_GENERATED_AGE_DAYS = 30
-local MAX_SCRAPE_AGE_DAYS = 120
 local MIN_CONTEXT_ITEMS = 10
 local MAX_LOW_ITEM_RATIO = 0.25
 
@@ -76,24 +74,12 @@ local function IsRecentDate(value, maxAgeDays)
     return age >= -86400 and age <= (maxAgeDays * 86400)
 end
 
-local function GetRoot()
-    local root = ns.GeneratedProfileData
-    if type(root) ~= "table" or root.schemaVersion ~= SCHEMA_VERSION then
-        return nil
-    end
-    local source = type(root.source) == "table" and root.source or nil
-    if not IsRecentDate(root.generatedAt, MAX_GENERATED_AGE_DAYS)
-        or not IsRecentDate(source and source.scrape, MAX_SCRAPE_AGE_DAYS)
-    then
-        return nil
-    end
-    return root
-end
-
 local MYTHIC_PLUS_SCHEMA_VERSION = 1
 
 -- Mythic+ data comes from the live benchmark file (tools/addon_benchmarks.py),
--- one context per benchmark level. Other goals still use the bundled root.
+-- one context per benchmark level. Raid and PvP have no live data source yet
+-- (see tools/classcodex_build.py, not wired into the addon yet) -- GetGoalRoot
+-- and GetContext return nil for them below, same as any other missing source.
 local function GetMythicPlusRoot()
     local root = ns.MythicPlusBenchmarks
     if type(root) ~= "table" or root.schemaVersion ~= MYTHIC_PLUS_SCHEMA_VERSION then
@@ -107,25 +93,17 @@ end
 
 local function GetGoalRoot(goal)
     if goal == "MYTHIC_PLUS" then return GetMythicPlusRoot() end
-    return GetRoot()
+    return nil
 end
 
 local function GetContext(specKey, goal)
-    if goal == "MYTHIC_PLUS" then
-        local root = GetMythicPlusRoot()
-        local profiles = root and root.profiles
-        local profile = type(profiles) == "table" and profiles[specKey] or nil
-        if type(profile) ~= "table" or type(profile.levels) ~= "table" then return nil, nil end
-        local level = ns.GetBenchmarkLevel and ns.GetBenchmarkLevel() or "STANDARD"
-        local context = profile.levels[level]
-        return type(context) == "table" and context or nil, profile
-    end
-    local root = GetRoot()
+    if goal ~= "MYTHIC_PLUS" then return nil, nil end
+    local root = GetMythicPlusRoot()
     local profiles = root and root.profiles
     local profile = type(profiles) == "table" and profiles[specKey] or nil
-    local contexts = type(profile) == "table" and profile.contexts or nil
-    if type(contexts) ~= "table" then return nil, profile end
-    local context = contexts[goal]
+    if type(profile) ~= "table" or type(profile.levels) ~= "table" then return nil, nil end
+    local level = ns.GetBenchmarkLevel and ns.GetBenchmarkLevel() or "STANDARD"
+    local context = profile.levels[level]
     return type(context) == "table" and context or nil, profile
 end
 
@@ -155,15 +133,6 @@ local function ValidateGeneratedContext(context, goal)
     end
 
     local itemCount = tonumber(targets.itemCount) or 0
-    if goal == "PVP" then
-        -- PvP currently has priorities and BiS references, but no resolved Murlok
-        -- gear totals. A non-zero count is the legacy cross-goal PvE fallback.
-        if itemCount ~= 0 or tonumber(targets.averageItemLevel) ~= nil then
-            return false, "PvP targets contain cross-goal resolved gear data."
-        end
-        return true
-    end
-
     local averageItemLevel = tonumber(type(targets) == "table" and targets.averageItemLevel or nil)
     if averageItemLevel == nil or averageItemLevel < MIN_VALID_MAX_LEVEL_TARGET_ILVL then
         return false, "Generated target item level is not valid for a max-level profile."
@@ -191,14 +160,8 @@ function Repository.GetDataProvenance(goal)
             sourceName = "StatVerdict live benchmarks" .. (level and (" · " .. level.label) or ""),
         }
     end
-    local root = ns.GeneratedProfileData
-    local source = type(root) == "table" and root.source or nil
-    return {
-        available = GetRoot() ~= nil,
-        generatedAt = type(root) == "table" and root.generatedAt or nil,
-        scrape = type(source) == "table" and source.scrape or nil,
-        sourceName = type(source) == "table" and source.name or nil,
-    }
+    -- Raid and PvP have no live data source yet -- see the GetGoalRoot comment above.
+    return { available = false }
 end
 
 local function PriorityScore(row, heroTalentName, contextName, heroSubTreeID)

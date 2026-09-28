@@ -44,12 +44,6 @@ local function GetSpecKey(profile)
         local key = ns.GetStatVerdictSpecKeyBySpecID(profile.specID)
         if type(key) == "string" and key ~= "" then return key end
     end
-    local id = tostring(profile.id or "")
-    if id ~= "" and ns.GeneratedProfileData and type(ns.GeneratedProfileData.profiles) == "table" then
-        for specKey in pairs(ns.GeneratedProfileData.profiles) do
-            if id == specKey or id:find(specKey, 1, true) == 1 then return specKey end
-        end
-    end
     return nil
 end
 

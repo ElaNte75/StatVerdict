@@ -191,9 +191,16 @@ class RepositoryTests(unittest.TestCase):
         lua, ns = self.build_runtime(generated_at=now_stamp(days_ago=40))
         self.assertIsNone(ns.ProfileRepository.BuildRuntimeProfile(self.context(lua)))
 
-    def test_raid_still_reads_the_old_file_only(self) -> None:
+    def test_raid_and_pvp_have_no_live_data_source_yet(self) -> None:
+        # The old ClassCodex-derived SV_ProfileData.lua/json (and everything
+        # that read it) were removed 2026-09-28 -- it was built from a
+        # source since confirmed frozen/stale. Raid/PvP data returns
+        # gracefully empty until the new ClassCodex live data pipeline
+        # (tools/classcodex_*.py) is wired into the addon.
         lua, ns = self.build_runtime()
         self.assertIsNone(ns.ProfileRepository.BuildRuntimeProfile(self.context(lua, goal="RAID")))
+        self.assertIsNone(ns.ProfileRepository.BuildRuntimeProfile(self.context(lua, goal="PVP")))
+        self.assertFalse(ns.ProfileRepository.GetDataProvenance("RAID").available)
 
     def test_provider_view_lists_specs_from_the_live_file(self) -> None:
         lua, ns = self.build_runtime()
