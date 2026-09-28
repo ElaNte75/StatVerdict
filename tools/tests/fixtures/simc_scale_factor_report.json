@@ -1,0 +1,20 @@
+{
+  "sim": {
+    "players": [
+      {
+        "name": "sv_0001",
+        "scaling": {
+          "dps": {
+            "strength": 1.82,
+            "agility": 0.0,
+            "stamina": 0.0,
+            "crit_rating": 0.653,
+            "haste_rating": 0.492,
+            "mastery_rating": 0.455,
+            "versatility_rating": 0.345
+          }
+        }
+      }
+    ]
+  }
+}
