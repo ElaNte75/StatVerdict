@@ -183,6 +183,14 @@ class BuildTargetContextTests(unittest.TestCase):
         with patch("tools.classcodex_targets.run_simc", side_effect=RuntimeError("boom")):
             self.assertIsNone(build_target_context(spec, "RAID", gear, talents, "all", "raid"))
 
+    def test_returns_none_when_fewer_than_two_usable_stats(self) -> None:
+        spec = SPEC_BY_KEY["DEATHKNIGHT_BLOOD"]
+        gear = [{"itemId": 1, "slot": "Head", "ilvl": 300}]
+        talents = {"all": {"raid": [{"export": "X", "recommended": True}]}}
+        reconstructed = {"ratings": {"crit": 501.0}}
+        with patch("tools.classcodex_targets.run_simc", return_value=({"sv_0001": reconstructed}, {})):
+            self.assertIsNone(build_target_context(spec, "RAID", gear, talents, "all", "raid"))
+
 
 if __name__ == "__main__":
     unittest.main()
