@@ -123,3 +123,52 @@ reconstructed by SimulationCraft.
 Any API, schema, or quality failure, or more than `--max-insufficient-specs`
 (default 4) insufficient specs, stops the workflow and preserves the last
 known-good database.
+
+## ClassCodex live data (stat priority, BiS gear, ranked trinkets, PvP)
+
+Separate pipeline from the Mythic+ benchmark engine above -- this one covers
+stat priority, best-in-slot gear, ranked trinkets, and PvP, for both PvE and
+PvP contexts, across all 40 specializations. It has nothing to do with
+Raider.IO or SimulationCraft; StatVerdict's own target-stat numbers (the
+benchmark engine above) remain the source of record for "what should my
+stats be" and are not touched by this pipeline.
+
+**Source:** the same public build host the official Icy Veins / U.GG desktop
+app itself updates from (`wow-class-codex.s3.us-east-1.amazonaws.com`) --
+confirmed 2026-09-28 by reading that app's own local network log. No login,
+no browser, no app required: plain HTTPS to a versioned build-manifest
+system (`channels/.../config.json` -> `builds/.../manifest.json` -> the
+files themselves, each checksum-verified against the manifest).
+
+This replaces the abandoned `Scraper` repository, which pulled from a
+third-party GitHub mirror (`Tharavol/ClassCodexContinued`) that mirror's own
+README now says is frozen and stale -- confirmed live: it was missing
+Critical Strike from Frost Death Knight's stat priority entirely, while this
+source and the real installed addon both have it correctly.
+
+- `tools/classcodex_fetch.py` -- fetches and checksum-verifies the four
+  needed files (`db_ugg.lua`, `db_icyveins.lua`, `db_gamedata.lua`,
+  `Shared/StatDR.lua`). Fails closed (raises `FetchFailure`) on any network,
+  JSON, layout, or checksum problem rather than writing partial data.
+- `tools/classcodex_lua_sandbox.py` -- hardened embedded-Lua execution for
+  this third-party data (ported from the abandoned Scraper repo's
+  already-security-reviewed sandbox: `os`/`io`/`load`-family globals
+  removed, `python.eval` escape closed, Python-object attribute access
+  denied at runtime construction).
+- `tools/classcodex_build.py` -- merges the two sources per spec (u.gg is
+  consistently the more granular of the two -- hero-talent-specific where
+  IcyVeins only has "all" -- so it wins whenever both have a field;
+  IcyVeins fills gaps). Deliberately excludes u.gg's flat `statTargets`
+  (a generic, non-player-derived number, inferior to the benchmark engine
+  above) and `tierRank` (spec popularity/parse-rank, a different concern).
+- `tools/classcodex_cli.py` -- ties the above together and writes
+  `StatVerdict/Data/Generated/SV_ClassCodexLiveData.lua`; `--report` prints
+  a per-spec source summary instead of writing.
+
+`.github/workflows/classcodex-live-refresh.yml` runs this weekly and on
+manual dispatch, committing only when the generated file actually changed.
+
+Not yet done: wiring `SV_ClassCodexLiveData.lua` into the addon's `.toc` and
+UI panels, and a decision on whether/how to vendor `Shared/StatDR.lua` itself
+(a live in-game calculation module, not static reference data) into the
+addon for stat-value-aware comparisons.
