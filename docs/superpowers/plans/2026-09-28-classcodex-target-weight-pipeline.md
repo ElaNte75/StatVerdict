@@ -1025,73 +1025,97 @@ git commit -m "Batch-build ClassCodex stat targets across specs/goals/hero-talen
 
 ---
 
-## Task 8: Capture a real SimC scale-factor report and pin its shape
+## Task 8: Write a documented-shape SimC scale-factor fixture (live capture blocked in this environment — see ruling)
 
 **Files:**
 - Create: `tools/tests/fixtures/simc_scale_factor_report.json`
 - Create: `tools/tests/test_simc_scale_factor_report_fixture.py`
 
-This task exists because SimC's `calculate_scale_factors=1` JSON shape is
-real, external, and must not be guessed — the rest of this plan's
-scale-factor parsing code is written against whatever this task actually
-captures, not against assumed field names.
+**Ruling (see the SDD ledger, "Ruling: Task 8 live-capture is blocked in
+this session's environment"):** this task originally called for building
+SimC and capturing a real `calculate_scale_factors=1` report before writing
+anything against it. Neither path worked in this session — no local
+`cmake`/`ninja`/`g++` toolchain, and two different GitHub Actions dispatch
+attempts (`workflow_dispatch`, then a plain `push` trigger) both failed to
+produce a real job run, and a third minimal isolation test was blocked by
+this session's own permission classifier before it could even be pushed.
+`main` was left clean (every spike workflow reverted).
+
+**This task instead writes the fixture from documented knowledge of SimC's
+json2 report shape, clearly labeled as unverified, and the resulting
+generated file must be spot-checked against one real SimC run (on a machine
+with a working toolchain, or once GitHub Actions dispatch is sorted out)
+before anyone trusts `SV_ClassCodexWeights.lua`'s numbers in-game — say this
+explicitly in the implementer's report.** The fail-closed design in Task 9
+(`parse_scale_factors` raises `ValueError` rather than guessing when a key
+is missing) means a wrong assumption here surfaces as "no weights
+generated" the first time it meets a real report, not silently wrong
+numbers in the generated file — this is what makes shipping on documented
+knowledge an acceptable ruling rather than a guess that could reach a
+player.
 
 **Interfaces:**
 - Consumes: nothing from this plan yet.
 - Produces: a committed fixture file that Task 9 imports by path.
 
-- [ ] **Step 1: Build SimC locally or via a throwaway GitHub Actions run**
+- [ ] **Step 1: Write the fixture from SimC's documented json2 scale-factor shape**
 
-Locally (if `cmake`, `ninja`, and a C++ compiler are available):
+SimC's `calculate_scale_factors=1` json2 report adds a `"scaling"` object to
+each player, keyed by DPS/HPS metric (`"dps"` for damage specs) then by
+stat token (`"<stat>_rating"` for secondaries, matching the same
+`crit_rating`/`haste_rating`/`mastery_rating`/`versatility_rating` tokens
+`tools/simc_stat_engine.py`'s `parse_report` already reads from the
+non-scale-factor report). Write
+`tools/tests/fixtures/simc_scale_factor_report.json`:
 
-```bash
-git clone --branch midnight --depth 1 https://github.com/simulationcraft/simc .simc-source
-cmake -S .simc-source -B .simc-build -G Ninja -DBUILD_GUI=OFF -DSC_NO_NETWORKING=ON -DCMAKE_BUILD_TYPE=Release
-cmake --build .simc-build --target simc --parallel 2
+```json
+{
+  "sim": {
+    "players": [
+      {
+        "name": "sv_0001",
+        "scaling": {
+          "dps": {
+            "strength": 1.82,
+            "agility": 0.0,
+            "stamina": 0.0,
+            "crit_rating": 0.653,
+            "haste_rating": 0.492,
+            "mastery_rating": 0.455,
+            "versatility_rating": 0.345
+          }
+        }
+      }
+    ]
+  }
+}
 ```
 
-If no local build toolchain is available, use a throwaway GitHub Actions
-workflow on a scratch branch, following the exact `checkout` + `cmake`/
-`ninja` steps already in `.github/workflows/weekly-benchmarks.yml`
-(`Check out SimulationCraft Midnight` / `Build SimulationCraft CLI` steps) —
-add one step that runs the command below and uploads `report.json` as an
-artifact, dispatch it, download the artifact, then delete the branch and
-workflow file afterward (do not leave a spike workflow committed).
+(Values are illustrative, shaped after the real Frost DK scale-factor
+numbers recorded in this project's 2026-09-28 spike — Crit > Haste >
+Mastery > Versatility — not a live capture.)
 
-- [ ] **Step 2: Run a scale-factor sim against SimC's own bundled reference profile**
+- [ ] **Step 2: Add a header comment recording that this fixture is unverified**
 
-```bash
-.simc-build/simc .simc-source/profiles/MID2/MID2_Death_Knight_Frost.simc \
-  calculate_scale_factors=1 \
-  iterations=1000 \
-  fight_style=Patchwerk \
-  max_time=60 \
-  json2=report.json \
-  output=/dev/null html=/dev/null threads=2
+At the top of the JSON is not valid (JSON has no comments), so instead add
+a sibling file `tools/tests/fixtures/simc_scale_factor_report.README.md`:
+
+```markdown
+# simc_scale_factor_report.json
+
+**Not a live capture.** Written from documented knowledge of SimC's
+`calculate_scale_factors=1` json2 report shape (a `scaling` object per
+player, keyed by metric then `<stat>_rating`) because this repository's
+working environment could not build SimC or get a GitHub Actions dispatch
+to run at the time (see the SDD ledger for
+docs/superpowers/plans/2026-09-28-classcodex-target-weight-pipeline.md,
+Task 8's ruling). Replace this file with a real captured report — and
+re-run `tools/tests/test_simc_scale_factor_report_fixture.py` and
+`tools/tests/test_classcodex_weights.py` against it — before trusting
+`SV_ClassCodexWeights.lua`'s numbers in-game.
 ```
 
-- [ ] **Step 3: Inspect the report and copy the relevant slice into the fixture**
-
-```bash
-python3 -c "
-import json
-report = json.load(open('report.json'))
-sim = report.get('sim', report)
-players = sim.get('players') or sim.get('player') or []
-p = players[0]
-print(sorted(p.keys()))
-for k in p:
-    if 'scal' in k.lower():
-        print(k, json.dumps(p[k])[:2000])
-"
-```
-
-Save the full `report.json` (or, if it is large, just the one player's
-object plus enough of `sim` to keep it valid JSON) as
-`tools/tests/fixtures/simc_scale_factor_report.json`. Keep it real —
-copy the actual captured JSON, not a hand-written approximation.
-
-- [ ] **Step 4: Write a test that pins the fixture's shape**
+- [ ] **Step 3: Write a test that pins the fixture's (documented, unverified) shape**
 
 ```python
 # tools/tests/test_simc_scale_factor_report_fixture.py
@@ -1106,14 +1130,16 @@ FIXTURE = Path(__file__).parent / "fixtures" / "simc_scale_factor_report.json"
 
 class ScaleFactorFixtureShapeTests(unittest.TestCase):
     def test_fixture_exists_and_is_valid_json(self) -> None:
-        self.assertTrue(FIXTURE.exists(), f"missing {FIXTURE} -- run Task 8's capture steps first")
+        self.assertTrue(FIXTURE.exists(), f"missing {FIXTURE} -- see Task 8's ruling in the plan/ledger")
         report = json.loads(FIXTURE.read_text(encoding="utf-8"))
         sim = report.get("sim", report)
         players = sim.get("players") or sim.get("player") or []
         self.assertTrue(players, "fixture has no player entries")
         # This assertion documents the real key this plan's parser (Task 9)
         # must read scale factors from -- update it (and Task 9's parser) to
-        # match whatever key the captured report actually used if different.
+        # match whatever key a real captured report actually uses, once one
+        # is available (this fixture is documented knowledge, not a live
+        # capture -- see simc_scale_factor_report.README.md).
         self.assertIn("scaling", players[0])
 
 
@@ -1121,18 +1147,19 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-- [ ] **Step 5: Run the test to verify it passes against the real fixture**
+- [ ] **Step 4: Run the test to verify it passes against the fixture**
 
 Run: `python -m unittest tools.tests.test_simc_scale_factor_report_fixture -v`
-Expected: PASS. If the real report does not have a `"scaling"` key, change
-this assertion to whatever key it does have (do not change the fixture to
-fit the assertion) — Task 9 is written against this test's outcome.
+Expected: PASS. If a later real capture does not have a `"scaling"` key,
+change this assertion to whatever key it does have (do not change the
+fixture to fit the assertion) — Task 9 is written against this test's
+outcome.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add tools/tests/fixtures/simc_scale_factor_report.json tools/tests/test_simc_scale_factor_report_fixture.py
-git commit -m "Capture and pin a real SimC calculate_scale_factors report shape"
+git add tools/tests/fixtures/simc_scale_factor_report.json tools/tests/fixtures/simc_scale_factor_report.README.md tools/tests/test_simc_scale_factor_report_fixture.py
+git commit -m "Add a documented-shape SimC scale-factor fixture (live capture blocked this session, see ledger)"
 ```
 
 ---
@@ -1144,17 +1171,20 @@ git commit -m "Capture and pin a real SimC calculate_scale_factors report shape"
 - Test: `tools/tests/test_classcodex_weights.py` (new)
 
 **Interfaces:**
-- Consumes: the fixture and confirmed key from Task 8.
+- Consumes: the documented-shape fixture from Task 8 (see Task 8's ruling —
+  not a live capture; the key name below is best-documented-knowledge,
+  not confirmed).
 - Produces: `parse_scale_factors(report: dict) -> dict[str, dict[str, float]]`
   (actor name -> `{"crit": ..., "haste": ..., "mastery": ..., "versatility": ...}`).
 
 **Note for the implementer:** write this task's parser function to read the
-exact key(s) Task 8 confirmed (`"scaling"` in the sketch below — replace
-every occurrence of `"scaling"` in this task's code with the real key if
-Task 8 found something different; do not implement against the sketch
-without first checking Task 8's committed fixture).
+key Task 8's fixture uses (`"scaling"` in the sketch below). If Task 8's
+fixture has since been replaced with a real captured report (see its
+README), read whatever key that real report actually has instead — the
+fixture is the source of truth for this task, the sketch below is only a
+starting point.
 
-- [ ] **Step 1: Write the failing test using the real fixture**
+- [ ] **Step 1: Write the failing test using Task 8's fixture**
 
 ```python
 # tools/tests/test_classcodex_weights.py
@@ -1170,7 +1200,7 @@ FIXTURE = Path(__file__).parent / "fixtures" / "simc_scale_factor_report.json"
 
 
 class ParseScaleFactorsTests(unittest.TestCase):
-    def test_parses_real_captured_report(self) -> None:
+    def test_parses_the_documented_shape_fixture(self) -> None:
         report = json.loads(FIXTURE.read_text(encoding="utf-8"))
         weights = parse_scale_factors(report)
         self.assertTrue(weights, "expected at least one actor's weights")
@@ -1678,8 +1708,12 @@ Expected: empty output (this plan is data-pipeline only, per the spec's
 
 Summarize (in the assistant's response, not a file): what the three new
 generated files contain, that nothing about how the addon scores items has
-changed yet, and that the next step is a separate plan to wire
+changed yet, that the next step is a separate plan to wire
 `SV_ClassCodexTargets.lua` / `SV_ClassCodexWeights.lua` / `SV_StatDR.lua`
 into `SV_ProfileRepository.lua` and `SV_ItemReferenceBonuses.lua` for
-Raid/PvP/Mythic+, which is the point at which the user can test results
-against ClassCodex's own displayed priority/BiS/trinkets in-game.
+Raid/PvP/Mythic+ (the point at which the user can test results against
+ClassCodex's own displayed priority/BiS/trinkets in-game), **and explicitly
+flag Task 8's ruling**: `SV_ClassCodexWeights.lua`'s numbers come from a
+documented-but-unverified SimC report shape (no build toolchain or working
+CI dispatch was available to capture a real one this session) and need a
+real spot-check before anyone trusts them in-game.
