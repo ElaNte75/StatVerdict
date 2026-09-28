@@ -1,0 +1,54 @@
+name: SPIKE - SimC scale factors proof
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out SimulationCraft Midnight
+        uses: actions/checkout@v5
+        with:
+          repository: simulationcraft/simc
+          ref: midnight
+          path: .simc-source
+          fetch-depth: 1
+
+      - name: Build SimulationCraft CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++
+          cmake -S .simc-source -B .simc-build -G Ninja \
+            -DBUILD_GUI=OFF -DSC_NO_NETWORKING=ON -DCMAKE_BUILD_TYPE=Release
+          cmake --build .simc-build --target simc --parallel 2
+
+      - name: Run scale-factor sim on the bundled Frost DK reference profile
+        run: |
+          .simc-build/simc .simc-source/profiles/MID2/MID2_Death_Knight_Frost.simc \
+            calculate_scale_factors=1 \
+            iterations=1000 \
+            fight_style=Patchwerk \
+            max_time=60 \
+            json2=report.json \
+            output=/dev/null html=/dev/null threads=2
+
+      - name: Print top-level report keys
+        run: |
+          python3 -c "
+import json
+report = json.load(open('report.json'))
+sim = report.get('sim', report)
+players = sim.get('players') or sim.get('player') or []
+print('player count:', len(players))
+p = players[0]
+print('player top-level keys:', sorted(p.keys()))
+"
+
+      - name: Upload full report
+        uses: actions/upload-artifact@v4
+        with:
+          name: report
+          path: report.json
+          retention-days: 3
