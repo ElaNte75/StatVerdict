@@ -1,27 +1,27 @@
-name: ClassCodex live data refresh
+name: ClassCodex stat-weight refresh
 
 on:
   schedule:
-    # Weekly. The upstream build host itself refreshes far more often (the
-    # source data is regenerated roughly daily) -- this can move to a
-    # tighter cron later with no code change if that turns out worth it.
-    - cron: "0 12 * * 3"
+    # Roughly every 15 days -- game-balance changes are infrequent, unlike
+    # the weekly ClassCodex BiS/gear refresh.
+    - cron: "0 12 1,16 * *"
   workflow_dispatch: {}
 
 permissions:
   contents: write
 
 concurrency:
-  group: classcodex-live-refresh
+  group: classcodex-stat-weights
   cancel-in-progress: false
 
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    timeout-minutes: 180
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -58,24 +58,21 @@ jobs:
           cmake --build .simc-build --target simc --parallel 2
 
       - name: Run existing tests
-        run: python -m unittest discover -s tools/tests
+        run: python -m unittest discover -s tools/tests -v
 
-      - name: Fetch and build the live ClassCodex data
-        run: python tools/classcodex_cli.py
-
-      - name: Build ClassCodex stat targets
-        run: python tools/classcodex_targets_cli.py --simc-bin .simc-build/simc
+      - name: Build ClassCodex stat weights
+        run: python tools/classcodex_weights_cli.py --simc-bin .simc-build/simc
 
       - name: Commit generated data
         run: |
-          if [ -z "$(git status --porcelain -- StatVerdict/Data/Generated/SV_ClassCodexLiveData.lua StatVerdict/Data/Generated/SV_ClassCodexTargets.lua StatVerdict/Data/Generated/SV_StatDR.lua)" ]; then
+          if [ -z "$(git status --porcelain -- StatVerdict/Data/Generated/SV_ClassCodexWeights.lua)" ]; then
             echo "No changes to commit."
             exit 0
           fi
           git config user.name "StatVerdict Benchmark Bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add StatVerdict/Data/Generated/SV_ClassCodexLiveData.lua StatVerdict/Data/Generated/SV_ClassCodexTargets.lua StatVerdict/Data/Generated/SV_StatDR.lua
-          git commit -m "data: refresh live ClassCodex data"
+          git add StatVerdict/Data/Generated/SV_ClassCodexWeights.lua
+          git commit -m "data: refresh ClassCodex stat weights"
           for attempt in 1 2 3 4 5; do
             if git push; then
               exit 0
