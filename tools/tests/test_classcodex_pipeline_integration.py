@@ -142,9 +142,8 @@ class RealShapedPipelineTests(unittest.TestCase):
         self.assertEqual(6, len(profiles_seen))  # 3 goals x 2 hero talents
 
     def test_weights_pipeline_produces_every_goal_for_every_hero_talent(self) -> None:
-        report = {"sim": {"players": [{"name": "sv_0001", "scaling": {"dps": {
-            "crit_rating": 0.653, "haste_rating": 0.492, "mastery_rating": 0.455, "versatility_rating": 0.345,
-        }}}]}}
+        by_stat = {"Str": 0.0, "Crit": 0.653, "Haste": 0.492, "Mastery": 0.455, "Vers": 0.345}
+        report = {"sim": {"players": [{"name": "sv_0001", "scale_factors": by_stat, "scale_factors_all": {"dps": by_stat}}]}}
         with patch("tools.classcodex_weights.run_simc", return_value=({}, report)):
             data = build_all_weights(self.specs, Path("simc"))
 

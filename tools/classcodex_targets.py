@@ -241,6 +241,41 @@ class ComboSkipped(Exception):
         self.reason = reason
 
 
+# The addon's own canonical secondary-stat keys (STAT_KEY in
+# StatVerdict/Core/SV_ProfileRepository.lua). Every stat name this pipeline
+# emits -- targets, priority order/tiers, weights -- goes through
+# canonical_stat_name() so the generated files never leak a raw upstream
+# token the addon would silently drop.
+CANONICAL_SECONDARY_STATS: tuple[str, ...] = ("critical_strike", "haste", "mastery", "versatility")
+
+# Lower-cased upstream spellings -> canonical. Covers ClassCodex priority
+# tokens ("crit"), simc_stat_engine.parse_report keys ("crit"), SimC's
+# util::stat_type_abbrev names used in scale-factor reports ("Crit",
+# "Haste", "Mastery", "Vers"), SimC long names ("crit_rating", ...) and the
+# addon's own spellings.
+STAT_TO_CANONICAL: dict[str, str] = {
+    "crit": "critical_strike",
+    "crit_rating": "critical_strike",
+    "critical_strike": "critical_strike",
+    "critical-strike": "critical_strike",
+    "haste": "haste",
+    "haste_rating": "haste",
+    "mastery": "mastery",
+    "mastery_rating": "mastery",
+    "vers": "versatility",
+    "versatility": "versatility",
+    "versatility_rating": "versatility",
+}
+
+
+def canonical_stat_name(raw: Any) -> str | None:
+    """Maps any known upstream spelling of a secondary stat to the addon's
+    canonical key, or None if it is not one of the four secondaries."""
+    if not isinstance(raw, str):
+        return None
+    return STAT_TO_CANONICAL.get(raw.strip().lower())
+
+
 SIMC_TO_CANONICAL_STAT = {
     "crit": "critical_strike",
     "haste": "haste",

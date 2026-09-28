@@ -90,12 +90,38 @@ def render_player(
     return "\n".join(lines)
 
 
-def render_profiles(spec: Any, records: list[dict[str, Any]]) -> tuple[str, dict[str, dict[str, Any]]]:
+def render_profiles(
+    spec: Any,
+    records: list[dict[str, Any]],
+    *,
+    iterations: int = 1,
+    max_time: int = 1,
+    fixed_time: int = 1,
+    calculate_scale_factors: bool = False,
+    scale_only: tuple[str, ...] | None = None,
+    target_error: float | None = None,
+) -> tuple[str, dict[str, dict[str, Any]]]:
+    """Renders a SimC profile for one or more actors of `spec`.
+
+    The defaults (1 iteration, 1-second fight, no scale factors) are for
+    paper-doll reconstruction, where only the buffed stat sheet is read and
+    combat outcomes are irrelevant. Scale-factor runs need real statistical
+    power and must override them (see tools/classcodex_weights.py).
+    `scale_only` is SimC's comma-separated stat filter (SimC splits on
+    ",:;/|" and accepts its long stat names, e.g. "crit_rating").
+    `target_error`, when set, lets SimC stop early once the DPS error is
+    below that percentage, with `iterations` acting as the cap."""
     blocks = [
-        "iterations=1",
-        "max_time=1",
-        "fixed_time=1",
-        "calculate_scale_factors=0",
+        f"iterations={int(iterations)}",
+        f"max_time={int(max_time)}",
+        f"fixed_time={int(fixed_time)}",
+        f"calculate_scale_factors={1 if calculate_scale_factors else 0}",
+    ]
+    if scale_only:
+        blocks.append("scale_only=" + ",".join(scale_only))
+    if target_error is not None:
+        blocks.append(f"target_error={target_error}")
+    blocks += [
         "report_details=0",
         "allow_experimental_specializations=1",
     ]
