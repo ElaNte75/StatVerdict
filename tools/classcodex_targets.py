@@ -50,3 +50,40 @@ def select_context(nested: dict[str, Any] | None, hero_talent_key: str, context_
     if context_key in by_context:
         return by_context[context_key]
     return by_context.get(FALLBACK_CONTEXT_KEY)
+
+
+def build_simc_items(gear_list: list[dict[str, Any]] | None) -> dict[str, dict[str, Any]]:
+    """Converts a ClassCodex gear list into a SimC items dict keyed by WoW API
+    slot tokens (as defined in CLASSCODEX_SLOT_TO_SIMC). Each item carries its
+    itemId, optional itemLevel (ilvl), and optional bonusIds (camelCase bonusIDs).
+    Skips entries with unknown slots or missing itemIds."""
+    items: dict[str, dict[str, Any]] = {}
+    for entry in gear_list or []:
+        if not isinstance(entry, dict):
+            continue
+        simc_slot = CLASSCODEX_SLOT_TO_SIMC.get(str(entry.get("slot") or ""))
+        item_id = entry.get("itemId")
+        if simc_slot is None or not isinstance(item_id, (int, float)):
+            continue
+        item: dict[str, Any] = {"itemId": int(item_id)}
+        ilvl = entry.get("ilvl")
+        if isinstance(ilvl, (int, float)):
+            item["itemLevel"] = ilvl
+        bonus_ids = entry.get("bonusIDs")
+        if isinstance(bonus_ids, list):
+            item["bonusIds"] = [int(v) for v in bonus_ids if isinstance(v, (int, float))]
+        items[simc_slot] = item
+    return items
+
+
+def average_item_level(gear_list: list[dict[str, Any]] | None) -> float | None:
+    """Calculates the average item level from a gear list, ignoring entries
+    without an ilvl field. Returns None if no entries have an ilvl."""
+    levels = [
+        float(entry["ilvl"])
+        for entry in (gear_list or [])
+        if isinstance(entry, dict) and isinstance(entry.get("ilvl"), (int, float))
+    ]
+    if not levels:
+        return None
+    return sum(levels) / len(levels)
