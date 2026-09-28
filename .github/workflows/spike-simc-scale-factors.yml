@@ -1,7 +1,10 @@
 name: SPIKE - SimC scale factors proof
 
 on:
-  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/spike-simc-scale-factors.yml'
 
 jobs:
   probe:
