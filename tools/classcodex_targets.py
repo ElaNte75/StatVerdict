@@ -37,13 +37,27 @@ CLASSCODEX_SLOT_TO_SIMC: dict[str, str] = {
     "Off Hand": "OFF_HAND",
 }
 
-GOAL_CONTEXT_KEY: dict[str, str] = {
-    "MYTHIC_PLUS": "mplus",
-    "RAID": "raid",
-    "PVP": "pvp",
+FALLBACK_CONTEXT_KEY = "all"
+ALL_HERO_TALENTS_KEY = "all"
+
+# Per goal, the ClassCodex context keys to try, in order, before the final
+# FALLBACK_CONTEXT_KEY ("all"). Real ClassCodex data (build
+# 20260928064230-9b041a5-43564495) keys `statPriority` by "single-target" /
+# "aoe" / "pvp" -- never "mplus"/"raid" -- while gear/talents use
+# "mplus"/"raid"/"pvp". Mythic+ is AoE-heavy content and Raid is
+# single-target-heavy, so those are each goal's second choice. PvP has no
+# aoe/single-target equivalent.
+GOAL_CONTEXT_KEYS: dict[str, tuple[str, ...]] = {
+    "MYTHIC_PLUS": ("mplus", "aoe"),
+    "RAID": ("raid", "single-target"),
+    "PVP": ("pvp",),
 }
 
-FALLBACK_CONTEXT_KEY = "all"
+# First-choice context key per goal (kept for callers that resolve a single
+# explicit key through select_context()).
+GOAL_CONTEXT_KEY: dict[str, str] = {goal: keys[0] for goal, keys in GOAL_CONTEXT_KEYS.items()}
+
+GOAL_LABEL: dict[str, str] = {"MYTHIC_PLUS": "Mythic+", "RAID": "Raid", "PVP": "PvP"}
 
 
 def select_context(nested: dict[str, Any] | None, hero_talent_key: str, context_key: str) -> Any | None:
@@ -58,6 +72,33 @@ def select_context(nested: dict[str, Any] | None, hero_talent_key: str, context_
     if context_key in by_context:
         return by_context[context_key]
     return by_context.get(FALLBACK_CONTEXT_KEY)
+
+
+def select_goal_context(nested: dict[str, Any] | None, hero_talent_key: str, goal: str) -> Any | None:
+    """Goal-based lookup used by the batch builders. Tries the goal's ordered
+    context keys (GOAL_CONTEXT_KEYS) and then "all" under the requested hero
+    talent; if none of those holds a non-empty value, repeats the same chain
+    under the "all" hero-talent key. ClassCodex uses "all" as the hero key
+    for fields that do not vary by hero talent (see tools/classcodex_build.py)
+    and real data relies on it: Mythic+/Raid gear and all trinkets live only
+    under hero "all", while talents and aoe/single-target stat priorities
+    live only under the specific hero keys. Empty values are treated as
+    absent so the chain keeps looking. Returns None if nothing matches."""
+    if not isinstance(nested, dict):
+        return None
+    context_keys = GOAL_CONTEXT_KEYS[goal] + (FALLBACK_CONTEXT_KEY,)
+    hero_keys = [hero_talent_key]
+    if hero_talent_key != ALL_HERO_TALENTS_KEY:
+        hero_keys.append(ALL_HERO_TALENTS_KEY)
+    for hero_key in hero_keys:
+        by_context = nested.get(hero_key)
+        if not isinstance(by_context, dict):
+            continue
+        for context_key in context_keys:
+            value = by_context.get(context_key)
+            if value:
+                return value
+    return None
 
 
 def build_simc_items(gear_list: list[dict[str, Any]] | None) -> dict[str, dict[str, Any]]:
@@ -101,7 +142,13 @@ def select_talent_export(talents_value: dict[str, Any] | None, hero_talent_key: 
     """Selects a talent export string for a goal/hero-talent combo. Returns the
     export string marked as recommended if present, else the export string of the
     first entry, or None if no valid entry exists."""
-    entries = select_context(talents_value, hero_talent_key, context_key)
+    return talent_export_from_entries(select_context(talents_value, hero_talent_key, context_key))
+
+
+def talent_export_from_entries(entries: Any) -> str | None:
+    """Picks the export string from one already-selected ClassCodex talent
+    context list: the entry marked `recommended`, else the first entry (real
+    u.gg lists are already ordered most-picked first)."""
     if not isinstance(entries, list) or not entries:
         return None
     for entry in entries:
@@ -117,7 +164,11 @@ def select_talent_export(talents_value: dict[str, Any] | None, hero_talent_key: 
 def build_trinkets(trinkets_value: dict[str, Any] | None, hero_talent_key: str, context_key: str) -> list[dict[str, Any]]:
     """Converts a ClassCodex trinket list (tiered S/A/B/C/D) into the addon's
     expected shape. Returns a list of dicts with item_id, bonus_ids, and tier."""
-    entries = select_context(trinkets_value, hero_talent_key, context_key)
+    return trinkets_from_entries(select_context(trinkets_value, hero_talent_key, context_key))
+
+
+def trinkets_from_entries(entries: Any) -> list[dict[str, Any]]:
+    """Shapes one already-selected ClassCodex trinket context list."""
     if not isinstance(entries, list):
         return []
     result = []
@@ -148,7 +199,13 @@ def build_priority_row(
     """Converts ClassCodex's stat-priority tier-groups into an order/tiers row
     matching what the WoW addon's SV_ProfileRepository.lua validates. Returns
     a dict with context, heroTalent, order, and tiers, or None if no secondary list."""
-    context = select_context(stat_priority_value, hero_talent_key, context_key)
+    return priority_row_from_context(
+        select_context(stat_priority_value, hero_talent_key, context_key), context_label, hero_talent_name
+    )
+
+
+def priority_row_from_context(context: Any, context_label: str, hero_talent_name: str) -> dict[str, Any] | None:
+    """Shapes one already-selected ClassCodex stat-priority context."""
     tiers = context.get("secondary") if isinstance(context, dict) else None
     if not isinstance(tiers, list) or not tiers:
         return None
@@ -174,6 +231,16 @@ def build_priority_row(
     }
 
 
+class ComboSkipped(Exception):
+    """Raised by the per-combo builders with a short, human-readable reason
+    for why one spec/goal/hero-talent combo produced no output (fail closed:
+    the batch builders record the reason and move on)."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason
+
+
 SIMC_TO_CANONICAL_STAT = {
     "crit": "critical_strike",
     "haste": "haste",
@@ -195,23 +262,39 @@ def build_target_context(
     by running the BiS gear loadout for one spec/goal/hero-talent through
     SimulationCraft. Returns None if there is no gear, no talent export, or
     the SimC run fails or yields fewer than two usable secondary stats."""
+    try:
+        return reconstruct_target_context(
+            spec, goal, gear_list, select_talent_export(talents_value, hero_talent_key, context_key), simc_binary
+        )
+    except ComboSkipped:
+        return None
+
+
+def reconstruct_target_context(
+    spec: Any,
+    goal: str,
+    gear_list: list[dict[str, Any]] | None,
+    talent_loadout: str | None,
+    simc_binary: Path = Path("simc"),
+) -> dict[str, Any]:
+    """build_target_context's core, taking an already-selected talent export.
+    Raises ComboSkipped (never returns None) so callers can report why."""
     items = build_simc_items(gear_list)
     if not items:
-        return None
-    talent_loadout = select_talent_export(talents_value, hero_talent_key, context_key)
+        raise ComboSkipped("no usable gear for this goal")
     if not talent_loadout:
-        return None
+        raise ComboSkipped("no talent export for this goal")
 
     record = {"race": "human", "runTalentLoadout": talent_loadout, "items": items, "level": 90}
     profile_text, actor_map = render_profiles(spec, [record])
     try:
         stats_by_actor, _report = run_simc(simc_binary, profile_text)
-    except Exception:  # noqa: BLE001 - fail closed; caller skips this combo
-        return None
+    except Exception as exc:  # noqa: BLE001 - fail closed; caller skips this combo
+        raise ComboSkipped(f"SimC run failed ({type(exc).__name__})") from exc
     actor_name = next(iter(actor_map))
     reconstructed = stats_by_actor.get(actor_name)
     if not reconstructed:
-        return None
+        raise ComboSkipped("SimC report had no stats for the actor")
     ratings = reconstructed.get("ratings", {})
     stats = {
         canonical: float(ratings[raw])
@@ -219,7 +302,7 @@ def build_target_context(
         if isinstance(ratings.get(raw), (int, float))
     }
     if len(stats) < 2:
-        return None
+        raise ComboSkipped("fewer than 2 usable secondary stats")
 
     average_ilvl = average_item_level(gear_list)
     bis_slots = [
@@ -241,21 +324,23 @@ def build_target_context(
     }
 
 
-CONTEXT_LABEL = {"mplus": "Mythic+", "raid": "Raid", "pvp": "PvP", "all": "General"}
-
-
 def _classcodex_key_to_catalog_key(spec_key: str) -> str:
     class_folder, _, spec_token = spec_key.partition("_")
     return f"{class_folder}_{spec_token.upper().replace('-', '_')}"
 
 
 def _hero_talent_keys(gear_value: dict[str, Any] | None, talents_value: dict[str, Any] | None) -> set[str]:
+    """The hero-talent variants to build for one spec. When any field names a
+    real hero talent, only those are built ("all" is then just the shared
+    fallback data source, see select_goal_context); "all" is only built as
+    its own variant when no field varies by hero talent at all."""
     keys: set[str] = set()
     if isinstance(gear_value, dict):
         keys.update(gear_value.keys())
     if isinstance(talents_value, dict):
         keys.update(talents_value.keys())
-    return keys
+    specific = {key for key in keys if key != ALL_HERO_TALENTS_KEY}
+    return specific or keys
 
 
 def build_all(
@@ -281,23 +366,22 @@ def build_all(
 
         goals_out: dict[str, Any] = {}
         for goal in goals:
-            context_key = GOAL_CONTEXT_KEY[goal]
             hero_talents_out: dict[str, Any] = {}
-            for hero_talent_key in _hero_talent_keys(gear_value, talents_value):
-                gear_list = select_context(gear_value, hero_talent_key, context_key)
+            for hero_talent_key in sorted(_hero_talent_keys(gear_value, talents_value)):
+                gear_list = select_goal_context(gear_value, hero_talent_key, goal)
                 if not isinstance(gear_list, list) or not gear_list:
                     continue
-                target_context = build_target_context(
-                    spec, goal, gear_list, talents_value, hero_talent_key, context_key, simc_binary
-                )
-                if target_context is None:
+                talent_loadout = talent_export_from_entries(select_goal_context(talents_value, hero_talent_key, goal))
+                try:
+                    target_context = reconstruct_target_context(spec, goal, gear_list, talent_loadout, simc_binary)
+                except ComboSkipped:
                     continue
-                target_context["trinkets"] = build_trinkets(trinkets_value, hero_talent_key, context_key)
-                row = build_priority_row(
-                    stat_priority_value,
-                    hero_talent_key,
-                    context_key,
-                    CONTEXT_LABEL[context_key],
+                target_context["trinkets"] = trinkets_from_entries(
+                    select_goal_context(trinkets_value, hero_talent_key, goal)
+                )
+                row = priority_row_from_context(
+                    select_goal_context(stat_priority_value, hero_talent_key, goal),
+                    GOAL_LABEL[goal],
                     hero_talent_key,
                 )
                 target_context["priorityProfiles"] = [row] if row else []

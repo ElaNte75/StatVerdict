@@ -8,6 +8,7 @@ from pathlib import Path
 from tools.classcodex_targets import (
     GOAL_CONTEXT_KEY,
     select_context,
+    select_goal_context,
     build_simc_items,
     average_item_level,
     select_talent_export,
@@ -39,6 +40,48 @@ class SelectContextTests(unittest.TestCase):
         nested = {"deathbringer": {"all": ["B"]}}
         result = select_context(nested, "sanlayn", GOAL_CONTEXT_KEY["MYTHIC_PLUS"])
         self.assertIsNone(result)
+
+
+class SelectGoalContextTests(unittest.TestCase):
+    def test_exact_first_choice_key_wins_over_fallback_keys(self) -> None:
+        nested = {"deathbringer": {"mplus": ["M"], "aoe": ["A"], "all": ["X"]}}
+        self.assertEqual(["M"], select_goal_context(nested, "deathbringer", "MYTHIC_PLUS"))
+
+    def test_mythic_plus_falls_back_to_aoe_when_mplus_is_absent(self) -> None:
+        nested = {"deathbringer": {"aoe": ["A"], "single-target": ["S"], "all": ["X"]}}
+        self.assertEqual(["A"], select_goal_context(nested, "deathbringer", "MYTHIC_PLUS"))
+
+    def test_raid_falls_back_to_single_target_when_raid_is_absent(self) -> None:
+        nested = {"deathbringer": {"aoe": ["A"], "single-target": ["S"], "all": ["X"]}}
+        self.assertEqual(["S"], select_goal_context(nested, "deathbringer", "RAID"))
+
+    def test_all_is_the_last_resort_context(self) -> None:
+        nested = {"deathbringer": {"pvp": ["P"], "all": ["X"]}}
+        self.assertEqual(["X"], select_goal_context(nested, "deathbringer", "MYTHIC_PLUS"))
+        self.assertEqual(["X"], select_goal_context(nested, "deathbringer", "RAID"))
+
+    def test_pvp_never_uses_aoe_or_single_target(self) -> None:
+        nested = {"deathbringer": {"aoe": ["A"], "single-target": ["S"]}}
+        self.assertIsNone(select_goal_context(nested, "deathbringer", "PVP"))
+
+    def test_falls_back_to_the_all_hero_key_when_the_hero_has_no_match(self) -> None:
+        # Real ClassCodex layout: Mythic+ gear only exists under hero "all",
+        # the specific hero keys only carry PvP gear.
+        nested = {"all": {"mplus": ["ALL-M"]}, "deathbringer": {"pvp": ["DB-P"]}}
+        self.assertEqual(["ALL-M"], select_goal_context(nested, "deathbringer", "MYTHIC_PLUS"))
+        self.assertEqual(["DB-P"], select_goal_context(nested, "deathbringer", "PVP"))
+
+    def test_a_hero_specific_all_context_beats_the_all_hero(self) -> None:
+        nested = {"all": {"mplus": ["ALL-M"]}, "deathbringer": {"all": ["DB-X"]}}
+        self.assertEqual(["DB-X"], select_goal_context(nested, "deathbringer", "MYTHIC_PLUS"))
+
+    def test_empty_values_are_skipped_so_the_chain_keeps_looking(self) -> None:
+        nested = {"deathbringer": {"mplus": [], "aoe": ["A"]}}
+        self.assertEqual(["A"], select_goal_context(nested, "deathbringer", "MYTHIC_PLUS"))
+
+    def test_returns_none_when_nothing_matches(self) -> None:
+        self.assertIsNone(select_goal_context({"deathbringer": {"pvp": ["P"]}}, "deathbringer", "RAID"))
+        self.assertIsNone(select_goal_context(None, "deathbringer", "RAID"))
 
 
 class BuildSimcItemsTests(unittest.TestCase):
@@ -168,6 +211,19 @@ class BuildTargetContextTests(unittest.TestCase):
             context["bis"]["slots"],
         )
         mock_run.assert_called_once()
+
+    def test_gear_without_any_ilvl_still_builds_with_a_null_average_item_level(self) -> None:
+        # Real ClassCodex PvP gear lists carry no "ilvl" at all; that is not a
+        # failure, the average is simply unknown.
+        spec = SPEC_BY_KEY["DEATHKNIGHT_BLOOD"]
+        gear = [{"itemId": 1, "slot": "Head", "bonusIDs": [1]}, {"itemId": 2, "slot": "Neck"}]
+        talents = {"all": {"pvp": [{"export": "PVPSTRING"}]}}
+        reconstructed = {"ratings": {"crit": 501.0, "haste": 602.0, "mastery": 703.0, "versatility": 804.0}}
+        with patch("tools.classcodex_targets.run_simc", return_value=({"sv_0001": reconstructed}, {})):
+            context = build_target_context(spec, "PVP", gear, talents, "all", "pvp")
+        self.assertIsNotNone(context)
+        self.assertIsNone(context["targets"]["averageItemLevel"])
+        self.assertEqual(2, context["targets"]["itemCount"])
 
     def test_returns_none_when_no_talent_export_is_available(self) -> None:
         spec = SPEC_BY_KEY["DEATHKNIGHT_BLOOD"]
