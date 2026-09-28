@@ -149,9 +149,13 @@ def build_priority_row(
     for group in tiers:
         if not isinstance(group, list) or not group:
             continue
-        order.extend(group)
-        if len(group) > 1:
-            tie_groups.append(list(group))
+        # Validate each element is a non-empty string before adding
+        valid_entries = [entry for entry in group if isinstance(entry, str) and entry]
+        if not valid_entries:
+            continue
+        order.extend(valid_entries)
+        if len(valid_entries) > 1:
+            tie_groups.append(valid_entries)
     if not order:
         return None
     return {

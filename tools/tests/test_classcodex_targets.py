@@ -116,6 +116,22 @@ class BuildTrinketsAndPriorityTests(unittest.TestCase):
         stat_priority = {"deathbringer": {"raid": {}}}
         self.assertIsNone(build_priority_row(stat_priority, "deathbringer", "raid", "Raid", "deathbringer"))
 
+    def test_build_priority_row_drops_non_string_group_elements(self) -> None:
+        stat_priority = {
+            "deathbringer": {"mplus": {"secondary": [["crit", 123], ["haste"]]}}
+        }
+        row = build_priority_row(stat_priority, "deathbringer", "mplus", "Mythic+", "deathbringer")
+        # Non-string element (123) should be dropped from both order and tiers
+        self.assertEqual(
+            {
+                "context": "Mythic+",
+                "heroTalent": "deathbringer",
+                "order": ["crit", "haste"],
+                "tiers": [],  # First group only has 1 valid string, so not a tie
+            },
+            row,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
