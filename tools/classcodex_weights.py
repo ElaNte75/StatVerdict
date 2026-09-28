@@ -24,6 +24,7 @@ try:
     from tools.classcodex_targets import (
         CANONICAL_SECONDARY_STATS,
         ComboSkipped,
+        SkipRecord,
         _classcodex_key_to_catalog_key,
         _hero_talent_keys,
         build_simc_items,
@@ -38,6 +39,7 @@ except ModuleNotFoundError:
     from classcodex_targets import (
         CANONICAL_SECONDARY_STATS,
         ComboSkipped,
+        SkipRecord,
         _classcodex_key_to_catalog_key,
         _hero_talent_keys,
         build_simc_items,
@@ -201,31 +203,37 @@ def build_all_weights(
     specs: dict[str, dict[str, Any]],
     simc_binary: Path,
     goals: tuple[str, ...] = ("MYTHIC_PLUS", "RAID", "PVP"),
+    skips: list[SkipRecord] | None = None,
 ) -> dict[str, Any]:
     """Loops over every ClassCodex spec/goal/hero-talent combo, deriving real
     per-stat SimC scale-factor weights for each, and assembles the full
     per-spec document. Skips spec keys not in the SPEC_BY_KEY catalog and
-    goals with no usable hero-talent context anywhere."""
+    combos with no usable data or an unusable SimC run; when `skips` is
+    given, one SkipRecord per skipped spec/combo is appended to it."""
+    skipped: list[SkipRecord] = skips if skips is not None else []
     profiles: dict[str, Any] = {}
     for spec_key, fields in specs.items():
         catalog_key = _classcodex_key_to_catalog_key(spec_key)
         spec = SPEC_BY_KEY.get(catalog_key)
         if spec is None:
+            skipped.append(SkipRecord(spec_key, None, None, "spec not in StatVerdict's catalog"))
             continue
         gear_value = (fields.get("gear") or {}).get("value")
         talents_value = (fields.get("talents") or {}).get("value")
 
+        hero_talent_keys = sorted(_hero_talent_keys(gear_value, talents_value))
+        if not hero_talent_keys:
+            skipped.append(SkipRecord(catalog_key, None, None, "no gear or talents data"))
         goals_out: dict[str, Any] = {}
         for goal in goals:
             hero_talents_out: dict[str, Any] = {}
-            for hero_talent_key in sorted(_hero_talent_keys(gear_value, talents_value)):
+            for hero_talent_key in hero_talent_keys:
                 gear_list = select_goal_context(gear_value, hero_talent_key, goal)
-                if not isinstance(gear_list, list) or not gear_list:
-                    continue
                 talent_loadout = talent_export_from_entries(select_goal_context(talents_value, hero_talent_key, goal))
                 try:
                     weights = compute_weight_context(spec, gear_list, talent_loadout, simc_binary)
-                except ComboSkipped:
+                except ComboSkipped as skip:
+                    skipped.append(SkipRecord(catalog_key, goal, hero_talent_key, skip.reason))
                     continue
                 hero_talents_out[hero_talent_key] = weights
             if hero_talents_out:

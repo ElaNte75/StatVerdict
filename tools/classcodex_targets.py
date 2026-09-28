@@ -8,13 +8,17 @@ for the full design and the real data shapes this module relies on.
 """
 from __future__ import annotations
 
+import sys
+from collections import Counter
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, NamedTuple
 
 try:
+    from tools.classcodex_lua_sandbox import run_addon_namespace
     from tools.simc_stat_engine import render_profiles, run_simc
     from tools.live_benchmark_engine import SPEC_BY_KEY
 except ModuleNotFoundError:
+    from classcodex_lua_sandbox import run_addon_namespace
     from simc_stat_engine import render_profiles, run_simc
     from live_benchmark_engine import SPEC_BY_KEY
 
@@ -374,20 +378,125 @@ def _hero_talent_keys(gear_value: dict[str, Any] | None, talents_value: dict[str
     return specific or keys
 
 
+class SkipRecord(NamedTuple):
+    """One spec/goal/hero-talent combo (or whole spec, when goal/hero are
+    None) that produced no output, and why."""
+
+    spec_key: str
+    goal: str | None
+    hero_talent_key: str | None
+    reason: str
+
+
+def format_skip_summary(skips: list[SkipRecord], detail_limit: int = 40) -> str:
+    """Human-readable summary for CI logs: counts by reason, plus the full
+    list when it is short enough to read."""
+    if not skips:
+        return "No combos were skipped."
+    lines = [f"{len(skips)} combo(s) skipped:"]
+    for reason, count in Counter(skip.reason for skip in skips).most_common():
+        lines.append(f"  {count:4d} x {reason}")
+    if len(skips) <= detail_limit:
+        lines.append("Details:")
+        for skip in sorted(skips, key=lambda s: (s.spec_key, s.goal or "", s.hero_talent_key or "")):
+            where = "/".join(part for part in (skip.spec_key, skip.goal, skip.hero_talent_key) if part)
+            lines.append(f"  {where}: {skip.reason}")
+    return "\n".join(lines)
+
+
+def count_contexts(data: dict[str, Any]) -> int:
+    """Number of spec/goal/hero-talent leaves in a generated document
+    (profiles[specKey].goals[goal].heroTalents[hero]) -- the unit the
+    coverage floor compares, finer than a spec count so losing e.g. every
+    PvP context is noticed even when every spec survives."""
+    total = 0
+    for profile in (data.get("profiles") or {}).values():
+        goals = profile.get("goals") if isinstance(profile, dict) else None
+        for goal_data in (goals or {}).values():
+            hero_talents = goal_data.get("heroTalents") if isinstance(goal_data, dict) else None
+            total += len(hero_talents or {})
+    return total
+
+
+def previous_context_count(path: Path, namespace_key: str) -> int | None:
+    """Context count of the previously generated file at `path`, loaded
+    through the hardened Lua sandbox, or None if there is no previous file.
+    Raises (fail closed) if the file exists but cannot be read back."""
+    if not path.exists():
+        return None
+    namespace = run_addon_namespace(path.read_text(encoding="utf-8"), path.name, addon_name="StatVerdict")
+    data = namespace.get(namespace_key) if isinstance(namespace, dict) else None
+    if not isinstance(data, dict):
+        raise ValueError(f"{path} does not define ns.{namespace_key}")
+    return count_contexts(data)
+
+
+# Refuse to overwrite a previous file when the new run covers fewer than
+# this fraction of its spec/goal/hero-talent contexts. 0.8 tolerates the
+# odd combo dropping out upstream week to week, but not a broken SimC week
+# (or a whole missing role/goal) silently replacing good data.
+DEFAULT_MIN_COVERAGE_RATIO = 0.8
+
+
+def coverage_problem(new_count: int, previous_count: int | None, min_ratio: float) -> str | None:
+    """Returns why the new output must not be written, or None if it may."""
+    if new_count <= 0:
+        return "no spec/goal/hero-talent context produced any output"
+    if previous_count and new_count < previous_count * min_ratio:
+        return (
+            f"coverage dropped from {previous_count} to {new_count} contexts "
+            f"(below the {min_ratio:.0%} floor of the previous file)"
+        )
+    return None
+
+
+def gate_and_write(
+    data: dict[str, Any],
+    out: Path,
+    namespace_key: str,
+    write_file: Callable[[dict[str, Any], Path], int],
+    min_coverage_ratio: float = DEFAULT_MIN_COVERAGE_RATIO,
+) -> int:
+    """Shared fail-closed gate for the generated-file CLIs: refuses (returns
+    exit code 1, writing nothing) when the document is empty, when the file
+    it would replace cannot be read back, or when coverage dropped below the
+    floor; otherwise writes via `write_file` and returns 0."""
+    try:
+        previous = previous_context_count(out, namespace_key)
+    except Exception as exc:  # noqa: BLE001 - fail closed: never overwrite what we cannot read back
+        print(f"Refusing to write: could not read the previous {out} to compare coverage ({exc})", file=sys.stderr)
+        return 1
+    new_count = count_contexts(data)
+    problem = coverage_problem(new_count, previous, min_coverage_ratio)
+    if problem:
+        print(f"Refusing to write {out}: {problem}.", file=sys.stderr)
+        return 1
+    size = write_file(data, out)
+    print(
+        f"Wrote {out} ({size} bytes, {len(data.get('profiles') or {})} specs, {new_count} contexts; "
+        f"previous file: {previous if previous is not None else 'none'})"
+    )
+    return 0
+
+
 def build_all(
     specs: dict[str, dict[str, Any]],
     simc_binary: Path,
     goals: tuple[str, ...] = ("MYTHIC_PLUS", "RAID", "PVP"),
+    skips: list[SkipRecord] | None = None,
 ) -> dict[str, Any]:
     """Loops over every ClassCodex spec/goal/hero-talent combo, reconstructing
     stat targets via SimC for each, and assembles the full per-spec document.
-    Skips spec keys not in the SPEC_BY_KEY catalog and goals with no usable
-    hero-talent context anywhere."""
+    Skips spec keys not in the SPEC_BY_KEY catalog and combos with no usable
+    data or a failed SimC run; when `skips` is given, one SkipRecord per
+    skipped spec/combo is appended to it."""
+    skipped: list[SkipRecord] = skips if skips is not None else []
     profiles: dict[str, Any] = {}
     for spec_key, fields in specs.items():
         catalog_key = _classcodex_key_to_catalog_key(spec_key)
         spec = SPEC_BY_KEY.get(catalog_key)
         if spec is None:
+            skipped.append(SkipRecord(spec_key, None, None, "spec not in StatVerdict's catalog"))
             continue
 
         gear_value = (fields.get("gear") or {}).get("value")
@@ -395,17 +504,19 @@ def build_all(
         trinkets_value = (fields.get("trinkets") or {}).get("value")
         stat_priority_value = (fields.get("statPriority") or {}).get("value")
 
+        hero_talent_keys = sorted(_hero_talent_keys(gear_value, talents_value))
+        if not hero_talent_keys:
+            skipped.append(SkipRecord(catalog_key, None, None, "no gear or talents data"))
         goals_out: dict[str, Any] = {}
         for goal in goals:
             hero_talents_out: dict[str, Any] = {}
-            for hero_talent_key in sorted(_hero_talent_keys(gear_value, talents_value)):
+            for hero_talent_key in hero_talent_keys:
                 gear_list = select_goal_context(gear_value, hero_talent_key, goal)
-                if not isinstance(gear_list, list) or not gear_list:
-                    continue
                 talent_loadout = talent_export_from_entries(select_goal_context(talents_value, hero_talent_key, goal))
                 try:
                     target_context = reconstruct_target_context(spec, goal, gear_list, talent_loadout, simc_binary)
-                except ComboSkipped:
+                except ComboSkipped as skip:
+                    skipped.append(SkipRecord(catalog_key, goal, hero_talent_key, skip.reason))
                     continue
                 target_context["trinkets"] = trinkets_from_entries(
                     select_goal_context(trinkets_value, hero_talent_key, goal)
