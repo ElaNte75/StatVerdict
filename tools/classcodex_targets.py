@@ -139,26 +139,45 @@ def select_goal_context(nested: dict[str, Any] | None, hero_talent_key: str, goa
     return None
 
 
-def build_simc_items(gear_list: list[dict[str, Any]] | None) -> dict[str, dict[str, Any]]:
-    """Converts a ClassCodex gear list into a SimC items dict keyed by WoW API
-    slot tokens (as defined in CLASSCODEX_SLOT_TO_SIMC). Each item carries its
-    itemId, optional itemLevel (ilvl), and optional bonusIds (camelCase bonusIDs).
-    Skips entries with unknown slots or missing itemIds."""
-    items: dict[str, dict[str, Any]] = {}
+def gear_by_simc_slot(gear_list: list[dict[str, Any]] | None) -> dict[str, dict[str, Any]]:
+    """The usable entries of a ClassCodex gear list keyed by SimC slot token,
+    skipping unknown slots and missing itemIds. If two entries map to the
+    same slot, the LAST one wins -- the single rule every consumer (SimC
+    items, BiS slots, item-level average) derives from, so they always
+    describe the same loadout."""
+    by_slot: dict[str, dict[str, Any]] = {}
     for entry in gear_list or []:
         if not isinstance(entry, dict):
             continue
         simc_slot = CLASSCODEX_SLOT_TO_SIMC.get(str(entry.get("slot") or ""))
-        item_id = entry.get("itemId")
-        if simc_slot is None or not isinstance(item_id, (int, float)):
+        if simc_slot is None or not isinstance(entry.get("itemId"), (int, float)):
             continue
-        item: dict[str, Any] = {"itemId": int(item_id)}
+        by_slot[simc_slot] = entry
+    return by_slot
+
+
+def _bonus_ids(entry: dict[str, Any]) -> list[int] | None:
+    bonus_ids = entry.get("bonusIDs")
+    if not isinstance(bonus_ids, list):
+        return None
+    return [int(v) for v in bonus_ids if isinstance(v, (int, float))]
+
+
+def build_simc_items(gear_list: list[dict[str, Any]] | None) -> dict[str, dict[str, Any]]:
+    """Converts a ClassCodex gear list into a SimC items dict keyed by WoW API
+    slot tokens (as defined in CLASSCODEX_SLOT_TO_SIMC). Each item carries its
+    itemId, optional itemLevel (ilvl), and optional bonusIds (camelCase bonusIDs).
+    Skips entries with unknown slots or missing itemIds; see gear_by_simc_slot
+    for duplicate slots."""
+    items: dict[str, dict[str, Any]] = {}
+    for simc_slot, entry in gear_by_simc_slot(gear_list).items():
+        item: dict[str, Any] = {"itemId": int(entry["itemId"])}
         ilvl = entry.get("ilvl")
         if isinstance(ilvl, (int, float)):
             item["itemLevel"] = ilvl
-        bonus_ids = entry.get("bonusIDs")
-        if isinstance(bonus_ids, list):
-            item["bonusIds"] = [int(v) for v in bonus_ids if isinstance(v, (int, float))]
+        bonus_ids = _bonus_ids(entry)
+        if bonus_ids is not None:
+            item["bonusIds"] = bonus_ids
         items[simc_slot] = item
     return items
 
@@ -336,21 +355,31 @@ def reconstruct_target_context(
         canonical = canonical_stat_name(raw)
         if canonical is not None and isinstance(value, (int, float)):
             stats[canonical] = float(value)
-    if len(stats) < 2:
+    # Same rule as the addon's CountPositiveTargets (SV_ProfileRepository.lua):
+    # only values > 0 count as usable targets.
+    if sum(1 for value in stats.values() if value > 0) < 2:
         raise ComboSkipped("fewer than 2 usable secondary stats")
 
-    average_ilvl = average_item_level(gear_list)
-    bis_slots = [
-        {"slot": entry["slot"], "item": {"item_id": int(entry["itemId"]), **({"bonus_ids": [int(v) for v in entry["bonusIDs"] if isinstance(v, (int, float))]} if isinstance(entry.get("bonusIDs"), list) else {})}}
-        for entry in (gear_list or [])
-        if isinstance(entry, dict) and isinstance(entry.get("itemId"), (int, float)) and entry.get("slot") in CLASSCODEX_SLOT_TO_SIMC
-    ]
+    # Everything below derives from the same last-one-wins slot map as the
+    # SimC items above, so BiS slots, item count and item level all describe
+    # exactly the loadout that was simulated.
+    loadout = list(gear_by_simc_slot(gear_list).values())
+    bis_slots: list[dict[str, Any]] = []
+    for entry in loadout:
+        item: dict[str, Any] = {"item_id": int(entry["itemId"])}
+        bonus_ids = _bonus_ids(entry)
+        if bonus_ids is not None:
+            item["bonus_ids"] = bonus_ids
+        bis_slots.append({"slot": entry["slot"], "item": item})
+    # averageItemLevel only averages entries that carry an ilvl, so
+    # itemLevelSlots counts exactly those (0 for real PvP gear, which has none).
+    item_level_slots = sum(1 for entry in loadout if isinstance(entry.get("ilvl"), (int, float)))
 
     return {
         "targets": {
-            "averageItemLevel": average_ilvl,
+            "averageItemLevel": average_item_level(loadout),
             "itemCount": len(items),
-            "itemLevelSlots": len(items),
+            "itemLevelSlots": item_level_slots,
             "statTargets": {"context": goal, "source": "ClassCodex BiS + SimulationCraft", "stats": stats},
             "targetMetadata": {"lowItemReplacements": 0, "unresolvedLowItems": 0},
             "sourceGoal": goal,

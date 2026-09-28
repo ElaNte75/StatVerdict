@@ -234,6 +234,50 @@ class BuildTargetContextTests(unittest.TestCase):
         self.assertIsNone(context["targets"]["averageItemLevel"])
         self.assertEqual(2, context["targets"]["itemCount"])
 
+    def test_item_level_slots_counts_only_entries_that_have_an_ilvl(self) -> None:
+        spec = SPEC_BY_KEY["DEATHKNIGHT_BLOOD"]
+        gear = [
+            {"itemId": 1, "slot": "Head", "ilvl": 330},
+            {"itemId": 2, "slot": "Neck", "ilvl": 340},
+            {"itemId": 3, "slot": "Waist"},
+        ]
+        talents = {"all": {"mplus": [{"export": "X"}]}}
+        reconstructed = {"ratings": {"crit": 1.0, "haste": 2.0}}
+        with patch("tools.classcodex_targets.run_simc", return_value=({"sv_0001": reconstructed}, {})):
+            context = build_target_context(spec, "MYTHIC_PLUS", gear, talents, "all", "mplus")
+        self.assertEqual(3, context["targets"]["itemCount"])
+        self.assertEqual(2, context["targets"]["itemLevelSlots"])
+        self.assertEqual(335.0, context["targets"]["averageItemLevel"])
+
+    def test_duplicate_slots_resolve_the_same_way_everywhere(self) -> None:
+        # Two entries for one slot: the last one wins for the simulated SimC
+        # items, the BiS list, the item count and the item level alike.
+        spec = SPEC_BY_KEY["DEATHKNIGHT_BLOOD"]
+        gear = [
+            {"itemId": 1, "slot": "Head", "ilvl": 300},
+            {"itemId": 2, "slot": "Neck", "ilvl": 340},
+            {"itemId": 9, "slot": "Head", "ilvl": 360},
+        ]
+        talents = {"all": {"mplus": [{"export": "X"}]}}
+        reconstructed = {"ratings": {"crit": 1.0, "haste": 2.0}}
+        with patch("tools.classcodex_targets.run_simc", return_value=({"sv_0001": reconstructed}, {})) as mock_run:
+            context = build_target_context(spec, "MYTHIC_PLUS", gear, talents, "all", "mplus")
+        profile_text = mock_run.call_args.args[1]
+        self.assertIn("head=,id=9,", profile_text)
+        self.assertNotIn("id=1,", profile_text)
+        self.assertEqual([9, 2], [slot["item"]["item_id"] for slot in context["bis"]["slots"]])
+        self.assertEqual(2, context["targets"]["itemCount"])
+        self.assertEqual(350.0, context["targets"]["averageItemLevel"])
+
+    def test_zero_valued_stats_do_not_count_toward_the_two_stat_minimum(self) -> None:
+        # Mirrors the addon's CountPositiveTargets: only values > 0 count.
+        spec = SPEC_BY_KEY["DEATHKNIGHT_BLOOD"]
+        gear = [{"itemId": 1, "slot": "Head", "ilvl": 300}]
+        talents = {"all": {"raid": [{"export": "X", "recommended": True}]}}
+        reconstructed = {"ratings": {"crit": 501.0, "haste": 0.0, "mastery": 0, "versatility": -1.0}}
+        with patch("tools.classcodex_targets.run_simc", return_value=({"sv_0001": reconstructed}, {})):
+            self.assertIsNone(build_target_context(spec, "RAID", gear, talents, "all", "raid"))
+
     def test_returns_none_when_no_talent_export_is_available(self) -> None:
         spec = SPEC_BY_KEY["DEATHKNIGHT_BLOOD"]
         gear = [{"itemId": 1, "slot": "Head", "ilvl": 300}]
