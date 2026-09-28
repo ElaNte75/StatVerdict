@@ -229,7 +229,14 @@ def build_all_weights(
                     continue
                 hero_talents_out[hero_talent_key] = weights
             if hero_talents_out:
-                goals_out[goal] = hero_talents_out
+                goals_out[goal] = {"heroTalents": hero_talents_out}
         if goals_out:
-            profiles[spec_key] = goals_out
+            # Same key and nesting as tools/classcodex_targets.py::build_all:
+            # profiles[specKey].goals[goal].heroTalents[heroTalentKey], keyed
+            # by the addon's own spec key ("DEATHKNIGHT_FROST").
+            profiles[catalog_key] = {
+                "specKey": catalog_key,
+                "classToken": catalog_key.split("_", 1)[0],
+                "goals": goals_out,
+            }
     return {"profiles": profiles}

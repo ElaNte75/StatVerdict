@@ -108,7 +108,7 @@ class RealShapedPipelineTests(unittest.TestCase):
             data = build_all(self.specs, Path("simc"))
 
         self.assertTrue(data["profiles"], "real-shaped data must produce at least one profile")
-        profile = data["profiles"]["DEATHKNIGHT_frost"]
+        profile = data["profiles"]["DEATHKNIGHT_FROST"]
         for goal in ("MYTHIC_PLUS", "RAID", "PVP"):
             self.assertEqual(
                 {"deathbringer", "rider-of-the-apocalypse"},
@@ -123,6 +123,12 @@ class RealShapedPipelineTests(unittest.TestCase):
         self.assertEqual([270175, 270176], [t["item_id"] for t in mplus["trinkets"]])
         self.assertEqual("Mythic+", mplus["priorityProfiles"][0]["context"])
         self.assertEqual("mastery", mplus["priorityProfiles"][0]["order"][0])
+        self.assertEqual(
+            {"critical_strike", "haste", "mastery", "versatility"}, set(mplus["targets"]["statTargets"]["stats"])
+        )
+
+        raid_order = profile["goals"]["RAID"]["heroTalents"]["deathbringer"]["priorityProfiles"][0]["order"]
+        self.assertEqual("critical_strike", raid_order[0])  # raw "crit" from "single-target", normalized
 
         raid = profile["goals"]["RAID"]["heroTalents"]["deathbringer"]
         self.assertEqual("Raid", raid["priorityProfiles"][0]["context"])
@@ -148,9 +154,31 @@ class RealShapedPipelineTests(unittest.TestCase):
             data = build_all_weights(self.specs, Path("simc"))
 
         self.assertTrue(data["profiles"], "real-shaped data must produce at least one weights profile")
-        profile = data["profiles"]["DEATHKNIGHT_frost"]
+        profile = data["profiles"]["DEATHKNIGHT_FROST"]
         for goal in ("MYTHIC_PLUS", "RAID", "PVP"):
-            self.assertEqual({"deathbringer", "rider-of-the-apocalypse"}, set(profile[goal]))
+            self.assertEqual({"deathbringer", "rider-of-the-apocalypse"}, set(profile["goals"][goal]["heroTalents"]))
+        weights = profile["goals"]["RAID"]["heroTalents"]["deathbringer"]
+        self.assertEqual({"critical_strike", "haste", "mastery", "versatility"}, set(weights))
+        self.assertAlmostEqual(1.0, weights["critical_strike"])
+
+    def test_targets_and_weights_share_spec_keys_and_nesting(self) -> None:
+        by_stat = {"Crit": 0.653, "Haste": 0.492, "Mastery": 0.455, "Vers": 0.345}
+        report = {"sim": {"players": [{"name": "sv_0001", "scale_factors_all": {"dps": by_stat}}]}}
+        with patch("tools.classcodex_targets.run_simc", return_value=({"sv_0001": RECONSTRUCTED}, {})):
+            targets = build_all(self.specs, Path("simc"))
+        with patch("tools.classcodex_weights.run_simc", return_value=({}, report)):
+            weights = build_all_weights(self.specs, Path("simc"))
+
+        def shape(data: dict) -> set[tuple[str, str, str]]:
+            return {
+                (spec_key, goal, hero)
+                for spec_key, profile in data["profiles"].items()
+                for goal, goal_data in profile["goals"].items()
+                for hero in goal_data["heroTalents"]
+            }
+
+        self.assertEqual(shape(targets), shape(weights))
+        self.assertEqual(targets["profiles"]["DEATHKNIGHT_FROST"]["specKey"], weights["profiles"]["DEATHKNIGHT_FROST"]["specKey"])
 
 
 if __name__ == "__main__":

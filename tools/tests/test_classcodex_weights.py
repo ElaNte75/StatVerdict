@@ -146,9 +146,13 @@ class BuildAllWeightsTests(unittest.TestCase):
         with patch("tools.classcodex_weights.run_simc", return_value=({}, scale_report())):
             data = build_all_weights(specs, Path("simc"), goals=("MYTHIC_PLUS", "RAID"))
 
-        weights = data["profiles"]["DEATHKNIGHT_frost"]["MYTHIC_PLUS"]["all"]
+        # Same key casing and nesting as the targets file:
+        # profiles[specKey].goals[goal].heroTalents[heroTalentKey].
+        profile = data["profiles"]["DEATHKNIGHT_FROST"]
+        self.assertEqual("DEATHKNIGHT_FROST", profile["specKey"])
+        weights = profile["goals"]["MYTHIC_PLUS"]["heroTalents"]["all"]
         self.assertAlmostEqual(1.0, weights["critical_strike"])
-        self.assertNotIn("PVP", data["profiles"]["DEATHKNIGHT_frost"])  # no PVP data anywhere in this fixture
+        self.assertNotIn("PVP", profile["goals"])  # no PVP data anywhere in this fixture
 
     def test_skips_a_spec_key_not_in_the_catalog(self) -> None:
         specs = {"NOTASPEC_madeup": {"gear": {"value": {}, "source": "ugg"}}}

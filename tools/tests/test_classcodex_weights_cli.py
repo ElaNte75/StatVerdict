@@ -16,7 +16,15 @@ class RenderLuaTests(unittest.TestCase):
 
 class WriteAddonFileTests(unittest.TestCase):
     def test_writes_the_file_within_the_two_megabyte_budget(self) -> None:
-        data = {"schemaVersion": 1, "profiles": {"DEATHKNIGHT_frost": {"MYTHIC_PLUS": {"all": {"crit": 1.0}}}}}
+        data = {
+            "schemaVersion": 1,
+            "profiles": {
+                "DEATHKNIGHT_FROST": {
+                    "specKey": "DEATHKNIGHT_FROST",
+                    "goals": {"MYTHIC_PLUS": {"heroTalents": {"deathbringer": {"critical_strike": 1.0}}}},
+                }
+            },
+        }
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "out" / "SV_ClassCodexWeights.lua"
             size = write_addon_file(data, path)

@@ -155,11 +155,20 @@ class BuildTrinketsAndPriorityTests(unittest.TestCase):
             {
                 "context": "Mythic+",
                 "heroTalent": "deathbringer",
-                "order": ["crit", "haste", "mastery", "versatility"],
+                # ClassCodex's raw "crit" is normalized to the addon's canonical key.
+                "order": ["critical_strike", "haste", "mastery", "versatility"],
                 "tiers": [["haste", "mastery"]],
             },
             row,
         )
+
+    def test_build_priority_row_normalizes_tiers_and_drops_unknown_or_repeated_tokens(self) -> None:
+        stat_priority = {
+            "deathbringer": {"mplus": {"secondary": [["Crit", "vers"], ["leech"], ["crit", "mastery"]]}}
+        }
+        row = build_priority_row(stat_priority, "deathbringer", "mplus", "Mythic+", "deathbringer")
+        self.assertEqual(["critical_strike", "versatility", "mastery"], row["order"])
+        self.assertEqual([["critical_strike", "versatility"]], row["tiers"])
 
     def test_build_priority_row_returns_none_when_no_secondary_list(self) -> None:
         stat_priority = {"deathbringer": {"raid": {}}}
@@ -175,7 +184,7 @@ class BuildTrinketsAndPriorityTests(unittest.TestCase):
             {
                 "context": "Mythic+",
                 "heroTalent": "deathbringer",
-                "order": ["crit", "haste"],
+                "order": ["critical_strike", "haste"],
                 "tiers": [],  # First group only has 1 valid string, so not a tie
             },
             row,
@@ -265,7 +274,10 @@ class BuildAllTests(unittest.TestCase):
         with patch("tools.classcodex_targets.run_simc", return_value=({"sv_0001": reconstructed}, {})):
             data = build_all(specs, Path("simc"), goals=("MYTHIC_PLUS", "RAID"))
 
-        profile = data["profiles"]["DEATHKNIGHT_blood"]
+        # Keyed by the addon's own (uppercase) spec key, not ClassCodex's raw casing.
+        self.assertEqual(["DEATHKNIGHT_BLOOD"], list(data["profiles"]))
+        profile = data["profiles"]["DEATHKNIGHT_BLOOD"]
+        self.assertEqual("DEATHKNIGHT_BLOOD", profile["specKey"])
         self.assertEqual("DEATHKNIGHT", profile["classToken"])
         mplus_context = profile["goals"]["MYTHIC_PLUS"]["heroTalents"]["all"]
         self.assertIn("targets", mplus_context)

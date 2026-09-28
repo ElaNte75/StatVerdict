@@ -59,6 +59,40 @@ GOAL_CONTEXT_KEY: dict[str, str] = {goal: keys[0] for goal, keys in GOAL_CONTEXT
 
 GOAL_LABEL: dict[str, str] = {"MYTHIC_PLUS": "Mythic+", "RAID": "Raid", "PVP": "PvP"}
 
+# The addon's own canonical secondary-stat keys (STAT_KEY in
+# StatVerdict/Core/SV_ProfileRepository.lua). Every stat name this pipeline
+# emits -- targets, priority order/tiers, weights (tools/classcodex_weights.py
+# imports this) -- goes through canonical_stat_name() so the generated files
+# never leak a raw upstream token the addon would silently drop.
+CANONICAL_SECONDARY_STATS: tuple[str, ...] = ("critical_strike", "haste", "mastery", "versatility")
+
+# Lower-cased upstream spellings -> canonical. Covers ClassCodex priority
+# tokens ("crit"), simc_stat_engine.parse_report rating keys ("crit"), SimC's
+# util::stat_type_abbrev names used in scale-factor reports ("Crit",
+# "Haste", "Mastery", "Vers"), SimC long names ("crit_rating", ...) and the
+# addon's own spellings.
+STAT_TO_CANONICAL: dict[str, str] = {
+    "crit": "critical_strike",
+    "crit_rating": "critical_strike",
+    "critical_strike": "critical_strike",
+    "critical-strike": "critical_strike",
+    "haste": "haste",
+    "haste_rating": "haste",
+    "mastery": "mastery",
+    "mastery_rating": "mastery",
+    "vers": "versatility",
+    "versatility": "versatility",
+    "versatility_rating": "versatility",
+}
+
+
+def canonical_stat_name(raw: Any) -> str | None:
+    """Maps any known upstream spelling of a secondary stat to the addon's
+    canonical key, or None if it is not one of the four secondaries."""
+    if not isinstance(raw, str):
+        return None
+    return STAT_TO_CANONICAL.get(raw.strip().lower())
+
 
 def select_context(nested: dict[str, Any] | None, hero_talent_key: str, context_key: str) -> Any | None:
     """nested is a ClassCodex `{heroTalentKey: {contextKey: value}}` field
@@ -205,7 +239,9 @@ def build_priority_row(
 
 
 def priority_row_from_context(context: Any, context_label: str, hero_talent_name: str) -> dict[str, Any] | None:
-    """Shapes one already-selected ClassCodex stat-priority context."""
+    """Shapes one already-selected ClassCodex stat-priority context. Stat
+    tokens are normalized to the addon's canonical keys ("crit" ->
+    "critical_strike"); non-strings, unknown tokens and repeats are dropped."""
     tiers = context.get("secondary") if isinstance(context, dict) else None
     if not isinstance(tiers, list) or not tiers:
         return None
@@ -214,8 +250,11 @@ def priority_row_from_context(context: Any, context_label: str, hero_talent_name
     for group in tiers:
         if not isinstance(group, list) or not group:
             continue
-        # Validate each element is a non-empty string before adding
-        valid_entries = [entry for entry in group if isinstance(entry, str) and entry]
+        valid_entries: list[str] = []
+        for entry in group:
+            canonical = canonical_stat_name(entry)
+            if canonical is not None and canonical not in order and canonical not in valid_entries:
+                valid_entries.append(canonical)
         if not valid_entries:
             continue
         order.extend(valid_entries)
@@ -239,49 +278,6 @@ class ComboSkipped(Exception):
     def __init__(self, reason: str) -> None:
         super().__init__(reason)
         self.reason = reason
-
-
-# The addon's own canonical secondary-stat keys (STAT_KEY in
-# StatVerdict/Core/SV_ProfileRepository.lua). Every stat name this pipeline
-# emits -- targets, priority order/tiers, weights -- goes through
-# canonical_stat_name() so the generated files never leak a raw upstream
-# token the addon would silently drop.
-CANONICAL_SECONDARY_STATS: tuple[str, ...] = ("critical_strike", "haste", "mastery", "versatility")
-
-# Lower-cased upstream spellings -> canonical. Covers ClassCodex priority
-# tokens ("crit"), simc_stat_engine.parse_report keys ("crit"), SimC's
-# util::stat_type_abbrev names used in scale-factor reports ("Crit",
-# "Haste", "Mastery", "Vers"), SimC long names ("crit_rating", ...) and the
-# addon's own spellings.
-STAT_TO_CANONICAL: dict[str, str] = {
-    "crit": "critical_strike",
-    "crit_rating": "critical_strike",
-    "critical_strike": "critical_strike",
-    "critical-strike": "critical_strike",
-    "haste": "haste",
-    "haste_rating": "haste",
-    "mastery": "mastery",
-    "mastery_rating": "mastery",
-    "vers": "versatility",
-    "versatility": "versatility",
-    "versatility_rating": "versatility",
-}
-
-
-def canonical_stat_name(raw: Any) -> str | None:
-    """Maps any known upstream spelling of a secondary stat to the addon's
-    canonical key, or None if it is not one of the four secondaries."""
-    if not isinstance(raw, str):
-        return None
-    return STAT_TO_CANONICAL.get(raw.strip().lower())
-
-
-SIMC_TO_CANONICAL_STAT = {
-    "crit": "critical_strike",
-    "haste": "haste",
-    "mastery": "mastery",
-    "versatility": "versatility",
-}
 
 
 def build_target_context(
@@ -330,12 +326,12 @@ def reconstruct_target_context(
     reconstructed = stats_by_actor.get(actor_name)
     if not reconstructed:
         raise ComboSkipped("SimC report had no stats for the actor")
-    ratings = reconstructed.get("ratings", {})
-    stats = {
-        canonical: float(ratings[raw])
-        for raw, canonical in SIMC_TO_CANONICAL_STAT.items()
-        if isinstance(ratings.get(raw), (int, float))
-    }
+    ratings = reconstructed.get("ratings") or {}
+    stats: dict[str, float] = {}
+    for raw, value in ratings.items():
+        canonical = canonical_stat_name(raw)
+        if canonical is not None and isinstance(value, (int, float)):
+            stats[canonical] = float(value)
     if len(stats) < 2:
         raise ComboSkipped("fewer than 2 usable secondary stats")
 
@@ -425,9 +421,12 @@ def build_all(
                 goals_out[goal] = {"heroTalents": hero_talents_out}
 
         if goals_out:
-            profiles[spec_key] = {
-                "specKey": spec_key,
-                "classToken": spec_key.split("_", 1)[0],
+            # Keyed by the addon's own spec key (e.g. "DEATHKNIGHT_FROST", as
+            # ns.GetStatVerdictSpecKeyBySpecID returns it), not ClassCodex's
+            # raw "DEATHKNIGHT_frost".
+            profiles[catalog_key] = {
+                "specKey": catalog_key,
+                "classToken": catalog_key.split("_", 1)[0],
                 "primaryStat": spec.primary,
                 "goals": goals_out,
             }
