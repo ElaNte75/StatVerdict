@@ -1527,14 +1527,10 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
 end
 
 function Panel.RefreshSummary(frame, profile, target)
-    -- Bottom Character Summary card is retired; live sheet lives in the Summary drawer.
+    -- Bottom Character Summary card is retired; the Summary drawer that
+    -- replaced it was itself replaced by the Benchmark drawer and removed.
     if frame and frame.statSummaryCard then frame.statSummaryCard:Hide() end
     if frame and frame.summaryTitle then frame.summaryTitle:Hide() end
-    if ns.StatVerdictCharacterSummaryDrawerPanel and ns.StatVerdictCharacterSummaryDrawerPanel.IsOpen
-        and ns.StatVerdictCharacterSummaryDrawerPanel.IsOpen()
-        and ns.StatVerdictCharacterSummaryDrawerPanel.Refresh then
-        ns.StatVerdictCharacterSummaryDrawerPanel.Refresh(frame, profile)
-    end
 end
 
 function Panel.SetSummaryVisible(frame, visible)
