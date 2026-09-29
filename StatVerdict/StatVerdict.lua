@@ -1,8 +1,6 @@
 ﻿local addonName, ns = ...
 
-ns.ADDON_NAME = addonName
 ns.VERSION = "1.0.7"
-ns.ACTIVE_PROVIDER = "StatVerdict"
 
 local frame = CreateFrame("Frame")
 ns.Frame = frame
@@ -174,11 +172,6 @@ local function HandleSlash(msg)
         print("  /sv minimap - Show the minimap icon")
         print("  /sv help - Show this help message")
         print("  /sva - Open / close the StatVerdict window")
-        if ns.STATVERDICT_DEV_TOOLS then
-            print("  /svdev - Advanced Development tools")
-            print("  /svmove - Layout editor")
-            print("  /svbis - Best in Slot resolver")
-        end
     else
         PrintSV("Unknown command: " .. cmd)
         print("Use /sv help for available commands")

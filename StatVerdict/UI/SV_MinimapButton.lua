@@ -72,7 +72,7 @@ end
 local function ShowButtonTooltip(owner)
     if not GameTooltip then return end
     GameTooltip:SetOwner(owner, "ANCHOR_LEFT")
-    GameTooltip:AddLine(ns.IS_DEV_BUILD and "StatVerdict Development" or "StatVerdict", 1.0, 0.82, 0.0)
+    GameTooltip:AddLine("StatVerdict", 1.0, 0.82, 0.0)
     if ns.VERSION then
         GameTooltip:AddLine(tostring(ns.VERSION), 0.72, 0.74, 0.78)
     end
@@ -208,17 +208,6 @@ function StatVerdict_OnAddonCompartmentEnter(_, menuButtonFrame)
     OnCompartmentEnter(_, menuButtonFrame)
 end
 function StatVerdict_OnAddonCompartmentLeave()
-    OnCompartmentLeave()
-end
-
--- Distinct globals for the StatVerdict_Dev folder (dual-install safe).
-function StatVerdictDev_OnAddonCompartmentClick(_, buttonName)
-    OnCompartmentClick(_, buttonName)
-end
-function StatVerdictDev_OnAddonCompartmentEnter(_, menuButtonFrame)
-    OnCompartmentEnter(_, menuButtonFrame)
-end
-function StatVerdictDev_OnAddonCompartmentLeave()
     OnCompartmentLeave()
 end
 

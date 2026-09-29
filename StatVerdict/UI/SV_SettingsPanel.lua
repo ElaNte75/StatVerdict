@@ -131,9 +131,6 @@ local function PlaceSetupChild(frame, card, region, spec)
                 end
                 region:SetFrameLevel((card:GetFrameLevel() or 1) + (spec.levelBoost or 6))
                 region:Show()
-                if ns.EnsureDevLayoutLockButton then
-                    ns.EnsureDevLayoutLockButton(region, key)
-                end
                 return
             end
         end
@@ -167,9 +164,6 @@ local function PlaceSetupChild(frame, card, region, spec)
     region:SetFrameLevel((card:GetFrameLevel() or 1) + (spec.levelBoost or 6))
     region:Show()
 
-    if ns.EnsureDevLayoutLockButton then
-        ns.EnsureDevLayoutLockButton(region, key)
-    end
 end
 
 local function EnsureTitleHost(card, storeKey, fontString, text)

@@ -86,8 +86,6 @@ local function PlaceFeaturesTitle(card, fontString, layoutKey, label, defaultX, 
         local visH = math.max(10, logicalH - (pad.top or 0) - (pad.bottom or 0))
         hit:SetSize(visW, visH)
     end
-    if hit then
-    end
 end
 
 -- Checkbox group: tight AdvDev box around the marker toggles only.

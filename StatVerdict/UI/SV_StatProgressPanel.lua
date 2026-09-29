@@ -749,12 +749,6 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
             frame.secondarySubtitle:SetNonSpaceWrap(false)
         end
     end
-    if frame.expectedProfileKeyDebugText then
-        local titleX, titleY = Offset("stats.specTitle")
-        frame.expectedProfileKeyDebugText:ClearAllPoints()
-        frame.expectedProfileKeyDebugText:SetPoint("TOPLEFT", card, "TOPLEFT", 12 + titleX, -56 + titleY)
-        frame.expectedProfileKeyDebugText:SetWidth(math.max(180, cardWidth - 24 - titleX))
-    end
 
     if not frame.statProgressTableCard then
         frame.statProgressTableCard = CreateFrame("Frame", nil, card, "BackdropTemplate")
@@ -895,14 +889,6 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
     local showMainRows = math.min(math.max(1, tonumber(visibleRows) or 1), fixedRows)
     local mainMissing = frame.svMainSpecMissingMessage == true
     local mainEmpty = (not mainMissing) and (frame.svMainSpecEmptyHint == true)
-
-    if frame.profileKeyDebugText then
-        -- Independent of Screen 1 — do not hitch debug text to the screen frame.
-        local dbgX, dbgY = Offset("stats.profileKeyDebug")
-        frame.profileKeyDebugText:ClearAllPoints()
-        frame.profileKeyDebugText:SetPoint("TOPLEFT", card, "TOPLEFT", 8 + dbgX, -52 + dbgY)
-        frame.profileKeyDebugText:SetWidth(math.max(180, visualW))
-    end
 
     for index, bar in ipairs(frame.statProgressBars or {}) do
         if bar.GetParent and bar:GetParent() ~= mainHost then

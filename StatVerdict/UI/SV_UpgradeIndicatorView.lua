@@ -13,81 +13,9 @@ local NUM_CONTAINER_SCAN_FRAMES = NUM_TOTAL_BAG_FRAMES or NUM_CONTAINER_FRAMES o
 local lastBagRefreshAt = 0
 local lastFullRefreshAt = 0
 local clearDecisionCacheOnNextScan = false
-local debugLines = nil -- Disabled debug logging for production
 local activeIndicators = {}
 local indicatorSources = {}
 local bagRefreshCounter = 1
-
-local function DebugLine(line)
-    if not debugLines then return end
-    debugLines[#debugLines + 1] = tostring(line or "")
-end
-
-local function ShowIndicatorDebugFallback(lines)
-    if type(lines) ~= "table" then return end
-    local frame = ns.StatVerdictIndicatorDebugFrame
-    if not frame then
-        frame = CreateFrame("Frame", ns.UIName and ns.UIName("StatVerdictIndicatorDebugFrame") or "StatVerdictIndicatorDebugFrame", UIParent, "BackdropTemplate")
-        frame:SetSize(680, 520)
-        frame:SetPoint("CENTER")
-        frame:SetFrameStrata("DIALOG")
-        frame:SetMovable(true)
-        frame:EnableMouse(true)
-        frame:RegisterForDrag("LeftButton")
-        frame:SetScript("OnDragStart", frame.StartMoving)
-        frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
-        frame:Hide()
-        frame:SetBackdrop({
-            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-            tile = true,
-            tileSize = 32,
-            edgeSize = 32,
-            insets = { left = 8, right = 8, top = 8, bottom = 8 },
-        })
-
-        local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
-        close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -2, -2)
-
-        local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        title:SetPoint("TOP", frame, "TOP", 0, -12)
-        title:SetText("StatVerdict Indicator Debug")
-
-        local scroll = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
-        scroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -42)
-        scroll:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -32, 18)
-
-        local edit = CreateFrame("EditBox", nil, scroll)
-        edit:SetMultiLine(true)
-        edit:SetAutoFocus(false)
-        edit:SetFontObject(ChatFontNormal)
-        edit:SetWidth(610)
-        edit:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-        scroll:SetScrollChild(edit)
-        frame.editBox = edit
-        ns.StatVerdictIndicatorDebugFrame = frame
-    end
-
-    frame.editBox:SetText(table.concat(lines, "\n"))
-    frame.editBox:HighlightText(0, 0)
-    frame:Show()
-end
-
--- /svdebug retired from public builds (kept as quiet no-op for old macros).
-SLASH_STATVERDICTDEBUG1 = "/svdebug"
-SlashCmdList["STATVERDICTDEBUG"] = function()
-    if not ns.STATVERDICT_DEV_TOOLS then return end
-    if debugLines and #debugLines > 0 then
-        ShowIndicatorDebugFallback(debugLines)
-    else
-        print("|cffffd76a[StatVerdict]|r No debug data available")
-    end
-end
-
-local function LinkName(itemLink)
-    if not itemLink then return "nil" end
-    return tostring(itemLink):match("%[(.-)%]") or tostring(itemLink)
-end
 
 local function SafeCall(fn, ...)
     if type(fn) ~= "function" then return nil end
@@ -347,47 +275,6 @@ local function HideAllIndicators()
     end
 end
 
-local function GetIndicatorMode(indicator, owner)
-    if not indicator then return "none" end
-    local parent = type(indicator.GetParent) == "function" and indicator:GetParent() or nil
-    if parent == owner then
-        return "child"
-    end
-    if parent == UIParent then
-        return "floating-ui-parent"
-    end
-    return "other-parent"
-end
-
-local function GetFrameName(frame)
-    if not frame then return "(nil)" end
-    if type(frame.GetName) == "function" then
-        return frame:GetName() or "(unnamed)"
-    end
-    return "(unnamed)"
-end
-
-local function DebugIndicatorState(frame, itemLink, state)
-    if not debugLines then return end
-    local indicator = frame and frame.StatVerdictUpgradeIndicator
-    local parent = indicator and type(indicator.GetParent) == "function" and indicator:GetParent() or nil
-    local textureObject = indicator
-    if indicator and indicator.texture then
-        textureObject = indicator.texture
-    end
-    local texturePath = textureObject and type(textureObject.GetTexture) == "function" and textureObject:GetTexture() or nil
-    DebugLine(string.format(
-        "Indicator mode=%s owner=%s indicatorParent=%s item=%s kind=%s shown=%s texture=%s",
-        tostring(GetIndicatorMode(indicator, frame)),
-        tostring(GetFrameName(frame)),
-        tostring(GetFrameName(parent)),
-        tostring(LinkName(itemLink)),
-        tostring(state and state.kind or "none"),
-        tostring(indicator and type(indicator.IsShown) == "function" and indicator:IsShown() or false),
-        tostring(texturePath or "-")
-    ))
-end
-
 function ns.HideUpgradeIndicators()
     HideAllIndicators()
 end
@@ -631,23 +518,6 @@ local function UpdateItemButton(frame, itemLink, options)
         end
         local state = ns.GetUpgradeIndicatorItemState and ns.GetUpgradeIndicatorItemState(itemLink, stateOptions) or nil
         SetIndicator(frame, state, options)
-        DebugIndicatorState(frame, itemLink, state)
-        if debugLines then
-            local name = type(frame.GetName) == "function" and frame:GetName() or nil
-            local parent = type(frame.GetParent) == "function" and frame:GetParent() or nil
-            local parentName = parent and type(parent.GetName) == "function" and parent:GetName() or nil
-            local width = type(frame.GetWidth) == "function" and frame:GetWidth() or 0
-            local height = type(frame.GetHeight) == "function" and frame:GetHeight() or 0
-            DebugLine(string.format(
-                "%s parent=%s size=%.0fx%.0f item=%s indicator=%s",
-                tostring(name or "(unnamed)"),
-                tostring(parentName or "(unnamed)"),
-                tonumber(width) or 0,
-                tonumber(height) or 0,
-                LinkName(itemLink),
-                tostring(state and state.kind or "none")
-            ))
-        end
         return true
     end
     HideFrameIndicators(frame)
@@ -673,12 +543,6 @@ local function ScanRegisteredSources()
         local ok, count = pcall(scanner)
         count = ok and tonumber(count) or 0
         total = total + count
-        if debugLines then
-            DebugLine(string.format("Source %s: withLinks=%d", tostring(name), count))
-        end
-    end
-    if debugLines then
-        DebugLine(string.format("ScanRegisteredSources: Found %d sources, total links=%d", sourceCount, total))
     end
     return total
 end
@@ -694,9 +558,6 @@ local function ScanNamedButtonSeries(prefix, maxIndex)
                 count = count + 1
             end
         end
-    end
-    if debugLines and seen > 0 then
-        DebugLine(string.format("Named series %s*: visible=%d withLinks=%d", prefix, seen, count))
     end
     return count
 end
@@ -746,9 +607,6 @@ end
 
 local function UpdateContainerFrameUpgradeIcons(container)
     if not container or not IsFrameVisible(container) then return 0 end
-    if debugLines then
-        DebugLine(string.format("Bag update: %s", tostring(GetFrameName(container))))
-    end
     local count = 0
     if type(container.EnumerateValidItems) == "function" then
         for _, itemButton in container:EnumerateValidItems() do
@@ -830,54 +688,30 @@ local function ScanVisibleItemFrames(kind)
         sourceCount = ScanRegisteredSources()
     end
 
-    if debugLines then
-        DebugLine(string.format("Summary: kind=%s bagLinks=%d sourceLinks=%d globalGenericScan=disabled pawnStyleBags=enabled", tostring(kind), bagCount, sourceCount))
-    end
 end
 
 local function UpgradeRefreshNow(kind)
-    if debugLines then
-        DebugLine(string.format("UpgradeRefreshNow: Called with kind=%s", tostring(kind)))
-    end
     if InCombatLockdown and InCombatLockdown() then
-        if debugLines then
-            DebugLine("UpgradeRefreshNow: Blocked - In combat")
-        end
         return
     end
     local now = GetTime and GetTime() or 0
     if kind == "full" then
         if now > 0 and (now - lastFullRefreshAt) < MIN_FULL_REFRESH_INTERVAL then
-            if debugLines then
-                DebugLine("UpgradeRefreshNow: Blocked - Full refresh throttled")
-            end
             return
         end
         lastFullRefreshAt = now
     else
         if now > 0 and (now - lastBagRefreshAt) < MIN_BAG_REFRESH_INTERVAL then
-            if debugLines then
-                DebugLine("UpgradeRefreshNow: Blocked - Bag refresh throttled")
-            end
             return
         end
         lastBagRefreshAt = now
-    end
-    if debugLines then
-        DebugLine(string.format("UpgradeRefreshNow: Proceeding with scan kind=%s", tostring(kind)))
     end
     ScanVisibleItemFrames(kind)
 end
 
 function ns.RefreshUpgradeIndicators(kind)
-    if debugLines then
-        DebugLine(string.format("ns.RefreshUpgradeIndicators: Called with kind=%s", tostring(kind)))
-    end
     kind = kind == "full" and "full" or "bags"
     if pendingRefresh then
-        if debugLines then
-            DebugLine(string.format("ns.RefreshUpgradeIndicators: Blocked - Pending refresh exists (kind=%s)", tostring(kind)))
-        end
         if kind == "full" then
             pendingRefreshKind = "full"
             pendingRefreshDelay = math.min(pendingRefreshDelay or FULL_REFRESH_DELAY, FULL_REFRESH_DELAY)
@@ -887,13 +721,7 @@ function ns.RefreshUpgradeIndicators(kind)
     pendingRefresh = true
     pendingRefreshKind = kind
     pendingRefreshDelay = kind == "full" and FULL_REFRESH_DELAY or BAG_REFRESH_DELAY
-    if debugLines then
-        DebugLine(string.format("ns.RefreshUpgradeIndicators: Scheduling UpgradeRefreshNow in %s seconds for kind=%s", tostring(pendingRefreshDelay), tostring(pendingRefreshKind)))
-    end
     C_Timer.After(pendingRefreshDelay, function()
-        if debugLines then
-            DebugLine(string.format("ns.RefreshUpgradeIndicators: Timer fired, calling UpgradeRefreshNow with kind=%s", tostring(pendingRefreshKind)))
-        end
         local refreshKind = pendingRefreshKind or "bags"
         pendingRefresh = false
         pendingRefreshKind = "bags"

@@ -1,10 +1,6 @@
 local addonName, ns = ...
 
--- Public folder = "StatVerdict". Development folder = "StatVerdict_Dev".
--- Both can be installed at once; Dev uses distinct global UI names / slash cmds when needed.
-ns.ADDON_FOLDER = addonName
-ns.IS_DEV_BUILD = (addonName == "StatVerdict_Dev")
-ns.UI_PREFIX = ns.IS_DEV_BUILD and "StatVerdictDev" or "StatVerdict"
+ns.UI_PREFIX = "StatVerdict"
 
 function ns.UIName(name)
     name = tostring(name or "")
@@ -12,23 +8,9 @@ function ns.UIName(name)
         return ns.UI_PREFIX
     end
     if string.sub(name, 1, 11) == "StatVerdict" then
-        if ns.IS_DEV_BUILD then
-            return "StatVerdictDev" .. string.sub(name, 12)
-        end
         return name
     end
     return ns.UI_PREFIX .. name
-end
-
-function ns.IsPublicStatVerdictLoaded()
-    if not ns.IS_DEV_BUILD then
-        return true
-    end
-    if C_AddOns and C_AddOns.IsAddOnLoaded then
-        local ok, loaded = pcall(C_AddOns.IsAddOnLoaded, "StatVerdict")
-        return ok and loaded and true or false
-    end
-    return false
 end
 
 -- Midnight (12.0+) secret values: combat APIs may return numbers that cannot be

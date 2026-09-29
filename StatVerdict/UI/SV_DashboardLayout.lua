@@ -776,8 +776,6 @@ function Layout.Apply(frame, usedRows, controls)
                     padding = 1,
                     justify = "CENTER",
                 })
-                if textHit then
-                end
             end
 
             -- Drop legacy orange width nubs — Size W lives on the outer pad now.

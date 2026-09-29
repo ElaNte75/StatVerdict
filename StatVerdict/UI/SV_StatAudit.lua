@@ -304,7 +304,6 @@ end
 local AuditFrame
 local LastLiveModifiersByKey = {}
 local AuditInteractionBlocker
-local DebugInteractionBlocker
 local ShowAuditInteractionBlocker
 local HideAuditInteractionBlocker
 local function GetLiveCacheKey(profileID, statKey)
@@ -387,22 +386,6 @@ local function EnsureAuditInteractionBlocker()
     return blocker
 end
 
-local function EnsureDebugInteractionBlocker()
-    if DebugInteractionBlocker then return DebugInteractionBlocker end
-    local blocker = CreateFrame("Frame", ns.UIName and ns.UIName("StatVerdictDebugInteractionBlocker") or "StatVerdictDebugInteractionBlocker", UIParent, "BackdropTemplate")
-    blocker:Hide()
-    blocker:SetFrameStrata("FULLSCREEN_DIALOG")
-    blocker:SetFrameLevel(2000)
-    blocker:EnableMouse(true)
-    blocker:RegisterForDrag("LeftButton")
-    blocker:SetScript("OnDragStart", function() end)
-    blocker:SetScript("OnMouseDown", function() end)
-    blocker:SetScript("OnMouseUp", function() end)
-    blocker:SetScript("OnHide", function(self) self:ClearAllPoints() end)
-    DebugInteractionBlocker = blocker
-    return blocker
-end
-
 ShowAuditInteractionBlocker = function()
     if not AuditFrame or not AuditFrame:IsShown() then return end
     local blocker = EnsureAuditInteractionBlocker()
@@ -410,23 +393,12 @@ ShowAuditInteractionBlocker = function()
     blocker:SetParent(AuditFrame)
     blocker:SetAllPoints(AuditFrame)
     blocker:Show()
-    if ns.DebugOverrideFrame and ns.DebugOverrideFrame.IsShown and ns.DebugOverrideFrame:IsShown() then
-        local dblock = EnsureDebugInteractionBlocker()
-        dblock:ClearAllPoints()
-        dblock:SetParent(ns.DebugOverrideFrame)
-        dblock:SetAllPoints(ns.DebugOverrideFrame)
-        dblock:Show()
-    end
 end
 
 HideAuditInteractionBlocker = function()
     if AuditInteractionBlocker and AuditInteractionBlocker:IsShown() then
         AuditInteractionBlocker:Hide()
         AuditInteractionBlocker:SetParent(UIParent)
-    end
-    if DebugInteractionBlocker and DebugInteractionBlocker:IsShown() then
-        DebugInteractionBlocker:Hide()
-        DebugInteractionBlocker:SetParent(UIParent)
     end
 end
 
@@ -690,7 +662,6 @@ local function EnsureSavedDB()
     _G.StatVerdictDB.statAuditSelectionByCharacter = _G.StatVerdictDB.statAuditSelectionByCharacter or {}
     _G.StatVerdictDB.statAuditCustomByCharacter = _G.StatVerdictDB.statAuditCustomByCharacter or {}
     _G.StatVerdictDB.statAuditWindowPosByCharacter = _G.StatVerdictDB.statAuditWindowPosByCharacter or {}
-    _G.StatVerdictDB.statAuditDebugOverride = _G.StatVerdictDB.statAuditDebugOverride or {}
     return _G.StatVerdictDB
 end
 
@@ -1076,31 +1047,6 @@ function ns.GetActivePanelContext()
     return primaryContext, "MAIN"
 end
 
-local function GetHeroOptionsForSpec(goalMode, classFile, specID)
-    local provider = ns.ProfileRepository and ns.ProfileRepository.GetProviderView and ns.ProfileRepository.GetProviderView(goalMode)
-        or (ns.ProfileProviders and ns.ProfileProviders.Generated)
-    local classProfiles = provider and classFile and provider[classFile]
-    local specProfiles = classProfiles and classProfiles[specID]
-    local opts = {}
-    if specProfiles and type(specProfiles.hero) == "table" then
-        for heroName in pairs(specProfiles.hero) do
-            if type(heroName) == "string" and heroName ~= "" then
-                opts[#opts + 1] = heroName
-            end
-        end
-    end
-    local staticHeroOptions = ns.GetStatVerdictHeroOptionsBySpecID and ns.GetStatVerdictHeroOptionsBySpecID(specID) or nil
-    if #opts == 0 and type(staticHeroOptions) == "table" then
-        for _, heroName in ipairs(staticHeroOptions) do
-            if type(heroName) == "string" and heroName ~= "" then
-                opts[#opts + 1] = heroName
-            end
-        end
-    end
-    table.sort(opts)
-    return opts
-end
-
 local function GetActiveSpecID()
     if type(GetSpecialization) == "function" and type(GetSpecializationInfo) == "function" then
         local specIndex = GetSpecialization()
@@ -1142,28 +1088,6 @@ local function GetSpecOptionsForClass(classFile)
     end
     table.sort(options, function(a, b) return (a.specName or "") < (b.specName or "") end)
     return options
-end
-
-local function NormalizeDebugKeyPart(value)
-    value = tostring(value or "")
-    value = string.gsub(value, "[^%w]+", "_")
-    value = string.gsub(value, "_+", "_")
-    value = string.gsub(value, "^_+", "")
-    value = string.gsub(value, "_+$", "")
-    return string.upper(value)
-end
-
-local function BuildExpectedProfileDebugKey(context)
-    if type(context) ~= "table" then return "NO_EXPECTED_KEY" end
-    local specKey = context.specKey
-        or context.specKeyOverride
-        or (ns.GetStatVerdictSpecKeyBySpecID and ns.GetStatVerdictSpecKeyBySpecID(context.specID))
-        or "NO_SPEC"
-    local parts = {
-        NormalizeDebugKeyPart(context.goal or "NO_GOAL"),
-        NormalizeDebugKeyPart(specKey),
-    }
-    return table.concat(parts, "_")
 end
 
 local function BuildContextForSpec(baseContext, specID, selection, goalMode)
@@ -1211,57 +1135,7 @@ local function BuildContextForSpec(baseContext, specID, selection, goalMode)
     }
 end
 
-local function GetDebugOverrideState()
-    local db = EnsureSavedDB()
-    db.statAuditDebugOverride = db.statAuditDebugOverride or {}
-    return db.statAuditDebugOverride
-end
-
-local function SaveDebugOverrideState(state)
-    local db = EnsureSavedDB()
-    db.statAuditDebugOverride = db.statAuditDebugOverride or {}
-    for k, v in pairs(state or {}) do
-        db.statAuditDebugOverride[k] = v
-    end
-end
-ns.GetDebugOverrideState = GetDebugOverrideState
-ns.SaveDebugOverrideState = SaveDebugOverrideState
-
-local function BuildDebugBaseContext(state)
-    if type(state) ~= "table" or not state.enabled then return nil end
-    local classFile = tostring(state.classFile or "")
-    local specID = tonumber(state.specID)
-    local specKey = tostring(state.specKey or "")
-    if classFile == "" or (not specID and specKey == "") then return nil end
-    local providerKey = "Generated"
-    local providerLabel = "StatVerdict"
-    local provider = ns.ProfileProviders and ns.ProfileProviders[providerKey]
-    local classProfiles = provider and provider[classFile]
-    local specProfiles = classProfiles and specID and classProfiles[specID] or nil
-    local defaultProfile = specProfiles and specProfiles.default
-    local className = (defaultProfile and defaultProfile.className) or (LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[classFile]) or classFile
-    local specName = (defaultProfile and defaultProfile.specName) or (ns.GetStatVerdictSpecNameByKey and ns.GetStatVerdictSpecNameByKey(specKey)) or ("Spec " .. tostring(specID or specKey))
-    return {
-        providerKey = providerKey,
-        providerLabel = providerLabel,
-        classFile = classFile,
-        className = className,
-        specID = specID,
-        specName = specName,
-        role = defaultProfile and defaultProfile.role or nil,
-        profile = defaultProfile or {},
-        specKeyOverride = (specKey ~= "" and specKey) or nil,
-        source = "debug_override",
-    }
-end
-
 local function GetBaseContextForAudit()
-    -- Debug class/spec override is developer-only (AdvDev TOC).
-    if ns.STATVERDICT_DEV_TOOLS then
-        local debugState = GetDebugOverrideState()
-        local debugCtx = BuildDebugBaseContext(debugState)
-        if debugCtx then return debugCtx end
-    end
     return ns.GetEvaluationContext and ns.GetEvaluationContext() or nil
 end
 
@@ -1269,9 +1143,6 @@ function ns.GetTooltipEvaluationContexts()
     local baseContext = GetBaseContextForAudit()
     if not baseContext or not baseContext.profile then
         return nil, nil
-    end
-    if baseContext.source == "debug_override" then
-        return baseContext, nil
     end
 
     local selection = GetSavedSelection()
@@ -1698,18 +1569,6 @@ local function EnsureFrame()
     frame.offAvgProgressText:SetScript("OnLeave", function()
         GameTooltip:Hide()
     end)
-
-    frame.profileKeyDebugText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    frame.profileKeyDebugText:SetTextColor(0.75, 0.78, 0.82)
-    frame.profileKeyDebugText:SetJustifyH("LEFT")
-    frame.profileKeyDebugText:SetText("")
-    frame.profileKeyDebugText:Hide()
-
-    frame.expectedProfileKeyDebugText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    frame.expectedProfileKeyDebugText:SetTextColor(0.92, 0.92, 0.92)
-    frame.expectedProfileKeyDebugText:SetJustifyH("LEFT")
-    frame.expectedProfileKeyDebugText:SetText("")
-    frame.expectedProfileKeyDebugText:Hide()
 
 
     EditButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
@@ -3127,33 +2986,6 @@ UpdateFrame = function()
     local customBucket = GetCustomBucket(profileID)
     frame.currentProfileID = profileID
     frame.currentRowsForEdit = rows
-    local showProfileKeyDebug = ns.StatVerdictDevShowProfileKeyDebug and ns.StatVerdictDevShowProfileKeyDebug()
-    local expectedProfileKey = BuildExpectedProfileDebugKey(context)
-    if frame.expectedProfileKeyDebugText then
-        if showProfileKeyDebug then
-            frame.expectedProfileKeyDebugText:SetText("Expected key: " .. tostring(expectedProfileKey or "NO_EXPECTED_KEY"))
-            frame.expectedProfileKeyDebugText:Show()
-        else
-            frame.expectedProfileKeyDebugText:SetText("")
-            frame.expectedProfileKeyDebugText:Hide()
-        end
-    end
-    if frame.profileKeyDebugText then
-        if showProfileKeyDebug then
-            local profileKey = tostring((profile and (profile.profileKey or profile.id)) or profileID or "NO_PROFILE_KEY")
-            local matchText = (profileKey == expectedProfileKey) and "MATCH" or "MISMATCH"
-            local invalid = profile and profile.invalidGeneratedContext and " | INVALID_CONTEXT" or ""
-            local sourceText = ""
-            if profile and type(profile.generatedContext) == "table" then
-                sourceText = " | STATIC_GENERATED"
-            end
-            frame.profileKeyDebugText:SetText("Loaded key: " .. profileKey .. " | " .. matchText .. invalid .. sourceText)
-            frame.profileKeyDebugText:Show()
-        else
-            frame.profileKeyDebugText:SetText("")
-            frame.profileKeyDebugText:Hide()
-        end
-    end
     local specName = (titleContext and titleContext.specName) or (profile and profile.specName) or "Unknown Spec"
     local className = (titleContext and titleContext.className) or (profile and profile.className) or "Unknown Class"
     local subtitle = BuildSpecDisplayTitle(titleContext or context, profile)
@@ -3698,105 +3530,6 @@ function ns.ToggleStatAuditLayoutController()
     if UpdateFrame then UpdateFrame() end
 end
 
-function ns.DebugSortedClassFiles()
-    local names, seen = {}, {}
-    local provider = ns.ProfileProviders and ns.ProfileProviders.Generated
-    if type(provider) == "table" then
-        for classFile, _ in pairs(provider) do
-            if type(classFile) == "string" and not seen[classFile] then
-                seen[classFile] = true
-                names[#names + 1] = classFile
-            end
-        end
-    end
-    table.sort(names)
-    return names
-end
-
-function ns.DebugSpecOptionsForClass(classFile)
-    local out = {}
-    for _, opt in ipairs(GetSpecOptionsForClass(classFile)) do
-        local key = ns.GetStatVerdictSpecKeyBySpecID and ns.GetStatVerdictSpecKeyBySpecID(opt.specID) or nil
-        out[#out + 1] = { specID = opt.specID, specName = opt.specName, specKey = key }
-    end
-    table.sort(out, function(a, b) return tostring(a.specName or "") < tostring(b.specName or "") end)
-    return out
-end
-
-function ns.DebugHeroOptionsForSpec(classFile, specID, specKey)
-    local staticHeroOptions = ns.GetStatVerdictHeroOptionsBySpecID and ns.GetStatVerdictHeroOptionsBySpecID(specID) or nil
-    if type(specID) == "number" and type(staticHeroOptions) == "table" then
-        local out = {}
-        for _, hero in ipairs(staticHeroOptions) do
-            out[#out + 1] = tostring(hero)
-        end
-        return out
-    end
-
-    return GetHeroOptionsForSpec("Generated", classFile, specID)
-end
-
-function ns.RefreshDebugOverrideFrame(frame)
-    frame = frame or DebugOverrideFrame
-    if not frame then return end
-    local state = GetDebugOverrideState()
-    local classFile = state.classFile
-    local specID = tonumber(state.specID)
-    local specKey = state.specKey
-    state.heroTalentName = nil
-
-    frame.enable:SetChecked(state.enabled and true or false)
-
-    UIDropDownMenu_Initialize(frame.classDrop, function(_, level)
-        local info = UIDropDownMenu_CreateInfo()
-        for _, cf in ipairs(ns.DebugSortedClassFiles()) do
-            info.text = (LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[cf]) or cf
-            info.func = function()
-                state.classFile = cf
-                local opts = ns.DebugSpecOptionsForClass(cf)
-                state.specID = (opts[1] and opts[1].specID) or nil
-                state.specKey = (opts[1] and opts[1].specKey) or nil
-                SaveDebugOverrideState(state)
-                ns.RefreshDebugOverrideFrame(frame)
-                if UpdateFrame and AuditFrame and AuditFrame:IsShown() then UpdateFrame() end
-            end
-            info.checked = (classFile == cf)
-            UIDropDownMenu_AddButton(info, level)
-        end
-    end)
-    UIDropDownMenu_SetText(frame.classDrop, ((LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[classFile]) or classFile or "Select"))
-
-    UIDropDownMenu_Initialize(frame.specDrop, function(_, level)
-        local info = UIDropDownMenu_CreateInfo()
-        for _, opt in ipairs(ns.DebugSpecOptionsForClass(classFile)) do
-            info.text = opt.specName
-            info.func = function()
-                state.specID = opt.specID
-                state.specKey = opt.specKey
-                SaveDebugOverrideState(state)
-                ns.RefreshDebugOverrideFrame(frame)
-                if UpdateFrame and AuditFrame and AuditFrame:IsShown() then UpdateFrame() end
-            end
-            info.checked = (specID == opt.specID and (state.specKey == opt.specKey or (not state.specKey and not opt.specKey)))
-            UIDropDownMenu_AddButton(info, level)
-        end
-    end)
-    local specText = "Select"
-    for _, opt in ipairs(ns.DebugSpecOptionsForClass(classFile)) do
-        if specID == opt.specID and (state.specKey == opt.specKey or (not state.specKey and not opt.specKey)) then
-            specText = opt.specName
-            break
-        end
-    end
-    UIDropDownMenu_SetText(frame.specDrop, specText)
-
-    if frame.heroDrop then
-        UIDropDownMenu_SetText(frame.heroDrop, "")
-        UIDropDownMenu_DisableDropDown(frame.heroDrop)
-        frame.heroDrop:Hide()
-    end
-end
-
 ns.EventFrame = ns.EventFrame or CreateFrame("Frame")
 ns.EventFrame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 ns.EventFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
@@ -3822,29 +3555,3 @@ end)
 
 SLASH_STATVERDICTAUDIT1 = "/sva"
 SlashCmdList.STATVERDICTAUDIT = function() ns.ToggleStatAudit() end
-
--- Legacy /svlayout controller retired (Dashboard + LayoutOffsets own placement).
-SLASH_STATVERDICTLAYOUT1 = "/svlayout"
-SlashCmdList.STATVERDICTLAYOUT = function()
-    if ns.STATVERDICT_DEV_TOOLS then
-        print("|cffff8000StatVerdict:|r /svlayout is retired. Use /svmove for AdvDev layout editing.")
-    end
-end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
