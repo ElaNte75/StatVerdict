@@ -1,8 +1,15 @@
 from __future__ import annotations
 
+import tempfile
 import unittest
+from pathlib import Path
+from unittest import mock
 
+from tools import classcodex_cli
 from tools.classcodex_cli import render_stat_dr_lua
+from tools.classcodex_fetch import FetchResult
+
+STAT_DR_SOURCE = "local _, ns = ...\nns.StatDR = { ready = true }\n"
 
 
 class RenderStatDrLuaTests(unittest.TestCase):
@@ -17,6 +24,35 @@ class RenderStatDrLuaTests(unittest.TestCase):
         source = 'local _, ns = ...\nns.StatDR = { ready = true }\n'
         rendered = render_stat_dr_lua(source)
         self.assertTrue(rendered.endswith(source))
+
+
+class MainWritesOnlyStatDrTests(unittest.TestCase):
+    """The per-spec live data file is no longer read by the addon or the
+    targets/weights pipelines, so the CLI only refreshes SV_StatDR.lua."""
+
+    def run_main(self, *extra: str) -> Path:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        out = Path(tmp.name) / "SV_StatDR.lua"
+        fetched = FetchResult(build_id="20260929064954-6702fd4-878715d1", published_at="2026-09-29",
+                              sources={"stat_dr": STAT_DR_SOURCE})
+        with mock.patch.object(classcodex_cli, "fetch_all", return_value=fetched), \
+                mock.patch.object(classcodex_cli, "build_stat_dr", return_value={}):
+            self.assertEqual(0, classcodex_cli.main(["--out", str(out), *extra]))
+        return out
+
+    def test_writes_the_stat_dr_file_and_nothing_else(self) -> None:
+        out = self.run_main()
+        self.assertEqual(["SV_StatDR.lua"], sorted(p.name for p in out.parent.iterdir()))
+        self.assertTrue(out.read_text(encoding="utf-8").endswith(STAT_DR_SOURCE))
+
+    def test_default_output_is_the_addon_stat_dr_file(self) -> None:
+        self.assertEqual(Path("StatVerdict/Data/Generated/SV_StatDR.lua"),
+                         classcodex_cli.build_parser().parse_args([]).out)
+
+    def test_live_data_file_is_gone_from_the_addon(self) -> None:
+        root = Path(__file__).resolve().parents[2]
+        self.assertFalse((root / "StatVerdict/Data/Generated/SV_ClassCodexLiveData.lua").exists())
 
 
 if __name__ == "__main__":

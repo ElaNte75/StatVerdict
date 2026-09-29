@@ -56,21 +56,40 @@ local MAX_GENERATED_AGE_DAYS = 30
 local MIN_CONTEXT_ITEMS = 10
 local MAX_LOW_ITEM_RATIO = 0.25
 
+-- Seconds to add to time(fields) so fields written in UTC give the real UTC
+-- timestamp: time() reads a date table as LOCAL time. Both sides are read as
+-- standard time (isdst = false), so daylight saving cancels out. 0 when WoW's
+-- date() is missing (then the error is at most the client's UTC offset, <= 14h,
+-- which the 30-day freshness window and its 1-day future tolerance absorb).
+local function GetUtcCorrection(localStamp)
+    if type(date) ~= "function" then return 0 end
+    local ok, utc = pcall(date, "!*t", localStamp)
+    if not ok or type(utc) ~= "table" then return 0 end
+    utc.isdst = false
+    local okTime, asLocal = pcall(time, utc)
+    if not okTime or type(asLocal) ~= "number" then return 0 end
+    return localStamp - asLocal
+end
+
 -- ClassCodex buildIds start with the UTC build time: "20260929064954-6702fd4-878715d1".
 local function ParseBuildTime(buildId)
     if type(buildId) ~= "string" or type(time) ~= "function" then return nil end
     local year, month, day, hour, minute, second =
         buildId:match("^(%d%d%d%d)(%d%d)(%d%d)(%d%d)(%d%d)(%d%d)")
     if not year then return nil end
-    return time({
+    local localStamp = time({
         year = tonumber(year),
         month = tonumber(month),
         day = tonumber(day),
         hour = tonumber(hour),
         min = tonumber(minute),
         sec = tonumber(second),
+        isdst = false,
     })
+    if type(localStamp) ~= "number" then return nil end
+    return localStamp + GetUtcCorrection(localStamp)
 end
+Repository.ParseBuildTime = ParseBuildTime
 
 local function IsRecentBuild(buildId, maxAgeDays)
     local timestamp = ParseBuildTime(buildId)
@@ -112,17 +131,26 @@ local function GetContext(specKey, goal, heroKey)
     return context, profile
 end
 
--- Player hero tree name ("San'layn", "Master of Harmony") -> ClassCodex key
--- ("sanlayn", "master-of-harmony"). Only a name that matches one of this
--- spec/goal's keys counts: an unknown hero tree gives nil (no data), never
--- another tree's data. A MISSING name (below hero-talent level, or a snapshot
--- without hero info) gives the first key in sorted order plus a second return
--- value true, so callers can flag the profile as a guess. heroSubTreeID is
--- accepted for callers, but the ClassCodex data carries no subtree IDs to match.
+-- Player hero tree -> ClassCodex key ("sanlayn", "master-of-harmony").
+-- 1. The hero subtree ID (SV_SpecMeta table): language-independent, so it is
+--    tried first. A known ID decides on its own: if this spec/goal has no data
+--    for that tree the answer is nil, never a name match or a guess.
+-- 2. The hero tree name ("San'layn"): only English names match, since the game
+--    gives names in the client language. Only a name that matches one of this
+--    spec/goal's keys counts: an unknown hero tree gives nil (no data), never
+--    another tree's data.
+-- 3. A MISSING name (below hero-talent level, or a snapshot without hero info)
+--    gives the first key in sorted order plus a second return value true, so
+--    callers can flag the profile as a guess.
 local function ResolveHeroKey(specKey, goal, heroTalentName, heroSubTreeID)
     local wanted = NormalizeToken(heroTalentName)
     local heroTalents = GetHeroTalents(specKey, goal)
     if not heroTalents then return nil end
+    local idKey = ns.GetStatVerdictHeroKeyBySubTreeID and ns.GetStatVerdictHeroKeyBySubTreeID(heroSubTreeID)
+    if idKey then
+        if type(heroTalents[idKey]) == "table" then return idKey end
+        return nil
+    end
     if wanted == "" then
         local first
         for heroKey in pairs(heroTalents) do
@@ -338,11 +366,14 @@ local function BuildEqualGroups(priority, secondaryOrder)
     return groups
 end
 
-local function BuildAuditTargets(targets, primaryStat, secondaryOrder)
+local function BuildAuditTargets(targets, primaryStat, secondaryOrder, secondaryWeights)
     local statTargets = type(targets) == "table" and targets.statTargets or nil
     local targetValues = type(statTargets) == "table" and statTargets.stats or nil
     local model = ns.GlobalStatVerdictModifiers or {}
-    local secondaryWeights = type(model.secondary) == "table" and model.secondary or {}
+    local rankWeights = type(model.secondary) == "table" and model.secondary or {}
+    -- Same per-stat weight as the tooltip scoring (SV_Modifiers): the measured
+    -- weight's share when there is one, else the rank weight.
+    local weightProfile = { secondaryOrder = secondaryOrder, secondaryWeights = secondaryWeights }
     local rows = {}
     local seen = {}
 
@@ -372,7 +403,8 @@ local function BuildAuditTargets(targets, primaryStat, secondaryOrder)
     end
 
     for index, statKey in ipairs(secondaryOrder) do
-        add(statKey, "Secondary", index, tonumber(secondaryWeights[index]) or tonumber(model.fallbackSecondary) or 1)
+        local measured = ns.GetMeasuredSecondaryRawWeight and ns.GetMeasuredSecondaryRawWeight(weightProfile, statKey)
+        add(statKey, "Secondary", index, measured or tonumber(rankWeights[index]) or tonumber(model.fallbackSecondary) or 1)
     end
 
     return {
@@ -460,7 +492,7 @@ function Repository.BuildRuntimeProfile(context)
             averageItemLevel = nil,
             rows = {},
             invalidReason = invalidReason or "Generated profile data failed quality checks.",
-        } or BuildAuditTargets(generatedContext.targets, primaryStat, secondaryOrder),
+        } or BuildAuditTargets(generatedContext.targets, primaryStat, secondaryOrder, secondaryWeights),
         generatedContext = invalidGeneratedContext and nil or generatedContext,
         invalidGeneratedContext = invalidGeneratedContext,
     }
@@ -494,21 +526,60 @@ function Repository.BuildProviderView(goal)
     return provider
 end
 
+-- The provider view builds a profile for every spec (40), so it is cached per
+-- goal and rebuilt only when something it is built from changes: the loaded
+-- data files, their freshness, the scoring model, or the hero tree a spec
+-- snapshot records (each spec's default profile follows it). Nothing else
+-- feeds BuildRuntimeProfile here: the goal is fixed per view and spec
+-- ID/name/role come from the static SV_SpecMeta tables.
+local providerViewSignature = {}
+local signatureContext = {}
+
+local function BuildProviderViewSignature(goal)
+    local root = VALID_GOALS[goal] and GetTargetsRoot() or nil
+    local parts = {
+        goal,
+        tostring(ns.ClassCodexTargets),
+        tostring(type(ns.ClassCodexTargets) == "table" and ns.ClassCodexTargets.buildId or nil),
+        tostring(root ~= nil),
+        tostring(ns.ClassCodexWeights),
+        tostring(ns.GlobalStatVerdictModifiers),
+    }
+    if root then
+        for specKey in pairs(root.profiles or {}) do
+            local specID = ns.GetStatVerdictSpecIDByKey and ns.GetStatVerdictSpecIDByKey(specKey)
+            signatureContext.specKey = specKey
+            signatureContext.specID = specID
+            local heroName = ns.GetSnapshotHeroTalentName and ns.GetSnapshotHeroTalentName(signatureContext)
+            local heroID = ns.GetSnapshotHeroSubTreeID and ns.GetSnapshotHeroSubTreeID(signatureContext)
+            parts[#parts + 1] = tostring(specKey) .. "=" .. tostring(heroID) .. ":" .. tostring(heroName)
+        end
+    end
+    return table.concat(parts, "|")
+end
+
+function Repository.InvalidateProviderViews()
+    for goal in pairs(providerViewSignature) do
+        providerViewSignature[goal] = nil
+    end
+end
+
 function Repository.GetProviderView(goal)
     goal = VALID_GOALS[goal] and goal or DEFAULT_GOAL
     ns.ProfileProviders = ns.ProfileProviders or {}
     ns.ProfileProviders.GeneratedByGoal = ns.ProfileProviders.GeneratedByGoal or {}
-    if type(ns.ProfileProviders.GeneratedByGoal[goal]) ~= "table" then
+    local signature = BuildProviderViewSignature(goal)
+    if type(ns.ProfileProviders.GeneratedByGoal[goal]) ~= "table" or providerViewSignature[goal] ~= signature then
         ns.ProfileProviders.GeneratedByGoal[goal] = Repository.BuildProviderView(goal)
+        providerViewSignature[goal] = signature
     end
     return ns.ProfileProviders.GeneratedByGoal[goal]
 end
 
+-- Makes the goal's view the active one (ns.ProfileProviders.Generated);
+-- rebuilds it only when its inputs changed (see above).
 function Repository.RefreshProviderView(goal)
-    goal = VALID_GOALS[goal] and goal or DEFAULT_GOAL
-    ns.ProfileProviders = ns.ProfileProviders or {}
-    ns.ProfileProviders.GeneratedByGoal = ns.ProfileProviders.GeneratedByGoal or {}
-    ns.ProfileProviders.GeneratedByGoal[goal] = Repository.BuildProviderView(goal)
-    ns.ProfileProviders.Generated = ns.ProfileProviders.GeneratedByGoal[goal]
-    return ns.ProfileProviders.GeneratedByGoal[goal]
+    local view = Repository.GetProviderView(goal)
+    ns.ProfileProviders.Generated = view
+    return view
 end

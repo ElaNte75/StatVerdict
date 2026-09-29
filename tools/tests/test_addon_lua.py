@@ -10,7 +10,9 @@ from tools.classcodex_weights_cli import render_lua as render_weights_lua
 from tools.tests.addon_fixtures import make_classcodex_targets, make_classcodex_weights
 
 try:
-    from lupa import LuaRuntime
+    # WoW runs Lua 5.1: test the addon on a 5.1 runtime so syntax or library
+    # calls newer Lua versions added (goto, //, integer division, utf8...) fail here.
+    from lupa.lua51 import LuaRuntime
 except ImportError:  # optional dev dependency: pip install lupa
     LuaRuntime = None
 
@@ -29,13 +31,19 @@ def toc_lua_files() -> list[Path]:
 
 def new_runtime():
     lua = LuaRuntime(unpack_returned_tuples=True)
-    lua.execute("time = os.time")  # WoW provides time()
+    lua.execute("time = os.time; date = os.date")  # WoW provides time() and date()
     return lua
 
 
+def compile_lua_file(lua, path: Path):
+    """Compile a Lua file the way WoW does: a leading UTF-8 BOM is allowed
+    (the WoW loader skips it; plain Lua 5.1 loadfile does not)."""
+    compile_source = lua.eval("function(src, name) local f, err = loadstring(src, name) if not f then error(err) end return f end")
+    return compile_source(Path(path).read_text(encoding="utf-8-sig"), "@" + str(path))
+
+
 def load_addon_file(lua, ns, relative_path: str) -> None:
-    loader = lua.eval("function(path) local f, err = loadfile(path) if not f then error(err) end return f end")
-    loader(str(ADDON / relative_path))("StatVerdict", ns)
+    compile_lua_file(lua, ADDON / relative_path)("StatVerdict", ns)
 
 
 def now_build_id(days_ago: int = 0) -> str:
@@ -46,9 +54,17 @@ def now_build_id(days_ago: int = 0) -> str:
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
 class AddonLuaSyntaxTests(unittest.TestCase):
+    def test_addon_tests_run_on_wows_lua_version(self) -> None:
+        lua = new_runtime()
+        self.assertEqual("Lua 5.1", lua.eval("_VERSION"))
+        # 5.2+ syntax must not compile here, so it is caught before it reaches the game.
+        check = lua.eval("function(src) local f, err = loadstring(src) return f == nil end")
+        self.assertTrue(check("goto done ::done::"))
+        self.assertTrue(check("local x = 7 // 2"))
+
     def test_every_toc_file_compiles(self) -> None:
         lua = new_runtime()
-        check = lua.eval("function(src, name) local f, err = load(src, name) if not f then return err end return nil end")
+        check = lua.eval("function(src, name) local f, err = loadstring(src, name) if not f then return err end return nil end")
         for path in toc_lua_files():
             self.assertTrue(path.exists(), f"{path} is listed in the .toc but missing")
             error = check(path.read_text(encoding="utf-8-sig"), "@" + path.name)
@@ -186,13 +202,42 @@ class RepositoryTests(unittest.TestCase):
         self.assertIsNone(resolve("MAGE_FIRE", "MYTHIC_PLUS", "Sunfury", None))
         self.assertIsNone(resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "Not A Hero Tree", None))
 
+    def test_hero_subtree_id_resolves_before_the_name(self) -> None:
+        # Non-English clients get translated hero tree names; the subtree ID does not change.
+        lua, ns = self.build_runtime()
+        resolve = ns.ProfileRepository.ResolveHeroKey
+        self.assertEqual("deathbringer", resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "Todesbringer", 33))
+        self.assertEqual("sanlayn", resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "산레인", 31))
+        # A known ID wins over a name that points elsewhere, and is not a guess.
+        self.assertEqual("sanlayn", resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "Deathbringer", 31))
+        self.assertEqual("sanlayn", resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", None, 31))  # not ("sanlayn", True)
+        # A known ID whose tree has no data for this goal never falls back to a name or guess.
+        self.assertIsNone(resolve("DEATHKNIGHT_BLOOD", "RAID", "San'layn", 33))
+        self.assertIsNone(resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "San'layn", 32))
+        # An unknown ID falls back to the name.
+        self.assertEqual("deathbringer", resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "Deathbringer", 9999))
+
+    def test_profile_and_boosts_use_the_hero_subtree_id(self) -> None:
+        lua, ns = self.build_runtime()
+        profile = ns.ProfileRepository.BuildRuntimeProfile(
+            self.context(lua, heroTalentName="Todesbringer", heroSubTreeID=33))
+        self.assertEqual("deathbringer", profile.heroKey)
+        self.assertFalse(profile.heroKeyGuessed)
+        ns.GetSnapshotHeroTalentName = lambda profile: "Todesbringer"
+        ns.GetSnapshotHeroSubTreeID = lambda profile: 33
+        bare = lua.table(specKey="DEATHKNIGHT_BLOOD", goal="MYTHIC_PLUS")
+        self.assertEqual(8, ns.GetItemReferenceInfo("item:1500", bare).bonus)
+        named = lua.table(specKey="DEATHKNIGHT_BLOOD", goal="MYTHIC_PLUS", heroTalentName="San'layn", heroSubTreeID=31)
+        self.assertEqual(8, ns.GetItemReferenceInfo("item:1000", named).bonus)
+
     def test_missing_hero_tree_name_guesses_the_first_key_in_sorted_order(self) -> None:
         lua, ns = self.build_runtime()
         resolve = ns.ProfileRepository.ResolveHeroKey
         # No hero tree yet (below hero-talent level, or a snapshot without it):
         # the first key in sorted order, flagged as a guess.
         self.assertEqual(("deathbringer", True), resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", None, None))
-        self.assertEqual(("deathbringer", True), resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "", 31))
+        self.assertEqual(("deathbringer", True), resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "", None))
+        self.assertEqual(("deathbringer", True), resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "", 9999))
         self.assertEqual(("sanlayn", True), resolve("DEATHKNIGHT_BLOOD", "RAID", None, None))
         self.assertIsNone(resolve("MAGE_FIRE", "MYTHIC_PLUS", None, None))
         context = self.context(lua)
@@ -272,6 +317,54 @@ class RepositoryTests(unittest.TestCase):
         self.assertIsNone(ns.ProfileRepository.GetContext("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "sanlayn"))
         self.assertFalse(ns.ProfileRepository.GetDataProvenance("MYTHIC_PLUS").available)
 
+    FIXED_ZONE = """
+    -- A fake clock in a fixed time zone UTC+offset: time(t) reads t as local time.
+    local offset, now = ...
+    local function days_from_civil(y, m, d)
+        if m <= 2 then y = y - 1 end
+        local era = math.floor(y / 400)
+        local yoe = y - era * 400
+        local doy = math.floor((153 * ((m + 9) % 12) + 2) / 5) + d - 1
+        return era * 146097 + yoe * 365 + math.floor(yoe / 4) - math.floor(yoe / 100) + doy - 719468
+    end
+    time = function(t)
+        if t == nil then return now end
+        return days_from_civil(t.year, t.month, t.day) * 86400
+            + (t.hour or 12) * 3600 + (t.min or 0) * 60 + (t.sec or 0) - offset
+    end
+    date = function(format, t)
+        if format == "!*t" then return os.date("!*t", t) end
+        if format == "*t" then return os.date("!*t", t + offset) end
+        error("unsupported format " .. tostring(format))
+    end
+    """
+
+    def test_build_time_is_read_as_utc_in_any_time_zone(self) -> None:
+        build_utc = int(datetime(2026, 9, 29, 6, 49, 54, tzinfo=timezone.utc).timestamp())
+        for hours in (14, 3, 0, -10):
+            lua, ns = self.build_runtime()
+            lua.eval("function(src, offset, now) assert(loadstring(src))(offset, now) end")(
+                self.FIXED_ZONE, hours * 3600, build_utc)
+            self.assertEqual(build_utc, ns.ProfileRepository.ParseBuildTime("20260929064954-6702fd4-878715d1"), hours)
+        # And on this machine's real clock and zone.
+        lua, ns = self.build_runtime()
+        now = int(datetime.now(timezone.utc).timestamp())
+        self.assertLessEqual(abs(ns.ProfileRepository.ParseBuildTime(now_build_id()) - now), 5)
+
+    def test_freshness_does_not_shift_with_the_time_zone(self) -> None:
+        # 29 days 20 hours old: fresh everywhere. Read as local time at UTC+10 it
+        # would look 30 days 6 hours old and be dropped as stale.
+        build = datetime(2026, 9, 29, 6, 49, 54, tzinfo=timezone.utc)
+        now = int((build + timedelta(days=29, hours=20)).timestamp())
+        lua, ns = self.build_runtime(build_id=build.strftime("%Y%m%d%H%M%S") + "-6702fd4-878715d1")
+        lua.eval("function(src, offset, now) assert(loadstring(src))(offset, now) end")(self.FIXED_ZONE, 36000, now)
+        self.assertTrue(ns.ProfileRepository.GetDataProvenance("MYTHIC_PLUS").available)
+
+    def test_build_time_without_date_still_parses(self) -> None:
+        lua, ns = self.build_runtime()
+        lua.execute("date = nil")
+        self.assertIsNotNone(ns.ProfileRepository.ParseBuildTime(now_build_id()))
+
     def test_garbage_build_id_fails_closed(self) -> None:
         lua, ns = self.build_runtime(build_id="not-a-date")
         self.assertIsNone(ns.ProfileRepository.BuildRuntimeProfile(self.context(lua)))
@@ -283,6 +376,63 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual("sanlayn", provider["DEATHKNIGHT"][250].default.heroKey)
         pvp = ns.ProfileRepository.RefreshProviderView("PVP")
         self.assertIsNotNone(pvp["DEATHKNIGHT"][250].default)
+
+    def count_profile_builds(self, lua, ns):
+        counter = {"n": 0}
+        original = ns.ProfileRepository.BuildRuntimeProfile
+
+        def counting(context):
+            counter["n"] += 1
+            return original(context)
+
+        ns.ProfileRepository.BuildRuntimeProfile = counting
+        return counter
+
+    def test_provider_view_is_cached_until_its_inputs_change(self) -> None:
+        lua, ns = self.build_runtime()
+        load_addon_file(lua, ns, "Core/SV_ProfileLoader.lua")
+        hero = {"name": "San'layn", "id": 31}
+        ns.GetSnapshotHeroTalentName = lambda context: hero["name"]
+        ns.GetSnapshotHeroSubTreeID = lambda context: hero["id"]
+        ns.GetStatAuditGoalMode = lambda: "MYTHIC_PLUS"
+        builds = self.count_profile_builds(lua, ns)
+        repo = ns.ProfileRepository
+        first = repo.RefreshProviderView("MYTHIC_PLUS")
+        per_view = builds["n"]
+        self.assertGreater(per_view, 0)
+        # Tooltips and bag items call this path over and over: no rebuild.
+        for _ in range(5):
+            self.assertTrue(lua.eval("rawequal")(first, repo.RefreshProviderView("MYTHIC_PLUS")))
+            self.assertTrue(lua.eval("rawequal")(first, repo.GetProviderView("MYTHIC_PLUS")))
+        self.assertEqual(per_view, builds["n"])
+        for _ in range(5):
+            ns.LoadEvaluationProfile(self.context(lua))
+        self.assertEqual(per_view + 5, builds["n"])  # only the player's own profile each time
+        self.assertTrue(lua.eval("rawequal")(first, ns.ProfileProviders.Generated))
+        # Another goal has its own view; switching back reuses the cached one.
+        repo.RefreshProviderView("RAID")
+        after_raid = builds["n"]
+        self.assertTrue(lua.eval("rawequal")(first, repo.RefreshProviderView("MYTHIC_PLUS")))
+        self.assertTrue(lua.eval("rawequal")(first, ns.ProfileProviders.Generated))
+        self.assertEqual(after_raid, builds["n"])
+        # A new hero tree in the spec snapshot changes the input: rebuilt once.
+        hero.update(name="Deathbringer", id=33)
+        rebuilt = repo.RefreshProviderView("MYTHIC_PLUS")
+        self.assertEqual("deathbringer", rebuilt["DEATHKNIGHT"][250].default.heroKey)
+        self.assertEqual(after_raid + per_view, builds["n"])
+        repo.RefreshProviderView("MYTHIC_PLUS")
+        self.assertEqual(after_raid + per_view, builds["n"])
+        # Explicit invalidation forces a rebuild.
+        repo.InvalidateProviderViews()
+        repo.GetProviderView("MYTHIC_PLUS")
+        self.assertEqual(after_raid + 2 * per_view, builds["n"])
+
+    def test_provider_view_empties_when_the_data_goes_stale(self) -> None:
+        lua, ns = self.build_runtime()
+        view = ns.ProfileRepository.RefreshProviderView("MYTHIC_PLUS")
+        self.assertIsNotNone(view["DEATHKNIGHT"])
+        ns.ClassCodexTargets.buildId = now_build_id(days_ago=40)
+        self.assertIsNone(ns.ProfileRepository.RefreshProviderView("MYTHIC_PLUS")["DEATHKNIGHT"])
 
     def test_provenance_uses_the_classcodex_build_date(self) -> None:
         lua, ns = self.build_runtime()
@@ -361,6 +511,22 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual([SECONDARY["haste"], SECONDARY["crit"], SECONDARY["vers"], SECONDARY["mastery"]],
                          [rows[i].key for i in range(1, len(rows) + 1)])
 
+    def test_stat_audit_base_modifiers_match_the_scoring_weights(self) -> None:
+        lua, ns = self.build_runtime()
+        load_addon_file(lua, ns, "Core/SV_Modifiers.lua")
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        rows = profile.auditTargets.rows
+        base = {rows[i].key: rows[i].baseModifier for i in range(1, len(rows) + 1)}
+        # haste 1.0, crit 0.8, vers 0.6, mastery 0.5 share the rank total 4+3+2+1 = 10.
+        total = 1.0 + 0.8 + 0.6 + 0.5
+        for stat, weight in (("haste", 1.0), ("crit", 0.8), ("vers", 0.6), ("mastery", 0.5)):
+            self.assertAlmostEqual(10 * weight / total, base[SECONDARY[stat]], msg=stat)
+            self.assertEqual(ns.GetMeasuredSecondaryRawWeight(profile, SECONDARY[stat]), base[SECONDARY[stat]])
+        # Without measured weights the rows keep the rank weights.
+        plain = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua, heroTalentName="Deathbringer"))
+        rows = plain.auditTargets.rows
+        self.assertEqual([4.0, 3.0, 2.0, 1.0], [rows[i].baseModifier for i in range(1, len(rows) + 1)])
+
     def test_hero_tree_without_weights_keeps_the_classcodex_priority(self) -> None:
         lua, ns = self.build_runtime()
         profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua, heroTalentName="Deathbringer"))
@@ -437,24 +603,95 @@ class ScoringWeightTests(unittest.TestCase):
         self.assertEqual(1.851851851851852, grouped[SECONDARY["haste"]])
         self.assertEqual(1.851851851851852, grouped[SECONDARY["mastery"]])
 
-    def test_measured_weights_scale_from_the_top_rank_weight(self) -> None:
-        # Raw: primary 4, crit 1.0*4 = 4, haste 0.5*4 = 2, mastery 0.4*4 = 1.6, vers 0.25*4 = 1,
-        # item level 1.2 -> 13.8 raw points in the same 10 point budget.
+    def test_measured_weights_split_the_same_secondary_share(self) -> None:
+        # The secondaries keep their rank-weight total (4+3+2+1 = 10), split by the
+        # measured weights: 10 * w / (1.0+0.5+0.4+0.25). Primary 4 and item level 1.2
+        # keep the same share of the 10 point budget as without weights (15.2 raw).
         result = self.weights(self.profile({"crit": 1.0, "haste": 0.5, "mastery": 0.4, "vers": 0.25}))
-        scale = 10 / 13.8
-        self.assertAlmostEqual(4 * scale, result[SECONDARY["crit"]])
-        self.assertAlmostEqual(2 * scale, result[SECONDARY["haste"]])
-        self.assertAlmostEqual(1.6 * scale, result[SECONDARY["mastery"]])
-        self.assertAlmostEqual(1 * scale, result[SECONDARY["vers"]])
-        self.assertAlmostEqual(result[STRENGTH], result[SECONDARY["crit"]])
+        scale = 10 / 15.2
+        share = 10 / 2.15
+        self.assertAlmostEqual(1.0 * share * scale, result[SECONDARY["crit"]])
+        self.assertAlmostEqual(0.5 * share * scale, result[SECONDARY["haste"]])
+        self.assertAlmostEqual(0.4 * share * scale, result[SECONDARY["mastery"]])
+        self.assertAlmostEqual(0.25 * share * scale, result[SECONDARY["vers"]])
+        self.assertAlmostEqual(4 * scale, result[STRENGTH])
+        self.assertAlmostEqual(1.2 * scale, result["STATVERDICT_ITEM_LEVEL"])
+        self.assertAlmostEqual(10 * scale, sum(result[key] for key in SECONDARY.values()))
 
     def test_a_stat_without_a_usable_weight_uses_its_rank_weight(self) -> None:
         result = self.weights(self.profile({"crit": 1.0, "haste": 0.5, "mastery": 0, "vers": None}))
-        # mastery rank 3 -> 2.00, vers rank 4 -> 1.00; total 4+4+2+2+1+1.2 = 14.2
-        scale = 10 / 14.2
+        # crit/haste share ranks 1-2 (4+3 = 7) by weight: 4.667 / 2.333; mastery rank 3 -> 2.00,
+        # vers rank 4 -> 1.00. Total stays 4 + 10 + 1.2 = 15.2.
+        scale = 10 / 15.2
+        self.assertAlmostEqual(7 * 1.0 / 1.5 * scale, result[SECONDARY["crit"]])
+        self.assertAlmostEqual(7 * 0.5 / 1.5 * scale, result[SECONDARY["haste"]])
         self.assertAlmostEqual(2 * scale, result[SECONDARY["mastery"]])
         self.assertAlmostEqual(1 * scale, result[SECONDARY["vers"]])
-        self.assertAlmostEqual(2 * scale, result[SECONDARY["haste"]])
+
+    def delta_multiplier(self, profile, stat_key: str, delta: float) -> float:
+        self.ns.GetDynamicStatWeight = lambda profile, key, weight: weight
+        return self.ns.GetDeltaAdjustedStatWeight(profile, stat_key, delta, 1.0)
+
+    def test_measured_weights_turn_off_the_rank_gain_and_loss_multipliers(self) -> None:
+        weighted = self.profile({"crit": 1.0, "haste": 0.5, "mastery": 0.4, "vers": 0.25})
+        for key in SECONDARY.values():
+            self.assertEqual(1.0, self.delta_multiplier(weighted, key, 10), key)
+            self.assertEqual(1.0, self.delta_multiplier(weighted, key, -10), key)
+        self.assertEqual(1.05, self.delta_multiplier(weighted, STRENGTH, -10))  # primary unchanged
+
+    def test_without_measured_weights_the_rank_multipliers_stay(self) -> None:
+        plain = self.profile()
+        self.assertEqual([1.0, 0.9, 0.8, 0.7],
+                         [self.delta_multiplier(plain, SECONDARY[k], 10) for k in ("crit", "haste", "mastery", "vers")])
+        self.assertEqual([1.5, 1.3, 1.15, 1.0],
+                         [self.delta_multiplier(plain, SECONDARY[k], -10) for k in ("crit", "haste", "mastery", "vers")])
+
+
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class TooltipProvenanceTests(unittest.TestCase):
+    TOOLTIP = """
+    local lines = {}
+    return {
+        lines = lines,
+        GetItem = function() return nil, "item:1000" end,
+        AddLine = function(self, text) lines[#lines + 1] = text end,
+        Show = function() end,
+    }
+    """
+
+    def setUp(self) -> None:
+        self.lua = new_runtime()
+        self.ns = self.lua.table()
+        load_addon_file(self.lua, self.ns, "UI/SV_Tooltip.lua")
+        self.asked = []
+
+        def provenance(goal=None):
+            self.asked.append(goal)
+            # Like the repository: no goal (or stale data) means unavailable.
+            return self.lua.table(available=goal == "RAID")
+
+        self.ns.ProfileRepository = self.lua.table(GetDataProvenance=provenance)
+        self.ns.GetStatAuditGoalMode = lambda: "PVP"
+
+    def lines(self, context):
+        self.ns.GetTooltipEvaluationContexts = lambda: context
+        tooltip = self.lua.execute(self.TOOLTIP)
+        self.ns.ProcessTooltip(tooltip)
+        return [tooltip.lines[i] for i in range(1, len(tooltip.lines) + 1)]
+
+    def test_unavailable_data_is_checked_for_the_contexts_goal(self) -> None:
+        lines = self.lines(self.lua.table(goal="PVP"))
+        self.assertEqual(["PVP"], self.asked)
+        self.assertTrue(any("profile data unavailable" in line for line in lines))
+
+    def test_available_goal_shows_no_unavailable_notice(self) -> None:
+        self.assertEqual([], self.lines(self.lua.table(goal="RAID")))
+        self.assertEqual(["RAID"], self.asked)
+
+    def test_context_without_a_goal_uses_the_selected_goal(self) -> None:
+        lines = self.lines(self.lua.table())
+        self.assertEqual(["PVP"], self.asked)
+        self.assertTrue(any("profile data unavailable" in line for line in lines))
 
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")

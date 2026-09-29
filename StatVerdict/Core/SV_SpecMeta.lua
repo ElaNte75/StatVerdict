@@ -94,6 +94,36 @@ local HERO_OPTIONS_BY_SPEC_ID = {
     [73] = { "Colossus", "Mountain Thane" },
 }
 
+-- Hero tree subTreeID (C_ClassTalents.GetActiveHeroTalentSpec) -> ClassCodex hero
+-- key. The game gives hero tree NAMES in the client language, so the ID is the
+-- only language-independent way to find the player's hero tree. IDs are
+-- Blizzard's TraitSubTree DB2 rows on each class talent tree (source: wago.tools
+-- db2/TraitSubTree, build 12.x, checked 2026-09-29).
+local HERO_KEY_BY_SUBTREE_ID = {
+    [31] = "sanlayn", [32] = "rider-of-the-apocalypse", [33] = "deathbringer",
+    [34] = "fel-scarred", [35] = "aldrachi-reaver", [124] = "annihilator", [126] = "void-scarred",
+    [21] = "druid-of-the-claw", [22] = "wildstalker", [23] = "keeper-of-the-grove", [24] = "elunes-chosen",
+    [36] = "scalecommander", [37] = "flameshaper", [38] = "chronowarden",
+    [42] = "sentinel", [43] = "pack-leader", [44] = "dark-ranger",
+    [39] = "sunfury", [40] = "spellslinger", [41] = "frostfire",
+    [64] = "conduit-of-the-celestials", [65] = "shado-pan", [66] = "master-of-harmony",
+    [48] = "templar", [49] = "lightsmith", [50] = "herald-of-the-sun",
+    [18] = "voidweaver", [19] = "archon", [20] = "oracle",
+    [51] = "trickster", [52] = "fatebound", [53] = "deathstalker",
+    [54] = "totemic", [55] = "stormbringer", [56] = "farseer",
+    [57] = "soul-harvester", [58] = "hellcaller", [59] = "diabolist",
+    [60] = "slayer", [61] = "mountain-thane", [62] = "colossus",
+}
+
+function ns.GetStatVerdictHeroKeyBySubTreeID(subTreeID)
+    return subTreeID and HERO_KEY_BY_SUBTREE_ID[tonumber(subTreeID)] or nil
+end
+
+function ns.GetStatVerdictHeroSubTreeIDs()
+    local copy = {}
+    for subTreeID, heroKey in pairs(HERO_KEY_BY_SUBTREE_ID) do copy[subTreeID] = heroKey end
+    return copy
+end
 
 function ns.GetStatVerdictSpecKeyBySpecID(specID)
     return specID and SPEC_KEY_BY_SPEC_ID[specID] or nil

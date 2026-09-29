@@ -32,12 +32,12 @@ jobs:
       - name: Run existing tests
         run: python -m unittest discover -s tools/tests
 
-      - name: Fetch and build the live ClassCodex data
+      - name: Refresh the ClassCodex StatDR module
         run: python tools/classcodex_cli.py
 
       # Everything from here to "Build ClassCodex stat targets" is isolated
       # with continue-on-error: the SimC-based targets pipeline is newer and
-      # heavier than the plain LiveData/StatDR refresh above, and a failure in
+      # heavier than the plain StatDR refresh above, and a failure in
       # it must never block that already-working refresh from being committed.
       - name: Check out SimulationCraft Midnight
         id: simc-checkout
@@ -85,14 +85,13 @@ jobs:
         shell: bash
         run: |
           files=(
-            StatVerdict/Data/Generated/SV_ClassCodexLiveData.lua
             StatVerdict/Data/Generated/SV_StatDR.lua
           )
           # Only include the targets file when its own step succeeded (a
           # failed run writes nothing, and on a first run the file may not
           # exist at all -- `git add` on a missing path would abort the
-          # whole commit). A normal, fully successful run still commits all
-          # three files together as one commit.
+          # whole commit). A normal, fully successful run still commits both
+          # files together as one commit.
           if [ "${{ steps.targets.outcome }}" = "success" ] && [ -f StatVerdict/Data/Generated/SV_ClassCodexTargets.lua ]; then
             files+=(StatVerdict/Data/Generated/SV_ClassCodexTargets.lua)
           fi
@@ -115,10 +114,10 @@ jobs:
           echo "Push failed after 5 attempts."
           exit 1
 
-      # The LiveData/StatDR commit above has already happened by now; this
+      # The StatDR commit above has already happened by now; this
       # only turns the run red so a targets-pipeline failure is not silent.
       - name: Report stat-target pipeline failure
         if: steps.targets.outcome != 'success'
         run: |
-          echo "::error::ClassCodex stat targets were not rebuilt this run (outcome: ${{ steps.targets.outcome }}). LiveData/StatDR were still committed; see the 'Build ClassCodex stat targets' step log."
+          echo "::error::ClassCodex stat targets were not rebuilt this run (outcome: ${{ steps.targets.outcome }}). StatDR was still committed; see the 'Build ClassCodex stat targets' step log."
           exit 1

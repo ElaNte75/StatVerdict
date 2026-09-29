@@ -11,7 +11,7 @@ from __future__ import annotations
 import unittest
 
 from tools.spec_catalog import SPECS
-from tools.tests.test_addon_lua import FRAME_STUB, LuaRuntime, new_runtime, toc_lua_files
+from tools.tests.test_addon_lua import FRAME_STUB, LuaRuntime, compile_lua_file, new_runtime, toc_lua_files
 
 GOALS = ("MYTHIC_PLUS", "RAID", "PVP")
 
@@ -41,11 +41,9 @@ end })
 # The data's own build time stands in for "now", so the 30-day freshness check
 # tests the data, not the date the test happens to run on.
 PIN_TIME_TO_BUILD = """
-local buildId = ...
+local buildId, parseBuildTime = ...
 local realTime = os.time
-local y, mo, d, h, mi, s = buildId:match("^(%d%d%d%d)(%d%d)(%d%d)(%d%d)(%d%d)(%d%d)")
-local now = realTime({ year = tonumber(y), month = tonumber(mo), day = tonumber(d),
-    hour = tonumber(h), min = tonumber(mi), sec = tonumber(s) }) + 3600
+local now = assert(parseBuildTime(buildId)) + 3600
 time = function(t) if t then return realTime(t) end return now end
 """
 
@@ -63,12 +61,11 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
         lua.execute(WOW_GLOBALS_STUB)
         lua.globals().StatVerdictDB = lua.table()
         ns = lua.table()
-        load = lua.eval("function(path, ns) local f, err = loadfile(path) if not f then error(err) end f('StatVerdict', ns) end")
         for path in toc_lua_files():
-            load(str(path), ns)
+            compile_lua_file(lua, path)("StatVerdict", ns)
         lua.execute("setmetatable(_G, nil)")
-        lua.eval("function(src, buildId) assert(loadstring or load)(src)(buildId) end")(
-            PIN_TIME_TO_BUILD, ns.ClassCodexTargets.buildId)
+        lua.eval("function(src, buildId, parse) assert(loadstring(src))(buildId, parse) end")(
+            PIN_TIME_TO_BUILD, ns.ClassCodexTargets.buildId, ns.ProfileRepository.ParseBuildTime)
         cls.lua, cls.ns = lua, ns
 
     def test_every_toc_file_loaded_and_exposes_the_repository(self) -> None:
@@ -107,6 +104,25 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
                 problems.append(f"{spec_key} ({spec_id}): hero options {sorted(options)} != data {sorted(data_heroes)}")
         if problems:
             self.fail("\n  ".join(["SpecMeta out of date:"] + problems))
+
+    def test_hero_subtree_ids_cover_every_hero_key_in_the_data_exactly_once(self) -> None:
+        ns, lua = self.ns, self.lua
+        targets = ns.ClassCodexTargets.profiles
+        data_keys = {hero for spec_key in targets.keys() for goal in targets[spec_key].goals.keys()
+                     for hero in targets[spec_key].goals[goal].heroTalents.keys()}
+        table = ns.GetStatVerdictHeroSubTreeIDs()
+        mapped = [table[subtree_id] for subtree_id in table.keys()]
+        self.assertEqual(len(mapped), len(set(mapped)), "a hero key is listed under two subtree IDs")
+        self.assertEqual(sorted(data_keys), sorted(mapped))
+        # Every spec/goal/hero cell resolves by ID alone, even with a translated name.
+        for subtree_id in table.keys():
+            hero = table[subtree_id]
+            for spec_key in targets.keys():
+                for goal in targets[spec_key].goals.keys():
+                    if targets[spec_key].goals[goal].heroTalents[hero] is None:
+                        continue
+                    self.assertEqual(hero, ns.ProfileRepository.ResolveHeroKey(
+                        spec_key, goal, "Nom traduit", subtree_id), f"{spec_key} {goal} {subtree_id}")
 
     def test_missing_hero_tree_name_uses_the_first_sorted_hero_key(self) -> None:
         ns, lua = self.ns, self.lua

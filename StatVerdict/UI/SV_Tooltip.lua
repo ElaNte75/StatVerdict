@@ -184,9 +184,13 @@ local function AddTooltipVerdict(tooltip)
     local function renderContext(context, isSecondary)
         local profile = context and context.profile or nil
         if not profile then
+            -- Provenance is per goal: this build's goal, else the selected one.
+            local goal = (context and context.goal)
+                or (ns.GetStatAuditGoalMode and ns.GetStatAuditGoalMode())
+                or "MYTHIC_PLUS"
             local provenance = ns.ProfileRepository
                 and ns.ProfileRepository.GetDataProvenance
-                and ns.ProfileRepository.GetDataProvenance()
+                and ns.ProfileRepository.GetDataProvenance(goal)
             if provenance and provenance.available == false and not renderedDataUnavailable then
                 renderedDataUnavailable = true
                 tooltip:AddLine(" ")
