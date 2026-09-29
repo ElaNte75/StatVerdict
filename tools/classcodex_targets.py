@@ -150,6 +150,15 @@ def gear_by_simc_slot(gear_list: list[dict[str, Any]] | None) -> dict[str, dict[
     for entry in gear_list or []:
         if not isinstance(entry, dict):
             continue
+        catalyst = entry.get("catalyst")
+        if isinstance(catalyst, dict) and isinstance(catalyst.get("itemId"), (int, float)):
+            # Icy Veins: {itemId = <drop>, catalyst = {itemId = <tier piece>,
+            # bonusIDs = {...}}} -- the BiS item is the Catalyst result, and
+            # only it carries the bonus ids that put it at max upgrade.
+            entry = {k: v for k, v in entry.items() if k not in ("catalyst", "bonusIDs")}
+            entry["itemId"] = catalyst["itemId"]
+            if isinstance(catalyst.get("bonusIDs"), list):
+                entry["bonusIDs"] = catalyst["bonusIDs"]
         simc_slot = CLASSCODEX_SLOT_TO_SIMC.get(str(entry.get("slot") or ""))
         if simc_slot is None or not isinstance(entry.get("itemId"), (int, float)):
             continue
@@ -358,6 +367,28 @@ def average_item_level(gear_list: list[dict[str, Any]] | None) -> float | None:
     if not levels:
         return None
     return sum(levels) / len(levels)
+
+
+def loadout_item_level(
+    loadout: list[dict[str, Any]], reconstructed: dict[str, Any] | None
+) -> tuple[float | None, int, str]:
+    """(averageItemLevel, itemLevelSlots, source) for one simulated loadout.
+
+    u.gg gear carries an `ilvl` per entry: those are averaged (source
+    "classcodex"). Icy Veins gear carries none (its bonusIDs put each item
+    at its max upgrade inside SimC), so the item levels SimC reports for
+    the items it really equipped are averaged instead (source "simc",
+    simc_stat_engine.parse_gear_item_levels). Neither -> (None, 0, "none");
+    nothing is invented. itemLevelSlots always counts the averaged items."""
+    average = average_item_level(loadout)
+    if average is not None:
+        slots = sum(1 for entry in loadout if isinstance(entry.get("ilvl"), (int, float)))
+        return average, slots, "classcodex"
+    levels = (reconstructed or {}).get("item_levels")
+    values = [float(v) for v in (levels or {}).values() if isinstance(v, (int, float)) and not isinstance(v, bool)]
+    if values:
+        return sum(values) / len(values), len(values), "simc"
+    return None, 0, "none"
 
 
 def select_talent_export(talents_value: dict[str, Any] | None, hero_talent_key: str, context_key: str) -> str | None:
@@ -671,6 +702,7 @@ def reconstruct_target_context(
         raise ComboSkipped("no talent export for this goal")
 
     source = SIMC_TARGET_SOURCE
+    reconstructed: dict[str, Any] | None = None
     try:
         stats_by_actor, _report, recovery, actor_name = run_with_talent_fallback(
             # Paper-doll run: only the stat sheet is read, so skip the
@@ -736,10 +768,13 @@ def reconstruct_target_context(
             # id only, never simulated.
             item["enchant"] = dict(enchant)
         bis_slots.append({"slot": entry["slot"], "item": item})
-    # averageItemLevel only averages entries that carry an ilvl, so
-    # itemLevelSlots counts exactly those (0 for real PvP gear, which has none).
-    item_level_slots = sum(1 for entry in loadout if isinstance(entry.get("ilvl"), (int, float)))
+    # `reconstructed` is None when SimC itself failed (Wowhead fallback);
+    # when SimC ran but its stats were unusable, its item levels still are.
+    average_ilvl, item_level_slots, item_level_source = loadout_item_level(loadout, reconstructed)
     target_metadata: dict[str, Any] = {
+        # "classcodex" (the gear list's ilvl), "simc" (SimC's report of the
+        # simulated items) or "none" (neither was available).
+        "itemLevelSource": item_level_source,
         "lowItemReplacements": 0,
         "unresolvedLowItems": 0,
         # Items that carried the recommended gems / slots that carried an
@@ -754,7 +789,7 @@ def reconstruct_target_context(
 
     return {
         "targets": {
-            "averageItemLevel": average_item_level(loadout),
+            "averageItemLevel": average_ilvl,
             "itemCount": len(items),
             "itemLevelSlots": item_level_slots,
             "statTargets": {"context": goal, "source": source, "stats": stats},

@@ -801,6 +801,56 @@ LOOKUP = {
 }
 
 
+class IcyVeinsItemLevelTests(unittest.TestCase):
+    """Icy Veins gear has bonusIDs but no ilvl: averageItemLevel comes from
+    the item levels SimC reports for the simulated items."""
+
+    spec = SPEC_BY_KEY["DEATHKNIGHT_FROST"]
+    gear = [
+        {"itemId": 1, "slot": "Head", "bonusIDs": [13848]},
+        {"itemId": 2, "slot": "Neck", "bonusIDs": [13848]},
+    ]
+
+    def simulate(self, reconstructed, gear=None):
+        with patch(
+            "tools.classcodex_targets.run_simc", return_value=({"sv_0001": reconstructed}, {})
+        ) as mock_run, redirect_stderr(io.StringIO()):
+            context = reconstruct_target_context(self.spec, "RAID", gear or self.gear, "X")
+        return context, mock_run.call_args.args[1]
+
+    def test_average_item_level_comes_from_the_simc_report(self) -> None:
+        context, _ = self.simulate({"ratings": {"crit": 1.0, "haste": 2.0}, "item_levels": {"head": 289.0, "neck": 285.0}})
+        targets = context["targets"]
+        self.assertEqual(287.0, targets["averageItemLevel"])
+        self.assertEqual(2, targets["itemLevelSlots"])
+        self.assertEqual("simc", targets["targetMetadata"]["itemLevelSource"])
+
+    def test_without_report_item_levels_the_average_stays_none(self) -> None:
+        context, _ = self.simulate({"ratings": {"crit": 1.0, "haste": 2.0}})
+        self.assertIsNone(context["targets"]["averageItemLevel"])
+        self.assertEqual(0, context["targets"]["itemLevelSlots"])
+        self.assertEqual("none", context["targets"]["targetMetadata"]["itemLevelSource"])
+
+    def test_gear_ilvl_still_wins_when_present(self) -> None:
+        gear = [{"itemId": 1, "slot": "Head", "ilvl": 300}]
+        context, _ = self.simulate({"ratings": {"crit": 1.0, "haste": 2.0}, "item_levels": {"head": 250.0}}, gear)
+        self.assertEqual(300.0, context["targets"]["averageItemLevel"])
+        self.assertEqual("classcodex", context["targets"]["targetMetadata"]["itemLevelSource"])
+
+    def test_a_catalyst_entry_simulates_and_shows_the_catalyst_item(self) -> None:
+        gear = [
+            {
+                "slot": "Head",
+                "source": "Catalyst from Ula'tek",
+                "itemId": 271537,
+                "catalyst": {"itemId": 271875, "bonusIDs": [13848, 13847]},
+            }
+        ]
+        context, profile = self.simulate({"ratings": {"crit": 1.0, "haste": 2.0}}, gear)
+        self.assertIn("head=,id=271875,bonus_id=13848/13847", profile)
+        self.assertEqual({"item_id": 271875, "bonus_ids": [13848, 13847]}, context["bis"]["slots"][0]["item"])
+
+
 class IcyVeinsEnchantTranslationTests(unittest.TestCase):
     def test_scroll_ids_and_rune_spells_become_real_enchants(self) -> None:
         upgrades = select_loadout_upgrades(ICY_ENCHANTS, None, "deathbringer", "RAID", LOOKUP)

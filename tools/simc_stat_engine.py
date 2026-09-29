@@ -165,7 +165,33 @@ def _players(report: dict[str, Any]) -> list[dict[str, Any]]:
     return players if isinstance(players, list) else []
 
 
+def parse_gear_item_levels(actor: dict[str, Any]) -> dict[str, float]:
+    """{SimC slot name: item level} of the items SimC actually equipped.
+
+    VERIFIED against simulationcraft/simc branch `midnight` (read
+    2026-09-29), engine/report/json/report_json.cpp: the player's to_json
+    calls `gear_to_json( root[ "gear" ], p )` (line 888) unconditionally
+    (not gated by report_details), and gear_to_json (line 382) writes, per
+    slot, `root[ item.slot_name() ]` with "name", "encoded_item" and
+    "ilevel" = item.item_level() (line 395) plus the item's stat values.
+    Slot names are util::slot_type_string ("head", "shoulders", "wrists",
+    "finger1", "trinket1", "main_hand", ...). Items that are inactive or
+    carry no stats at all (item_t::has_stats) are NOT written, so the map
+    can miss a slot."""
+    gear = actor.get("gear")
+    levels: dict[str, float] = {}
+    if not isinstance(gear, dict):
+        return levels
+    for slot_name, slot in gear.items():
+        ilevel = slot.get("ilevel") if isinstance(slot, dict) else None
+        if isinstance(ilevel, (int, float)) and not isinstance(ilevel, bool) and ilevel > 0:
+            levels[str(slot_name)] = float(ilevel)
+    return levels
+
+
 def parse_report(report: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Per actor: buffed secondary ratings/percentages, attributes, health,
+    armor, and `item_levels` (parse_gear_item_levels)."""
     output = {}
     for actor in _players(report):
         name = actor.get("name")
@@ -191,6 +217,7 @@ def parse_report(report: dict[str, Any]) -> dict[str, dict[str, Any]]:
             "attributes": attributes,
             "health": resources.get("health"),
             "armor": stats.get("armor"),
+            "item_levels": parse_gear_item_levels(actor),
         }
     return output
 
