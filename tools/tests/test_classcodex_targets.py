@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import io
 import unittest
+from contextlib import redirect_stderr
 from unittest.mock import patch
 
 from pathlib import Path
 
 from tools.classcodex_targets import (
     GOAL_CONTEXT_KEY,
+    ComboSkipped,
+    reconstruct_target_context,
+    talent_export_from_entries,
+    talent_exports_from_entries,
     select_context,
     select_goal_context,
     build_simc_items,
@@ -133,6 +139,75 @@ class SelectTalentExportTests(unittest.TestCase):
     def test_returns_none_when_the_context_has_no_entries(self) -> None:
         talents = {"deathbringer": {"all": []}}
         self.assertIsNone(select_talent_export(talents, "deathbringer", "pvp"))
+
+
+class TalentExportsFromEntriesTests(unittest.TestCase):
+    def test_recommended_first_then_the_rest_in_order_without_duplicates(self) -> None:
+        entries = [
+            {"export": "A"},
+            {"export": "B", "recommended": True},
+            {"export": "A"},
+            {"label": "no export"},
+            "junk",
+            {"export": "C"},
+        ]
+        self.assertEqual(["B", "A", "C"], talent_exports_from_entries(entries))
+        self.assertEqual("B", talent_export_from_entries(entries))
+
+    def test_empty_or_invalid_input(self) -> None:
+        self.assertEqual([], talent_exports_from_entries(None))
+        self.assertEqual([], talent_exports_from_entries([]))
+        self.assertIsNone(talent_export_from_entries([]))
+
+
+TALENT_ERROR = "Selected node 82241 entry 103320 is not available to player's spec"
+GOOD = ({"sv_0001": {"ratings": {"crit": 1.0, "haste": 2.0}}}, {})
+
+
+class TalentFallbackTests(unittest.TestCase):
+    spec = SPEC_BY_KEY["DRUID_RESTORATION"]
+    gear = [{"itemId": 1, "slot": "Head", "ilvl": 300}]
+
+    def run_targets(self, side_effect, exports):
+        with patch("tools.classcodex_targets.run_simc", side_effect=side_effect) as mock_run, \
+                redirect_stderr(io.StringIO()):
+            context = reconstruct_target_context(self.spec, "RAID", self.gear, exports)
+        return context, [call.args[1] for call in mock_run.call_args_list]
+
+    def test_tries_the_next_export_when_simc_rejects_the_talents(self) -> None:
+        context, profiles = self.run_targets([RuntimeError(TALENT_ERROR), GOOD], ["A", "B"])
+        self.assertIn("talents=A", profiles[0])
+        self.assertIn("talents=B", profiles[1])
+        self.assertEqual(["talent export 2"], context["targets"]["targetMetadata"]["recovery"])
+
+    def test_runs_without_talents_when_every_export_is_rejected(self) -> None:
+        context, profiles = self.run_targets([RuntimeError(TALENT_ERROR), RuntimeError(TALENT_ERROR), GOOD], ["A", "B"])
+        self.assertEqual(3, len(profiles))
+        self.assertNotIn("talents=", profiles[2])
+        self.assertEqual(["talents ignored"], context["targets"]["targetMetadata"]["recovery"])
+
+    def test_a_non_talent_error_is_not_retried(self) -> None:
+        with patch("tools.classcodex_targets.run_simc", side_effect=[RuntimeError("boom"), GOOD]) as mock_run, \
+                redirect_stderr(io.StringIO()), self.assertRaises(ComboSkipped):
+            reconstruct_target_context(self.spec, "RAID", self.gear, ["A", "B"])
+        self.assertEqual(1, mock_run.call_count)
+
+    def test_the_run_without_talents_failing_skips_the_combo(self) -> None:
+        with self.assertRaisesRegex(ComboSkipped, "SimC run failed"):
+            self.run_targets([RuntimeError(TALENT_ERROR)] * 3, ["A", "B"])
+
+    def test_build_all_hands_every_export_to_the_fallback(self) -> None:
+        specs = {
+            "DRUID_restoration": {
+                "gear": {"value": {"all": {"raid": self.gear}}},
+                "talents": {"value": {"keeper-of-the-grove": {"raid": [{"export": "A"}, {"export": "B"}]}}},
+            }
+        }
+        with patch("tools.classcodex_targets.run_simc", side_effect=[RuntimeError(TALENT_ERROR), GOOD]), \
+                redirect_stderr(io.StringIO()):
+            data = build_all(specs, Path("simc"), goals=("RAID",))
+        context = data["profiles"]["DRUID_RESTORATION"]["goals"]["RAID"]["heroTalents"]["keeper-of-the-grove"]
+        self.assertEqual(["talent export 2"], context["targets"]["targetMetadata"]["recovery"])
 
 
 class BuildTrinketsAndPriorityTests(unittest.TestCase):

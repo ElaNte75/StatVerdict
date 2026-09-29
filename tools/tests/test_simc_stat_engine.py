@@ -139,6 +139,25 @@ class StatSheetOnlyTests(unittest.TestCase):
         # It belongs to the player block, not the global sim options.
         self.assertNotIn("default_actions=0", sim_option_lines(sheet))
 
+    def test_render_player_still_requires_talents_by_default(self) -> None:
+        with self.assertRaises(ValueError):
+            render_player(actor_name="a", class_name="mage", spec_name="Fire", role="dps", race="human",
+                          talent_loadout="", items={})
+
+    def test_render_player_omits_the_talents_line_when_talents_are_optional(self) -> None:
+        text = render_player(actor_name="a", class_name="mage", spec_name="Fire", role="dps", race="human",
+                             talent_loadout="", items={}, talents_optional=True)
+        self.assertNotIn("talents=", text)
+        # A given loadout is still rendered.
+        text = render_player(actor_name="a", class_name="mage", spec_name="Fire", role="dps", race="human",
+                             talent_loadout="T", items={}, talents_optional=True)
+        self.assertIn("talents=T", text)
+
+    def test_render_profiles_passes_talents_optional_through(self) -> None:
+        spec = SPEC_BY_KEY["DEATHKNIGHT_FROST"]
+        text, _ = render_profiles(spec, [{"items": {"HEAD": {"itemId": 1}}}], talents_optional=True)
+        self.assertNotIn("talents=", text)
+
 
 WEAPON_ITEMS = {"HEAD": {"itemId": 1}, "MAIN_HAND": {"itemId": 2}, "OFF_HAND": {"itemId": 3}}
 OFFHAND_2H_ERROR = "Player sv_0001 has an Off-Hand weapon equipped with a 2h weapon"

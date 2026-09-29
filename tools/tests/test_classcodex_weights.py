@@ -9,6 +9,7 @@ from tools.classcodex_weights import (
     SCALE_FACTOR_TIMEOUT_SECONDS,
     build_all_weights,
     build_weight_context,
+    compute_weight_context,
     parse_scale_factors,
     scale_metric_for_role,
 )
@@ -133,6 +134,33 @@ class BuildWeightContextTests(unittest.TestCase):
         report = {"sim": {"players": []}}
         with patch("tools.classcodex_weights.run_simc", return_value=({}, report)):
             self.assertIsNone(build_weight_context(spec, GEAR, TALENTS, "all", "raid", Path("simc")))
+
+
+TALENT_ERROR = "Selected node 82241 entry 103320 is not available to player's spec"
+
+
+class WeightTalentFallbackTests(unittest.TestCase):
+    def test_tries_every_export_then_runs_without_talents(self) -> None:
+        spec = SPEC_BY_KEY["DEATHKNIGHT_FROST"]
+        side_effect = [RuntimeError(TALENT_ERROR), RuntimeError(TALENT_ERROR), ({}, scale_report())]
+        with patch("tools.classcodex_weights.run_simc", side_effect=side_effect) as mock_run:
+            weights = compute_weight_context(spec, GEAR, ["A", "B"], Path("simc"))
+        profiles = [call.args[1] for call in mock_run.call_args_list]
+        self.assertIn("talents=A", profiles[0])
+        self.assertIn("talents=B", profiles[1])
+        self.assertNotIn("talents=", profiles[2])
+        self.assertAlmostEqual(1.0, weights["critical_strike"])
+
+    def test_build_all_weights_hands_every_export_to_the_fallback(self) -> None:
+        specs = {
+            "DEATHKNIGHT_frost": {
+                "gear": {"value": {"all": {"raid": GEAR}}},
+                "talents": {"value": {"all": {"raid": [{"export": "A"}, {"export": "B"}]}}},
+            }
+        }
+        with patch("tools.classcodex_weights.run_simc", side_effect=[RuntimeError(TALENT_ERROR), ({}, scale_report())]):
+            data = build_all_weights(specs, Path("simc"), goals=("RAID",))
+        self.assertIn("RAID", data["profiles"]["DEATHKNIGHT_FROST"]["goals"])
 
 
 class BuildAllWeightsTests(unittest.TestCase):

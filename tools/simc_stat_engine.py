@@ -69,12 +69,15 @@ def render_player(
     items: dict[str, dict[str, Any]],
     level: int = 90,
     stat_sheet_only: bool = False,
+    talents_optional: bool = False,
 ) -> str:
     """`stat_sheet_only` adds `default_actions=0`, so SimC does not build the
     spec's default action list: a paper-doll run only reads the stat sheet,
     and an outdated default APL (e.g. Holy/Discipline Priest) would otherwise
-    fail the whole run."""
-    if not talent_loadout:
+    fail the whole run. `talents_optional` lets an empty loadout omit the
+    `talents=` line (last-resort run when SimC rejects every export)
+    instead of raising."""
+    if not talent_loadout and not talents_optional:
         raise ValueError(f"{actor_name}: talent loadout is required")
     class_token = SIMC_CLASS_MAP.get(class_name.casefold(), simc_token(class_name))
     lines = [
@@ -82,8 +85,9 @@ def render_player(
         f"level={level}",
         f"race={simc_token(race)}",
         f"spec={simc_token(spec_name)}",
-        f"talents={talent_loadout}",
     ]
+    if talent_loadout:
+        lines.append(f"talents={talent_loadout}")
     if stat_sheet_only:
         lines.append("default_actions=0")
     if role == "tank":
@@ -108,6 +112,7 @@ def render_profiles(
     scale_only: tuple[str, ...] | None = None,
     target_error: float | None = None,
     stat_sheet_only: bool = False,
+    talents_optional: bool = False,
 ) -> tuple[str, dict[str, dict[str, Any]]]:
     """Renders a SimC profile for one or more actors of `spec`.
 
@@ -147,6 +152,7 @@ def render_profiles(
                 items=record["items"],
                 level=int(record.get("level") or 90),
                 stat_sheet_only=stat_sheet_only,
+                talents_optional=talents_optional,
             )
         )
         actor_map[actor_name] = record
