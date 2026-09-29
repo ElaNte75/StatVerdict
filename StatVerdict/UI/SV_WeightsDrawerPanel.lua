@@ -7,7 +7,16 @@ local DRAWER_PREFERRED_WIDTH = 280
 local MARGIN = 14
 local ROW_HEIGHT = 50
 local ROW_STEP = 56
-local ROWS_TOP = -84
+local ROWS_TOP = -72
+
+-- Mode rows and difficulty cards share this look.
+local ROW_BACKDROP = {
+    bgFile = "Interface\\Buttons\\WHITE8X8",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    tile = false,
+    edgeSize = 12,
+    insets = { left = 3, right = 3, top = 3, bottom = 3 },
+}
 
 local GOLD = { 1.0, 0.82, 0.0 }
 local GREY = { 0.72, 0.72, 0.72 }
@@ -87,13 +96,7 @@ local function EnsureModeRow(card, index, mode)
     local row = CreateFrame("Button", nil, card, "BackdropTemplate")
     row.key = mode.key
     row:SetHeight(ROW_HEIGHT)
-    row:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = false,
-        edgeSize = 12,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 },
-    })
+    row:SetBackdrop(ROW_BACKDROP)
 
     -- Only shows the tick; the whole row is the click target.
     row.check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
@@ -135,24 +138,38 @@ local function EnsureModeRow(card, index, mode)
     return row
 end
 
--- "Stat targets" group: title, the three difficulties as check options side by
--- side, easy to hard (a radio group: exactly one is ticked), then the selected
--- difficulty's explanation under them (two lines). Only Guide uses the
--- difficulty: with Measured the options are dimmed and locked.
+-- "Stat targets" group: title, the three difficulties as small cards in one row,
+-- easy to hard, styled like the mode rows (a radio group: exactly one is ticked),
+-- then the selected difficulty's explanation under them (two lines). Only Guide
+-- uses the difficulty: with Measured the cards are dimmed and locked.
 local DESCRIPTION_SPACING = 4
+local BIN_GROUP_GAP = 14          -- separator > group
+local BIN_CHIP_TOP = -16          -- title (10px) + 6px
+local BIN_CHIP_HEIGHT = 26
+local BIN_CHIP_GAP = 8            -- between the cards
+local BIN_CHIP_CHECK = 20
+local BIN_NOTE_GAP = 10           -- cards > explanation
 local BIN_NOTE_HEIGHT = 2 * 10 + DESCRIPTION_SPACING + 2
-local BIN_GROUP_HEIGHT = 38 + 2 + BIN_NOTE_HEIGHT
+local BIN_BOTTOM_MARGIN = 4
+local BIN_NOTE_TOP = BIN_CHIP_TOP - BIN_CHIP_HEIGHT - BIN_NOTE_GAP
+local BIN_GROUP_HEIGHT = -BIN_NOTE_TOP + BIN_NOTE_HEIGHT + BIN_BOTTOM_MARGIN
 local BIN_DIMMED_ALPHA = 0.45
 local BIN_NOT_USED = "Not used with our own measurement."
-local BIN_OPTION_TOP = -16
-local BIN_OPTION_WIDTH = 80
-local BIN_OPTION_STEP = 82
-local BIN_OPTION_HEIGHT = 22
+
+-- Three equal cards filling the given width, with even gaps between them.
+local function LayoutBinChips(card, width)
+    local chipWidth = (width - 2 * BIN_CHIP_GAP) / 3
+    for index, chip in ipairs(card.binRows or {}) do
+        chip:ClearAllPoints()
+        chip:SetSize(chipWidth, BIN_CHIP_HEIGHT)
+        chip:SetPoint("TOPLEFT", card.binGroup, "TOPLEFT", (index - 1) * (chipWidth + BIN_CHIP_GAP), BIN_CHIP_TOP)
+    end
+end
 
 local function EnsureBinGroup(card, above)
     local group = CreateFrame("Frame", nil, card)
-    group:SetPoint("TOPLEFT", above, "BOTTOMLEFT", 0, -10)
-    group:SetPoint("TOPRIGHT", above, "BOTTOMRIGHT", 0, -10)
+    group:SetPoint("TOPLEFT", above, "BOTTOMLEFT", 0, -BIN_GROUP_GAP)
+    group:SetPoint("TOPRIGHT", above, "BOTTOMRIGHT", 0, -BIN_GROUP_GAP)
     group:SetHeight(BIN_GROUP_HEIGHT)
     card.binGroup = group
 
@@ -163,8 +180,8 @@ local function EnsureBinGroup(card, above)
     card.binTitle:SetText("Stat targets")
 
     card.binNote = group:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    card.binNote:SetPoint("TOPLEFT", group, "TOPLEFT", 0, BIN_OPTION_TOP - BIN_OPTION_HEIGHT - 2)
-    card.binNote:SetPoint("TOPRIGHT", group, "TOPRIGHT", 0, BIN_OPTION_TOP - BIN_OPTION_HEIGHT - 2)
+    card.binNote:SetPoint("TOPLEFT", group, "TOPLEFT", 0, BIN_NOTE_TOP)
+    card.binNote:SetPoint("TOPRIGHT", group, "TOPRIGHT", 0, BIN_NOTE_TOP)
     card.binNote:SetHeight(BIN_NOTE_HEIGHT)
     card.binNote:SetJustifyH("LEFT")
     card.binNote:SetJustifyV("TOP")
@@ -174,15 +191,14 @@ local function EnsureBinGroup(card, above)
 
     card.binRows = {}
     for index, bin in ipairs(ns.GetStatTargetBins()) do
-        local option = CreateFrame("Button", nil, group)
+        local option = CreateFrame("Button", nil, group, "BackdropTemplate")
         option.key = bin.key
-        option:SetSize(BIN_OPTION_WIDTH, BIN_OPTION_HEIGHT)
-        option:SetPoint("TOPLEFT", group, "TOPLEFT", (index - 1) * BIN_OPTION_STEP, BIN_OPTION_TOP)
+        option:SetBackdrop(ROW_BACKDROP)
 
-        -- Same tick as the mode rows; the whole option is the click target.
+        -- Same tick as the mode rows; the whole card is the click target.
         option.check = CreateFrame("CheckButton", nil, option, "UICheckButtonTemplate")
-        option.check:SetSize(BIN_OPTION_HEIGHT, BIN_OPTION_HEIGHT)
-        option.check:SetPoint("LEFT", option, "LEFT", -3, 0)
+        option.check:SetSize(BIN_CHIP_CHECK, BIN_CHIP_CHECK)
+        option.check:SetPoint("LEFT", option, "LEFT", 4, 0)
         option.check:EnableMouse(false)
         if option.check.Text then option.check.Text:Hide() end
 
@@ -190,6 +206,14 @@ local function EnsureBinGroup(card, above)
         option.label:SetPoint("LEFT", option.check, "RIGHT", 1, 0)
         option.label:SetText(bin.label)
 
+        option:SetScript("OnEnter", function(self)
+            self.hovered = true
+            PaintRow(self, ns.GetStatTargetBin() == self.key, not self.dimmed)
+        end)
+        option:SetScript("OnLeave", function(self)
+            self.hovered = false
+            PaintRow(self, ns.GetStatTargetBin() == self.key, false)
+        end)
         option:SetScript("OnClick", function()
             if option.dimmed then return end
             ns.SetStatTargetBin(bin.key)
@@ -197,7 +221,7 @@ local function EnsureBinGroup(card, above)
         end)
         card.binRows[index] = option
     end
-    return group
+    return group  -- the cards are sized to the drawer width in Panel.Apply
 end
 
 local function EnsureCard(frame)
@@ -282,11 +306,10 @@ function Panel.Sync(card)
         local checked = option.key == bin
         option.check:SetChecked(checked)
         if checked then
-            option.label:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
             binAbout = ns.GetStatTargetBins()[index].about or ""
-        else
-            option.label:SetTextColor(WHITE[1], WHITE[2], WHITE[3])
         end
+        if dimmed then option.hovered = false end
+        PaintRow(option, checked, option.hovered == true)
         option.dimmed = dimmed
         option:EnableMouse(not dimmed)
         option:SetAlpha(dimmed and BIN_DIMMED_ALPHA or 1)
@@ -374,7 +397,12 @@ function Panel.Apply(frame)
         card:SetPoint("TOPLEFT", frame, "TOPLEFT", panelX, -34)
         card:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", panelX, 14)
     end
-    card:SetWidth(math.max(120, cardWidth - (cardPad.left or 0) - (cardPad.right or 0)))
+    local innerWidth = math.max(120, cardWidth - (cardPad.left or 0) - (cardPad.right or 0))
+    card:SetWidth(innerWidth)
+    if card.binChipsWidth ~= innerWidth then
+        card.binChipsWidth = innerWidth
+        LayoutBinChips(card, innerWidth - 2 * MARGIN)
+    end
     card:Show()
     if ns.ApplyRightDrawerCardDev then
         ns.ApplyRightDrawerCardDev(card, "benchmark.card", "Weights drawer", "benchmark.width", DRAWER_PREFERRED_WIDTH)

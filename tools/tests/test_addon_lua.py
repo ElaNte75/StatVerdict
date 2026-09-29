@@ -1046,6 +1046,14 @@ local function Stub()
         end
         if key == "SetSpacing" then return function(self, value) rawset(self, "spacing", value) end end
         if key == "SetChecked" then return function(self, value) rawset(self, "checked", value) end end
+        if key == "SetWidth" then return function(self, value) rawset(self, "_width", value) end end
+        if key == "SetBackdrop" then return function(self, value) rawset(self, "_backdrop", value) end end
+        if key == "SetBackdropColor" then
+            return function(self, r, g, b, a) rawset(self, "_bg", { r, g, b, a }) end
+        end
+        if key == "SetBackdropBorderColor" then
+            return function(self, r, g, b, a) rawset(self, "_border", { r, g, b, a }) end
+        end
         if key == "SetScript" then
             return function(self, name, fn)
                 local scripts = rawget(self, "scripts") or {}
@@ -1065,7 +1073,11 @@ local function Stub()
         return nil
     end })
 end
-CreateFrame = function() return Stub() end
+CreateFrame = function(kind, name, parent, template)
+    local frame = Stub()
+    rawset(frame, "_frameTemplate", template)
+    return frame
+end
 """
 
 
@@ -1288,6 +1300,74 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
             self.assertFalse(card.binRows[i].dimmed, i)
             self.assertTrue(card.binRows[i]._mouse, i)
             self.assertEqual(1, card.binRows[i]._alpha, i)
+
+    # --- Difficulty chips: same look as the mode rows ---------------------------
+    GOLD_BORDER = (1.0, 0.82, 0.0)
+
+    def border(self, region):
+        return tuple(round(region._border[i], 2) for i in (1, 2, 3))
+
+    def test_difficulties_are_equal_chips_in_one_row(self) -> None:
+        card = self.card()
+        chips = [card.binRows[i] for i in (1, 2, 3)]
+        for chip in chips:
+            # Same frame and backdrop style as the mode rows.
+            self.assertEqual("BackdropTemplate", chip._frameTemplate)
+            self.assertEqual(card.modeRows[1]._backdrop.edgeFile, chip._backdrop.edgeFile)
+            self.assertEqual(card.modeRows[1]._backdrop.bgFile, chip._backdrop.bgFile)
+            self.assertEqual("TOPLEFT", chip.points[1][1])
+        self.assertEqual(1, len({chip._width for chip in chips}))
+        self.assertEqual(1, len({chip._height for chip in chips}))
+        self.assertEqual(1, len({chip.points[1][5] for chip in chips}))  # one row
+        width = chips[0]._width
+        xs = [chip.points[1][4] for chip in chips]
+        self.assertEqual(0, xs[0])
+        gaps = [xs[i + 1] - xs[i] - width for i in (0, 1)]
+        self.assertEqual(gaps[0], gaps[1])
+        self.assertGreaterEqual(gaps[0], 6)
+        # The row spans the drawer's text width exactly.
+        self.assertAlmostEqual(self.DRAWER_TEXT_WIDTH, xs[2] + width, delta=0.01)
+
+    def test_selected_chip_is_gold_and_ticked_like_the_mode_rows(self) -> None:
+        self.lua.globals().StatVerdictDB.statTargetBin = "top50"
+        card = self.card()
+        selected, other = card.binRows[2], card.binRows[1]
+        self.assertTrue(selected.check.checked)
+        self.assertEqual(self.border(card.modeRows[1]), self.border(selected))
+        self.assertEqual(self.GOLD_BORDER, self.border(selected))
+        self.assertEqual(self.border(card.modeRows[2]), self.border(other))
+        self.assertNotEqual(self.GOLD_BORDER, self.border(other))
+        self.assertEqual(tuple(card.modeRows[1]._bg[i] for i in (1, 2, 3)),
+                         tuple(selected._bg[i] for i in (1, 2, 3)))
+        self.assertEqual(tuple(card.modeRows[2]._bg[i] for i in (1, 2, 3)),
+                         tuple(other._bg[i] for i in (1, 2, 3)))
+
+    def test_hovering_a_chip_lights_its_border(self) -> None:
+        card = self.card()
+        chip = card.binRows[1]
+        resting = self.border(chip)
+        chip.scripts.OnEnter(chip)
+        self.assertNotEqual(resting, self.border(chip))
+        self.assertEqual(self.border(card.modeRows[2]), resting)
+        chip.scripts.OnLeave(chip)
+        self.assertEqual(resting, self.border(chip))
+        # The selected chip stays gold while hovered.
+        card.binRows[3].scripts.OnEnter(card.binRows[3])
+        self.assertEqual(self.GOLD_BORDER, self.border(card.binRows[3]))
+
+    def test_stat_target_group_has_room_to_breathe(self) -> None:
+        card = self.card()
+        group = card.binGroup
+        self.assertLessEqual(group.points[1][5], -12)  # margin under the separator
+        title_bottom = self.region_top(card, card.binTitle) - self.text_height(card.binTitle, 252)
+        chip = card.binRows[1]
+        chip_top = self.region_top(card, group) + chip.points[1][5]
+        self.assertGreaterEqual(title_bottom - chip_top, 6)
+        self.assertGreaterEqual(chip._height, 26)
+        note_top = self.region_top(card, card.binNote)
+        self.assertGreaterEqual(chip_top - chip._height - note_top, 8)
+        group_bottom = self.region_top(card, group) - group._height
+        self.assertGreaterEqual(note_top - card.binNote._height - group_bottom, 4)
 
     # --- Geometry: the whole drawer must fit the card ---------------------------
     # The drawer card spans the Stat Progress card: frame height 440 minus the title
