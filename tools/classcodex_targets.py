@@ -123,8 +123,16 @@ def select_goal_context(nested: dict[str, Any] | None, hero_talent_key: str, goa
     under hero "all", while talents and aoe/single-target stat priorities
     live only under the specific hero keys. Empty values are treated as
     absent so the chain keeps looking. Returns None if nothing matches."""
+    return select_goal_context_keyed(nested, hero_talent_key, goal)[0]
+
+
+def select_goal_context_keyed(
+    nested: dict[str, Any] | None, hero_talent_key: str, goal: str
+) -> tuple[Any | None, str | None, str | None]:
+    """select_goal_context, also returning the (hero key, context key) the
+    value was found under ((None, None, None) when nothing matched)."""
     if not isinstance(nested, dict):
-        return None
+        return None, None, None
     context_keys = GOAL_CONTEXT_KEYS[goal] + (FALLBACK_CONTEXT_KEY,)
     hero_keys = [hero_talent_key]
     if hero_talent_key != ALL_HERO_TALENTS_KEY:
@@ -136,8 +144,21 @@ def select_goal_context(nested: dict[str, Any] | None, hero_talent_key: str, goa
         for context_key in context_keys:
             value = by_context.get(context_key)
             if value:
-                return value
-    return None
+                return value, hero_key, context_key
+    return None, None, None
+
+
+def field_origin(field: dict[str, Any] | None, hero_talent_key: str, goal: str) -> str | None:
+    """Which source (classcodex_build `origins`, else the field's `source`)
+    the goal/hero-talent value of one build() field came from."""
+    if not isinstance(field, dict):
+        return None
+    _value, hero_key, context_key = select_goal_context_keyed(field.get("value"), hero_talent_key, goal)
+    if hero_key is None:
+        return None
+    origins = field.get("origins")
+    origin = ((origins or {}).get(hero_key) or {}).get(context_key) if isinstance(origins, dict) else None
+    return origin or field.get("source")
 
 
 def gear_by_simc_slot(gear_list: list[dict[str, Any]] | None) -> dict[str, dict[str, Any]]:
@@ -878,6 +899,54 @@ def format_rating_sanity(data: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def format_coverage_report(data: dict[str, Any]) -> str:
+    """CI-log coverage check of a build_all document, per goal: contexts by
+    gear source (targetMetadata.gearSource), trinket-list lengths, BiS-slot
+    enchants (total / with a real enchant id / untranslated, shown only),
+    contexts with gems, and averageItemLevel present vs None (with where
+    the item level came from)."""
+    per_goal: dict[str, dict[str, Counter]] = {}
+    for profile in (data.get("profiles") or {}).values():
+        for goal, goal_data in ((profile or {}).get("goals") or {}).items():
+            stats = per_goal.setdefault(
+                goal,
+                {key: Counter() for key in ("gear", "trinkets", "enchants", "gems", "ilvl", "ilvl_source")},
+            )
+            for context in ((goal_data or {}).get("heroTalents") or {}).values():
+                targets = (context or {}).get("targets") or {}
+                metadata = targets.get("targetMetadata") or {}
+                stats["gear"][metadata.get("gearSource") or "unknown"] += 1
+                stats["trinkets"][len((context or {}).get("trinkets") or [])] += 1
+                for slot in ((context or {}).get("bis") or {}).get("slots") or []:
+                    enchant = (slot.get("item") or {}).get("enchant") if isinstance(slot, dict) else None
+                    if isinstance(enchant, dict):
+                        stats["enchants"]["total"] += 1
+                        stats["enchants"]["translated" if enchant.get("id") is not None else "untranslated"] += 1
+                stats["gems"]["with gems" if metadata.get("gemCount") else "without gems"] += 1
+                stats["ilvl"]["present" if targets.get("averageItemLevel") is not None else "None"] += 1
+                stats["ilvl_source"][metadata.get("itemLevelSource") or "unknown"] += 1
+
+    def fmt(counter: Counter) -> str:
+        return ", ".join(f"{key}: {count}" for key, count in sorted(counter.items(), key=lambda kv: str(kv[0])))
+
+    lines = ["Coverage report (per goal):"]
+    if not per_goal:
+        lines.append("  no contexts")
+    for goal in sorted(per_goal):
+        stats = per_goal[goal]
+        lines.append(f"  {goal}:")
+        lines.append(f"    contexts by gear source: {fmt(stats['gear'])}")
+        lines.append(f"    trinket count distribution (length: contexts): {fmt(stats['trinkets'])}")
+        enchants = stats["enchants"]
+        lines.append(
+            f"    enchants on BiS slots: total {enchants['total']}, translated {enchants['translated']}, "
+            f"untranslated (shown, not simulated) {enchants['untranslated']}"
+        )
+        lines.append(f"    gems: {fmt(stats['gems'])}")
+        lines.append(f"    averageItemLevel: {fmt(stats['ilvl'])} (source {fmt(stats['ilvl_source'])})")
+    return "\n".join(lines)
+
+
 def count_contexts(data: dict[str, Any]) -> int:
     """Number of spec/goal/hero-talent leaves in a generated document
     (profiles[specKey].goals[goal].heroTalents[hero]) -- the unit the
@@ -1018,6 +1087,9 @@ def build_all(
                 except ComboSkipped as skip:
                     skipped.append(SkipRecord(catalog_key, goal, hero_talent_key, skip.reason))
                     continue
+                gear_source = field_origin(fields.get("gear"), hero_talent_key, goal)
+                if gear_source:
+                    target_context["targets"]["targetMetadata"]["gearSource"] = gear_source
                 # u.gg's own targets, independent of how the SimC run went.
                 guide_targets = guide_targets_for(stat_targets_value, hero_talent_key, goal)
                 if guide_targets:

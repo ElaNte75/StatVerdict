@@ -801,6 +801,53 @@ LOOKUP = {
 }
 
 
+class CoverageReportTests(unittest.TestCase):
+    def test_build_all_records_the_gear_source_and_the_report_counts_it(self) -> None:
+        from tools.classcodex_targets import format_coverage_report
+
+        specs = {
+            "DEATHKNIGHT_frost": {
+                "gear": {
+                    "value": {
+                        "all": {"raid": [{"itemId": 1, "slot": "Head", "bonusIDs": [13848]}]},
+                        "deathbringer": {"pvp": [{"itemId": 2, "slot": "Head"}]},
+                    },
+                    "source": "icyveins",
+                    "origins": {"all": {"raid": "icyveins"}, "deathbringer": {"pvp": "ugg"}},
+                },
+                "talents": {"value": {"deathbringer": {"raid": [{"export": "X"}], "pvp": [{"export": "P"}]}}},
+                "trinkets": {"value": {"all": {"all": [{"itemId": 9, "tier": "S"}, {"itemId": 8, "tier": "A"}]}}},
+                "enchants": {"value": ICY_ENCHANTS, "source": "icyveins"},
+                "enchantLookup": {"value": LOOKUP},
+                "gems": {"value": {"all": {"all": [{"primary": 1, "secondary": [2]}]}}},
+            }
+        }
+        reconstructed = {"ratings": {"crit": 1.0, "haste": 2.0}, "item_levels": {"head": 289.0}}
+        with patch("tools.classcodex_targets.run_simc", return_value=({"sv_0001": reconstructed}, {})), \
+                redirect_stderr(io.StringIO()):
+            data = build_all(specs, Path("simc"), goals=("RAID", "PVP"))
+        goals = data["profiles"]["DEATHKNIGHT_FROST"]["goals"]
+        raid = goals["RAID"]["heroTalents"]["deathbringer"]["targets"]["targetMetadata"]
+        pvp = goals["PVP"]["heroTalents"]["deathbringer"]["targets"]["targetMetadata"]
+        self.assertEqual("icyveins", raid["gearSource"])
+        self.assertEqual("ugg", pvp["gearSource"])
+
+        report = format_coverage_report(data)
+        self.assertIn("  RAID:", report)
+        self.assertIn("contexts by gear source: icyveins: 1", report)
+        self.assertIn("contexts by gear source: ugg: 1", report)
+        self.assertIn("trinket count distribution (length: contexts): 2: 1", report)
+        # Only the Head slot exists: its Icy Veins scroll translates.
+        self.assertIn("enchants on BiS slots: total 1, translated 1, untranslated (shown, not simulated) 0", report)
+        self.assertIn("gems: with gems: 1", report)
+        self.assertIn("averageItemLevel: present: 1 (source simc: 1)", report)
+
+    def test_empty_document(self) -> None:
+        from tools.classcodex_targets import format_coverage_report
+
+        self.assertIn("no contexts", format_coverage_report({"profiles": {}}))
+
+
 class IcyVeinsItemLevelTests(unittest.TestCase):
     """Icy Veins gear has bonusIDs but no ilvl: averageItemLevel comes from
     the item levels SimC reports for the simulated items."""
