@@ -347,11 +347,14 @@ local function BuildEqualGroups(priority, secondaryOrder)
     return groups
 end
 
-local function BuildAuditTargets(targets, primaryStat, secondaryOrder)
+local function BuildAuditTargets(targets, primaryStat, secondaryOrder, secondaryWeights)
     local statTargets = type(targets) == "table" and targets.statTargets or nil
     local targetValues = type(statTargets) == "table" and statTargets.stats or nil
     local model = ns.GlobalStatVerdictModifiers or {}
-    local secondaryWeights = type(model.secondary) == "table" and model.secondary or {}
+    local rankWeights = type(model.secondary) == "table" and model.secondary or {}
+    -- Same per-stat weight as the tooltip scoring (SV_Modifiers): the measured
+    -- weight's share when there is one, else the rank weight.
+    local weightProfile = { secondaryOrder = secondaryOrder, secondaryWeights = secondaryWeights }
     local rows = {}
     local seen = {}
 
@@ -381,7 +384,8 @@ local function BuildAuditTargets(targets, primaryStat, secondaryOrder)
     end
 
     for index, statKey in ipairs(secondaryOrder) do
-        add(statKey, "Secondary", index, tonumber(secondaryWeights[index]) or tonumber(model.fallbackSecondary) or 1)
+        local measured = ns.GetMeasuredSecondaryRawWeight and ns.GetMeasuredSecondaryRawWeight(weightProfile, statKey)
+        add(statKey, "Secondary", index, measured or tonumber(rankWeights[index]) or tonumber(model.fallbackSecondary) or 1)
     end
 
     return {
@@ -469,7 +473,7 @@ function Repository.BuildRuntimeProfile(context)
             averageItemLevel = nil,
             rows = {},
             invalidReason = invalidReason or "Generated profile data failed quality checks.",
-        } or BuildAuditTargets(generatedContext.targets, primaryStat, secondaryOrder),
+        } or BuildAuditTargets(generatedContext.targets, primaryStat, secondaryOrder, secondaryWeights),
         generatedContext = invalidGeneratedContext and nil or generatedContext,
         invalidGeneratedContext = invalidGeneratedContext,
     }

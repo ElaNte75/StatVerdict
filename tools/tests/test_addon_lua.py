@@ -463,6 +463,22 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual([SECONDARY["haste"], SECONDARY["crit"], SECONDARY["vers"], SECONDARY["mastery"]],
                          [rows[i].key for i in range(1, len(rows) + 1)])
 
+    def test_stat_audit_base_modifiers_match_the_scoring_weights(self) -> None:
+        lua, ns = self.build_runtime()
+        load_addon_file(lua, ns, "Core/SV_Modifiers.lua")
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        rows = profile.auditTargets.rows
+        base = {rows[i].key: rows[i].baseModifier for i in range(1, len(rows) + 1)}
+        # haste 1.0, crit 0.8, vers 0.6, mastery 0.5 share the rank total 4+3+2+1 = 10.
+        total = 1.0 + 0.8 + 0.6 + 0.5
+        for stat, weight in (("haste", 1.0), ("crit", 0.8), ("vers", 0.6), ("mastery", 0.5)):
+            self.assertAlmostEqual(10 * weight / total, base[SECONDARY[stat]], msg=stat)
+            self.assertEqual(ns.GetMeasuredSecondaryRawWeight(profile, SECONDARY[stat]), base[SECONDARY[stat]])
+        # Without measured weights the rows keep the rank weights.
+        plain = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua, heroTalentName="Deathbringer"))
+        rows = plain.auditTargets.rows
+        self.assertEqual([4.0, 3.0, 2.0, 1.0], [rows[i].baseModifier for i in range(1, len(rows) + 1)])
+
     def test_hero_tree_without_weights_keeps_the_classcodex_priority(self) -> None:
         lua, ns = self.build_runtime()
         profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua, heroTalentName="Deathbringer"))
