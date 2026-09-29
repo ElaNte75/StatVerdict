@@ -140,6 +140,71 @@ local function GetQualityHex(quality)
     return "|cffdbdbdb"
 end
 
+-- Name of a plain item (gem, enchant scroll); nil until the game has its data,
+-- in which case the load is requested and the row refreshes when it arrives.
+local function GetPlainItemName(itemID)
+    itemID = SafeNumber(itemID)
+    if not itemID then return nil end
+    local name = GetItemInfoByLinkOrID(nil, itemID)
+    if not name or name == "" then
+        RequestItemLoad(itemID)
+        return nil
+    end
+    return name
+end
+
+local function GetSpellNameByID(spellID)
+    spellID = SafeNumber(spellID)
+    if not spellID then return nil end
+    if C_Spell and type(C_Spell.GetSpellName) == "function" then
+        local ok, name = pcall(C_Spell.GetSpellName, spellID)
+        if ok and type(name) == "string" and name ~= "" then return name end
+    end
+    if type(GetSpellInfo) == "function" then
+        local ok, name = pcall(GetSpellInfo, spellID)
+        if ok and type(name) == "string" and name ~= "" then return name end
+    end
+    return nil
+end
+
+-- The recommended gems and enchant for a best-in-slot item, as one line:
+-- "Gems: A, B  ·  Enchant: X". Empty when the slot has neither (or old data).
+local function BuildRecommendationText(entry)
+    local item = type(entry) == "table" and entry.item or nil
+    if type(item) ~= "table" then return "" end
+    local parts = {}
+
+    if type(item.gem_ids) == "table" then
+        local gems = {}
+        for _, gemID in ipairs(item.gem_ids) do
+            gemID = SafeNumber(gemID)
+            if gemID then
+                gems[#gems + 1] = GetPlainItemName(gemID) or ("Gem #" .. tostring(gemID))
+            end
+        end
+        if #gems > 0 then
+            parts[#parts + 1] = "Gems: " .. table.concat(gems, ", ")
+        end
+    end
+
+    local enchant = item.enchant
+    if type(enchant) == "table" then
+        local enchantID = SafeNumber(enchant.id)
+        local scrollID = SafeNumber(enchant.item_id)
+        local spellID = SafeNumber(enchant.spell_id)
+        local name = GetPlainItemName(scrollID) or GetSpellNameByID(spellID)
+        local fallbackID = enchantID or scrollID or spellID
+        if not name and fallbackID then
+            name = "Enchant #" .. tostring(fallbackID)
+        end
+        if name then
+            parts[#parts + 1] = "Enchant: " .. name
+        end
+    end
+
+    return table.concat(parts, "  ·  ")
+end
+
 local function GetLinkItemLevel(itemLink)
     if not itemLink then return nil end
     if ns.GetItemLevel then
@@ -290,6 +355,22 @@ local function SetRowItemVisual(row, display)
     row.name:SetTextColor(1, 1, 1)
 end
 
+local function SetRowDetails(row, text)
+    if not row.details then return end
+    text = text or ""
+    row.detailsText = text
+    row.details:SetText(text)
+    if text ~= "" then
+        row.details:Show()
+    else
+        row.details:Hide()
+    end
+end
+
+local function HasDetails(row)
+    return type(row.detailsText) == "string" and row.detailsText ~= ""
+end
+
 local function OwnershipState(itemID, occurrence, equippedCounts, bagCounts)
     if not itemID then return "missing" end
     local equippedCount = equippedCounts[itemID] or 0
@@ -303,7 +384,7 @@ local function OwnershipState(itemID, occurrence, equippedCounts, bagCounts)
     return "missing"
 end
 
-local ROW_LAYOUT_VERSION = 10
+local ROW_LAYOUT_VERSION = 11
 -- Title chip sits near TOP (-12). List content starts below it; AdvDev can nudge further.
 local CONTENT_TOP_BASE = -50
 
@@ -379,6 +460,8 @@ local GAP_AROUND_DASH_BIS = 16
 local GAP_AROUND_DASH_TRINKETS = 10
 local OWNED_COL_MIN = 12
 local SLOT_COL_MIN = 36
+local DETAILS_GAP = 8
+local DETAILS_COLOR = { 0.55, 0.55, 0.55 }
 
 local function GapsForMode(showTrinkets)
     local gap = showTrinkets and GAP_AROUND_DASH_TRINKETS or GAP_AROUND_DASH_BIS
@@ -461,6 +544,16 @@ local function EnsurePanel(frame)
         row.name:SetPoint("RIGHT", row, "RIGHT", -4, 0)
         row.name:SetJustifyH("LEFT")
         row.name:SetWordWrap(false)
+
+        -- Recommended gems + enchant, dimmed, on the same line after the name
+        -- (the card height is fixed, so a second line per row would not fit).
+        row.details = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        row.details:SetPoint("LEFT", row.name, "RIGHT", DETAILS_GAP, 0)
+        row.details:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+        row.details:SetJustifyH("LEFT")
+        row.details:SetWordWrap(false)
+        row.details:SetTextColor(DETAILS_COLOR[1], DETAILS_COLOR[2], DETAILS_COLOR[3])
+        row.details:SetText("")
 
         EnsureRowMouse(row)
         card.rows[index] = row
@@ -579,7 +672,11 @@ local function MeasureAndApplyAutoWidth(frame, card, showTrinkets)
                 if w > maxOwnedW then maxOwnedW = w end
             end
             if row.name and row.name.GetStringWidth then
+                -- Name plus its gems/enchant line count as one column.
                 local w = row.name:GetStringWidth() or 0
+                if HasDetails(row) and row.details.GetStringWidth then
+                    w = w + DETAILS_GAP + (row.details:GetStringWidth() or 0)
+                end
                 if w > maxNameW then maxNameW = w end
             end
         end
@@ -596,7 +693,16 @@ local function MeasureAndApplyAutoWidth(frame, card, showTrinkets)
         row.ownedIlvl:SetPoint("LEFT", row.slot, "RIGHT", gapSlotToOwned, 0)
         row.name:ClearAllPoints()
         row.name:SetPoint("LEFT", row.ownedIlvl, "RIGHT", gapOwnedToName, 0)
-        row.name:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+        if HasDetails(row) then
+            -- Name keeps its own width; the gems/enchant line takes the rest (and
+            -- is the part cut off when the card is at its maximum width).
+            row.name:SetWidth(math.ceil(row.name:GetStringWidth() or 0) + 1)
+            row.details:ClearAllPoints()
+            row.details:SetPoint("LEFT", row.name, "RIGHT", DETAILS_GAP, 0)
+            row.details:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+        else
+            row.name:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+        end
     end
 
     -- status(16)+gap(2)+slot+gap+owned+gap+name+padding
@@ -750,9 +856,11 @@ function Panel.Refresh(frame, profile)
                 SetRowOwnership(row, state)
                 SetRowOwnedLevel(row, ownedLevel)
                 SetRowItemVisual(row, display)
+                SetRowDetails(row, "")
                 row:Show()
             else
                 row.itemLink = nil
+                SetRowDetails(row, "")
                 row:Hide()
             end
         end
@@ -797,9 +905,11 @@ function Panel.Refresh(frame, profile)
             SetRowOwnership(row, state)
             SetRowOwnedLevel(row, ownedLevel)
             SetRowItemVisual(row, display)
+            SetRowDetails(row, BuildRecommendationText(entry))
             row:Show()
         else
             row.itemLink = nil
+            SetRowDetails(row, "")
             row:Hide()
         end
     end

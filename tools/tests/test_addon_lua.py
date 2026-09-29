@@ -1240,5 +1240,141 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         self.assertEqual((2, 3), (pad.top, pad.bottom))
 
 
+BIS_PANEL_STUB = """
+-- Item and spell data the game would have (or not yet) cached.
+ITEM_NAMES = {}
+SPELL_NAMES = {}
+REQUESTED = {}
+C_Item = {
+    GetItemInfo = function(item)
+        local id = tonumber(item) or tonumber(tostring(item):match("item:(%d+)"))
+        return ITEM_NAMES[id], nil, 4
+    end,
+    RequestLoadItemDataByID = function(id) REQUESTED[id] = true end,
+}
+C_Spell = { GetSpellName = function(id) return SPELL_NAMES[id] end }
+CREATED = {}
+local plainCreate = CreateFrame
+-- Font strings measure their text (6 px a character) so the auto width can be checked.
+local function MeasuredFontString()
+    local text = plainCreate()
+    rawset(text, "GetStringWidth", function(self) return #(rawget(self, "text") or "") * 6 end)
+    return text
+end
+CreateFrame = function(...)
+    local frame = plainCreate(...)
+    rawset(frame, "CreateFontString", function() return MeasuredFontString() end)
+    CREATED[#CREATED + 1] = frame
+    return frame
+end
+"""
+
+
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class BisPanelRecommendationTests(unittest.TestCase):
+    """Each Best in Slot row shows the item with its recommended gems and enchant."""
+
+    def setUp(self) -> None:
+        self.lua = new_runtime()
+        self.lua.execute(FRAME_STUB)
+        self.lua.execute(BIS_PANEL_STUB)
+        self.ns = self.lua.table()
+        self.mode = "bis"
+        self.ns.GetRightPanelMode = lambda: self.mode
+        load_addon_file(self.lua, self.ns, "UI/SV_BisProgressPanel.lua")
+        # The first frame the file creates listens for item data arriving.
+        self.item_events = self.lua.globals().CREATED[1]
+        self.frame = self.lua.eval("CreateFrame")()
+        g = self.lua.globals()
+        g.ITEM_NAMES[1001] = "Crown of Tests"
+        g.ITEM_NAMES[1002] = "Amulet of Tests"
+        g.ITEM_NAMES[1003] = "Blade of Tests"
+
+    def slots(self, *entries):
+        table = self.lua.table()
+        for index, entry in enumerate(entries, start=1):
+            table[index] = entry
+        return table
+
+    def item(self, item_id, gems=None, enchant=None):
+        item = self.lua.table(item_id=item_id)
+        if gems is not None:
+            item.gem_ids = self.lua.table(*gems)
+        if enchant is not None:
+            item.enchant = self.lua.table(**enchant)
+        return item
+
+    def refresh(self, *entries):
+        bis = self.lua.table(slots=self.slots(*entries))
+        profile = self.lua.table(generatedContext=self.lua.table(bis=bis))
+        self.ns.StatVerdictBisProgressPanel.Refresh(self.frame, profile)
+        return self.frame.bisProgressCard
+
+    def test_row_shows_gems_and_enchant_next_to_the_item(self) -> None:
+        g = self.lua.globals()
+        g.ITEM_NAMES[213746] = "Masterful Gem"
+        g.ITEM_NAMES[213743] = "Quick Gem"
+        g.ITEM_NAMES[243981] = "Enchant Helm - Scroll"
+        card = self.refresh(self.lua.table(slot="Head", item=self.item(
+            1001, gems=[213746, 213743], enchant={"id": 8017, "item_id": 243981, "spell_id": 1236001})))
+        row = card.rows[1]
+        self.assertIn("Crown of Tests", row.name.text)
+        self.assertEqual("Gems: Masterful Gem, Quick Gem  ·  Enchant: Enchant Helm - Scroll", row.details.text)
+
+    def test_enchant_name_falls_back_to_spell_then_id(self) -> None:
+        self.lua.globals().SPELL_NAMES[1236001] = "Radiant Mastery"
+        card = self.refresh(
+            self.lua.table(slot="Ring", item=self.item(1001, enchant={"id": 8017, "spell_id": 1236001})),
+            self.lua.table(slot="Main Hand", item=self.item(1003, enchant={"id": 3368})),
+        )
+        self.assertEqual("Enchant: Radiant Mastery", card.rows[1].details.text)
+        self.assertEqual("Enchant: Enchant #3368", card.rows[2].details.text)
+
+    def test_line_is_empty_without_gems_or_enchant(self) -> None:
+        card = self.refresh(
+            self.lua.table(slot="Neck", item=self.item(1002)),
+            self.lua.table(slot="Neck", item=self.item(1002, gems=[], enchant={})),
+        )
+        for index in (1, 2):
+            self.assertEqual("", card.rows[index].details.text, index)
+
+    def test_old_data_with_a_flat_entry_has_no_errors(self) -> None:
+        card = self.refresh(self.lua.table(slot="Neck", item_id=1002))
+        self.assertIn("Amulet of Tests", card.rows[1].name.text)
+        self.assertEqual("", card.rows[1].details.text)
+
+    def test_gem_names_fill_in_when_the_item_data_arrives(self) -> None:
+        g = self.lua.globals()
+        card = self.refresh(self.lua.table(slot="Head", item=self.item(1001, gems=[213746])))
+        self.assertEqual("Gems: Gem #213746", card.rows[1].details.text)
+        self.assertTrue(g.REQUESTED[213746])
+        g.ITEM_NAMES[213746] = "Masterful Gem"
+        self.item_events.scripts.OnEvent(self.item_events, "GET_ITEM_INFO_RECEIVED", 213746, True)
+        self.assertEqual("Gems: Masterful Gem", card.rows[1].details.text)
+
+    def test_enchant_scroll_name_fills_in_when_the_item_data_arrives(self) -> None:
+        g = self.lua.globals()
+        card = self.refresh(self.lua.table(slot="Head", item=self.item(
+            1001, enchant={"id": 8017, "item_id": 243981})))
+        self.assertEqual("Enchant: Enchant #8017", card.rows[1].details.text)
+        g.ITEM_NAMES[243981] = "Enchant Helm - Scroll"
+        self.item_events.scripts.OnEvent(self.item_events, "GET_ITEM_INFO_RECEIVED", 243981, True)
+        self.assertEqual("Enchant: Enchant Helm - Scroll", card.rows[1].details.text)
+
+    def test_ranked_trinkets_rows_have_no_recommendation_line(self) -> None:
+        self.refresh(self.lua.table(slot="Head", item=self.item(1001, gems=[213746])))
+        self.mode = "trinkets"
+        trinkets = self.slots(self.lua.table(item_id=1003, tier="S"))
+        profile = self.lua.table(generatedContext=self.lua.table(trinkets=trinkets))
+        self.ns.StatVerdictBisProgressPanel.Refresh(self.frame, profile)
+        self.assertEqual("", self.frame.bisProgressCard.rows[1].details.text)
+
+    def test_panel_width_makes_room_for_the_line(self) -> None:
+        plain = self.refresh(self.lua.table(slot="Head", item=self.item(1001))).preferredWidth
+        with_line = self.refresh(self.lua.table(slot="Head", item=self.item(
+            1001, enchant={"id": 3368}))).preferredWidth
+        self.assertGreater(with_line, plain)
+
+
 if __name__ == "__main__":
     unittest.main()
