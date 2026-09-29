@@ -228,9 +228,10 @@ local BAG_INDICATOR_OPTIONS = {
 }
 
 -- Best in Slot section: what hovering a Best in Slot row shows.
--- Our tooltip and the game tooltip exclude each other (both may be off); the
--- gems / enchants block only exists inside our tooltip. showBisGemsEnchants is
--- the older single toggle's key, kept so saved choices survive.
+-- Our tooltip and the game tooltip are always clickable: ticking one turns the
+-- other off, unticking the ticked one leaves both off (no tooltip). The gems /
+-- enchants block only exists inside our tooltip. showBisGemsEnchants is the
+-- older single toggle's key, kept so saved choices survive.
 local BIS_TOOLTIP_OPTIONS = {
     { key = "showBisTooltip", label = "Best in Slot tooltip" },
     { key = "showBisGemsEnchants", label = "Gems and enchants", indent = true },
@@ -244,10 +245,16 @@ local function BisOptionState(key)
     local db = _G.StatVerdictDB
     local ours = OptionFlagOn("showBisTooltip")
     local game = (not ours) and type(db) == "table" and db.bisUseGameTooltip == true
-    if key == "showBisTooltip" then return ours, not game end
+    if key == "showBisTooltip" then return ours, true end
     if key == "showBisGemsEnchants" then return OptionFlagOn(key), ours end
-    return game, not ours
+    return game, true
 end
+
+-- The tooltip option that a tick on key turns off.
+local BIS_EXCLUSIVE_WITH = {
+    showBisTooltip = "bisUseGameTooltip",
+    bisUseGameTooltip = "showBisTooltip",
+}
 
 local function EnsureOptionCheckbox(card, option, parent)
     local optionKey = option.key
@@ -546,7 +553,10 @@ function Panel.Apply(frame)
                 return
             end
             _G.StatVerdictDB = _G.StatVerdictDB or {}
-            _G.StatVerdictDB[option.key] = self:GetChecked() and true or false
+            local on = self:GetChecked() and true or false
+            _G.StatVerdictDB[option.key] = on
+            local other = BIS_EXCLUSIVE_WITH[option.key]
+            if on and other then _G.StatVerdictDB[other] = false end
             SyncBagIndicatorOptionChecks(card)
         end)
     end
