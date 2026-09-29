@@ -30,12 +30,14 @@ try:
         _hero_talent_keys,
         build_simc_items,
         canonical_stat_name,
+        format_simc_error,
         select_goal_context,
         select_talent_export,
-        talent_export_from_entries,
+        run_with_talent_fallback,
+        talent_exports_from_entries,
     )
     from tools.live_benchmark_engine import SPEC_BY_KEY
-    from tools.simc_stat_engine import render_profiles, run_simc
+    from tools.simc_stat_engine import run_simc
 except ModuleNotFoundError:
     from classcodex_targets import (
         CANONICAL_SECONDARY_STATS,
@@ -45,12 +47,14 @@ except ModuleNotFoundError:
         _hero_talent_keys,
         build_simc_items,
         canonical_stat_name,
+        format_simc_error,
         select_goal_context,
         select_talent_export,
-        talent_export_from_entries,
+        run_with_talent_fallback,
+        talent_exports_from_entries,
     )
     from live_benchmark_engine import SPEC_BY_KEY
-    from simc_stat_engine import render_profiles, run_simc
+    from simc_stat_engine import run_simc
 
 # SimC long stat names for its `scale_only=` filter (SimC's parse_stat_type
 # accepts these; verified in engine/util/util.cpp + scale_factor_control.cpp).
@@ -158,37 +162,41 @@ def build_weight_context(
 def compute_weight_context(
     spec: Any,
     gear_list: list[dict[str, Any]] | None,
-    talent_loadout: str | None,
+    talent_loadout: str | list[str] | None,
     simc_binary: Path,
 ) -> dict[str, float]:
-    """build_weight_context's core, taking an already-selected talent export.
-    Raises ComboSkipped (never returns None) so callers can report why."""
+    """build_weight_context's core, taking an already-selected talent export
+    (or the ordered list of exports to fall back through, see
+    tools/classcodex_targets.py::run_with_talent_fallback). Raises
+    ComboSkipped (never returns None) so callers can report why."""
     items = build_simc_items(gear_list)
     if not items:
         raise ComboSkipped("no usable gear for this goal")
-    if not talent_loadout:
+    talent_exports = [talent_loadout] if isinstance(talent_loadout, str) else list(talent_loadout or [])
+    talent_exports = [export for export in talent_exports if export]
+    if not talent_exports:
         raise ComboSkipped("no talent export for this goal")
 
-    record = {"race": "human", "runTalentLoadout": talent_loadout, "items": items, "level": 90}
-    profile_text, actor_map = render_profiles(spec, [record], **SCALE_FACTOR_SIM_SETTINGS)
     try:
-        _stats_by_actor, report = run_simc(
+        _stats_by_actor, report, _recovery, actor_name = run_with_talent_fallback(
             simc_binary,
-            profile_text,
-            timeout_seconds=SCALE_FACTOR_TIMEOUT_SECONDS,
-            threads=scale_factor_threads(),
+            spec,
+            items,
+            talent_exports,
+            render_kwargs=SCALE_FACTOR_SIM_SETTINGS,
+            run_kwargs={"timeout_seconds": SCALE_FACTOR_TIMEOUT_SECONDS, "threads": scale_factor_threads()},
+            run_simc_fn=run_simc,
         )
     except Exception as exc:  # noqa: BLE001 - fail closed; caller skips this combo
         # The skip reason stays short (it is grouped in the run summary); the
         # actual SimC message goes to the log so a failure can be diagnosed.
-        print(f"SimC error for {spec.spec_name}: {str(exc)[-500:]}", file=sys.stderr)
+        print(f"SimC error for {spec.spec_name}: {format_simc_error(exc)}", file=sys.stderr)
         raise ComboSkipped(f"SimC run failed ({type(exc).__name__})") from exc
     metric = scale_metric_for_role(spec.role)
     try:
         weights_by_actor = parse_scale_factors(report, metric)
     except ValueError as exc:
         raise ComboSkipped(f"scale-factor report unusable ({metric})") from exc
-    actor_name = next(iter(actor_map))
     weights = weights_by_actor.get(actor_name)
     if not weights:
         raise ComboSkipped("SimC report had no scale factors for the actor")
@@ -233,7 +241,7 @@ def build_all_weights(
             hero_talents_out: dict[str, Any] = {}
             for hero_talent_key in hero_talent_keys:
                 gear_list = select_goal_context(gear_value, hero_talent_key, goal)
-                talent_loadout = talent_export_from_entries(select_goal_context(talents_value, hero_talent_key, goal))
+                talent_loadout = talent_exports_from_entries(select_goal_context(talents_value, hero_talent_key, goal))
                 try:
                     weights = compute_weight_context(spec, gear_list, talent_loadout, simc_binary)
                 except ComboSkipped as skip:

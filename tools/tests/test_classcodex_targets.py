@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import io
 import unittest
+from contextlib import redirect_stderr
 from unittest.mock import patch
 
 from pathlib import Path
 
 from tools.classcodex_targets import (
     GOAL_CONTEXT_KEY,
+    ComboSkipped,
+    reconstruct_target_context,
+    talent_export_from_entries,
+    talent_exports_from_entries,
     select_context,
     select_goal_context,
     build_simc_items,
@@ -133,6 +139,186 @@ class SelectTalentExportTests(unittest.TestCase):
     def test_returns_none_when_the_context_has_no_entries(self) -> None:
         talents = {"deathbringer": {"all": []}}
         self.assertIsNone(select_talent_export(talents, "deathbringer", "pvp"))
+
+
+class TalentExportsFromEntriesTests(unittest.TestCase):
+    def test_recommended_first_then_the_rest_in_order_without_duplicates(self) -> None:
+        entries = [
+            {"export": "A"},
+            {"export": "B", "recommended": True},
+            {"export": "A"},
+            {"label": "no export"},
+            "junk",
+            {"export": "C"},
+        ]
+        self.assertEqual(["B", "A", "C"], talent_exports_from_entries(entries))
+        self.assertEqual("B", talent_export_from_entries(entries))
+
+    def test_empty_or_invalid_input(self) -> None:
+        self.assertEqual([], talent_exports_from_entries(None))
+        self.assertEqual([], talent_exports_from_entries([]))
+        self.assertIsNone(talent_export_from_entries([]))
+
+
+TALENT_ERROR = "Selected node 82241 entry 103320 is not available to player's spec"
+GOOD = ({"sv_0001": {"ratings": {"crit": 1.0, "haste": 2.0}}}, {})
+
+
+class TalentFallbackTests(unittest.TestCase):
+    spec = SPEC_BY_KEY["DRUID_RESTORATION"]
+    gear = [{"itemId": 1, "slot": "Head", "ilvl": 300}]
+
+    def run_targets(self, side_effect, exports):
+        with patch("tools.classcodex_targets.run_simc", side_effect=side_effect) as mock_run, \
+                redirect_stderr(io.StringIO()):
+            context = reconstruct_target_context(self.spec, "RAID", self.gear, exports)
+        return context, [call.args[1] for call in mock_run.call_args_list]
+
+    def test_tries_the_next_export_when_simc_rejects_the_talents(self) -> None:
+        context, profiles = self.run_targets([RuntimeError(TALENT_ERROR), GOOD], ["A", "B"])
+        self.assertIn("talents=A", profiles[0])
+        self.assertIn("talents=B", profiles[1])
+        self.assertEqual(["talent export 2"], context["targets"]["targetMetadata"]["recovery"])
+
+    def test_runs_without_talents_when_every_export_is_rejected(self) -> None:
+        context, profiles = self.run_targets([RuntimeError(TALENT_ERROR), RuntimeError(TALENT_ERROR), GOOD], ["A", "B"])
+        self.assertEqual(3, len(profiles))
+        self.assertNotIn("talents=", profiles[2])
+        self.assertEqual(["talents ignored"], context["targets"]["targetMetadata"]["recovery"])
+
+    def test_a_non_talent_error_is_not_retried(self) -> None:
+        with patch("tools.classcodex_targets.run_simc", side_effect=[RuntimeError("boom"), GOOD]) as mock_run, \
+                redirect_stderr(io.StringIO()), self.assertRaises(ComboSkipped):
+            reconstruct_target_context(self.spec, "RAID", self.gear, ["A", "B"])
+        self.assertEqual(1, mock_run.call_count)
+
+    def test_the_run_without_talents_failing_skips_the_combo(self) -> None:
+        with self.assertRaisesRegex(ComboSkipped, "SimC run failed"):
+            self.run_targets([RuntimeError(TALENT_ERROR)] * 3, ["A", "B"])
+
+    def test_build_all_hands_every_export_to_the_fallback(self) -> None:
+        specs = {
+            "DRUID_restoration": {
+                "gear": {"value": {"all": {"raid": self.gear}}},
+                "talents": {"value": {"keeper-of-the-grove": {"raid": [{"export": "A"}, {"export": "B"}]}}},
+            }
+        }
+        with patch("tools.classcodex_targets.run_simc", side_effect=[RuntimeError(TALENT_ERROR), GOOD]), \
+                redirect_stderr(io.StringIO()):
+            data = build_all(specs, Path("simc"), goals=("RAID",))
+        context = data["profiles"]["DRUID_RESTORATION"]["goals"]["RAID"]["heroTalents"]["keeper-of-the-grove"]
+        self.assertEqual(["talent export 2"], context["targets"]["targetMetadata"]["recovery"])
+
+
+class TargetRecoveryTests(unittest.TestCase):
+    spec = SPEC_BY_KEY["DEATHKNIGHT_FROST"]
+    gear = [
+        {"itemId": 1, "slot": "Head", "ilvl": 300},
+        {"itemId": 2, "slot": "Main Hand", "ilvl": 300},
+        {"itemId": 3, "slot": "Off Hand", "ilvl": 300},
+    ]
+
+    def test_runs_a_stat_sheet_only_profile_without_recovery_metadata(self) -> None:
+        with patch("tools.classcodex_targets.run_simc", return_value=GOOD) as mock_run:
+            context = reconstruct_target_context(self.spec, "RAID", self.gear, "X")
+        self.assertIn("default_actions=0", mock_run.call_args.args[1].splitlines())
+        self.assertNotIn("recovery", context["targets"]["targetMetadata"])
+
+    def test_weapon_recovery_is_recorded_and_bis_keeps_every_slot(self) -> None:
+        error = RuntimeError("Player sv_0001 has an Off-Hand weapon equipped with a 2h weapon")
+        with patch("tools.classcodex_targets.run_simc", side_effect=[error, GOOD]) as mock_run:
+            context = reconstruct_target_context(self.spec, "RAID", self.gear, "X")
+        self.assertNotIn("off_hand=", mock_run.call_args.args[1])
+        self.assertEqual(["dropped OFF_HAND"], context["targets"]["targetMetadata"]["recovery"])
+        self.assertEqual(["Head", "Main Hand", "Off Hand"], [slot["slot"] for slot in context["bis"]["slots"]])
+        self.assertEqual(3, context["targets"]["itemCount"])
+
+
+UNSUPPORTED_ERRORS = (
+    "Player sv_0001 is using an unsupported spec",
+    "Player sv_0001 role (hybrid) or spec isn't supported yet",
+)
+
+
+def wowhead_loadout(totals: dict, failures: list | None = None) -> dict:
+    return {"slotCount": 1, "resolvedSlots": 1, "totals": totals, "slots": {}, "failures": failures or []}
+
+
+class WowheadFallbackTests(unittest.TestCase):
+    spec = SPEC_BY_KEY["PALADIN_HOLY"]
+    gear = [{"itemId": 1, "slot": "Head", "ilvl": 300, "bonusIDs": [7]}]
+
+    def run_fallback(self, simc_effect, wowhead):
+        with patch("tools.classcodex_targets.run_simc", side_effect=simc_effect), redirect_stderr(io.StringIO()):
+            return reconstruct_target_context(self.spec, "RAID", self.gear, "X", wowhead_reconstruct=wowhead)
+
+    def test_uses_wowhead_gear_totals_when_simc_does_not_support_the_spec(self) -> None:
+        for message in UNSUPPORTED_ERRORS:
+            calls = []
+
+            def fake_wowhead(items, *, primary):
+                calls.append((items, primary))
+                return wowhead_loadout({"crit": 900, "haste": 1200, "mastery": 0, "intellect": 5000, "stamina": 1})
+
+            context = self.run_fallback(RuntimeError(message), fake_wowhead)
+            self.assertEqual([({"HEAD": {"itemId": 1, "itemLevel": 300, "bonusIds": [7]}}, "intellect")], calls)
+            stat_targets = context["targets"]["statTargets"]
+            self.assertEqual({"critical_strike": 900.0, "haste": 1200.0, "mastery": 0.0}, stat_targets["stats"])
+            self.assertEqual(
+                "ClassCodex BiS + Wowhead gear totals (no SimC support for this spec)", stat_targets["source"]
+            )
+            self.assertEqual(["wowhead fallback"], context["targets"]["targetMetadata"]["recovery"])
+            self.assertEqual([{"slot": "Head", "item": {"item_id": 1, "bonus_ids": [7]}}], context["bis"]["slots"])
+
+    def test_never_runs_when_simc_succeeds_or_fails_for_another_reason(self) -> None:
+        def forbidden(*_args, **_kwargs):
+            raise AssertionError("wowhead fallback must not run")
+
+        context = self.run_fallback([GOOD], forbidden)
+        self.assertEqual("ClassCodex BiS + SimulationCraft", context["targets"]["statTargets"]["source"])
+        with self.assertRaisesRegex(ComboSkipped, "SimC run failed"):
+            self.run_fallback(RuntimeError("could not find spell data"), forbidden)
+
+    def test_without_an_injected_reconstructor_the_combo_is_skipped_as_before(self) -> None:
+        with patch("tools.classcodex_targets.run_simc", side_effect=RuntimeError(UNSUPPORTED_ERRORS[0])), \
+                redirect_stderr(io.StringIO()), self.assertRaisesRegex(ComboSkipped, "SimC run failed"):
+            reconstruct_target_context(self.spec, "RAID", self.gear, "X")
+
+    def test_any_wowhead_failure_skips_the_combo(self) -> None:
+        def raising(*_args, **_kwargs):
+            raise OSError("network down")
+
+        def partial(*_args, **_kwargs):
+            return wowhead_loadout({"crit": 900, "haste": 1200}, failures=[{"slot": "HEAD"}])
+
+        for wowhead in (raising, partial):
+            with self.assertRaises(ComboSkipped) as caught:
+                self.run_fallback(RuntimeError(UNSUPPORTED_ERRORS[0]), wowhead)
+            self.assertEqual("wowhead fallback failed", caught.exception.reason)
+
+    def test_fewer_than_two_positive_secondaries_skips(self) -> None:
+        def one_stat(*_args, **_kwargs):
+            return wowhead_loadout({"crit": 900, "haste": 0, "intellect": 5000})
+
+        with self.assertRaisesRegex(ComboSkipped, "fewer than 2 usable secondary stats"):
+            self.run_fallback(RuntimeError(UNSUPPORTED_ERRORS[0]), one_stat)
+
+    def test_build_all_passes_the_reconstructor_through(self) -> None:
+        specs = {
+            "PALADIN_holy": {
+                "gear": {"value": {"all": {"raid": self.gear}}},
+                "talents": {"value": {"all": {"raid": [{"export": "X"}]}}},
+            }
+        }
+
+        def fake_wowhead(items, *, primary):
+            return wowhead_loadout({"crit": 900, "versatility": 700})
+
+        with patch("tools.classcodex_targets.run_simc", side_effect=RuntimeError(UNSUPPORTED_ERRORS[1])), \
+                redirect_stderr(io.StringIO()):
+            data = build_all(specs, Path("simc"), goals=("RAID",), wowhead_reconstruct=fake_wowhead)
+        context = data["profiles"]["PALADIN_HOLY"]["goals"]["RAID"]["heroTalents"]["all"]
+        self.assertEqual(["wowhead fallback"], context["targets"]["targetMetadata"]["recovery"])
 
 
 class BuildTrinketsAndPriorityTests(unittest.TestCase):

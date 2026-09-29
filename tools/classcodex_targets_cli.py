@@ -5,6 +5,7 @@ wiring is a separate, later plan)."""
 from __future__ import annotations
 
 import argparse
+import functools
 import sys
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,7 @@ try:
         gate_and_write,
     )
     from tools.live_benchmark_engine import to_lua
+    from tools.wowhead_stat_engine import TooltipCache, reconstruct_loadout
 except ModuleNotFoundError:
     from classcodex_build import build
     from classcodex_fetch import FetchFailure, fetch_all
@@ -31,6 +33,7 @@ except ModuleNotFoundError:
         gate_and_write,
     )
     from live_benchmark_engine import to_lua
+    from wowhead_stat_engine import TooltipCache, reconstruct_loadout
 
 # Real data (build 20260928064230-9b041a5-43564495, 40 specs / 235
 # contexts) renders to ~4.0MB, so this budget has ~1.2MB of headroom.
@@ -79,7 +82,10 @@ def main(argv: list[str] | None = None) -> int:
 
     specs = build(fetched.sources)
     skips: list[SkipRecord] = []
-    result = build_all(specs, args.simc_bin, skips=skips)
+    # Gear-only Wowhead fallback, used only for specs SimC cannot initialise
+    # at all; an unreachable Wowhead just skips those combos (reported below).
+    wowhead_reconstruct = functools.partial(reconstruct_loadout, cache=TooltipCache())
+    result = build_all(specs, args.simc_bin, skips=skips, wowhead_reconstruct=wowhead_reconstruct)
     print(format_skip_summary(skips), file=sys.stderr)
     data = {"schemaVersion": 1, "buildId": fetched.build_id, "publishedAt": fetched.published_at, **result}
     return gate_and_write(data, args.out, NAMESPACE_KEY, write_addon_file, args.min_coverage_ratio)
