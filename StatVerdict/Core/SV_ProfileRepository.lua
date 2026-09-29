@@ -9,6 +9,25 @@ local VALID_GOALS = {
     PVP = true,
 }
 local DEFAULT_GOAL = "MYTHIC_PLUS"
+
+-- Stat weight mode (internal switch, no UI): where the secondary priority and
+-- weights come from.
+--   GUIDE    the ClassCodex guide priority list only (rank weights). Players
+--            read these guides, so the addon must not contradict them: default.
+--   MEASURED the measured SimC weights order and weight the secondaries.
+--   BLEND    guide order; weights are a 50/50 mix of guide rank and measured.
+-- StatVerdictDB.weightMode overrides the default (set with /svweights).
+local WEIGHT_MODE_GUIDE = "GUIDE"
+local WEIGHT_MODE_MEASURED = "MEASURED"
+local WEIGHT_MODE_BLEND = "BLEND"
+local DEFAULT_WEIGHT_MODE = WEIGHT_MODE_GUIDE
+local VALID_WEIGHT_MODES = {
+    [WEIGHT_MODE_GUIDE] = true,
+    [WEIGHT_MODE_MEASURED] = true,
+    [WEIGHT_MODE_BLEND] = true,
+}
+Repository.DEFAULT_WEIGHT_MODE = DEFAULT_WEIGHT_MODE
+
 local MIN_VALID_MAX_LEVEL_TARGET_ILVL = 250
 local STAT_KEY = {
     agility = "ITEM_MOD_AGILITY_SHORT",
@@ -348,6 +367,73 @@ local function SortByWeights(order, secondaryWeights)
     return sorted
 end
 
+-- BLEND: per stat, half the guide rank weight (relative to the top rank, stats
+-- tied in a guide tier share the tier's top rank) and half the measured weight,
+-- rescaled so the best stat is 1.0. Stats without a measured weight are left
+-- out (they keep their plain rank weight); nil when nothing is measured or the
+-- scoring model is not loaded (pure guide then).
+local function BuildBlendedWeights(guideOrder, equalGroups, measuredWeights)
+    local model = ns.GlobalStatVerdictModifiers
+    local rankWeights = type(model) == "table" and type(model.secondary) == "table" and model.secondary or nil
+    local topRankWeight = rankWeights and tonumber(rankWeights[1])
+    if not measuredWeights or not topRankWeight or topRankWeight <= 0 then return nil end
+
+    local topRankOf = {}
+    for _, group in ipairs(equalGroups) do
+        local top = math.huge
+        for _, rank in ipairs(group) do top = math.min(top, rank) end
+        for _, rank in ipairs(group) do topRankOf[rank] = top end
+    end
+
+    local blended, best = {}, 0
+    for index, statKey in ipairs(guideOrder) do
+        local measured = measuredWeights[statKey]
+        if measured then
+            local rank = topRankOf[index] or index
+            local rankWeight = tonumber(rankWeights[rank]) or tonumber(model.fallbackSecondary) or 1
+            local value = 0.5 * (rankWeight / topRankWeight) + 0.5 * measured
+            blended[statKey] = value
+            if value > best then best = value end
+        end
+    end
+    if best <= 0 then return nil end
+    for statKey, value in pairs(blended) do blended[statKey] = value / best end
+    return blended
+end
+
+function Repository.GetWeightMode()
+    local db = _G.StatVerdictDB
+    local mode = type(db) == "table" and db.weightMode or nil
+    if VALID_WEIGHT_MODES[mode] then return mode end
+    return DEFAULT_WEIGHT_MODE
+end
+
+-- Saves the mode and drops the cached provider views so every profile is
+-- rebuilt with it. false (nothing saved) for an unknown mode.
+function Repository.SetWeightMode(mode)
+    if not VALID_WEIGHT_MODES[mode] then return false end
+    _G.StatVerdictDB = type(_G.StatVerdictDB) == "table" and _G.StatVerdictDB or {}
+    _G.StatVerdictDB.weightMode = mode
+    Repository.InvalidateProviderViews()
+    return true
+end
+
+-- Hidden /svweights [guide|measured|blend]: no argument prints the mode.
+function ns.HandleWeightModeSlash(msg)
+    local arg = string.upper((tostring(msg or ""):gsub("^%s+", ""):gsub("%s+$", "")))
+    if arg == "" then
+        print("|cffff8000StatVerdict:|r stat weight mode is " .. Repository.GetWeightMode())
+        return
+    end
+    if not Repository.SetWeightMode(arg) then
+        print("|cffff8000StatVerdict:|r usage: /svweights guide | measured | blend")
+        return
+    end
+    if ns.RequestStatAuditRefresh then ns.RequestStatAuditRefresh() end
+    if ns.RefreshUpgradeIndicators then ns.RefreshUpgradeIndicators() end
+    print("|cffff8000StatVerdict:|r stat weight mode set to " .. arg)
+end
+
 local function BuildEqualGroups(priority, secondaryOrder)
     local indexByKey = {}
     for index, statKey in ipairs(secondaryOrder) do
@@ -438,8 +524,16 @@ function Repository.BuildRuntimeProfile(context)
     local invalidGeneratedContext = not validGeneratedContext
 
     local priority = GetPriority(generatedContext)
-    local secondaryWeights = BuildSecondaryWeights(Repository.GetWeights(specKey, goal, heroKey))
-    local secondaryOrder = SortByWeights(BuildSecondaryOrderFromTargets(generatedContext.targets, priority), secondaryWeights)
+    local weightMode = Repository.GetWeightMode()
+    local guideOrder = BuildSecondaryOrderFromTargets(generatedContext.targets, priority)
+    local secondaryOrder, secondaryWeights = guideOrder, nil
+    if weightMode == WEIGHT_MODE_MEASURED then
+        secondaryWeights = BuildSecondaryWeights(Repository.GetWeights(specKey, goal, heroKey))
+        secondaryOrder = SortByWeights(guideOrder, secondaryWeights)
+    elseif weightMode == WEIGHT_MODE_BLEND then
+        secondaryWeights = BuildBlendedWeights(guideOrder, BuildEqualGroups(priority, guideOrder),
+            BuildSecondaryWeights(Repository.GetWeights(specKey, goal, heroKey)))
+    end
     local primaryStat = STAT_KEY[generatedProfile.primaryStat]
     if not primaryStat then return nil end
     local role = context.role
@@ -528,7 +622,7 @@ end
 
 -- The provider view builds a profile for every spec (40), so it is cached per
 -- goal and rebuilt only when something it is built from changes: the loaded
--- data files, their freshness, the scoring model, or the hero tree a spec
+-- data files, their freshness, the scoring model, the stat weight mode, or the hero tree a spec
 -- snapshot records (each spec's default profile follows it). Nothing else
 -- feeds BuildRuntimeProfile here: the goal is fixed per view and spec
 -- ID/name/role come from the static SV_SpecMeta tables.
@@ -544,6 +638,7 @@ local function BuildProviderViewSignature(goal)
         tostring(root ~= nil),
         tostring(ns.ClassCodexWeights),
         tostring(ns.GlobalStatVerdictModifiers),
+        Repository.GetWeightMode(),
     }
     if root then
         for specKey in pairs(root.profiles or {}) do
