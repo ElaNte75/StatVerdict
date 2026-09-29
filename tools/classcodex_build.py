@@ -1,15 +1,14 @@
 """Turns the raw fetched ClassCodex Lua sources (classcodex_fetch.FetchResult)
 into StatVerdict's own clean, class-agnostic JSON shape.
 
-Deliberately excludes two things that were reviewed and rejected on
-2026-09-27/28:
-  - `statTargets` (u.gg's flat per-spec stat-rating numbers): a single
-    generic recommendation, not derived from real gear; StatVerdict's
-    own targets are reconstructed from the BiS gear through SimC
-    (tools/classcodex_targets.py).
-  - `tierRank` (u.gg's spec popularity/parse-rank numbers): a different
-    concern (spec viability) from what this pipeline was asked to build
-    (stat priority, best-in-slot gear, ranked trinkets, PvP).
+Deliberately excludes `tierRank` (u.gg's spec popularity/parse-rank
+numbers): a different concern (spec viability) from what this pipeline was
+asked to build (stat priority, best-in-slot gear, ranked trinkets, PvP).
+
+`statTargets` (u.gg's per-hero/context top20/top50/top80 stat ratings),
+`gems` and `enchants` are taken from u.gg ONLY (UGG_ONLY_FIELDS): Icy Veins'
+versions have different shapes (its enchant `id` is an item id, not a SimC
+enchant id), so they are never used as a fallback.
 
 Both sources share the same shape once you reach a spec: a dict keyed by
 hero talent (or "all" when the field doesn't vary by hero talent), then by
@@ -47,11 +46,15 @@ CLASS_FOLDERS = (
 )
 
 # Fields this pipeline extracts per spec. See module docstring for what is
-# deliberately left out (statTargets, tierRank). `talents` is required by
+# deliberately left out (tierRank). `talents` is required by
 # tools/classcodex_targets.py and tools/classcodex_weights.py: every SimC run
 # needs a real talent export string, so without it neither pipeline can
 # produce a single profile.
-EXTRACTED_FIELDS = ("statPriority", "trinkets", "gear", "talents")
+EXTRACTED_FIELDS = ("statPriority", "trinkets", "gear", "talents", "statTargets", "gems", "enchants")
+
+# Fields read from u.gg alone (see module docstring): if u.gg lacks one, it is
+# omitted rather than filled from Icy Veins' differently shaped data.
+UGG_ONLY_FIELDS = frozenset({"statTargets", "gems", "enchants"})
 
 SOURCE_PRIORITY = ("ugg", "icyveins")
 
@@ -155,9 +158,12 @@ def build(fetch_sources: dict[str, str]) -> dict[str, dict]:
                     class_data = root.get(class_folder) if isinstance(root, dict) else None
                     spec_data = class_data.get(spec_token) if isinstance(class_data, dict) else None
                     per_source[source_name] = spec_data.get(field_name) if isinstance(spec_data, dict) else None
-                merged = (
-                    _merge_stat_priority(per_source) if field_name == "statPriority" else _merge_field(per_source)
-                )
+                if field_name in UGG_ONLY_FIELDS:
+                    merged = _merge_field({"ugg": per_source.get("ugg")})
+                elif field_name == "statPriority":
+                    merged = _merge_stat_priority(per_source)
+                else:
+                    merged = _merge_field(per_source)
                 if merged is not None:
                     value, source_name = merged
                     spec_out[field_name] = {"value": value, "source": source_name}
