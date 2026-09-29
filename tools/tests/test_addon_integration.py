@@ -8,6 +8,7 @@ Missing TARGETS for any spec/goal/hero cell is a failure. Missing WEIGHTS is
 allowed (the addon falls back to rank weights) and only reported."""
 from __future__ import annotations
 
+import os
 import unittest
 
 from tools.spec_catalog import SPECS
@@ -60,6 +61,10 @@ def lua_list(table) -> list:
 
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
+@unittest.skipIf(
+    os.environ.get("SV_SKIP_REAL_DATA_TESTS") == "1",
+    "checks against the committed generated data are skipped while a refresh workflow rebuilds it",
+)
 class WholeAddonWithRealDataTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -190,8 +195,12 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
                             with_gems += 1
                         enchant = item.enchant
                         if enchant is not None:
-                            if not positive_int(enchant.id):
-                                problems.append(f"{where}: enchant without a positive id")
+                            # An enchant the pipeline could not translate has no real
+                            # `id` (shown by name, never simulated) but must still be
+                            # identifiable by its scroll item or spell.
+                            if not (positive_int(enchant.id) or positive_int(enchant.item_id)
+                                    or positive_int(enchant.spell_id)):
+                                problems.append(f"{where}: enchant with no id, item_id or spell_id")
                             for field in ("item_id", "spell_id"):
                                 if enchant[field] is not None and not positive_int(enchant[field]):
                                     problems.append(f"{where}: bad enchant {field} {enchant[field]}")

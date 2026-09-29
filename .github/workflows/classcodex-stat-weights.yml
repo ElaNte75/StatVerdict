@@ -59,6 +59,8 @@ jobs:
 
       # Tests first: fail fast before spending CI minutes on a SimC build.
       - name: Run existing tests
+        env:
+          SV_SKIP_REAL_DATA_TESTS: "1"
         run: python -m unittest discover -s tools/tests
 
       - name: Check out SimulationCraft Midnight

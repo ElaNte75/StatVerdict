@@ -29,7 +29,12 @@ jobs:
         run: pip install lupa
 
       # Tests first: fail fast before spending CI minutes on a SimC build.
+      # The checks against the committed generated data are skipped here on
+      # purpose: a bad data commit must stay fixable by this very workflow.
+      # They run below against the freshly built data, before it is committed.
       - name: Run existing tests
+        env:
+          SV_SKIP_REAL_DATA_TESTS: "1"
         run: python -m unittest discover -s tools/tests
 
       - name: Refresh the ClassCodex StatDR module
@@ -81,6 +86,14 @@ jobs:
         continue-on-error: true
         run: python tools/classcodex_targets_cli.py --simc-bin .simc-build/simc
 
+      # The whole addon (real .toc load order, every spec x goal x hero) is
+      # checked against the freshly built data before anything is committed.
+      - name: Verify the new data with the addon tests
+        id: verify
+        if: steps.targets.outcome == 'success'
+        continue-on-error: true
+        run: python -m unittest tools.tests.test_addon_integration
+
       - name: Commit generated data
         shell: bash
         run: |
@@ -92,7 +105,7 @@ jobs:
           # exist at all -- `git add` on a missing path would abort the
           # whole commit). A normal, fully successful run still commits both
           # files together as one commit.
-          if [ "${{ steps.targets.outcome }}" = "success" ] && [ -f StatVerdict/Data/Generated/SV_ClassCodexTargets.lua ]; then
+          if [ "${{ steps.targets.outcome }}" = "success" ] && [ "${{ steps.verify.outcome }}" = "success" ] && [ -f StatVerdict/Data/Generated/SV_ClassCodexTargets.lua ]; then
             files+=(StatVerdict/Data/Generated/SV_ClassCodexTargets.lua)
           fi
           if [ -z "$(git status --porcelain -- "${files[@]}")" ]; then
@@ -117,7 +130,7 @@ jobs:
       # The StatDR commit above has already happened by now; this
       # only turns the run red so a targets-pipeline failure is not silent.
       - name: Report stat-target pipeline failure
-        if: steps.targets.outcome != 'success'
+        if: steps.targets.outcome != 'success' || steps.verify.outcome != 'success'
         run: |
-          echo "::error::ClassCodex stat targets were not rebuilt this run (outcome: ${{ steps.targets.outcome }}). StatDR was still committed; see the 'Build ClassCodex stat targets' step log."
+          echo "::error::ClassCodex stat targets were not committed this run (build: ${{ steps.targets.outcome }}, addon check: ${{ steps.verify.outcome }}). StatDR was still committed; see the 'Build ClassCodex stat targets' and 'Verify the new data' step logs."
           exit 1

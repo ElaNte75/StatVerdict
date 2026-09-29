@@ -509,7 +509,9 @@ def trinkets_from_entries(entries: Any) -> list[dict[str, Any]]:
         if not isinstance(entry, dict) or not isinstance(entry.get("itemId"), (int, float)):
             continue
         tier = entry.get("tier")
-        if not isinstance(tier, str) or not tier:
+        # Only the tiers the addon scores (S, A, B, C, D); anything else in
+        # the guide data (e.g. an odd "F-") would be an unscored row.
+        if not isinstance(tier, str) or tier.upper() not in ("S", "A", "B", "C", "D"):
             continue
         bonus_ids = entry.get("bonusIDs")
         result.append(
