@@ -210,6 +210,30 @@ class TalentFallbackTests(unittest.TestCase):
         self.assertEqual(["talent export 2"], context["targets"]["targetMetadata"]["recovery"])
 
 
+class TargetRecoveryTests(unittest.TestCase):
+    spec = SPEC_BY_KEY["DEATHKNIGHT_FROST"]
+    gear = [
+        {"itemId": 1, "slot": "Head", "ilvl": 300},
+        {"itemId": 2, "slot": "Main Hand", "ilvl": 300},
+        {"itemId": 3, "slot": "Off Hand", "ilvl": 300},
+    ]
+
+    def test_runs_a_stat_sheet_only_profile_without_recovery_metadata(self) -> None:
+        with patch("tools.classcodex_targets.run_simc", return_value=GOOD) as mock_run:
+            context = reconstruct_target_context(self.spec, "RAID", self.gear, "X")
+        self.assertIn("default_actions=0", mock_run.call_args.args[1].splitlines())
+        self.assertNotIn("recovery", context["targets"]["targetMetadata"])
+
+    def test_weapon_recovery_is_recorded_and_bis_keeps_every_slot(self) -> None:
+        error = RuntimeError("Player sv_0001 has an Off-Hand weapon equipped with a 2h weapon")
+        with patch("tools.classcodex_targets.run_simc", side_effect=[error, GOOD]) as mock_run:
+            context = reconstruct_target_context(self.spec, "RAID", self.gear, "X")
+        self.assertNotIn("off_hand=", mock_run.call_args.args[1])
+        self.assertEqual(["dropped OFF_HAND"], context["targets"]["targetMetadata"]["recovery"])
+        self.assertEqual(["Head", "Main Hand", "Off Hand"], [slot["slot"] for slot in context["bis"]["slots"]])
+        self.assertEqual(3, context["targets"]["itemCount"])
+
+
 class BuildTrinketsAndPriorityTests(unittest.TestCase):
     def test_build_trinkets_passes_through_tier_and_bonus_ids(self) -> None:
         trinkets = {"all": {"raid": [{"itemId": 270175, "bonusIDs": [13848], "tier": "S"}]}}

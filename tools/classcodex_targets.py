@@ -418,7 +418,9 @@ def reconstruct_target_context(
 
     try:
         stats_by_actor, _report, recovery, actor_name = run_with_talent_fallback(
-            simc_binary, spec, items, talent_exports, run_simc_fn=run_simc
+            # Paper-doll run: only the stat sheet is read, so skip the
+            # spec's default action list (an outdated one fails the run).
+            simc_binary, spec, items, talent_exports, render_kwargs={"stat_sheet_only": True}, run_simc_fn=run_simc
         )
     except Exception as exc:  # noqa: BLE001 - fail closed; caller skips this combo
         # The skip reason stays short (it is grouped in the run summary); the
