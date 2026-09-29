@@ -830,6 +830,12 @@ local function GetRawDefaultStatWeight(profile, statKey)
 
     local rank = GetSecondaryRank(profile, statKey)
     if rank then
+        -- Measured SimC weight (highest = 1.0) on the same scale as rank 1, so the
+        -- point budget and every delta/percent display keep their scale.
+        local measured = type(profile.secondaryWeights) == "table" and tonumber(profile.secondaryWeights[statKey]) or nil
+        if measured and measured > 0 then
+            return measured * model.secondary[1]
+        end
         rank = GetEqualGroupTopRank(profile, rank)
         return model.secondary[rank] or model.fallbackSecondary
     end

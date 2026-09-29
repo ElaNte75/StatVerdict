@@ -312,6 +312,115 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(8, ns.GetItemReferenceInfo("item:1500", deathbringer).bonus)
         self.assertIsNone(ns.GetItemReferenceInfo("item:1000", deathbringer))
 
+    def order(self, profile) -> list[str]:
+        return [profile.secondaryOrder[i] for i in range(1, len(profile.secondaryOrder) + 1)]
+
+    def test_measured_weights_order_the_secondaries(self) -> None:
+        lua, ns = self.build_runtime()
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        # ClassCodex priority is haste > crit > mastery > vers; SimC measured vers above mastery.
+        self.assertEqual([SECONDARY["haste"], SECONDARY["crit"], SECONDARY["vers"], SECONDARY["mastery"]], self.order(profile))
+        self.assertEqual(1.0, profile.secondaryWeights[SECONDARY["haste"]])
+        self.assertEqual(0.5, profile.secondaryWeights[SECONDARY["mastery"]])
+        rows = profile.auditTargets.rows
+        self.assertEqual([SECONDARY["haste"], SECONDARY["crit"], SECONDARY["vers"], SECONDARY["mastery"]],
+                         [rows[i].key for i in range(1, len(rows) + 1)])
+
+    def test_hero_tree_without_weights_keeps_the_classcodex_priority(self) -> None:
+        lua, ns = self.build_runtime()
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua, heroTalentName="Deathbringer"))
+        self.assertIsNone(profile.secondaryWeights)
+        self.assertEqual([SECONDARY["crit"], SECONDARY["mastery"], SECONDARY["vers"], SECONDARY["haste"]], self.order(profile))
+
+    def test_tied_or_missing_weights_fall_back_to_the_classcodex_priority(self) -> None:
+        build_id = now_build_id()
+        weights = make_classcodex_weights(build_id)
+        weights["profiles"]["DEATHKNIGHT_BLOOD"]["goals"]["MYTHIC_PLUS"]["heroTalents"]["sanlayn"] = {
+            "critical_strike": 1.0, "haste": 1.0, "versatility": 0.4, "mastery": "junk",
+        }
+        lua, ns = self.build_runtime(build_id=build_id, weights=weights)
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        # haste/crit tie -> priority order (haste first); mastery has no usable weight -> after
+        # the measured stats.
+        self.assertEqual([SECONDARY["haste"], SECONDARY["crit"], SECONDARY["vers"], SECONDARY["mastery"]], self.order(profile))
+        self.assertIsNone(profile.secondaryWeights[SECONDARY["mastery"]])
+
+    def test_weights_that_are_all_unusable_mean_no_weights(self) -> None:
+        build_id = now_build_id()
+        weights = make_classcodex_weights(build_id)
+        weights["profiles"]["DEATHKNIGHT_BLOOD"]["goals"]["MYTHIC_PLUS"]["heroTalents"]["sanlayn"] = {
+            "critical_strike": 0, "haste": -1,
+        }
+        lua, ns = self.build_runtime(build_id=build_id, weights=weights)
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        self.assertIsNone(profile.secondaryWeights)
+        self.assertEqual(SECONDARY["haste"], profile.secondaryOrder[1])
+
+
+SECONDARY = {
+    "crit": "ITEM_MOD_CRIT_RATING_SHORT",
+    "haste": "ITEM_MOD_HASTE_RATING_SHORT",
+    "mastery": "ITEM_MOD_MASTERY_RATING_SHORT",
+    "vers": "ITEM_MOD_VERSATILITY",
+}
+STRENGTH = "ITEM_MOD_STRENGTH_SHORT"
+
+
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class ScoringWeightTests(unittest.TestCase):
+    """ns.GetDefaultStatWeight with measured weights vs. the rank-position weights."""
+
+    def setUp(self) -> None:
+        self.lua = new_runtime()
+        self.ns = self.lua.table()
+        load_addon_file(self.lua, self.ns, "Core/SV_Modifiers.lua")
+
+    def profile(self, weights: dict | None = None, equal_groups: list | None = None):
+        order = self.lua.table(SECONDARY["crit"], SECONDARY["haste"], SECONDARY["mastery"], SECONDARY["vers"])
+        groups = self.lua.table(*[self.lua.table(*group) for group in (equal_groups or [])])
+        profile = self.lua.table(id="TEST", primaryStat=STRENGTH, secondaryOrder=order, equalGroups=groups,
+                                 extraWeights=self.lua.table(), role="DAMAGER")
+        if weights is not None:
+            profile.secondaryWeights = self.lua.table_from({SECONDARY[k]: v for k, v in weights.items()})
+        return profile
+
+    def weights(self, profile) -> dict:
+        keys = [STRENGTH, *SECONDARY.values(), "STATVERDICT_ITEM_LEVEL"]
+        return {key: self.ns.GetDefaultStatWeight(profile, key) for key in keys}
+
+    def test_without_measured_weights_the_rank_weights_are_unchanged(self) -> None:
+        # Raw 4/4/3/2/1 + item level 1.2 = 15.2, scaled into the 10 point budget.
+        self.assertEqual({
+            STRENGTH: 2.6315789473684212,
+            SECONDARY["crit"]: 2.6315789473684212,
+            SECONDARY["haste"]: 1.973684210526316,
+            SECONDARY["mastery"]: 1.3157894736842106,
+            SECONDARY["vers"]: 0.6578947368421053,
+            "STATVERDICT_ITEM_LEVEL": 0.7894736842105263,
+        }, self.weights(self.profile()))
+        grouped = self.weights(self.profile(equal_groups=[[2, 3]]))
+        self.assertEqual(1.851851851851852, grouped[SECONDARY["haste"]])
+        self.assertEqual(1.851851851851852, grouped[SECONDARY["mastery"]])
+
+    def test_measured_weights_scale_from_the_top_rank_weight(self) -> None:
+        # Raw: primary 4, crit 1.0*4 = 4, haste 0.5*4 = 2, mastery 0.4*4 = 1.6, vers 0.25*4 = 1,
+        # item level 1.2 -> 13.8 raw points in the same 10 point budget.
+        result = self.weights(self.profile({"crit": 1.0, "haste": 0.5, "mastery": 0.4, "vers": 0.25}))
+        scale = 10 / 13.8
+        self.assertAlmostEqual(4 * scale, result[SECONDARY["crit"]])
+        self.assertAlmostEqual(2 * scale, result[SECONDARY["haste"]])
+        self.assertAlmostEqual(1.6 * scale, result[SECONDARY["mastery"]])
+        self.assertAlmostEqual(1 * scale, result[SECONDARY["vers"]])
+        self.assertAlmostEqual(result[STRENGTH], result[SECONDARY["crit"]])
+
+    def test_a_stat_without_a_usable_weight_uses_its_rank_weight(self) -> None:
+        result = self.weights(self.profile({"crit": 1.0, "haste": 0.5, "mastery": 0, "vers": None}))
+        # mastery rank 3 -> 2.00, vers rank 4 -> 1.00; total 4+4+2+2+1+1.2 = 14.2
+        scale = 10 / 14.2
+        self.assertAlmostEqual(2 * scale, result[SECONDARY["mastery"]])
+        self.assertAlmostEqual(1 * scale, result[SECONDARY["vers"]])
+        self.assertAlmostEqual(2 * scale, result[SECONDARY["haste"]])
+
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
 class PanelModeTests(unittest.TestCase):

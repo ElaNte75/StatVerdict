@@ -40,6 +40,13 @@ local STAT_LABEL = {
     STATVERDICT_ARMOR = "Armor",
 }
 
+local SECONDARY_STAT = {
+    ITEM_MOD_CRIT_RATING_SHORT = true,
+    ITEM_MOD_HASTE_RATING_SHORT = true,
+    ITEM_MOD_MASTERY_RATING_SHORT = true,
+    ITEM_MOD_VERSATILITY = true,
+}
+
 local function NormalizeToken(value)
     if type(value) ~= "string" then return "" end
     return value:lower():gsub("[^%a%d]+", "")
@@ -270,6 +277,40 @@ local function BuildSecondaryOrderFromTargets(targets, fallbackPriority)
     return {}
 end
 
+-- Measured weights keyed by runtime stat key, keeping only positive numbers of
+-- the secondary stats; nil when none are usable (rank weights apply then).
+local function BuildSecondaryWeights(weights)
+    if type(weights) ~= "table" then return nil end
+    local result, count = {}, 0
+    for canonicalKey, value in pairs(weights) do
+        local statKey = STAT_KEY[canonicalKey]
+        local weight = tonumber(value)
+        if statKey and SECONDARY_STAT[statKey] and weight and weight > 0 then
+            result[statKey] = weight
+            count = count + 1
+        end
+    end
+    return count > 0 and result or nil
+end
+
+-- Measured weights order the secondaries (highest first); ties and stats
+-- without a weight keep the ClassCodex priority order, then the key.
+local function SortByWeights(order, secondaryWeights)
+    if not secondaryWeights then return order end
+    local priorityIndex = {}
+    for index, statKey in ipairs(order) do priorityIndex[statKey] = index end
+    local sorted = {}
+    for index, statKey in ipairs(order) do sorted[index] = statKey end
+    table.sort(sorted, function(a, b)
+        local weightA, weightB = secondaryWeights[a] or 0, secondaryWeights[b] or 0
+        if weightA ~= weightB then return weightA > weightB end
+        local indexA, indexB = priorityIndex[a] or math.huge, priorityIndex[b] or math.huge
+        if indexA ~= indexB then return indexA < indexB end
+        return tostring(a) < tostring(b)
+    end)
+    return sorted
+end
+
 local function BuildEqualGroups(priority, secondaryOrder)
     local indexByKey = {}
     for index, statKey in ipairs(secondaryOrder) do
@@ -356,7 +397,8 @@ function Repository.BuildRuntimeProfile(context)
     local invalidGeneratedContext = not validGeneratedContext
 
     local priority = GetPriority(generatedContext)
-    local secondaryOrder = BuildSecondaryOrderFromTargets(generatedContext.targets, priority)
+    local secondaryWeights = BuildSecondaryWeights(Repository.GetWeights(specKey, goal, heroKey))
+    local secondaryOrder = SortByWeights(BuildSecondaryOrderFromTargets(generatedContext.targets, priority), secondaryWeights)
     local primaryStat = STAT_KEY[generatedProfile.primaryStat]
     if not primaryStat then return nil end
     local role = context.role
@@ -398,6 +440,7 @@ function Repository.BuildRuntimeProfile(context)
         source = "generated_classcodex",
         primaryStat = primaryStat,
         secondaryOrder = secondaryOrder,
+        secondaryWeights = secondaryWeights,
         hiddenTrackedStats = hiddenTrackedStats,
         equalGroups = BuildEqualGroups(priority, secondaryOrder),
         caps = {},
