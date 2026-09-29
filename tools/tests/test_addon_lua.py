@@ -917,6 +917,23 @@ class CoreProfileTests(unittest.TestCase):
             self.assertEqual(0, by_key[SECONDARY["vers"]], weight_mode)
             self.assertEqual(self.OWN_TARGETS["crit"], by_key[SECONDARY["crit"]], weight_mode)
 
+    def test_stats_the_guide_calls_equal_share_one_rank_weight_in_the_rows(self) -> None:
+        # Guide order haste, crit, mastery, vers with haste = crit tied: the rows
+        # weigh them alike (best rank of the group), like the tooltip scoring.
+        build_id = now_build_id()
+        targets = make_classcodex_targets(build_id)
+        context = targets["profiles"]["DEATHKNIGHT_BLOOD"]["goals"]["MYTHIC_PLUS"]["heroTalents"]["sanlayn"]
+        context["priorityProfiles"][0]["tiers"] = [["haste", "critical_strike"]]
+        lua, ns = self.build_runtime(build_id=build_id, targets=targets)
+        ns.GlobalStatVerdictModifiers = lua.table(secondary=lua.table(4, 3, 2, 1), fallbackSecondary=1)
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        weight = {profile.auditTargets.rows[i].key: profile.auditTargets.rows[i].baseModifier
+                  for i in range(1, len(profile.auditTargets.rows) + 1)}
+        self.assertEqual(4, weight[SECONDARY["haste"]])
+        self.assertEqual(4, weight[SECONDARY["crit"]])
+        self.assertEqual(2, weight[SECONDARY["mastery"]])
+        self.assertEqual(1, weight[SECONDARY["vers"]])
+
     def test_quality_checks_still_read_our_own_targets(self) -> None:
         build_id = now_build_id()
         targets = add_guide_targets(make_classcodex_targets(build_id), "DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "sanlayn",

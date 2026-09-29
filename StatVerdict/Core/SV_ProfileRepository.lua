@@ -561,7 +561,7 @@ end
 
 -- targetValues: the targets the weight mode shows, keyed by runtime stat key, and
 -- averageItemLevel the item level they belong to (SelectTargetValues).
-local function BuildAuditTargets(averageItemLevel, targetValues, weightMode, secondaryOrder, secondaryWeights)
+local function BuildAuditTargets(averageItemLevel, targetValues, weightMode, secondaryOrder, secondaryWeights, equalGroups)
     local model = ns.GlobalStatVerdictModifiers or {}
     local rankWeights = type(model.secondary) == "table" and model.secondary or {}
     -- Same per-stat weight as the tooltip scoring (SV_Modifiers): the measured
@@ -587,9 +587,24 @@ local function BuildAuditTargets(averageItemLevel, targetValues, weightMode, sec
         }
     end
 
+    -- Stats the guide calls roughly equal share the best rank weight of their
+    -- group, as the tooltip scoring does (SV_Modifiers GetEqualGroupTopRank).
+    local function topRankOf(index)
+        for _, group in ipairs(equalGroups or {}) do
+            local matched, top = false, index
+            for _, groupIndex in ipairs(group) do
+                if groupIndex == index then matched = true end
+                if groupIndex < top then top = groupIndex end
+            end
+            if matched then return top end
+        end
+        return index
+    end
+
     for index, statKey in ipairs(secondaryOrder) do
         local measured = ns.GetMeasuredSecondaryRawWeight and ns.GetMeasuredSecondaryRawWeight(weightProfile, statKey)
-        add(statKey, "Secondary", index, measured or tonumber(rankWeights[index]) or tonumber(model.fallbackSecondary) or 1)
+        add(statKey, "Secondary", index,
+            measured or tonumber(rankWeights[topRankOf(index)]) or tonumber(model.fallbackSecondary) or 1)
     end
 
     return {
@@ -631,6 +646,7 @@ function Repository.BuildRuntimeProfile(context)
         secondaryWeights = BuildSecondaryWeights(Repository.GetWeights(specKey, goal, heroKey))
         secondaryOrder = SortByWeights(guideOrder, secondaryWeights)
     end
+    local equalGroups = BuildEqualGroups(priority, secondaryOrder)
     local statTargetBin = Repository.GetStatTargetBin()
     local gearLevel = Repository.GetGearLevel()
     local targetValues, guideTargetsMissing, targetItemLevel =
@@ -679,7 +695,7 @@ function Repository.BuildRuntimeProfile(context)
         secondaryOrder = secondaryOrder,
         secondaryWeights = secondaryWeights,
         hiddenTrackedStats = hiddenTrackedStats,
-        equalGroups = BuildEqualGroups(priority, secondaryOrder),
+        equalGroups = equalGroups,
         caps = {},
         extraWeights = extraWeights,
         auditTargets = invalidGeneratedContext and {
@@ -687,7 +703,7 @@ function Repository.BuildRuntimeProfile(context)
             averageItemLevel = nil,
             rows = {},
             invalidReason = invalidReason or "Generated profile data failed quality checks.",
-        } or BuildAuditTargets(targetItemLevel, targetValues, weightMode, secondaryOrder, secondaryWeights),
+        } or BuildAuditTargets(targetItemLevel, targetValues, weightMode, secondaryOrder, secondaryWeights, equalGroups),
         statTargetBin = statTargetBin,
         gearLevel = gearLevel,
         guideTargetsMissing = guideTargetsMissing,
