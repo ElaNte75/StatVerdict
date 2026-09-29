@@ -225,16 +225,15 @@ ns.ClassCodexTargets = {
                                     ["context"] = "Mythic+",
                                     ["heroTalent"] = "deathbringer",
                                     ["order"] = {
-                                        "versatility",
-                                        "haste",
                                         "critical_strike",
                                         "mastery",
+                                        "versatility",
+                                        "haste",
                                     },
                                     ["tiers"] = {
                                         {
-                                            "haste",
-                                            "critical_strike",
                                             "mastery",
+                                            "versatility",
                                         },
                                     },
                                 },
@@ -602,18 +601,12 @@ ns.ClassCodexTargets = {
                                     ["context"] = "Mythic+",
                                     ["heroTalent"] = "sanlayn",
                                     ["order"] = {
-                                        "versatility",
                                         "haste",
                                         "critical_strike",
                                         "mastery",
+                                        "versatility",
                                     },
-                                    ["tiers"] = {
-                                        {
-                                            "haste",
-                                            "critical_strike",
-                                            "mastery",
-                                        },
-                                    },
+                                    ["tiers"] = {},
                                 },
                             },
                             ["targets"] = {
@@ -1501,16 +1494,15 @@ ns.ClassCodexTargets = {
                                     ["context"] = "Raid",
                                     ["heroTalent"] = "deathbringer",
                                     ["order"] = {
-                                        "versatility",
-                                        "haste",
                                         "critical_strike",
                                         "mastery",
+                                        "versatility",
+                                        "haste",
                                     },
                                     ["tiers"] = {
                                         {
-                                            "haste",
-                                            "critical_strike",
                                             "mastery",
+                                            "versatility",
                                         },
                                     },
                                 },
@@ -1875,18 +1867,12 @@ ns.ClassCodexTargets = {
                                     ["context"] = "Raid",
                                     ["heroTalent"] = "sanlayn",
                                     ["order"] = {
-                                        "versatility",
                                         "haste",
                                         "critical_strike",
                                         "mastery",
+                                        "versatility",
                                     },
-                                    ["tiers"] = {
-                                        {
-                                            "haste",
-                                            "critical_strike",
-                                            "mastery",
-                                        },
-                                    },
+                                    ["tiers"] = {},
                                 },
                             },
                             ["targets"] = {
@@ -6184,21 +6170,12 @@ ns.ClassCodexTargets = {
                                     ["context"] = "Mythic+",
                                     ["heroTalent"] = "annihilator",
                                     ["order"] = {
-                                        "mastery",
                                         "haste",
+                                        "mastery",
                                         "critical_strike",
                                         "versatility",
                                     },
-                                    ["tiers"] = {
-                                        {
-                                            "mastery",
-                                            "haste",
-                                        },
-                                        {
-                                            "critical_strike",
-                                            "versatility",
-                                        },
-                                    },
+                                    ["tiers"] = {},
                                 },
                             },
                             ["targets"] = {
@@ -6566,21 +6543,12 @@ ns.ClassCodexTargets = {
                                     ["context"] = "Mythic+",
                                     ["heroTalent"] = "void-scarred",
                                     ["order"] = {
-                                        "mastery",
-                                        "haste",
                                         "critical_strike",
+                                        "mastery",
                                         "versatility",
+                                        "haste",
                                     },
-                                    ["tiers"] = {
-                                        {
-                                            "mastery",
-                                            "haste",
-                                        },
-                                        {
-                                            "critical_strike",
-                                            "versatility",
-                                        },
-                                    },
+                                    ["tiers"] = {},
                                 },
                             },
                             ["targets"] = {
@@ -7514,21 +7482,12 @@ ns.ClassCodexTargets = {
                                     ["context"] = "Raid",
                                     ["heroTalent"] = "annihilator",
                                     ["order"] = {
-                                        "mastery",
                                         "haste",
+                                        "mastery",
                                         "critical_strike",
                                         "versatility",
                                     },
-                                    ["tiers"] = {
-                                        {
-                                            "mastery",
-                                            "haste",
-                                        },
-                                        {
-                                            "critical_strike",
-                                            "versatility",
-                                        },
-                                    },
+                                    ["tiers"] = {},
                                 },
                             },
                             ["targets"] = {
@@ -7892,21 +7851,12 @@ ns.ClassCodexTargets = {
                                     ["context"] = "Raid",
                                     ["heroTalent"] = "void-scarred",
                                     ["order"] = {
-                                        "mastery",
-                                        "haste",
                                         "critical_strike",
+                                        "mastery",
                                         "versatility",
+                                        "haste",
                                     },
-                                    ["tiers"] = {
-                                        {
-                                            "mastery",
-                                            "haste",
-                                        },
-                                        {
-                                            "critical_strike",
-                                            "versatility",
-                                        },
-                                    },
+                                    ["tiers"] = {},
                                 },
                             },
                             ["targets"] = {
@@ -12387,16 +12337,7 @@ ns.ClassCodexTargets = {
                                         "critical_strike",
                                         "versatility",
                                     },
-                                    ["tiers"] = {
-                                        {
-                                            "mastery",
-                                            "haste",
-                                        },
-                                        {
-                                            "critical_strike",
-                                            "versatility",
-                                        },
-                                    },
+                                    ["tiers"] = {},
                                 },
                             },
                             ["targets"] = {
@@ -12771,20 +12712,11 @@ ns.ClassCodexTargets = {
                                     ["heroTalent"] = "keeper-of-the-grove",
                                     ["order"] = {
                                         "mastery",
-                                        "haste",
                                         "critical_strike",
+                                        "haste",
                                         "versatility",
                                     },
-                                    ["tiers"] = {
-                                        {
-                                            "mastery",
-                                            "haste",
-                                        },
-                                        {
-                                            "critical_strike",
-                                            "versatility",
-                                        },
-                                    },
+                                    ["tiers"] = {},
                                 },
                             },
                             ["targets"] = {
@@ -13705,16 +13637,7 @@ ns.ClassCodexTargets = {
                                         "critical_strike",
                                         "versatility",
                                     },
-                                    ["tiers"] = {
-                                        {
-                                            "mastery",
-                                            "haste",
-                                        },
-                                        {
-                                            "critical_strike",
-                                            "versatility",
-                                        },
-                                    },
+                                    ["tiers"] = {},
                                 },
                             },
                             ["targets"] = {
@@ -14088,20 +14011,11 @@ ns.ClassCodexTargets = {
                                     ["heroTalent"] = "keeper-of-the-grove",
                                     ["order"] = {
                                         "mastery",
-                                        "haste",
                                         "critical_strike",
+                                        "haste",
                                         "versatility",
                                     },
-                                    ["tiers"] = {
-                                        {
-                                            "mastery",
-                                            "haste",
-                                        },
-                                        {
-                                            "critical_strike",
-                                            "versatility",
-                                        },
-                                    },
+                                    ["tiers"] = {},
                                 },
                             },
                             ["targets"] = {
@@ -45382,17 +45296,10 @@ ns.ClassCodexTargets = {
                                     ["order"] = {
                                         "mastery",
                                         "haste",
-                                        "versatility",
                                         "critical_strike",
+                                        "versatility",
                                     },
-                                    ["tiers"] = {
-                                        {
-                                            "mastery",
-                                            "haste",
-                                            "versatility",
-                                            "critical_strike",
-                                        },
-                                    },
+                                    ["tiers"] = {},
                                 },
                             },
                             ["targets"] = {
@@ -45774,18 +45681,11 @@ ns.ClassCodexTargets = {
                                     ["heroTalent"] = "lightsmith",
                                     ["order"] = {
                                         "mastery",
+                                        "critical_strike",
                                         "haste",
                                         "versatility",
-                                        "critical_strike",
                                     },
-                                    ["tiers"] = {
-                                        {
-                                            "mastery",
-                                            "haste",
-                                            "versatility",
-                                            "critical_strike",
-                                        },
-                                    },
+                                    ["tiers"] = {},
                                 },
                             },
                             ["targets"] = {
@@ -46712,17 +46612,10 @@ ns.ClassCodexTargets = {
                                     ["order"] = {
                                         "mastery",
                                         "haste",
-                                        "versatility",
                                         "critical_strike",
+                                        "versatility",
                                     },
-                                    ["tiers"] = {
-                                        {
-                                            "mastery",
-                                            "haste",
-                                            "versatility",
-                                            "critical_strike",
-                                        },
-                                    },
+                                    ["tiers"] = {},
                                 },
                             },
                             ["targets"] = {
@@ -47101,18 +46994,11 @@ ns.ClassCodexTargets = {
                                     ["heroTalent"] = "lightsmith",
                                     ["order"] = {
                                         "mastery",
+                                        "critical_strike",
                                         "haste",
                                         "versatility",
-                                        "critical_strike",
                                     },
-                                    ["tiers"] = {
-                                        {
-                                            "mastery",
-                                            "haste",
-                                            "versatility",
-                                            "critical_strike",
-                                        },
-                                    },
+                                    ["tiers"] = {},
                                 },
                             },
                             ["targets"] = {
@@ -51604,15 +51490,10 @@ ns.ClassCodexTargets = {
                                     ["order"] = {
                                         "haste",
                                         "mastery",
-                                        "versatility",
                                         "critical_strike",
+                                        "versatility",
                                     },
-                                    ["tiers"] = {
-                                        {
-                                            "versatility",
-                                            "critical_strike",
-                                        },
-                                    },
+                                    ["tiers"] = {},
                                 },
                             },
                             ["targets"] = {
@@ -51994,17 +51875,11 @@ ns.ClassCodexTargets = {
                                     ["context"] = "Mythic+",
                                     ["heroTalent"] = "voidweaver",
                                     ["order"] = {
-                                        "haste",
                                         "mastery",
-                                        "versatility",
                                         "critical_strike",
+                                        "versatility",
                                     },
-                                    ["tiers"] = {
-                                        {
-                                            "versatility",
-                                            "critical_strike",
-                                        },
-                                    },
+                                    ["tiers"] = {},
                                 },
                             },
                             ["targets"] = {
@@ -52927,17 +52802,11 @@ ns.ClassCodexTargets = {
                                     ["heroTalent"] = "oracle",
                                     ["order"] = {
                                         "haste",
-                                        "versatility",
                                         "mastery",
                                         "critical_strike",
+                                        "versatility",
                                     },
-                                    ["tiers"] = {
-                                        {
-                                            "versatility",
-                                            "mastery",
-                                            "critical_strike",
-                                        },
-                                    },
+                                    ["tiers"] = {},
                                 },
                             },
                             ["targets"] = {
@@ -53315,18 +53184,11 @@ ns.ClassCodexTargets = {
                                     ["context"] = "Raid",
                                     ["heroTalent"] = "voidweaver",
                                     ["order"] = {
-                                        "haste",
-                                        "versatility",
                                         "mastery",
                                         "critical_strike",
+                                        "versatility",
                                     },
-                                    ["tiers"] = {
-                                        {
-                                            "versatility",
-                                            "mastery",
-                                            "critical_strike",
-                                        },
-                                    },
+                                    ["tiers"] = {},
                                 },
                             },
                             ["targets"] = {
@@ -65978,18 +65840,14 @@ ns.ClassCodexTargets = {
                                     ["heroTalent"] = "stormbringer",
                                     ["order"] = {
                                         "mastery",
-                                        "haste",
                                         "critical_strike",
+                                        "haste",
                                         "versatility",
                                     },
                                     ["tiers"] = {
                                         {
                                             "mastery",
-                                            "haste",
-                                        },
-                                        {
                                             "critical_strike",
-                                            "versatility",
                                         },
                                     },
                                 },
@@ -66352,10 +66210,6 @@ ns.ClassCodexTargets = {
                                         {
                                             "mastery",
                                             "haste",
-                                        },
-                                        {
-                                            "critical_strike",
-                                            "versatility",
                                         },
                                     },
                                 },
@@ -67273,18 +67127,14 @@ ns.ClassCodexTargets = {
                                     ["heroTalent"] = "stormbringer",
                                     ["order"] = {
                                         "mastery",
-                                        "haste",
                                         "critical_strike",
+                                        "haste",
                                         "versatility",
                                     },
                                     ["tiers"] = {
                                         {
                                             "mastery",
-                                            "haste",
-                                        },
-                                        {
                                             "critical_strike",
-                                            "versatility",
                                         },
                                     },
                                 },
@@ -67647,10 +67497,6 @@ ns.ClassCodexTargets = {
                                         {
                                             "mastery",
                                             "haste",
-                                        },
-                                        {
-                                            "critical_strike",
-                                            "versatility",
                                         },
                                     },
                                 },
