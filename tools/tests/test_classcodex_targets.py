@@ -270,14 +270,19 @@ class WowheadFallbackTests(unittest.TestCase):
             self.assertEqual(["wowhead fallback"], context["targets"]["targetMetadata"]["recovery"])
             self.assertEqual([{"slot": "Head", "item": {"item_id": 1, "bonus_ids": [7]}}], context["bis"]["slots"])
 
-    def test_never_runs_when_simc_succeeds_or_fails_for_another_reason(self) -> None:
+    def test_never_runs_when_simc_succeeds(self) -> None:
         def forbidden(*_args, **_kwargs):
             raise AssertionError("wowhead fallback must not run")
 
         context = self.run_fallback([GOOD], forbidden)
         self.assertEqual("ClassCodex BiS + SimulationCraft", context["targets"]["statTargets"]["source"])
-        with self.assertRaisesRegex(ComboSkipped, "SimC run failed"):
-            self.run_fallback(RuntimeError("could not find spell data"), forbidden)
+
+    def test_any_simc_failure_after_recovery_uses_the_fallback(self) -> None:
+        def fake_wowhead(items, *, primary):
+            return wowhead_loadout({"crit": 900, "haste": 1200, "mastery": 0, "intellect": 5000})
+
+        context = self.run_fallback(RuntimeError("could not find spell data"), fake_wowhead)
+        self.assertEqual(["wowhead fallback"], context["targets"]["targetMetadata"]["recovery"])
 
     def test_without_an_injected_reconstructor_the_combo_is_skipped_as_before(self) -> None:
         with patch("tools.classcodex_targets.run_simc", side_effect=RuntimeError(UNSUPPORTED_ERRORS[0])), \

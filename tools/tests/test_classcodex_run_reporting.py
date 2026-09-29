@@ -42,10 +42,18 @@ def doc(contexts_per_spec: dict[str, int]) -> dict:
 SPECS = {
     "DEATHKNIGHT_frost": {
         "gear": {"value": {"all": {"mplus": [{"itemId": 1, "slot": "Head"}], "raid": [{"itemId": 2, "slot": "Head"}]}}},
-        # Only Mythic+ has a talent export; Raid must be reported as skipped.
+        # Only Mythic+ has a talent export; Raid borrows it (labelled), and a
+        # spec with no export anywhere is reported as skipped (see NOTALENTS).
         "talents": {"value": {"deathbringer": {"mplus": [{"export": "M"}]}}},
     },
     "NOTASPEC_madeup": {"gear": {"value": {}}},
+}
+
+NO_TALENTS = {
+    "DEATHKNIGHT_frost": {
+        "gear": {"value": {"all": {"mplus": [{"itemId": 1, "slot": "Head"}], "raid": [{"itemId": 2, "slot": "Head"}]}}},
+        "talents": {"value": {"deathbringer": {}}},
+    },
 }
 
 
@@ -57,8 +65,14 @@ class SkipRecordingTests(unittest.TestCase):
             data = build_all(SPECS, Path("simc"), goals=("MYTHIC_PLUS", "RAID"), skips=skips)
         self.assertIn("DEATHKNIGHT_FROST", data["profiles"])
         self.assertIn(SkipRecord("NOTASPEC_madeup", None, None, "spec not in StatVerdict's catalog"), skips)
+        self.assertEqual(1, len(skips))
+        borrowed = data["profiles"]["DEATHKNIGHT_FROST"]["goals"]["RAID"]["heroTalents"]["deathbringer"]
+        self.assertEqual(["talents borrowed from MYTHIC_PLUS"], borrowed["targets"]["targetMetadata"]["recovery"])
+
+    def test_a_combo_with_no_talent_export_anywhere_is_skipped(self) -> None:
+        skips: list[SkipRecord] = []
+        build_all(NO_TALENTS, Path("simc"), goals=("MYTHIC_PLUS", "RAID"), skips=skips)
         self.assertIn(SkipRecord("DEATHKNIGHT_FROST", "RAID", "deathbringer", "no talent export for this goal"), skips)
-        self.assertEqual(2, len(skips))
 
     def test_build_all_reports_simc_failures(self) -> None:
         skips: list[SkipRecord] = []
@@ -193,12 +207,12 @@ class CliReportingTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, redirect_stderr(stderr), \
                 patch("tools.classcodex_targets_cli.fetch_all", return_value=fetched), \
                 patch("tools.classcodex_targets_cli.build", return_value=SPECS), \
-                patch("tools.classcodex_targets.run_simc", side_effect=RuntimeError("boom")):
+                patch("tools.classcodex_targets_cli.reconstruct_loadout", side_effect=OSError("no network in tests")),                 patch("tools.classcodex_targets.run_simc", side_effect=RuntimeError("boom")):
             out = Path(tmp) / "SV_ClassCodexTargets.lua"
             code = classcodex_targets_cli.main(["--simc-bin", "simc", "--out", str(out)])
             self.assertFalse(out.exists())
         self.assertEqual(1, code)
-        self.assertIn("SimC run failed (RuntimeError)", stderr.getvalue())
+        self.assertIn("wowhead fallback failed", stderr.getvalue())
         self.assertIn("Refusing to write", stderr.getvalue())
 
 
