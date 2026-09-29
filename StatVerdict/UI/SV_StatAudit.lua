@@ -238,7 +238,6 @@ local function GetAuditTarget(context, profile)
         source = generated.source or "generated_profile",
         rows = generated.rows,
         itemLevelTarget = SafeNumber(generated.averageItemLevel),
-        suppressSampleLine = true,
     }
 end
 
@@ -287,9 +286,7 @@ function ns.GetStatAuditTargetPointTotal(context, profile)
         end
         if row.unboundedTarget then targetValue = nil end
         local baseModifier = SafeNumber(row.baseModifier)
-        local profileSource = target and target.source or nil
-        local isExternalProfileSource = (type(profileSource) == "string" and (string.find(string.lower(profileSource), "murlok", 1, true) ~= nil or string.find(string.lower(profileSource), "raider", 1, true) ~= nil))
-        if baseModifier == nil and not isExternalProfileSource then
+        if baseModifier == nil then
             baseModifier = GetBaseModifier(profile, row.key)
         end
         if customBucket and customBucket.baseModifiers then
@@ -3215,9 +3212,7 @@ UpdateFrame = function()
             local matchText = (profileKey == expectedProfileKey) and "MATCH" or "MISMATCH"
             local invalid = profile and profile.invalidGeneratedContext and " | INVALID_CONTEXT" or ""
             local sourceText = ""
-            if profile and type(profile.generatedContext) == "table" and profile.generatedContext.liveOverride then
-                sourceText = " | LIVE_CLASSCODEX"
-            elseif profile and type(profile.generatedContext) == "table" then
+            if profile and type(profile.generatedContext) == "table" then
                 sourceText = " | STATIC_GENERATED"
             end
             frame.profileKeyDebugText:SetText("Loaded key: " .. profileKey .. " | " .. matchText .. invalid .. sourceText)
@@ -3276,40 +3271,8 @@ UpdateFrame = function()
         frame.profileTagMain:Hide()
     end
     if frame.profileLine then
-        if target and target.suppressSampleLine then
-            frame.profileLine:SetText("")
-            frame.profileLine:Hide()
-        elseif target and target.sampleSize then
-            local used = math.floor((target.sampleSize or 0) + 0.5)
-            local avgRating = SafeNumber(target.sampleRatingAvg)
-            local requested = math.floor((target.sampleRequested or 0) + 0.5)
-            if requested <= 0 then requested = used end
-            local coverage = (requested > 0) and (used / requested) or 0
-
-            -- Rarity-style dynamic coloring by coverage of requested sample N:
-            -- white < green < blue < purple < orange
-            local r, g, b = 1.0, 1.0, 1.0 -- white
-            if coverage >= 0.90 then
-                r, g, b = 1.0, 0.5, 0.0 -- orange
-            elseif coverage >= 0.75 then
-                r, g, b = 0.64, 0.21, 0.93 -- purple
-            elseif coverage >= 0.55 then
-                r, g, b = 0.0, 0.44, 0.87 -- blue
-            elseif coverage >= 0.35 then
-                r, g, b = 0.12, 0.85, 0.12 -- green
-            end
-            frame.profileLine:SetTextColor(r, g, b)
-            local sourceLabel = tostring((target and target.sampleSource) or "Profile data")
-            if avgRating and avgRating > 0 then
-                frame.profileLine:SetText(string.format("Sample %d players Â· Avg rating %.0f Â· %s", used, avgRating, sourceLabel))
-            else
-                frame.profileLine:SetText(string.format("Sample %d players Â· %s", used, sourceLabel))
-            end
-            frame.profileLine:Show()
-        else
-            frame.profileLine:SetText("")
-            frame.profileLine:Hide()
-        end
+        frame.profileLine:SetText("")
+        frame.profileLine:Hide()
     end
     if DefaultButton then
         if HasCustomProfile(profileID) then DefaultButton:Enable() else DefaultButton:Disable() end
@@ -3389,11 +3352,7 @@ UpdateFrame = function()
         end
         local diff = calcCurrent and calcTarget and (calcCurrent - calcTarget) or nil
         local baseModifier = SafeNumber(row.baseModifier)
-        -- Strict profile-driven mode for generated external targets:
-        -- do not fall back to core defaults when profile row has no base modifier.
-        local profileSource = target and target.source or nil
-        local isExternalProfileSource = (type(profileSource) == "string" and (string.find(string.lower(profileSource), "murlok", 1, true) ~= nil or string.find(string.lower(profileSource), "raider", 1, true) ~= nil))
-        if baseModifier == nil and not isExternalProfileSource then
+        if baseModifier == nil then
             baseModifier = GetBaseModifier(profile, row.key)
         end
         if customBucket and customBucket.baseModifiers then

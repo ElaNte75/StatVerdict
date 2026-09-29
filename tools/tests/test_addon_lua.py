@@ -312,6 +312,26 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(8, ns.GetItemReferenceInfo("item:1500", deathbringer).bonus)
         self.assertIsNone(ns.GetItemReferenceInfo("item:1000", deathbringer))
 
+    def test_boost_resolves_the_hero_tree_for_a_bare_profile(self) -> None:
+        lua, ns = self.build_runtime()
+        named = lua.table(specKey="DEATHKNIGHT_BLOOD", goal="MYTHIC_PLUS", heroTalentName="Deathbringer")
+        self.assertEqual(8, ns.GetItemReferenceInfo("item:1500", named).bonus)
+        ns.GetSnapshotHeroTalentName = lambda profile: "San'layn"
+        by_spec_id = lua.table(specID=250, goal="MYTHIC_PLUS")
+        ns.GetStatVerdictSpecKeyBySpecID = lua.eval("function(id) return id == 250 and 'DEATHKNIGHT_BLOOD' or nil end")
+        self.assertEqual(8, ns.GetItemReferenceInfo("item:1000", by_spec_id).bonus)
+        ns.GetSnapshotHeroTalentName = lambda profile: None
+        self.assertIsNone(ns.GetItemReferenceInfo("item:1000", lua.table(specKey="DEATHKNIGHT_BLOOD", goal="MYTHIC_PLUS")))
+
+    def test_pvp_and_raid_lists_give_boosts_too(self) -> None:
+        lua, ns = self.build_runtime()
+        for goal in ("RAID", "PVP"):
+            profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua, goal=goal))
+            info = ns.GetItemReferenceInfo("item:5001", profile)
+            self.assertEqual(goal, info.goal)
+            self.assertEqual(108, info.bonus, goal)
+            self.assertIsNone(info.catalystPath)  # no catalyst data in ClassCodex BiS lists
+
     def order(self, profile) -> list[str]:
         return [profile.secondaryOrder[i] for i in range(1, len(profile.secondaryOrder) + 1)]
 
