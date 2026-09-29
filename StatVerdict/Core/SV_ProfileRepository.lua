@@ -10,13 +10,19 @@ local VALID_GOALS = {
 }
 local DEFAULT_GOAL = "MYTHIC_PLUS"
 
--- Stat weight mode (internal switch, no UI): where the secondary priority and
--- weights come from.
---   GUIDE    the ClassCodex guide priority list only (rank weights). Players
---            read these guides, so the addon must not contradict them: default.
---   MEASURED the measured SimC weights order and weight the secondaries.
---   BLEND    guide order; weights are a 50/50 mix of guide rank and measured.
--- StatVerdictDB.weightMode overrides the default (set with /svweights).
+-- Stat weight mode (Weights drawer, /svweights): where the secondary priority,
+-- weights AND stat targets come from.
+--   GUIDE    exactly what the ClassCodex addon shows: its guide priority list
+--            (rank weights) and its u.gg stat targets (targets.guideTargets,
+--            bin below). Players read these guides, so the addon must not
+--            contradict them: default.
+--   MEASURED the measured SimC weights order and weight the secondaries; the
+--            targets are our own (targets.statTargets, from best-in-slot gear
+--            with recommended gems and enchants).
+--   BLEND    guide order; weights are a 50/50 mix of guide rank and measured;
+--            each target is the average of the guide's and ours.
+-- A stat the guide has no target for uses ours (and the other way round).
+-- StatVerdictDB.weightMode overrides the default.
 local WEIGHT_MODE_GUIDE = "GUIDE"
 local WEIGHT_MODE_MEASURED = "MEASURED"
 local WEIGHT_MODE_BLEND = "BLEND"
@@ -27,6 +33,16 @@ local VALID_WEIGHT_MODES = {
     [WEIGHT_MODE_BLEND] = true,
 }
 Repository.DEFAULT_WEIGHT_MODE = DEFAULT_WEIGHT_MODE
+
+-- Which u.gg bin of the guide targets is shown (the ClassCodex addon's default
+-- is the top 20%). StatVerdictDB.statTargetBin overrides it.
+local DEFAULT_STAT_TARGET_BIN = "top20"
+local VALID_STAT_TARGET_BINS = {
+    top20 = true,
+    top50 = true,
+    top80 = true,
+}
+Repository.DEFAULT_STAT_TARGET_BIN = DEFAULT_STAT_TARGET_BIN
 
 local MIN_VALID_MAX_LEVEL_TARGET_ILVL = 250
 local STAT_KEY = {
@@ -408,6 +424,51 @@ function Repository.GetWeightMode()
     return DEFAULT_WEIGHT_MODE
 end
 
+function Repository.GetStatTargetBin()
+    local db = _G.StatVerdictDB
+    local bin = type(db) == "table" and db.statTargetBin or nil
+    if type(bin) == "string" and VALID_STAT_TARGET_BINS[bin] then return bin end
+    return DEFAULT_STAT_TARGET_BIN
+end
+
+-- Positive stat targets of one data table (canonical keys) keyed by runtime
+-- stat key; nil when none is usable.
+local function CollectTargetValues(values)
+    if type(values) ~= "table" then return nil end
+    local result, count = {}, 0
+    for canonicalKey, value in pairs(values) do
+        local statKey = STAT_KEY[canonicalKey]
+        local target = tonumber(value)
+        if statKey and target and target > 0 then
+            result[statKey] = target
+            count = count + 1
+        end
+    end
+    return count > 0 and result or nil
+end
+
+-- The stat targets the mode shows, keyed by runtime stat key, plus whether the
+-- guide (ClassCodex / u.gg) has no targets for this build in the chosen bin.
+local function SelectTargetValues(targets, weightMode, bin)
+    local statTargets = type(targets) == "table" and targets.statTargets or nil
+    local own = CollectTargetValues(type(statTargets) == "table" and statTargets.stats or nil) or {}
+    local guideRoot = type(targets) == "table" and targets.guideTargets or nil
+    local guide = CollectTargetValues(type(guideRoot) == "table" and guideRoot[bin] or nil)
+    local guideMissing = guide == nil
+    if weightMode == WEIGHT_MODE_MEASURED or guideMissing then return own, guideMissing end
+
+    local selected = {}
+    for statKey, value in pairs(own) do selected[statKey] = value end
+    for statKey, value in pairs(guide) do
+        if weightMode == WEIGHT_MODE_BLEND and own[statKey] then
+            selected[statKey] = (value + own[statKey]) / 2
+        else
+            selected[statKey] = value
+        end
+    end
+    return selected, guideMissing
+end
+
 -- Saves the mode and drops the cached provider views so every profile is
 -- rebuilt with it. false (nothing saved) for an unknown mode.
 function Repository.SetWeightMode(mode)
@@ -452,9 +513,9 @@ local function BuildEqualGroups(priority, secondaryOrder)
     return groups
 end
 
-local function BuildAuditTargets(targets, primaryStat, secondaryOrder, secondaryWeights)
-    local statTargets = type(targets) == "table" and targets.statTargets or nil
-    local targetValues = type(statTargets) == "table" and statTargets.stats or nil
+-- targetValues: the targets the weight mode shows, keyed by runtime stat key
+-- (SelectTargetValues).
+local function BuildAuditTargets(targets, targetValues, weightMode, secondaryOrder, secondaryWeights)
     local model = ns.GlobalStatVerdictModifiers or {}
     local rankWeights = type(model.secondary) == "table" and model.secondary or {}
     -- Same per-stat weight as the tooltip scoring (SV_Modifiers): the measured
@@ -466,23 +527,13 @@ local function BuildAuditTargets(targets, primaryStat, secondaryOrder, secondary
     local function add(statKey, statType, priority, baseModifier)
         if not statKey or seen[statKey] then return end
         seen[statKey] = true
-        local canonicalValue
-        for canonicalKey, runtimeKey in pairs(STAT_KEY) do
-            if runtimeKey == statKey then
-                if type(targetValues) == "table" and targetValues[canonicalKey] ~= nil then
-                    canonicalValue = tonumber(targetValues[canonicalKey])
-                end
-                if canonicalValue ~= nil then
-                    break
-                end
-            end
-        end
-        if canonicalValue == nil then return end
+        local target = targetValues[statKey]
+        if target == nil then return end
         rows[#rows + 1] = {
             key = statKey,
             label = STAT_LABEL[statKey] or statKey,
             type = statType,
-            target = canonicalValue,
+            target = target,
             priority = priority,
             baseModifier = tonumber(baseModifier),
         }
@@ -495,6 +546,7 @@ local function BuildAuditTargets(targets, primaryStat, secondaryOrder, secondary
 
     return {
         source = "generated_classcodex",
+        targetMode = weightMode,
         averageItemLevel = type(targets) == "table" and targets.averageItemLevel or nil,
         rows = rows,
     }
@@ -534,6 +586,8 @@ function Repository.BuildRuntimeProfile(context)
         secondaryWeights = BuildBlendedWeights(guideOrder, BuildEqualGroups(priority, guideOrder),
             BuildSecondaryWeights(Repository.GetWeights(specKey, goal, heroKey)))
     end
+    local statTargetBin = Repository.GetStatTargetBin()
+    local targetValues, guideTargetsMissing = SelectTargetValues(generatedContext.targets, weightMode, statTargetBin)
     local primaryStat = STAT_KEY[generatedProfile.primaryStat]
     if not primaryStat then return nil end
     local role = context.role
@@ -586,7 +640,9 @@ function Repository.BuildRuntimeProfile(context)
             averageItemLevel = nil,
             rows = {},
             invalidReason = invalidReason or "Generated profile data failed quality checks.",
-        } or BuildAuditTargets(generatedContext.targets, primaryStat, secondaryOrder, secondaryWeights),
+        } or BuildAuditTargets(generatedContext.targets, targetValues, weightMode, secondaryOrder, secondaryWeights),
+        statTargetBin = statTargetBin,
+        guideTargetsMissing = guideTargetsMissing,
         generatedContext = invalidGeneratedContext and nil or generatedContext,
         invalidGeneratedContext = invalidGeneratedContext,
     }
@@ -622,7 +678,8 @@ end
 
 -- The provider view builds a profile for every spec (40), so it is cached per
 -- goal and rebuilt only when something it is built from changes: the loaded
--- data files, their freshness, the scoring model, the stat weight mode, or the hero tree a spec
+-- data files, their freshness, the scoring model, the stat weight mode, the
+-- guide target bin, or the hero tree a spec
 -- snapshot records (each spec's default profile follows it). Nothing else
 -- feeds BuildRuntimeProfile here: the goal is fixed per view and spec
 -- ID/name/role come from the static SV_SpecMeta tables.
@@ -639,6 +696,7 @@ local function BuildProviderViewSignature(goal)
         tostring(ns.ClassCodexWeights),
         tostring(ns.GlobalStatVerdictModifiers),
         Repository.GetWeightMode(),
+        Repository.GetStatTargetBin(),
     }
     if root then
         for specKey in pairs(root.profiles or {}) do

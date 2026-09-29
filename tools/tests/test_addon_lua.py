@@ -7,7 +7,9 @@ from pathlib import Path
 
 from tools.classcodex_targets_cli import render_lua as render_targets_lua
 from tools.classcodex_weights_cli import render_lua as render_weights_lua
-from tools.tests.addon_fixtures import make_classcodex_targets, make_classcodex_weights
+from tools.tests.addon_fixtures import (
+    add_guide_targets, make_classcodex_targets, make_classcodex_weights, make_guide_targets,
+)
 
 try:
     # WoW runs Lua 5.1: test the addon on a 5.1 runtime so syntax or library
@@ -703,6 +705,117 @@ class CoreProfileTests(unittest.TestCase):
         self.assertEqual(self.keys(*self.GUIDE_ORDER), self.order(again["DEATHKNIGHT"][250].default))
         self.assertFalse(repo.SetWeightMode("bogus"))
         self.assertEqual("GUIDE", lua.globals().StatVerdictDB.weightMode)
+
+    # --- Stat targets follow the mode too -------------------------------------
+    # Fixture San'layn M+ own targets (BiS gear): crit 1140, haste 900, mastery 680,
+    # vers 430. Guide (u.gg, as the ClassCodex addon shows): top20 has no mastery.
+    OWN_TARGETS = {"crit": 1140.0, "haste": 900.0, "mastery": 680.0, "vers": 430.0}
+    GUIDE_BINS = {"top20": (1000, 1200, None, 300), "top50": (900, 1000, 600, 250), "top80": (800, 900, 550, 200)}
+
+    def guide_runtime(self, weight_mode: str | None = None, bins: dict | None = None):
+        build_id = now_build_id()
+        targets = add_guide_targets(make_classcodex_targets(build_id), "DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "sanlayn",
+                                    make_guide_targets(**(self.GUIDE_BINS if bins is None else bins)))
+        return self.build_runtime(build_id=build_id, targets=targets, weight_mode=weight_mode)
+
+    def named_targets(self, profile) -> dict[str, float]:
+        by_key = self.targets(profile)
+        return {name: by_key[key] for name, key in SECONDARY.items() if key in by_key}
+
+    def test_guide_mode_shows_the_classcodex_top20_targets(self) -> None:
+        lua, ns = self.guide_runtime()
+        self.assertEqual("top20", ns.ProfileRepository.DEFAULT_STAT_TARGET_BIN)
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        # mastery is not in the guide's top20: our own target fills that stat.
+        self.assertEqual({"crit": 1000.0, "haste": 1200.0, "mastery": 680.0, "vers": 300.0}, self.named_targets(profile))
+        self.assertEqual("top20", profile.statTargetBin)
+        self.assertFalse(profile.guideTargetsMissing)
+        self.assertEqual("GUIDE", profile.auditTargets.targetMode)
+        # Priority order is still the guide's.
+        self.assertEqual(self.keys(*self.GUIDE_ORDER), self.order(profile))
+
+    def test_saved_stat_target_bin_picks_the_guide_bin(self) -> None:
+        lua, ns = self.guide_runtime()
+        repo = ns.ProfileRepository
+        for bin_key, expected in (("top50", (900, 1000, 600, 250)), ("top80", (800, 900, 550, 200))):
+            lua.globals().StatVerdictDB.statTargetBin = bin_key
+            self.assertEqual(bin_key, repo.GetStatTargetBin())
+            profile = repo.BuildRuntimeProfile(self.context(lua))
+            self.assertEqual(dict(zip(("crit", "haste", "mastery", "vers"), map(float, expected))),
+                             self.named_targets(profile), bin_key)
+            self.assertEqual(bin_key, profile.statTargetBin)
+        for garbage in ("top99", "TOP50", 50, lua.table()):
+            lua.globals().StatVerdictDB.statTargetBin = garbage
+            self.assertEqual("top20", repo.GetStatTargetBin(), garbage)
+        lua.globals().StatVerdictDB = None
+        self.assertEqual("top20", repo.GetStatTargetBin())
+
+    def test_guide_mode_without_classcodex_targets_uses_our_own(self) -> None:
+        lua, ns = self.build_runtime()
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        self.assertEqual(self.OWN_TARGETS, self.named_targets(profile))
+        self.assertTrue(profile.guideTargetsMissing)
+        # A guide without the chosen bin (or with nothing usable in it) counts as missing too.
+        for bins in ({"top50": (900, 1000, 600, 250)}, {"top20": (None, None, None, None)}):
+            lua, ns = self.guide_runtime(bins=bins)
+            profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+            self.assertEqual(self.OWN_TARGETS, self.named_targets(profile), bins)
+            self.assertTrue(profile.guideTargetsMissing, bins)
+
+    def test_measured_mode_keeps_our_own_targets(self) -> None:
+        lua, ns = self.guide_runtime(weight_mode="MEASURED")
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        self.assertEqual(self.OWN_TARGETS, self.named_targets(profile))
+        self.assertEqual(self.keys(*self.MEASURED_ORDER), self.order(profile))
+        self.assertEqual("MEASURED", profile.auditTargets.targetMode)
+
+    def test_blend_mode_averages_guide_and_own_targets(self) -> None:
+        lua, ns = self.guide_runtime(weight_mode="BLEND")
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        # mastery has no guide target: it keeps ours.
+        self.assertEqual({"crit": (1000 + 1140) / 2, "haste": (1200 + 900) / 2, "mastery": 680.0,
+                          "vers": (300 + 430) / 2}, self.named_targets(profile))
+        self.assertEqual(self.keys(*self.GUIDE_ORDER), self.order(profile))
+        lua.globals().StatVerdictDB.statTargetBin = "top50"
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        self.assertEqual((680 + 600) / 2, self.named_targets(profile)["mastery"])
+        # Without guide targets BLEND shows our own.
+        plain_lua, plain_ns = self.build_runtime(weight_mode="BLEND")
+        plain = plain_ns.ProfileRepository.BuildRuntimeProfile(self.context(plain_lua))
+        self.assertEqual(self.OWN_TARGETS, self.named_targets(plain))
+
+    def test_blend_uses_the_guide_target_when_ours_is_missing(self) -> None:
+        build_id = now_build_id()
+        targets = add_guide_targets(make_classcodex_targets(build_id), "DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "sanlayn",
+                                    make_guide_targets(top20=(1000, 1200, 500, 300)))
+        stats = targets["profiles"]["DEATHKNIGHT_BLOOD"]["goals"]["MYTHIC_PLUS"]["heroTalents"]["sanlayn"][
+            "targets"]["statTargets"]["stats"]
+        del stats["mastery"]
+        lua, ns = self.build_runtime(build_id=build_id, targets=targets, weight_mode="BLEND")
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        self.assertEqual(500.0, self.named_targets(profile)["mastery"])
+
+    def test_quality_checks_still_read_our_own_targets(self) -> None:
+        build_id = now_build_id()
+        targets = add_guide_targets(make_classcodex_targets(build_id), "DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "sanlayn",
+                                    make_guide_targets(**self.GUIDE_BINS))
+        context = targets["profiles"]["DEATHKNIGHT_BLOOD"]["goals"]["MYTHIC_PLUS"]["heroTalents"]["sanlayn"]
+        context["targets"]["statTargets"]["stats"] = {"haste": 900}
+        lua, ns = self.build_runtime(build_id=build_id, targets=targets)
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        self.assertTrue(profile.invalidGeneratedContext)
+        self.assertEqual([], [profile.auditTargets.rows[i] for i in range(1, len(profile.auditTargets.rows) + 1)])
+
+    def test_changing_the_stat_target_bin_rebuilds_the_cached_provider_view(self) -> None:
+        lua, ns = self.guide_runtime()
+        ns.GetSnapshotHeroTalentName = lambda context: "San'layn"
+        repo = ns.ProfileRepository
+        top20 = repo.RefreshProviderView("MYTHIC_PLUS")
+        self.assertEqual(1000.0, self.named_targets(top20["DEATHKNIGHT"][250].default)["crit"])
+        lua.globals().StatVerdictDB.statTargetBin = "top80"
+        top80 = repo.RefreshProviderView("MYTHIC_PLUS")
+        self.assertFalse(lua.eval("rawequal")(top20, top80))
+        self.assertEqual(800.0, self.named_targets(top80["DEATHKNIGHT"][250].default)["crit"])
 
     def test_weights_slash_command_sets_the_mode_and_refreshes(self) -> None:
         lua, ns = self.build_runtime()
