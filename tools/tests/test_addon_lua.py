@@ -9,7 +9,8 @@ from pathlib import Path
 from tools.classcodex_targets_cli import render_lua as render_targets_lua
 from tools.classcodex_weights_cli import render_lua as render_weights_lua
 from tools.tests.addon_fixtures import (
-    add_guide_targets, make_classcodex_targets, make_classcodex_weights, make_guide_targets,
+    add_gear_levels, add_guide_targets, add_track_data, make_classcodex_targets, make_classcodex_weights,
+    make_guide_targets,
 )
 
 try:
@@ -159,6 +160,65 @@ class WeightModeCoreTests(unittest.TestCase):
         self.assertEqual([True], dropped)
         self.assertFalse(repo.SetStatTargetBin("junk"))
         self.assertEqual([True], dropped)
+
+    GEAR_ABOUT = [
+        "Best in Slot, trinkets and targets at Champion-track gear. A comfortable goal.",
+        "Best in Slot, trinkets and targets at Hero-track gear. A solid, realistic goal.",
+        "Best in Slot, trinkets and targets at Myth-track gear. The most demanding goal.",
+    ]
+
+    def test_three_gear_levels_from_champion_to_myth(self) -> None:
+        levels = self.ns.GetGearLevels()
+        self.assertEqual(3, len(levels))
+        self.assertEqual(["champion", "hero", "myth"], [levels[i].key for i in (1, 2, 3)])
+        self.assertEqual(["Champion", "Hero", "Myth"], [levels[i].label for i in (1, 2, 3)])
+        self.assertEqual(self.GEAR_ABOUT, [levels[i].about for i in (1, 2, 3)])
+        self.assertEqual("myth", self.ns.GetGearLevel())
+        for garbage in ("MYTH", "epic", 3, self.lua.table()):
+            self.lua.globals().StatVerdictDB.gearLevel = garbage
+            self.assertEqual("myth", self.ns.GetGearLevel(), garbage)
+
+    def test_set_gear_level_saves_it_and_refreshes(self) -> None:
+        self.assertTrue(self.ns.SetGearLevel("hero"))
+        self.assertEqual("hero", self.lua.globals().StatVerdictDB.gearLevel)
+        self.assertEqual("hero", self.ns.GetGearLevel())
+        self.assertEqual({"audit": 1, "indicators": 1}, self.calls)
+        self.assertFalse(self.ns.SetGearLevel("top20"))
+        self.assertEqual("hero", self.ns.GetGearLevel())
+        self.assertEqual({"audit": 1, "indicators": 1}, self.calls)
+        # The guide's stat target bin is a separate choice, left alone.
+        self.assertIsNone(self.lua.globals().StatVerdictDB.statTargetBin)
+        self.assertEqual("top20", self.ns.GetStatTargetBin())
+
+    def test_set_gear_level_drops_the_cached_provider_views(self) -> None:
+        repo = self.ns.ProfileRepository
+        dropped = []
+        original = repo.InvalidateProviderViews
+        repo.InvalidateProviderViews = lambda: (dropped.append(True), original())
+        self.assertTrue(repo.SetGearLevel("champion"))
+        self.assertEqual([True], dropped)
+        self.assertFalse(repo.SetGearLevel("junk"))
+        self.assertEqual([True], dropped)
+
+    def test_the_cards_mean_tiers_in_guide_and_gear_levels_in_measured(self) -> None:
+        self.lua.globals().StatVerdictDB.statTargetBin = "top50"
+        self.lua.globals().StatVerdictDB.gearLevel = "champion"
+        guide = self.ns.GetTargetChoice("GUIDE")
+        self.assertEqual("Stat targets", guide.title)
+        self.assertEqual(["top80", "top50", "top20"], [guide.options[i].key for i in (1, 2, 3)])
+        self.assertEqual("top50", guide.selected)
+        measured = self.ns.GetTargetChoice("MEASURED")
+        self.assertEqual("Gear level", measured.title)
+        self.assertEqual(["champion", "hero", "myth"], [measured.options[i].key for i in (1, 2, 3)])
+        self.assertEqual("champion", measured.selected)
+        # Each mode saves its own choice.
+        self.assertTrue(measured.set("myth"))
+        self.assertEqual("myth", self.lua.globals().StatVerdictDB.gearLevel)
+        self.assertEqual("top50", self.lua.globals().StatVerdictDB.statTargetBin)
+        self.assertTrue(guide.set("top80"))
+        self.assertEqual("top80", self.lua.globals().StatVerdictDB.statTargetBin)
+        self.assertEqual("myth", self.lua.globals().StatVerdictDB.gearLevel)
+        self.assertEqual("Stat targets", self.ns.GetTargetChoice("junk").title)
 
     def test_raider_io_helpers_are_gone(self) -> None:
         for name in ("IsBenchmarkRelevant", "IsBenchmarkSampleSmall", "GetBenchmarkLevel",
@@ -860,6 +920,125 @@ class CoreProfileTests(unittest.TestCase):
         self.assertFalse(lua.eval("rawequal")(top20, top80))
         self.assertEqual(800.0, self.named_targets(top80["DEATHKNIGHT"][250].default)["crit"])
 
+    # --- Measured: the gear level picks our own targets and the item track ------
+    HERO_TARGETS = {"crit": 1000.0, "haste": 800.0, "mastery": 600.0, "vers": 380.0}
+    CHAMPION_TARGETS = {"crit": 900.0, "haste": 700.0, "mastery": 520.0, "vers": 330.0}
+
+    def level_runtime(self, weight_mode: str | None = "MEASURED", levels: dict | None = None,
+                      track: bool = True, guide: bool = True):
+        build_id = now_build_id()
+        targets = make_classcodex_targets(build_id)
+        if guide:
+            add_guide_targets(targets, "DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "sanlayn",
+                              make_guide_targets(**self.GUIDE_BINS))
+        if levels is None:
+            levels = {"hero": ((1000, 800, 600, 380), 276.0), "champion": ((900, 700, 520, 330), None)}
+        if levels:
+            add_gear_levels(targets, "DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "sanlayn", levels)
+        if track:
+            add_track_data(targets)
+        return self.build_runtime(build_id=build_id, targets=targets, weight_mode=weight_mode)
+
+    def test_measured_targets_follow_the_gear_level(self) -> None:
+        lua, ns = self.level_runtime()
+        repo = ns.ProfileRepository
+        self.assertEqual("myth", repo.GetGearLevel())
+        for level, expected, item_level in (("myth", self.OWN_TARGETS, 337.9),
+                                            ("hero", self.HERO_TARGETS, 276.0),
+                                            ("champion", self.CHAMPION_TARGETS, 337.9)):
+            lua.globals().StatVerdictDB.gearLevel = level
+            profile = repo.BuildRuntimeProfile(self.context(lua))
+            self.assertEqual(expected, self.named_targets(profile), level)
+            self.assertEqual(level, profile.gearLevel, level)
+            # The level's item level when the data has one, else Myth's.
+            self.assertEqual(item_level, profile.auditTargets.averageItemLevel, level)
+            self.assertFalse(profile.invalidGeneratedContext, level)
+
+    def test_measured_ignores_the_guide_bin(self) -> None:
+        lua, ns = self.level_runtime()
+        lua.globals().StatVerdictDB.gearLevel = "hero"
+        for bin_key in ("top20", "top50", "top80"):
+            lua.globals().StatVerdictDB.statTargetBin = bin_key
+            profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+            self.assertEqual(self.HERO_TARGETS, self.named_targets(profile), bin_key)
+
+    def test_measured_without_level_data_uses_the_myth_targets(self) -> None:
+        for levels in ({}, {"hero": ((None, None, None, None), None)}):
+            lua, ns = self.level_runtime(levels=levels)
+            lua.globals().StatVerdictDB.gearLevel = "hero"
+            profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+            self.assertEqual(self.OWN_TARGETS, self.named_targets(profile), levels)
+            self.assertEqual(337.9, profile.auditTargets.averageItemLevel, levels)
+
+    def test_guide_ignores_the_gear_level(self) -> None:
+        lua, ns = self.level_runtime(weight_mode="GUIDE")
+        lua.globals().StatVerdictDB.statTargetBin = "top50"
+        for level in ("myth", "hero", "champion"):
+            lua.globals().StatVerdictDB.gearLevel = level
+            profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+            self.assertEqual({"crit": 900.0, "haste": 1000.0, "mastery": 600.0, "vers": 250.0},
+                             self.named_targets(profile), level)
+            self.assertEqual(337.9, profile.auditTargets.averageItemLevel, level)
+        # Without guide targets, Guide falls back to Myth's own targets, whatever the level.
+        lua, ns = self.level_runtime(weight_mode="GUIDE", guide=False)
+        lua.globals().StatVerdictDB.gearLevel = "hero"
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        self.assertEqual(self.OWN_TARGETS, self.named_targets(profile))
+
+    def test_changing_the_gear_level_rebuilds_the_cached_provider_view(self) -> None:
+        lua, ns = self.level_runtime()
+        ns.GetSnapshotHeroTalentName = lambda context: "San'layn"
+        repo = ns.ProfileRepository
+        myth = repo.RefreshProviderView("MYTHIC_PLUS")
+        self.assertEqual(1140.0, self.named_targets(myth["DEATHKNIGHT"][250].default)["crit"])
+        lua.globals().StatVerdictDB.gearLevel = "hero"
+        hero = repo.RefreshProviderView("MYTHIC_PLUS")
+        self.assertFalse(lua.eval("rawequal")(myth, hero))
+        self.assertEqual(1000.0, self.named_targets(hero["DEATHKNIGHT"][250].default)["crit"])
+
+    def swapped(self, ns, lua, *bonus_ids):
+        result = ns.ProfileRepository.ApplyTrackSwap(lua.table(*bonus_ids))
+        return [result[i] for i in range(1, len(result) + 1)]
+
+    def test_track_swap_only_in_measured_below_myth(self) -> None:
+        lua, ns = self.level_runtime()
+        db = lua.globals().StatVerdictDB
+        # Myth: nothing swapped.
+        self.assertEqual([6652, 13334, 12854], self.swapped(ns, lua, 6652, 13334, 12854))
+        db.gearLevel = "hero"
+        # Bonus ids in the map are replaced (the renderer wrote its keys as strings); others stay.
+        self.assertEqual([7652, 14334, 12854], self.swapped(ns, lua, 6652, 13334, 12854))
+        db.gearLevel = "champion"
+        self.assertEqual([8652, 15334, 12854], self.swapped(ns, lua, 6652, 13334, 12854))
+        # Guide is a pure copy of the guide: never swapped.
+        db.weightMode = "GUIDE"
+        self.assertEqual([6652, 13334, 12854], self.swapped(ns, lua, 6652, 13334, 12854))
+        self.assertIsNone(ns.ProfileRepository.GetActiveTrackSwap())
+
+    def test_track_swap_accepts_numeric_keys_too(self) -> None:
+        lua, ns = self.level_runtime(track=False)
+        # Data built in Lua directly: numeric keys.
+        ns.ClassCodexTargets.trackSwap = lua.eval("{ hero = { [6652] = 7652 } }")
+        lua.globals().StatVerdictDB.gearLevel = "hero"
+        self.assertEqual([7652, 99], self.swapped(ns, lua, 6652, 99))
+
+    def test_old_data_without_track_swap_shows_the_items_as_they_are(self) -> None:
+        lua, ns = self.level_runtime(track=False)
+        for level in ("hero", "champion"):
+            lua.globals().StatVerdictDB.gearLevel = level
+            self.assertIsNone(ns.ProfileRepository.GetActiveTrackSwap(), level)
+            self.assertEqual([6652, 101], self.swapped(ns, lua, 6652, 101), level)
+
+    def test_best_in_slot_matching_by_item_id_ignores_the_gear_level(self) -> None:
+        lua, ns = self.level_runtime()
+        lua.globals().StatVerdictDB.gearLevel = "champion"
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        info = ns.GetItemReferenceInfo("item:1000::::::::90::::2:6652:100", profile)
+        self.assertIsNotNone(info.bis)
+        self.assertEqual("Head", info.bis.slot)
+        trinket = ns.GetItemReferenceInfo("item:5001::::::::90::::1:8652", profile)
+        self.assertEqual("S", trinket.trinket.tier)
+
     def test_weights_slash_command_sets_the_mode_and_refreshes(self) -> None:
         lua, ns = self.build_runtime()
         printed: list[str] = []
@@ -992,6 +1171,38 @@ class ScoringWeightTests(unittest.TestCase):
                          [self.delta_multiplier(plain, SECONDARY[k], 10) for k in ("crit", "haste", "mastery", "vers")])
         self.assertEqual([1.5, 1.3, 1.15, 1.0],
                          [self.delta_multiplier(plain, SECONDARY[k], -10) for k in ("crit", "haste", "mastery", "vers")])
+
+
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class TargetScoringCacheTests(unittest.TestCase):
+    """Secondary weights follow the stat targets: a new gear level (or guide tier)
+    gives the same profile id new targets, and the cached weights must follow."""
+
+    def test_new_targets_for_the_same_profile_rescore_the_item(self) -> None:
+        lua = new_runtime()
+        lua.execute('C_Item = { GetItemStats = function() return { ITEM_MOD_CRIT_RATING_SHORT = 100 } end }')
+        ns = lua.table()
+        ns.StatNames = lua.table()
+        for relative in ("Core/SV_Modifiers.lua", "Core/SV_Scoring.lua"):
+            load_addon_file(lua, ns, relative)
+        ns.GetCurrentStatRating = lambda key: 800
+
+        def profile(crit_target):
+            rows = lua.table(*[lua.table(key=key, target=target) for key, target in (
+                (SECONDARY["crit"], crit_target), (SECONDARY["haste"], 800), (SECONDARY["mastery"], 800),
+                (SECONDARY["vers"], 800))])
+            return lua.table(id="MYTHIC_PLUS_TEST", primaryStat=STRENGTH,
+                             secondaryOrder=lua.table(*SECONDARY.values()),
+                             auditTargets=lua.table(rows=rows))
+
+        def score(crit_target):
+            return ns.GetItemProfileScore("item:1", profile(crit_target))[0]
+
+        myth = score(1400)
+        champion = score(700)
+        # Far below the Myth crit target: crit is worth more than when it is already met.
+        self.assertGreater(myth, champion)
+        self.assertEqual(myth, score(1400))
 
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
@@ -1139,6 +1350,8 @@ class PanelModeTests(unittest.TestCase):
                       "recommended) or Measured (our own measurement).", source)
         self.assertIn("With Guide you also pick a stat target difficulty: Tier 3, Tier 2 or Tier 1 "
                       "(the most demanding).", source)
+        self.assertIn("With Measured you pick a gear level instead: Champion, Hero or Myth (the most "
+                      "demanding); Best in Slot, trinkets and targets follow it.", source)
         for word in ("Easy", "Hard"):
             self.assertNotIn(word, source)
         self.assertNotIn("Benchmark", source)
@@ -1251,7 +1464,9 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
     EASY = "Tier 3: stat targets that most players reach. A comfortable goal."
     NORMAL = "Tier 2: the stats of a typical player. A solid, realistic goal."
     HARD = "Tier 1: the stats the best-equipped players reach. The most demanding goal."
-    NOT_USED = "Not used with our own measurement."
+    CHAMPION = "Best in Slot, trinkets and targets at Champion-track gear. A comfortable goal."
+    HERO = "Best in Slot, trinkets and targets at Hero-track gear. A solid, realistic goal."
+    MYTH = "Best in Slot, trinkets and targets at Myth-track gear. The most demanding goal."
 
     def test_title_intro_and_two_mode_rows(self) -> None:
         card = self.card()
@@ -1405,33 +1620,74 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         # The weight mode is left alone.
         self.assertEqual("GUIDE", self.ns.GetWeightMode())
 
-    def test_difficulty_is_dimmed_and_locked_in_measured_mode(self) -> None:
-        self.lua.globals().StatVerdictDB.statTargetBin = "top50"
-        card = self.card()
-        for i in (1, 2, 3):
-            self.assertFalse(card.binRows[i].dimmed, i)
-            self.assertNotEqual(False, card.binRows[i]._mouse, i)
-        card.modeRows[2].scripts.OnClick()
-        self.assertEqual(self.NOT_USED, card.binNote.text)
+    def labels(self, card):
+        return [card.binRows[i].label.text for i in (1, 2, 3)]
+
+    def assert_never_dimmed(self, card):
         for i in (1, 2, 3):
             option = card.binRows[i]
-            self.assertTrue(option.dimmed, i)
-            self.assertFalse(option._mouse, i)
-            self.assertGreaterEqual(option._alpha, 0.4, i)  # still readable
-            self.assertLess(option._alpha, 1, i)
-        # The remembered choice still shows, and a click cannot change it.
+            self.assertFalse(option.dimmed, i)
+            self.assertNotEqual(False, option._mouse, i)
+            self.assertIn(option._alpha, (None, 1), i)
+
+    def test_measured_turns_the_cards_into_gear_levels(self) -> None:
+        self.lua.globals().StatVerdictDB.statTargetBin = "top50"
+        card = self.card()
+        self.assert_never_dimmed(card)
+        card.modeRows[2].scripts.OnClick()
+        self.assertEqual("Gear level", card.binTitle.text)
+        self.assertEqual(["Champion", "Hero", "Myth"], self.labels(card))
+        self.assertEqual(["champion", "hero", "myth"], [card.binRows[i].key for i in (1, 2, 3)])
+        # Default Myth, explained under the cards; never dimmed, always clickable.
+        self.assertEqual([False, False, True], self.bin_checks(card))
+        self.assertEqual(self.MYTH, card.binNote.text)
+        self.assert_never_dimmed(card)
+        self.assertNotIn("Not used", card.binNote.text)
+
+    def test_clicking_a_gear_level_sets_it_and_refreshes(self) -> None:
+        self.lua.globals().StatVerdictDB.weightMode = "MEASURED"
+        self.lua.globals().StatVerdictDB.statTargetBin = "top50"
+        card = self.card()
+        before = self.refreshes
+        card.binRows[2].scripts.OnClick()
+        self.assertEqual("hero", self.lua.globals().StatVerdictDB.gearLevel)
         self.assertEqual([False, True, False], self.bin_checks(card))
-        card.binRows[3].scripts.OnClick()
+        self.assertEqual(self.HERO, card.binNote.text)
+        self.assertGreater(self.refreshes, before)
+        card.binRows[1].scripts.OnClick()
+        self.assertEqual("champion", self.lua.globals().StatVerdictDB.gearLevel)
+        self.assertEqual(self.CHAMPION, card.binNote.text)
+        # The guide's tier is a separate, untouched choice.
         self.assertEqual("top50", self.lua.globals().StatVerdictDB.statTargetBin)
+        self.assertEqual("MEASURED", self.ns.GetWeightMode())
+
+    def test_each_mode_remembers_its_own_choice(self) -> None:
+        db = self.lua.globals().StatVerdictDB
+        db.statTargetBin = "top80"
+        db.gearLevel = "hero"
+        card = self.card()
+        self.assertEqual("Stat targets", card.binTitle.text)
+        self.assertEqual(["Tier 3", "Tier 2", "Tier 1"], self.labels(card))
+        self.assertEqual([True, False, False], self.bin_checks(card))
+        self.assertEqual(self.EASY, card.binNote.text)
+        card.modeRows[2].scripts.OnClick()
         self.assertEqual([False, True, False], self.bin_checks(card))
-        self.assertEqual(self.NOT_USED, card.binNote.text)
-        # Back to Guide: the same choice, clickable again.
+        self.assertEqual(self.HERO, card.binNote.text)
         card.modeRows[1].scripts.OnClick()
-        self.assertEqual(self.NORMAL, card.binNote.text)
-        for i in (1, 2, 3):
-            self.assertFalse(card.binRows[i].dimmed, i)
-            self.assertTrue(card.binRows[i]._mouse, i)
-            self.assertEqual(1, card.binRows[i]._alpha, i)
+        self.assertEqual(["Tier 3", "Tier 2", "Tier 1"], self.labels(card))
+        self.assertEqual([True, False, False], self.bin_checks(card))
+        self.assertEqual(self.EASY, card.binNote.text)
+        self.assertEqual(("top80", "hero"), (db.statTargetBin, db.gearLevel))
+
+    def test_hovering_follows_the_mode_shown(self) -> None:
+        self.lua.globals().StatVerdictDB.weightMode = "MEASURED"
+        self.lua.globals().StatVerdictDB.gearLevel = "champion"
+        card = self.card()
+        # The selected gear level stays gold while hovered.
+        card.binRows[1].scripts.OnEnter(card.binRows[1])
+        self.assertEqual(self.GOLD_BORDER, self.border(card.binRows[1]))
+        card.binRows[3].scripts.OnEnter(card.binRows[3])
+        self.assertNotEqual(self.GOLD_BORDER, self.border(card.binRows[3]))
 
     # --- Difficulty chips: same look as the mode rows ---------------------------
     GOLD_BORDER = (1.0, 0.82, 0.0)
@@ -1556,8 +1812,16 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
                     worst = min(worst, bottom)
                     self.assertGreaterEqual(bottom, -(self.CARD_HEIGHT - self.BOTTOM_BORDER),
                                             (mode, measured, guide_targets))
-        # The difficulty explanation fits its reserved space (two lines).
-        for about in [bin.about for bin in self.ns.GetStatTargetBins().values()] + [self.NOT_USED]:
+                    # Every card label fits its card beside the tick.
+                    for i in (1, 2, 3):
+                        chip = card.binRows[i]
+                        label_width = len(chip.label.text) * self.FONTS["GameFontHighlightSmall"][1]
+                        self.assertLessEqual(4 + 20 + 1 + label_width + 4, chip._width, chip.label.text)
+        # Every explanation (tiers and gear levels) fits its reserved space (two lines).
+        abouts = [bin.about for bin in self.ns.GetStatTargetBins().values()]
+        abouts += [level.about for level in self.ns.GetGearLevels().values()]
+        self.assertEqual(6, len(abouts))
+        for about in abouts:
             card.binNote.text = about
             self.assertLessEqual(self.text_height(card.binNote, self.DRAWER_TEXT_WIDTH), card.binNote._height, about)
         print(f"\n[weights drawer] content bottom {-worst:.0f}px of {self.CARD_HEIGHT - self.BOTTOM_BORDER}px")
@@ -2103,6 +2367,69 @@ class BisPanelTests(unittest.TestCase):
             ("SetHyperlink", "item:1003::::::::90::::1:6652"),
             ("Show",),
         ], self.game_tooltip_calls())
+
+    # --- Measured gear level: the items at the chosen track --------------------------
+
+    def use_level(self, mode, level, track_swap=True):
+        """Loads the repository with the data root's trackSwap (string keys, as the
+        generated file writes them) and saves the mode and gear level."""
+        load_addon_file(self.lua, self.ns, "Core/SV_ProfileRepository.lua")
+        root = self.lua.table(profiles=self.lua.table())
+        if track_swap:
+            root.trackSwap = self.lua.eval(
+                '{ hero = { ["6652"] = 7652, ["13334"] = 14334 }, champion = { ["6652"] = 8652 } }')
+            root.trackItemLevels = self.lua.table(myth=289, hero=276, champion=263)
+        self.ns.ClassCodexTargets = root
+        db = self.lua.globals().StatVerdictDB
+        db.weightMode = mode
+        db.gearLevel = level
+
+    HERO_HEAD_LINK = ("item:271528:7961:240983:240894:::::90:104::0:7:"
+                      "14334:7652:13696:13847:13692:13698:12854")
+
+    def test_hero_level_swaps_the_track_in_our_tooltip(self) -> None:
+        self.use_level("MEASURED", "hero")
+        self.assertEqual(self.HERO_HEAD_LINK, self.panel.BuildRecommendedItemLink(self.guardian_head(), 104))
+        # The game knows only the Hero-track link: our tooltip reads that one.
+        self.game_knows(self.HERO_HEAD_LINK, GUARDIAN_HEAD_SOCKETED_TOOLTIP)
+        card = self.refresh(self.guardian_head(), spec_id=104)
+        self.assertEqual(GUARDIAN_HEAD_KEPT + HEAD_RECOMMENDED, self.hover(card.rows[1]))
+        self.assertIn("14334:7652", card.rows[1].itemLink)
+
+    def test_champion_level_swaps_the_game_tooltip_link(self) -> None:
+        self.use_level("MEASURED", "champion")
+        self.use_game_tooltip()
+        row = self.refresh(self.entry(item_id=1001, bonus_ids=[6652, 11]), spec_id=104).rows[1]
+        row.scripts.OnEnter(row)
+        self.assertIn(("SetHyperlink", "item:1001::::::::90:104::0:2:8652:11"), self.game_tooltip_calls())
+
+    def test_hero_level_swaps_the_ranked_trinket_links(self) -> None:
+        self.use_level("MEASURED", "hero")
+        card = self.refresh_trinkets()
+        card.rows[1].scripts.OnEnter(card.rows[1])
+        self.assertIn(("SetHyperlink", "item:1003::::::::90::::1:7652"), self.game_tooltip_calls())
+
+    def test_myth_guide_and_old_data_keep_the_items_as_listed(self) -> None:
+        for mode, level, track_swap in (("MEASURED", "myth", True), ("GUIDE", "hero", True),
+                                        ("GUIDE", "champion", True), ("MEASURED", "hero", False)):
+            self.use_level(mode, level, track_swap)
+            self.assertEqual(GUARDIAN_HEAD_LINK, self.panel.BuildRecommendedItemLink(self.guardian_head(), 104),
+                             (mode, level))
+            self.lua.globals().TOOLTIP_CALLS = self.lua.table()
+            card = self.refresh_trinkets()
+            card.rows[1].scripts.OnEnter(card.rows[1])
+            self.assertIn(("SetHyperlink", "item:1003::::::::90::::1:6652"), self.game_tooltip_calls(),
+                          (mode, level))
+            self.mode = "bis"
+
+    def test_owned_state_still_matches_by_item_id(self) -> None:
+        self.use_level("MEASURED", "champion")
+        g = self.lua.globals()
+        g.GetInventoryItemLink = self.lua.eval(
+            'function(unit, slot) if slot == 1 then return "item:271528::::::::90::::1:6652" end end')
+        card = self.refresh(self.guardian_head(), spec_id=104)
+        self.assertEqual(("You have this item", None), self.hover(card.rows[1])[-1])
+        self.assertIn("1/1", card.summary.text)
 
     def test_owned_item_adds_a_dim_line(self) -> None:
         g = self.lua.globals()

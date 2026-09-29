@@ -18,7 +18,7 @@ local DEFAULT_GOAL = "MYTHIC_PLUS"
 --            contradict them: default.
 --   MEASURED the measured SimC weights order and weight the secondaries; the
 --            targets are our own (targets.statTargets, from best-in-slot gear
---            with recommended gems and enchants).
+--            with recommended gems and enchants) at the chosen gear level.
 -- A stat the guide has no target for uses ours (and the other way round).
 -- StatVerdictDB.weightMode overrides the default; any other saved value
 -- (such as the removed "BLEND") means the default.
@@ -40,6 +40,19 @@ local VALID_STAT_TARGET_BINS = {
     top80 = true,
 }
 Repository.DEFAULT_STAT_TARGET_BIN = DEFAULT_STAT_TARGET_BIN
+
+-- Which gear level MEASURED uses (GUIDE ignores it). myth is the context's own
+-- targets.statTargets; hero / champion read targets.levels[level] (falling back
+-- to myth's), and show the Best in Slot / trinket items at that upgrade track via
+-- the data root's trackSwap[level] (myth bonus id -> that track's bonus id).
+-- StatVerdictDB.gearLevel overrides the default.
+local DEFAULT_GEAR_LEVEL = "myth"
+local VALID_GEAR_LEVELS = {
+    champion = true,
+    hero = true,
+    myth = true,
+}
+Repository.DEFAULT_GEAR_LEVEL = DEFAULT_GEAR_LEVEL
 
 local MIN_VALID_MAX_LEVEL_TARGET_ILVL = 250
 local STAT_KEY = {
@@ -394,6 +407,41 @@ function Repository.GetStatTargetBin()
     return DEFAULT_STAT_TARGET_BIN
 end
 
+function Repository.GetGearLevel()
+    local db = _G.StatVerdictDB
+    local level = type(db) == "table" and db.gearLevel or nil
+    if type(level) == "string" and VALID_GEAR_LEVELS[level] then return level end
+    return DEFAULT_GEAR_LEVEL
+end
+
+-- The bonus id swap the Best in Slot / trinket items are shown with: only in
+-- MEASURED below myth, and only when the data has one for that level (old data
+-- has none: the items then show as listed). Keys may be numbers or, as the
+-- generated file writes them, strings.
+function Repository.GetActiveTrackSwap()
+    if Repository.GetWeightMode() ~= WEIGHT_MODE_MEASURED then return nil end
+    local level = Repository.GetGearLevel()
+    if level == DEFAULT_GEAR_LEVEL then return nil end
+    local root = ns.ClassCodexTargets
+    local swaps = type(root) == "table" and root.trackSwap or nil
+    local swap = type(swaps) == "table" and swaps[level] or nil
+    return type(swap) == "table" and swap or nil
+end
+
+-- A copy of bonusIDs with every id in the active swap replaced by its value;
+-- ids not in the swap stay. The same table when nothing is swapped.
+function Repository.ApplyTrackSwap(bonusIDs)
+    local swap = Repository.GetActiveTrackSwap()
+    if not swap or type(bonusIDs) ~= "table" then return bonusIDs end
+    local out = {}
+    for index, bonusID in ipairs(bonusIDs) do
+        local replacement = swap[bonusID]
+        if replacement == nil then replacement = swap[tostring(bonusID)] end
+        out[index] = tonumber(replacement) or bonusID
+    end
+    return out
+end
+
 -- Positive stat targets of one data table (canonical keys) keyed by runtime
 -- stat key; nil when none is usable.
 local function CollectTargetValues(values)
@@ -410,20 +458,41 @@ local function CollectTargetValues(values)
     return count > 0 and result or nil
 end
 
--- The stat targets the mode shows, keyed by runtime stat key, plus whether the
--- guide (ClassCodex / u.gg) has no targets for this build in the chosen bin.
-local function SelectTargetValues(targets, weightMode, bin)
+-- Our own targets at a gear level (targets.levels[level]) as { values, averageItemLevel },
+-- or nil for myth or when the data has no usable targets for that level.
+local function GetLevelTargets(targets, level)
+    if level == DEFAULT_GEAR_LEVEL then return nil end
+    local levels = type(targets) == "table" and targets.levels or nil
+    local entry = type(levels) == "table" and levels[level] or nil
+    if type(entry) ~= "table" then return nil end
+    local statTargets = type(entry.statTargets) == "table" and entry.statTargets or nil
+    local values = CollectTargetValues(statTargets and statTargets.stats or nil)
+    if not values then return nil end
+    return { values = values, averageItemLevel = tonumber(entry.averageItemLevel) }
+end
+
+-- The stat targets the mode shows, keyed by runtime stat key, whether the guide
+-- (ClassCodex / u.gg) has no targets for this build in the chosen bin, and the
+-- item level those targets belong to. GUIDE reads the bin (myth's own targets
+-- fill the gaps); MEASURED reads the gear level (myth's when it has none).
+local function SelectTargetValues(targets, weightMode, bin, level)
     local statTargets = type(targets) == "table" and targets.statTargets or nil
     local own = CollectTargetValues(type(statTargets) == "table" and statTargets.stats or nil) or {}
+    local averageItemLevel = type(targets) == "table" and targets.averageItemLevel or nil
     local guideRoot = type(targets) == "table" and targets.guideTargets or nil
     local guide = CollectTargetValues(type(guideRoot) == "table" and guideRoot[bin] or nil)
     local guideMissing = guide == nil
-    if weightMode == WEIGHT_MODE_MEASURED or guideMissing then return own, guideMissing end
+    if weightMode == WEIGHT_MODE_MEASURED then
+        local atLevel = GetLevelTargets(targets, level)
+        if not atLevel then return own, guideMissing, averageItemLevel end
+        return atLevel.values, guideMissing, atLevel.averageItemLevel or averageItemLevel
+    end
+    if guideMissing then return own, guideMissing, averageItemLevel end
 
     local selected = {}
     for statKey, value in pairs(own) do selected[statKey] = value end
     for statKey, value in pairs(guide) do selected[statKey] = value end
-    return selected, guideMissing
+    return selected, guideMissing, averageItemLevel
 end
 
 -- Saves the mode and drops the cached provider views so every profile is
@@ -436,12 +505,22 @@ function Repository.SetWeightMode(mode)
     return true
 end
 
--- Saves the guide target bin (Weights drawer: Easy/Normal/Hard) and drops the
--- cached provider views. false (nothing saved) for an unknown bin.
+-- Saves the guide target bin (Mode drawer: Tier 3/2/1) and drops the cached
+-- provider views. false (nothing saved) for an unknown bin.
 function Repository.SetStatTargetBin(bin)
     if type(bin) ~= "string" or not VALID_STAT_TARGET_BINS[bin] then return false end
     _G.StatVerdictDB = type(_G.StatVerdictDB) == "table" and _G.StatVerdictDB or {}
     _G.StatVerdictDB.statTargetBin = bin
+    Repository.InvalidateProviderViews()
+    return true
+end
+
+-- Saves MEASURED's gear level (Mode drawer: Champion/Hero/Myth) and drops the
+-- cached provider views. false (nothing saved) for an unknown level.
+function Repository.SetGearLevel(level)
+    if type(level) ~= "string" or not VALID_GEAR_LEVELS[level] then return false end
+    _G.StatVerdictDB = type(_G.StatVerdictDB) == "table" and _G.StatVerdictDB or {}
+    _G.StatVerdictDB.gearLevel = level
     Repository.InvalidateProviderViews()
     return true
 end
@@ -480,9 +559,9 @@ local function BuildEqualGroups(priority, secondaryOrder)
     return groups
 end
 
--- targetValues: the targets the weight mode shows, keyed by runtime stat key
--- (SelectTargetValues).
-local function BuildAuditTargets(targets, targetValues, weightMode, secondaryOrder, secondaryWeights)
+-- targetValues: the targets the weight mode shows, keyed by runtime stat key, and
+-- averageItemLevel the item level they belong to (SelectTargetValues).
+local function BuildAuditTargets(averageItemLevel, targetValues, weightMode, secondaryOrder, secondaryWeights)
     local model = ns.GlobalStatVerdictModifiers or {}
     local rankWeights = type(model.secondary) == "table" and model.secondary or {}
     -- Same per-stat weight as the tooltip scoring (SV_Modifiers): the measured
@@ -514,7 +593,7 @@ local function BuildAuditTargets(targets, targetValues, weightMode, secondaryOrd
     return {
         source = "generated_classcodex",
         targetMode = weightMode,
-        averageItemLevel = type(targets) == "table" and targets.averageItemLevel or nil,
+        averageItemLevel = averageItemLevel,
         rows = rows,
     }
 end
@@ -551,7 +630,9 @@ function Repository.BuildRuntimeProfile(context)
         secondaryOrder = SortByWeights(guideOrder, secondaryWeights)
     end
     local statTargetBin = Repository.GetStatTargetBin()
-    local targetValues, guideTargetsMissing = SelectTargetValues(generatedContext.targets, weightMode, statTargetBin)
+    local gearLevel = Repository.GetGearLevel()
+    local targetValues, guideTargetsMissing, targetItemLevel =
+        SelectTargetValues(generatedContext.targets, weightMode, statTargetBin, gearLevel)
     local primaryStat = STAT_KEY[generatedProfile.primaryStat]
     if not primaryStat then return nil end
     local role = context.role
@@ -604,8 +685,9 @@ function Repository.BuildRuntimeProfile(context)
             averageItemLevel = nil,
             rows = {},
             invalidReason = invalidReason or "Generated profile data failed quality checks.",
-        } or BuildAuditTargets(generatedContext.targets, targetValues, weightMode, secondaryOrder, secondaryWeights),
+        } or BuildAuditTargets(targetItemLevel, targetValues, weightMode, secondaryOrder, secondaryWeights),
         statTargetBin = statTargetBin,
+        gearLevel = gearLevel,
         guideTargetsMissing = guideTargetsMissing,
         generatedContext = invalidGeneratedContext and nil or generatedContext,
         invalidGeneratedContext = invalidGeneratedContext,
@@ -643,7 +725,7 @@ end
 -- The provider view builds a profile for every spec (40), so it is cached per
 -- goal and rebuilt only when something it is built from changes: the loaded
 -- data files, their freshness, the scoring model, the stat weight mode, the
--- guide target bin, or the hero tree a spec
+-- guide target bin, the gear level, or the hero tree a spec
 -- snapshot records (each spec's default profile follows it). Nothing else
 -- feeds BuildRuntimeProfile here: the goal is fixed per view and spec
 -- ID/name/role come from the static SV_SpecMeta tables.
@@ -661,6 +743,7 @@ local function BuildProviderViewSignature(goal)
         tostring(ns.GlobalStatVerdictModifiers),
         Repository.GetWeightMode(),
         Repository.GetStatTargetBin(),
+        Repository.GetGearLevel(),
     }
     if root then
         for specKey in pairs(root.profiles or {}) do
