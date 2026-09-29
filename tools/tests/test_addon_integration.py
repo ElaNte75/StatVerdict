@@ -108,6 +108,21 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
         if problems:
             self.fail("\n  ".join(["SpecMeta out of date:"] + problems))
 
+    def test_missing_hero_tree_name_uses_the_first_sorted_hero_key(self) -> None:
+        ns, lua = self.ns, self.lua
+        targets = ns.ClassCodexTargets.profiles
+        for spec in SPECS:
+            for goal in GOALS:
+                expected = sorted(targets[spec.key].goals[goal].heroTalents.keys())[0]
+                profile = ns.ProfileRepository.BuildRuntimeProfile(lua.table(
+                    specKey=spec.key, goal=goal, specID=ns.GetStatVerdictSpecIDByKey(spec.key)))
+                self.assertIsNotNone(profile, f"{spec.key} {goal}")
+                self.assertEqual(expected, profile.heroKey, f"{spec.key} {goal}")
+                self.assertTrue(profile.heroKeyGuessed, f"{spec.key} {goal}")
+                unknown = ns.ProfileRepository.BuildRuntimeProfile(lua.table(
+                    specKey=spec.key, goal=goal, heroTalentName="Not A Hero Tree"))
+                self.assertIsNone(unknown, f"{spec.key} {goal}")
+
     def test_every_spec_goal_and_hero_talent_cell(self) -> None:
         ns, lua = self.ns, self.lua
         repo = ns.ProfileRepository
