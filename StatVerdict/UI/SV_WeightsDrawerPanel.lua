@@ -139,16 +139,17 @@ local function EnsureModeRow(card, index, mode)
 end
 
 -- "Stat targets" group: title, the three difficulties as small cards in one row,
--- easy to hard, styled like the mode rows (a radio group: exactly one is ticked),
--- then the selected difficulty's explanation under them (two lines). Only Guide
--- uses the difficulty: with Measured the cards are dimmed and locked.
+-- least to most demanding, styled like the mode rows (a radio group: exactly one is
+-- ticked), then the selected difficulty's explanation under them (two lines). Only
+-- Guide uses the difficulty: with Measured the cards are dimmed and locked.
 local DESCRIPTION_SPACING = 4
-local BIN_GROUP_GAP = 14          -- separator > group
-local BIN_CHIP_TOP = -16          -- title (10px) + 6px
+local SEPARATOR_GAP = 8           -- status line > separator
+local BIN_GROUP_GAP = 16          -- separator > group
+local BIN_CHIP_TOP = -22          -- title (10px) + 12px
 local BIN_CHIP_HEIGHT = 26
 local BIN_CHIP_GAP = 8            -- between the cards
 local BIN_CHIP_CHECK = 20
-local BIN_NOTE_GAP = 10           -- cards > explanation
+local BIN_NOTE_GAP = 8            -- cards > explanation
 local BIN_NOTE_HEIGHT = 2 * 10 + DESCRIPTION_SPACING + 2
 local BIN_BOTTOM_MARGIN = 4
 local BIN_NOTE_TOP = BIN_CHIP_TOP - BIN_CHIP_HEIGHT - BIN_NOTE_GAP
@@ -280,8 +281,8 @@ local function EnsureCard(frame)
     card.separator = card:CreateTexture(nil, "ARTWORK")
     card.separator:SetColorTexture(LINE[1], LINE[2], LINE[3], LINE[4])
     card.separator:SetHeight(1)
-    card.separator:SetPoint("TOPLEFT", card.status, "BOTTOMLEFT", 0, -10)
-    card.separator:SetPoint("TOPRIGHT", card.status, "BOTTOMRIGHT", 0, -10)
+    card.separator:SetPoint("TOPLEFT", card.status, "BOTTOMLEFT", 0, -SEPARATOR_GAP)
+    card.separator:SetPoint("TOPRIGHT", card.status, "BOTTOMRIGHT", 0, -SEPARATOR_GAP)
 
     EnsureBinGroup(card, card.separator)
 

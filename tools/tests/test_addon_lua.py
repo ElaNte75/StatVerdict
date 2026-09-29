@@ -131,13 +131,13 @@ class WeightModeCoreTests(unittest.TestCase):
 
     def test_three_difficulties_from_easy_to_hard(self) -> None:
         bins = self.ns.GetStatTargetBins()
-        # Saved keys stay top20/50/80, shown easy to hard; Hard (top20) is the default.
+        # Saved keys stay top20/50/80, shown Tier 3 to Tier 1; Tier 1 (top20) is the default.
         self.assertEqual(3, len(bins))
         self.assertEqual(["top80", "top50", "top20"], [bins[i].key for i in (1, 2, 3)])
-        self.assertEqual(["Easy", "Normal", "Hard"], [bins[i].label for i in (1, 2, 3)])
-        self.assertEqual(["Stat targets that most players reach. A comfortable goal.",
-                          "The stats of a typical player. A solid, realistic goal.",
-                          "The stats the best-equipped players reach. The most demanding goal."],
+        self.assertEqual(["Tier 3", "Tier 2", "Tier 1"], [bins[i].label for i in (1, 2, 3)])
+        self.assertEqual(["Tier 3: stat targets that most players reach. A comfortable goal.",
+                          "Tier 2: the stats of a typical player. A solid, realistic goal.",
+                          "Tier 1: the stats the best-equipped players reach. The most demanding goal."],
                          [bins[i].about for i in (1, 2, 3)])
         self.assertEqual("top20", self.ns.GetStatTargetBin())
 
@@ -1011,7 +1011,10 @@ class PanelModeTests(unittest.TestCase):
         source = (ADDON / "UI" / "SV_ManualDrawerPanel.lua").read_text(encoding="utf-8-sig")
         self.assertIn("Mode — choose how stat priorities and targets are decided: Guide (from the guides, "
                       "recommended) or Measured (our own measurement).", source)
-        self.assertIn("With Guide you also pick a stat target difficulty: Easy, Normal or Hard.", source)
+        self.assertIn("With Guide you also pick a stat target difficulty: Tier 3, Tier 2 or Tier 1 "
+                      "(the most demanding).", source)
+        for word in ("Easy", "Hard"):
+            self.assertNotIn(word, source)
         self.assertNotIn("Benchmark", source)
         self.assertNotIn("Blend", source)
 
@@ -1117,9 +1120,9 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         self.ns.StatVerdictWeightsDrawerPanel.Apply(self.frame)
         return self.frame.weightsDrawerCard
 
-    EASY = "Stat targets that most players reach. A comfortable goal."
-    NORMAL = "The stats of a typical player. A solid, realistic goal."
-    HARD = "The stats the best-equipped players reach. The most demanding goal."
+    EASY = "Tier 3: stat targets that most players reach. A comfortable goal."
+    NORMAL = "Tier 2: the stats of a typical player. A solid, realistic goal."
+    HARD = "Tier 1: the stats the best-equipped players reach. The most demanding goal."
     NOT_USED = "Not used with our own measurement."
 
     def test_title_intro_and_two_mode_rows(self) -> None:
@@ -1235,15 +1238,15 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         self.assertEqual("Stat targets", card.binTitle.text)
         self.assertEqual(3, len(card.binRows))
         self.assertEqual(["top80", "top50", "top20"], [card.binRows[i].key for i in (1, 2, 3)])
-        self.assertEqual(["Easy", "Normal", "Hard"], [card.binRows[i].label.text for i in (1, 2, 3)])
+        self.assertEqual(["Tier 3", "Tier 2", "Tier 1"], [card.binRows[i].label.text for i in (1, 2, 3)])
         # Side by side, left to right.
         xs = [card.binRows[i].points[1][4] for i in (1, 2, 3)]
         self.assertEqual(sorted(xs), xs)
         self.assertEqual(len(set(xs)), 3)
-        # Default: Hard (top20), explained under the options.
+        # Default: Tier 1 (top20), explained under the options, starting with its name.
         self.assertEqual([False, False, True], self.bin_checks(card))
         self.assertEqual(self.HARD, card.binNote.text)
-        self.assertNotIn("Tier", card.binNote.text)
+        self.assertTrue(card.binNote.text.startswith("Tier 1: "))
 
     def test_stat_target_group_shows_the_saved_difficulty(self) -> None:
         for key, checks, note in (("top80", [True, False, False], self.EASY),
@@ -1359,11 +1362,11 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
     def test_stat_target_group_has_room_to_breathe(self) -> None:
         card = self.card()
         group = card.binGroup
-        self.assertLessEqual(group.points[1][5], -12)  # margin under the separator
+        self.assertLessEqual(group.points[1][5], -16)  # margin under the separator
         title_bottom = self.region_top(card, card.binTitle) - self.text_height(card.binTitle, 252)
         chip = card.binRows[1]
         chip_top = self.region_top(card, group) + chip.points[1][5]
-        self.assertGreaterEqual(title_bottom - chip_top, 6)
+        self.assertGreaterEqual(title_bottom - chip_top, 12)  # the cards never crowd the title
         self.assertGreaterEqual(chip._height, 26)
         note_top = self.region_top(card, card.binNote)
         self.assertGreaterEqual(chip_top - chip._height - note_top, 8)
@@ -1536,7 +1539,17 @@ GUARDIAN_HEAD_KEPT = [
     ("+142 Haste", None),
     ("+59 Versatility", None),
     ("+189 Intellect", None),
-    ("Bark of the Enigmatic Dreamwatcher (0/5)", None),
+    ("Part of the tier set", None),
+]
+# The Recommended block: dim sub-headings, one name per line, "or" alternatives.
+OR = "|cff8c8c8cor|r "
+HEAD_RECOMMENDED = [
+    ("Recommended", None),
+    ("Gems", None),
+    ("Flawless Gem", None),
+    ("Quick Gem", None),
+    ("Enchant", None),
+    ("Enchant Helm - Scroll", None),
 ]
 GEM_SOCKET = 3  # Enum.TooltipDataLineType.GemSocket
 # The same head as the game shows it with two sockets: the first filled by the
@@ -1593,7 +1606,8 @@ class BisPanelTests(unittest.TestCase):
             table[index] = entry
         return table
 
-    def item(self, item_id, gems=None, enchant=None, bonus_ids=None, gem_ids=None):
+    def item(self, item_id, gems=None, enchant=None, bonus_ids=None, gem_ids=None,
+             gem_alt_id=None, enchant_alt=None):
         gems = gem_ids if gems is None else gems
         item = self.lua.table(item_id=item_id)
         if bonus_ids is not None:
@@ -1602,6 +1616,10 @@ class BisPanelTests(unittest.TestCase):
             item.gem_ids = self.lua.table(*gems)
         if enchant is not None:
             item.enchant = self.lua.table(**enchant)
+        if gem_alt_id is not None:
+            item.gem_alt_id = gem_alt_id
+        if enchant_alt is not None:
+            item.enchant_alt = self.lua.table(**enchant_alt)
         return item
 
     def entry(self, slot="Head", **item):
@@ -1675,6 +1693,17 @@ class BisPanelTests(unittest.TestCase):
         self.assertEqual(list(EPIC), [kept[1].color[i] for i in (1, 2, 3)])  # quality colour
         self.assertEqual([0.5, 0.5, 0.5], [kept[11].color[i] for i in (1, 2, 3)])  # inactive stat stays grey
 
+    def test_set_name_becomes_a_plain_gold_line_with_a_small_gap(self) -> None:
+        kept = self.panel.FilterItemTooltipLines(self.tooltip_lines(GUARDIAN_HEAD_TOOLTIP))
+        set_line = kept[len(kept)]
+        self.assertEqual("Part of the tier set", set_line.left)
+        self.assertEqual([1, 0.82, 0], [set_line.color[i] for i in (1, 2, 3)])  # the game's set colour
+        self.assertGreaterEqual(set_line.gap, 3)
+        self.assertLessEqual(set_line.gap, 6)
+        # Items outside a set get no set line at all.
+        plain = self.pairs_of(self.panel.FilterItemTooltipLines(self.tooltip_lines(ONE_SOCKET_RING_TOOLTIP)))
+        self.assertNotIn(("Part of the tier set", None), plain)
+
     def test_filter_drops_sockets_enchant_and_everything_after_the_stats(self) -> None:
         rows = self.tooltip_lines([
             ("|cffa335eeBlade of Tests|r", None, EPIC),
@@ -1739,28 +1768,117 @@ class BisPanelTests(unittest.TestCase):
     def test_hover_shows_the_item_then_the_recommended_block(self) -> None:
         self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_SOCKETED_TOOLTIP)
         card = self.refresh(self.guardian_head(), spec_id=104)
+        self.assertEqual(GUARDIAN_HEAD_KEPT + HEAD_RECOMMENDED, self.hover(card.rows[1]))
+        self.assertEqual([], [None for _ in self.lua.globals().TOOLTIP_CALLS])  # never the game tooltip
+
+    def shown(self):
+        tip = self.panel.GetRecommendedTooltip()
+        return [tip.shownLines[i] for i in range(1, len(tip.shownLines) + 1)]
+
+    def test_recommended_block_is_stacked_with_dim_headings_and_indented_names(self) -> None:
+        self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_SOCKETED_TOOLTIP)
+        self.hover(self.refresh(self.guardian_head(), spec_id=104).rows[1])
+        block = {line.left: line for line in self.shown()[len(GUARDIAN_HEAD_KEPT):]}
+        for heading in ("Gems", "Enchant"):
+            self.assertEqual([0.55, 0.55, 0.55], [block[heading].color[i] for i in (1, 2, 3)], heading)
+            self.assertFalse(block[heading].indent, heading)
+        for name in ("Flawless Gem", "Quick Gem", "Enchant Helm - Scroll"):
+            self.assertTrue(block[name].indent, name)
+            self.assertTrue(block[name].wrap, name)  # wraps instead of widening the tooltip
+        # A small gap between the gems and the enchant; a bigger one before the block.
+        self.assertGreater(block["Enchant"].gap, 0)
+        self.assertTrue(block["Recommended"].gapBefore)
+
+    def test_gem_and_enchant_names_use_the_item_quality_colour(self) -> None:
+        g = self.lua.globals()
+        g.GetItemQualityColor = self.lua.eval(
+            "function(q) if q == 4 then return 0.64, 0.21, 0.93, 'ffa335ee' end return 1, 1, 1, 'ffffffff' end")
+        self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_SOCKETED_TOOLTIP)
+        self.hover(self.refresh(self.guardian_head(), spec_id=104).rows[1])
+        block = {line.left: line for line in self.shown()[len(GUARDIAN_HEAD_KEPT):]}
+        for name in ("Flawless Gem", "Quick Gem", "Enchant Helm - Scroll"):
+            self.assertEqual([0.64, 0.21, 0.93], [block[name].color[i] for i in (1, 2, 3)], name)
+
+    def test_names_are_white_until_the_game_knows_them(self) -> None:
+        g = self.lua.globals()
+        g.GetItemQualityColor = self.lua.eval("function(q) return 0.64, 0.21, 0.93, 'ffa335ee' end")
+        entry = self.entry(item_id=1001, gems=[777001], enchant={"id": 8017, "item_id": 777002})
+        self.game_knows(self.panel.BuildRecommendedItemLink(entry, 0), ONE_SOCKET_RING_TOOLTIP)
+        self.hover(self.refresh(entry).rows[1])
+        block = {line.left: line for line in self.shown()}
+        for name in ("Gem #777001", "Enchant #8017"):
+            self.assertEqual([1, 1, 1], [block[name].color[i] for i in (1, 2, 3)], name)
+
+    def test_alternative_gem_and_enchant_follow_with_or(self) -> None:
+        g = self.lua.globals()
+        g.ITEM_NAMES[240900] = "Deadly Gem"
+        g.ITEM_NAMES[243960] = "Enchant Helm - Other Scroll"
+        entry = self.lua.table(slot="Head", item=self.item(
+            **GUARDIAN_HEAD, gem_alt_id=240900, enchant_alt={"id": 7962, "item_id": 243960}))
+        self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_SOCKETED_TOOLTIP)
+        lines = self.hover(self.refresh(entry, spec_id=104).rows[1])
         self.assertEqual(GUARDIAN_HEAD_KEPT + [
             ("Recommended", None),
-            ("Gems: Flawless Gem, Quick Gem", None),
-            ("Enchant: Enchant Helm - Scroll", None),
-        ], self.hover(card.rows[1]))
-        self.assertEqual([], [None for _ in self.lua.globals().TOOLTIP_CALLS])  # never the game tooltip
+            ("Gems", None),
+            ("Flawless Gem", None),
+            ("Quick Gem", None),
+            (OR + "Deadly Gem", None),
+            ("Enchant", None),
+            ("Enchant Helm - Scroll", None),
+            (OR + "Enchant Helm - Other Scroll", None),
+        ], lines)
+        self.assertTrue(self.shown()[-1].indent)
+
+    def test_alternative_enchant_names_resolve_like_the_main_enchant(self) -> None:
+        self.lua.globals().SPELL_NAMES[1236001] = "Radiant Mastery"
+        card = self.refresh(
+            self.entry(slot="Finger 1", item_id=1001, enchant={"id": 8017, "item_id": 243951},
+                       enchant_alt={"id": 8018, "spell_id": 1236001}),
+            self.entry(slot="Main Hand", item_id=1003, enchant={"id": 8017, "item_id": 243951},
+                       enchant_alt={"id": 3368}),
+        )
+        self.assertIn((OR + "Radiant Mastery", None), self.hover(card.rows[1]))
+        self.assertIn((OR + "Enchant #3368", None), self.hover(card.rows[2]))
+
+    def test_alternative_gem_needs_a_socket_and_missing_fields_are_fine(self) -> None:
+        g = self.lua.globals()
+        g.ITEM_NAMES[240900] = "Deadly Gem"
+        entry = self.lua.table(slot="Head", item=self.item(**GUARDIAN_HEAD, gem_alt_id=240900))
+        self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_TOOLTIP)  # no sockets
+        lines = self.hover(self.refresh(entry, spec_id=104).rows[1])
+        self.assertNotIn(("Gems", None), lines)
+        self.assertNotIn((OR + "Deadly Gem", None), lines)
+        # Enchant alternative without any main enchant shows nothing.
+        card = self.refresh(self.entry(slot="Neck", item_id=1002, enchant_alt={"id": 3368}))
+        self.assertNotIn(("Recommended", None), self.hover(card.rows[1]))
 
     def test_item_without_sockets_shows_no_gems(self) -> None:
         self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_TOOLTIP)
         card = self.refresh(self.guardian_head(), spec_id=104)
         self.assertEqual(GUARDIAN_HEAD_KEPT + [
             ("Recommended", None),
-            ("Enchant: Enchant Helm - Scroll", None),
+            ("Enchant", None),
+            ("Enchant Helm - Scroll", None),
         ], self.hover(card.rows[1]))
+        self.assertFalse(self.shown()[-2].gap)  # no gems above: no extra gap
 
     def test_one_socket_shows_only_the_first_gem(self) -> None:
         entry = self.entry(slot="Finger 1", item_id=1001, gems=[240983, 240894])
         self.game_knows(self.panel.BuildRecommendedItemLink(entry, 0), ONE_SOCKET_RING_TOOLTIP)
         card = self.refresh(entry)
         lines = self.hover(card.rows[1])
-        self.assertIn(("Gems: Flawless Gem", None), lines)
-        self.assertEqual(1, sum(1 for left, _ in lines if left.startswith("Gems:")))
+        self.assertIn(("Flawless Gem", None), lines)
+        self.assertNotIn(("Quick Gem", None), lines)
+
+    def test_recommended_block_does_not_widen_the_tooltip(self) -> None:
+        g = self.lua.globals()
+        g.ITEM_NAMES[243951] = "Enchant Helm - A Very Long Scroll Name That Goes On And On"
+        self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_SOCKETED_TOOLTIP)
+        self.hover(self.refresh(self.guardian_head(), spec_id=104).rows[1])
+        with_block = self.panel.GetRecommendedTooltip()._width
+        g.StatVerdictDB.showBisGemsEnchants = False
+        self.hover(self.refresh(self.guardian_head(), spec_id=104).rows[1])
+        self.assertEqual(self.panel.GetRecommendedTooltip()._width, with_block)
 
     def test_tooltip_frame_sits_next_to_the_row_and_ignores_the_mouse(self) -> None:
         card = self.refresh(self.guardian_head())
@@ -1807,16 +1925,15 @@ class BisPanelTests(unittest.TestCase):
         card = self.refresh(self.guardian_head(), spec_id=104)
         lines = self.hover(card.rows[1])
         # Name, then Recommended with the enchant only: sockets unknown, so no gems yet.
-        self.assertEqual(3, len(lines))
+        self.assertEqual(4, len(lines))
         self.assertIn("item:271528", lines[0][0])
-        self.assertEqual([("Recommended", None), ("Enchant: Enchant Helm - Scroll", None)], lines[1:])
+        self.assertEqual([("Recommended", None), ("Enchant", None), ("Enchant Helm - Scroll", None)], lines[1:])
         self.assertTrue(g.REQUESTED[271528])
         self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_SOCKETED_TOOLTIP)
         self.item_events.scripts.OnEvent(self.item_events, "GET_ITEM_INFO_RECEIVED", 271528, True)
         tip = self.panel.GetRecommendedTooltip()
         shown = self.pairs_of(tip.shownLines)
-        self.assertEqual(GUARDIAN_HEAD_KEPT, shown[:len(GUARDIAN_HEAD_KEPT)])
-        self.assertIn(("Gems: Flawless Gem, Quick Gem", None), shown)
+        self.assertEqual(GUARDIAN_HEAD_KEPT + HEAD_RECOMMENDED, shown)
 
     def test_gem_and_enchant_names_fill_in_when_they_arrive(self) -> None:
         g = self.lua.globals()
@@ -1824,16 +1941,16 @@ class BisPanelTests(unittest.TestCase):
         self.game_knows(self.panel.BuildRecommendedItemLink(entry, 0), ONE_SOCKET_RING_TOOLTIP)
         card = self.refresh(entry)
         lines = self.hover(card.rows[1])
-        self.assertIn(("Gems: Gem #777001", None), lines)
-        self.assertIn(("Enchant: Enchant #8017", None), lines)
+        self.assertIn(("Gem #777001", None), lines)
+        self.assertIn(("Enchant #8017", None), lines)
         self.assertTrue(g.REQUESTED[777001] and g.REQUESTED[777002])
         g.ITEM_NAMES[777001] = "Masterful Gem"
         g.ITEM_NAMES[777002] = "Enchant Helm - Scroll"
         self.item_events.scripts.OnEvent(self.item_events, "GET_ITEM_INFO_RECEIVED", 777001, True)
         self.item_events.scripts.OnEvent(self.item_events, "GET_ITEM_INFO_RECEIVED", 777002, True)
         shown = self.pairs_of(self.panel.GetRecommendedTooltip().shownLines)
-        self.assertIn(("Gems: Masterful Gem", None), shown)
-        self.assertIn(("Enchant: Enchant Helm - Scroll", None), shown)
+        self.assertIn(("Masterful Gem", None), shown)
+        self.assertIn(("Enchant Helm - Scroll", None), shown)
 
     def test_enchant_name_falls_back_to_spell_then_id(self) -> None:
         self.lua.globals().SPELL_NAMES[1236001] = "Radiant Mastery"
@@ -1841,18 +1958,18 @@ class BisPanelTests(unittest.TestCase):
             self.entry(slot="Finger 1", item_id=1001, enchant={"id": 8017, "spell_id": 1236001}),
             self.entry(slot="Main Hand", item_id=1003, enchant={"id": 3368}),
         )
-        self.assertIn(("Enchant: Radiant Mastery", None), self.hover(card.rows[1]))
-        self.assertIn(("Enchant: Enchant #3368", None), self.hover(card.rows[2]))
+        self.assertIn(("Radiant Mastery", None), self.hover(card.rows[1]))
+        self.assertIn(("Enchant #3368", None), self.hover(card.rows[2]))
 
     def test_pvp_enchant_id_is_the_scroll_item(self) -> None:
         # PvP data: {id = <enchant scroll item id>} with no item_id / spell_id.
         g = self.lua.globals()
         card = self.refresh(self.entry(slot="Chest", item_id=1001, enchant={"id": 243981}))
-        self.assertIn(("Enchant: Enchant #243981", None), self.hover(card.rows[1]))  # not loaded yet
+        self.assertIn(("Enchant #243981", None), self.hover(card.rows[1]))  # not loaded yet
         self.assertTrue(g.REQUESTED[243981])
         g.ITEM_NAMES[243981] = "Enchant Chest - Crystalline Radiance"
         self.item_events.scripts.OnEvent(self.item_events, "GET_ITEM_INFO_RECEIVED", 243981, True)
-        self.assertIn(("Enchant: Enchant Chest - Crystalline Radiance", None),
+        self.assertIn(("Enchant Chest - Crystalline Radiance", None),
                       self.pairs_of(self.panel.GetRecommendedTooltip().shownLines))
 
     def test_real_enchant_id_is_never_read_as_an_item(self) -> None:
@@ -1860,7 +1977,7 @@ class BisPanelTests(unittest.TestCase):
         g = self.lua.globals()
         g.ITEM_NAMES[7961] = "Phantom Blade"
         card = self.refresh(self.entry(item_id=1001, enchant={"id": 7961, "item_id": 777002}))
-        self.assertIn(("Enchant: Enchant #7961", None), self.hover(card.rows[1]))
+        self.assertIn(("Enchant #7961", None), self.hover(card.rows[1]))
 
     def test_ranked_trinkets_keep_the_game_tooltip(self) -> None:
         self.refresh(self.guardian_head())
@@ -1951,7 +2068,7 @@ class BisPanelTests(unittest.TestCase):
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
 class BisTooltipFeatureToggleTests(unittest.TestCase):
-    LABEL = "Best in Slot tooltip: gems and enchants"
+    LABEL = "Best in Slot tooltip"
 
     def setUp(self) -> None:
         self.lua = new_runtime()
@@ -1997,7 +2114,8 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
 
     def test_manual_mentions_the_toggle(self) -> None:
         source = (ADDON / "UI" / "SV_ManualDrawerPanel.lua").read_text(encoding="utf-8-sig")
-        self.assertIn("Features → Best in Slot tooltip: gems and enchants", source)
+        self.assertIn("(Features → Best in Slot tooltip)", source)
+        self.assertNotIn("gems and enchants)", source)
 
 
 if __name__ == "__main__":
