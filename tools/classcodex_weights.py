@@ -25,12 +25,14 @@ try:
     from tools.classcodex_targets import (
         CANONICAL_SECONDARY_STATS,
         ComboSkipped,
+        LoadoutUpgrades,
         SkipRecord,
         _classcodex_key_to_catalog_key,
         _hero_talent_keys,
         build_simc_items,
         canonical_stat_name,
         format_simc_error,
+        loadout_upgrades_for,
         select_goal_context,
         select_talent_export,
         run_with_talent_fallback,
@@ -42,12 +44,14 @@ except ModuleNotFoundError:
     from classcodex_targets import (
         CANONICAL_SECONDARY_STATS,
         ComboSkipped,
+        LoadoutUpgrades,
         SkipRecord,
         _classcodex_key_to_catalog_key,
         _hero_talent_keys,
         build_simc_items,
         canonical_stat_name,
         format_simc_error,
+        loadout_upgrades_for,
         select_goal_context,
         select_talent_export,
         run_with_talent_fallback,
@@ -163,12 +167,15 @@ def compute_weight_context(
     gear_list: list[dict[str, Any]] | None,
     talent_loadout: str | list[str] | None,
     simc_binary: Path,
+    upgrades: LoadoutUpgrades | None = None,
 ) -> dict[str, float]:
     """build_weight_context's core, taking an already-selected talent export
     (or the ordered list of exports to fall back through, see
     tools/classcodex_targets.py::run_with_talent_fallback). Raises
-    ComboSkipped (never returns None) so callers can report why."""
-    items = build_simc_items(gear_list)
+    ComboSkipped (never returns None) so callers can report why.
+    `upgrades` adds the same recommended enchants/gems as the targets
+    pipeline (tools/classcodex_targets.py::build_simc_items)."""
+    items = build_simc_items(gear_list, upgrades)
     if not items:
         raise ComboSkipped("no usable gear for this goal")
     talent_exports = [talent_loadout] if isinstance(talent_loadout, str) else list(talent_loadout or [])
@@ -253,7 +260,13 @@ def build_all_weights(
                             talent_loadout = borrowed
                             break
                 try:
-                    weights = compute_weight_context(spec, gear_list, talent_loadout, simc_binary)
+                    weights = compute_weight_context(
+                        spec,
+                        gear_list,
+                        talent_loadout,
+                        simc_binary,
+                        upgrades=loadout_upgrades_for(fields, hero_talent_key, goal),
+                    )
                 except ComboSkipped as skip:
                     skipped.append(SkipRecord(catalog_key, goal, hero_talent_key, skip.reason))
                     continue

@@ -162,12 +162,96 @@ def _bonus_ids(entry: dict[str, Any]) -> list[int] | None:
     return [int(v) for v in bonus_ids if isinstance(v, (int, float))]
 
 
-def build_simc_items(gear_list: list[dict[str, Any]] | None) -> dict[str, dict[str, Any]]:
+class LoadoutUpgrades(NamedTuple):
+    """The recommended enchants and gems added to a simulated BiS loadout.
+
+    enchants: {SimC slot: {"id": SpellItemEnchantment id (SimC enchant_id),
+    "item_id"?: enchant scroll item id, "spell_id"?: enchant spell id}}.
+    gems: gem item ids (SimC gem_id), primary gem first."""
+
+    enchants: dict[str, dict[str, int]]
+    gems: list[int]
+
+
+NO_UPGRADES = LoadoutUpgrades({}, [])
+
+# Slots that never get gems. ClassCodex does not say which items have a
+# socket, so gems go on every other item and SimC fills whatever sockets an
+# item really has (gem ids beyond an item's sockets are ignored; see
+# simc_stat_engine.run_simc_with_recovery for the safety net).
+GEMLESS_SIMC_SLOTS = frozenset({"TRINKET_1", "TRINKET_2"})
+
+
+def _int_or_none(value: Any) -> int | None:
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return int(value)
+    return None
+
+
+def _pop(entry: dict[str, Any]) -> float:
+    pop = entry.get("pop")
+    return float(pop) if isinstance(pop, (int, float)) and not isinstance(pop, bool) else 0.0
+
+
+def select_loadout_upgrades(enchants_value: Any, gems_value: Any, hero_talent_key: str, goal: str) -> LoadoutUpgrades:
+    """u.gg's most popular enchant per slot and most popular gem set for one
+    goal/hero talent (goal context, then "all"; hero talent, then hero
+    "all" -- see select_goal_context). Unknown slots and entries without a
+    numeric id are skipped."""
+    enchants: dict[str, dict[str, int]] = {}
+    by_slot = select_goal_context(enchants_value, hero_talent_key, goal)
+    if isinstance(by_slot, dict):
+        for slot_name, entries in by_slot.items():
+            simc_slot = CLASSCODEX_SLOT_TO_SIMC.get(str(slot_name))
+            candidates = [
+                e for e in (entries if isinstance(entries, list) else [])
+                if isinstance(e, dict) and _int_or_none(e.get("id")) is not None
+            ]
+            if simc_slot is None or not candidates:
+                continue
+            best = max(candidates, key=_pop)
+            enchant = {"id": _int_or_none(best["id"])}
+            for source_key, out_key in (("itemId", "item_id"), ("spellId", "spell_id")):
+                value = _int_or_none(best.get(source_key))
+                if value is not None:
+                    enchant[out_key] = value
+            enchants[simc_slot] = enchant
+
+    gems: list[int] = []
+    gem_sets = select_goal_context(gems_value, hero_talent_key, goal)
+    candidates = [e for e in (gem_sets if isinstance(gem_sets, list) else []) if isinstance(e, dict)]
+    if candidates:
+        best = max(candidates, key=_pop)
+        primary = _int_or_none(best.get("primary"))
+        if primary is not None:
+            gems.append(primary)
+        secondary = best.get("secondary")
+        for gem in secondary if isinstance(secondary, list) else []:
+            gem_id = _int_or_none(gem)
+            if gem_id is not None:
+                gems.append(gem_id)
+    return LoadoutUpgrades(enchants, gems)
+
+
+def loadout_upgrades_for(fields: dict[str, Any], hero_talent_key: str, goal: str) -> LoadoutUpgrades:
+    """select_loadout_upgrades on one spec's build() fields (shared by the
+    targets and weights pipelines so both simulate the same gear)."""
+    return select_loadout_upgrades(
+        (fields.get("enchants") or {}).get("value"), (fields.get("gems") or {}).get("value"), hero_talent_key, goal
+    )
+
+
+def build_simc_items(
+    gear_list: list[dict[str, Any]] | None, upgrades: LoadoutUpgrades | None = None
+) -> dict[str, dict[str, Any]]:
     """Converts a ClassCodex gear list into a SimC items dict keyed by WoW API
     slot tokens (as defined in CLASSCODEX_SLOT_TO_SIMC). Each item carries its
-    itemId, optional itemLevel (ilvl), and optional bonusIds (camelCase bonusIDs).
+    itemId, optional itemLevel (ilvl), and optional bonusIds (camelCase bonusIDs),
+    plus -- when `upgrades` is given -- enchantIds for slots with a
+    recommended enchant and gemIds on every non-trinket item.
     Skips entries with unknown slots or missing itemIds; see gear_by_simc_slot
     for duplicate slots."""
+    upgrades = upgrades or NO_UPGRADES
     items: dict[str, dict[str, Any]] = {}
     for simc_slot, entry in gear_by_simc_slot(gear_list).items():
         item: dict[str, Any] = {"itemId": int(entry["itemId"])}
@@ -177,6 +261,11 @@ def build_simc_items(gear_list: list[dict[str, Any]] | None) -> dict[str, dict[s
         bonus_ids = _bonus_ids(entry)
         if bonus_ids is not None:
             item["bonusIds"] = bonus_ids
+        if upgrades.gems and simc_slot not in GEMLESS_SIMC_SLOTS:
+            item["gemIds"] = list(upgrades.gems)
+        enchant = upgrades.enchants.get(simc_slot)
+        if enchant:
+            item["enchantIds"] = [enchant["id"]]
         items[simc_slot] = item
     return items
 
@@ -477,6 +566,7 @@ def reconstruct_target_context(
     simc_binary: Path = Path("simc"),
     wowhead_reconstruct: Callable[..., dict[str, Any]] | None = None,
     extra_recovery: list[str] | None = None,
+    upgrades: LoadoutUpgrades | None = None,
 ) -> dict[str, Any]:
     """build_target_context's core, taking an already-selected talent export
     (or the ordered list of exports to fall back through, see
@@ -486,8 +576,13 @@ def reconstruct_target_context(
     `wowhead_reconstruct` (tools/wowhead_stat_engine.reconstruct_loadout's
     signature) enables the gear-only fallback, used ONLY when SimC reports
     that it cannot model the spec (any SimC failure after recovery, or no usable stats);
-    None disables it."""
-    items = build_simc_items(gear_list)
+    None disables it.
+
+    `upgrades` (select_loadout_upgrades) adds the recommended enchants and
+    gems to the simulated items; whatever was really applied (not dropped
+    by a recovery step) is counted in targetMetadata and shown on the BiS
+    slots."""
+    items = build_simc_items(gear_list, upgrades)
     if not items:
         raise ComboSkipped("no usable gear for this goal")
     talent_exports = [talent_loadout] if isinstance(talent_loadout, str) else list(talent_loadout or [])
@@ -532,18 +627,40 @@ def reconstruct_target_context(
     # SimC items above, so BiS slots, item count and item level describe the
     # full ClassCodex loadout (even if a weapon recovery simulated without
     # one of the weapons, see targetMetadata.recovery).
-    loadout = list(gear_by_simc_slot(gear_list).values())
+    loadout_by_slot = gear_by_simc_slot(gear_list)
+    loadout = list(loadout_by_slot.values())
+    # Gems/enchants a recovery step dropped were not simulated, so they are
+    # neither counted nor shown.
+    gems_applied = "gems dropped" not in recovery
+    enchants_applied = "enchants dropped" not in recovery
+    upgrade_enchants = (upgrades or NO_UPGRADES).enchants
     bis_slots: list[dict[str, Any]] = []
-    for entry in loadout:
+    gem_count = 0
+    enchant_count = 0
+    for simc_slot, entry in loadout_by_slot.items():
         item: dict[str, Any] = {"item_id": int(entry["itemId"])}
         bonus_ids = _bonus_ids(entry)
         if bonus_ids is not None:
             item["bonus_ids"] = bonus_ids
+        simulated = items[simc_slot]
+        if gems_applied and simulated.get("gemIds"):
+            item["gem_ids"] = list(simulated["gemIds"])
+            gem_count += 1
+        if enchants_applied and simulated.get("enchantIds"):
+            item["enchant"] = dict(upgrade_enchants[simc_slot])
+            enchant_count += 1
         bis_slots.append({"slot": entry["slot"], "item": item})
     # averageItemLevel only averages entries that carry an ilvl, so
     # itemLevelSlots counts exactly those (0 for real PvP gear, which has none).
     item_level_slots = sum(1 for entry in loadout if isinstance(entry.get("ilvl"), (int, float)))
-    target_metadata: dict[str, Any] = {"lowItemReplacements": 0, "unresolvedLowItems": 0}
+    target_metadata: dict[str, Any] = {
+        "lowItemReplacements": 0,
+        "unresolvedLowItems": 0,
+        # Items that carried the recommended gems / slots that carried an
+        # enchant in the simulated loadout (auditable; 0 when none/dropped).
+        "gemCount": gem_count,
+        "enchantCount": enchant_count,
+    }
     recovery = list(extra_recovery or []) + list(recovery)
     if recovery:
         # Auditable: this combo only succeeded after a SimC recovery step.
@@ -604,6 +721,39 @@ def format_skip_summary(skips: list[SkipRecord], detail_limit: int = 40) -> str:
         for skip in sorted(skips, key=lambda s: (s.spec_key, s.goal or "", s.hero_talent_key or "")):
             where = "/".join(part for part in (skip.spec_key, skip.goal, skip.hero_talent_key) if part)
             lines.append(f"  {where}: {skip.reason}")
+    return "\n".join(lines)
+
+
+SANITY_GUIDE_BIN = "top50"
+
+
+def format_rating_sanity(data: dict[str, Any]) -> str:
+    """CI-log sanity check: per spec/goal/hero-talent context, our summed
+    secondary rating (statTargets) against u.gg's summed top50 rating
+    (guideTargets), plus the median ratio. A ratio well below 1 means the
+    simulated loadout is missing stats real players have."""
+    lines = [f"Rating sanity (ours vs u.gg {SANITY_GUIDE_BIN}, summed secondary rating):"]
+    ratios: list[float] = []
+    for spec_key, profile in sorted((data.get("profiles") or {}).items()):
+        for goal, goal_data in ((profile or {}).get("goals") or {}).items():
+            for hero, context in sorted(((goal_data or {}).get("heroTalents") or {}).items()):
+                targets = (context or {}).get("targets") or {}
+                ours = sum(((targets.get("statTargets") or {}).get("stats") or {}).values())
+                guide = sum(((targets.get("guideTargets") or {}).get(SANITY_GUIDE_BIN) or {}).values())
+                where = f"{spec_key}/{goal}/{hero}"
+                if guide > 0:
+                    ratio = ours / guide
+                    ratios.append(ratio)
+                    lines.append(f"  {where}: ours {ours:.0f} vs u.gg {SANITY_GUIDE_BIN} {guide:.0f} (ratio {ratio:.2f})")
+                else:
+                    lines.append(f"  {where}: ours {ours:.0f} vs u.gg {SANITY_GUIDE_BIN} n/a")
+    if ratios:
+        ordered = sorted(ratios)
+        middle = len(ordered) // 2
+        median = ordered[middle] if len(ordered) % 2 else (ordered[middle - 1] + ordered[middle]) / 2
+        lines.append(f"  median ratio {median:.2f} over {len(ratios)} context(s)")
+    else:
+        lines.append("  no context has u.gg targets to compare")
     return "\n".join(lines)
 
 
@@ -742,6 +892,7 @@ def build_all(
                         simc_binary,
                         wowhead_reconstruct=wowhead_reconstruct,
                         extra_recovery=extra_recovery,
+                        upgrades=loadout_upgrades_for(fields, hero_talent_key, goal),
                     )
                 except ComboSkipped as skip:
                     skipped.append(SkipRecord(catalog_key, goal, hero_talent_key, skip.reason))

@@ -241,6 +241,20 @@ def is_weapon_conflict(message: str) -> bool:
     return any(marker in message for marker in WEAPON_CONFLICT_MARKERS)
 
 
+# A SimC failure whose message mentions any of these (case-insensitive) may
+# be caused by the recommended gems/enchants added to the loadout (e.g. a gem
+# or enchant id SimC does not know): the run is retried without gems, then
+# also without enchants, before giving up.
+UPGRADE_ERROR_MARKERS = ("gem", "enchant", "socket")
+# (item key stripped from every item, recovery label), in drop order.
+UPGRADE_RECOVERY_STEPS = (("gemIds", "gems dropped"), ("enchantIds", "enchants dropped"))
+
+
+def is_upgrade_error(message: str) -> bool:
+    lowered = message.lower()
+    return any(marker in lowered for marker in UPGRADE_ERROR_MARKERS)
+
+
 def run_simc_with_recovery(
     simc_binary: Path,
     spec: Any,
@@ -250,28 +264,41 @@ def run_simc_with_recovery(
     run_kwargs: dict[str, Any] | None = None,
     run_simc_fn: Any = None,
 ) -> tuple[dict[str, dict[str, Any]], dict[str, Any], list[str], str]:
-    """Renders and runs one actor, retrying only on a SimC weapon conflict:
-    first without the off-hand, then also without the main hand. Any other
-    error (or a conflict after both retries) is re-raised unchanged.
+    """Renders and runs one actor, retrying only on a SimC weapon conflict
+    (first without the off-hand, then also without the main hand) or on an
+    error mentioning gems/enchants/sockets (first without any gems, then
+    also without any enchants). Any other error (or one that persists after
+    those retries) is re-raised unchanged.
     Returns (stats_by_actor, report, recovery labels, actor name); the
-    labels (e.g. ["dropped OFF_HAND"]) say which retries were needed.
-    `run_simc_fn` defaults to run_simc (injectable for tests and callers
-    that patch their own reference)."""
+    labels (e.g. ["dropped OFF_HAND"], ["gems dropped"]) say which retries
+    were needed. `run_simc_fn` defaults to run_simc (injectable for tests
+    and callers that patch their own reference)."""
     run = run_simc_fn or run_simc
     items = dict(record.get("items") or {})
     recovery: list[str] = []
     pending = list(WEAPON_RECOVERY_SLOTS)
+    pending_upgrades = list(UPGRADE_RECOVERY_STEPS)
     while True:
         profile_text, actor_map = render_profiles(spec, [{**record, "items": items}], **(render_kwargs or {}))
         try:
             stats_by_actor, report = run(simc_binary, profile_text, **(run_kwargs or {}))
         except RuntimeError as exc:
+            message = str(exc)
             droppable = [slot for slot in pending if slot in items]
-            if not is_weapon_conflict(str(exc)) or not droppable:
-                raise
-            slot = droppable[0]
-            pending = pending[pending.index(slot) + 1:]
-            items.pop(slot)
-            recovery.append(f"dropped {slot}")
-            continue
+            if is_weapon_conflict(message) and droppable:
+                slot = droppable[0]
+                pending = pending[pending.index(slot) + 1:]
+                items.pop(slot)
+                recovery.append(f"dropped {slot}")
+                continue
+            strippable = [
+                step for step in pending_upgrades if any(item.get(step[0]) for item in items.values())
+            ]
+            if is_upgrade_error(message) and strippable:
+                key, label = strippable[0]
+                pending_upgrades = pending_upgrades[pending_upgrades.index(strippable[0]) + 1:]
+                items = {slot: {k: v for k, v in item.items() if k != key} for slot, item in items.items()}
+                recovery.append(label)
+                continue
+            raise
         return stats_by_actor, report, recovery, next(iter(actor_map))

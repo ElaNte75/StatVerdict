@@ -210,6 +210,19 @@ class BuildAllWeightsTests(unittest.TestCase):
         self.assertAlmostEqual(1.0, weights["critical_strike"])
         self.assertNotIn("PVP", profile["goals"])  # no PVP data anywhere in this fixture
 
+    def test_simulates_the_same_gems_and_enchants_as_the_targets(self) -> None:
+        specs = {
+            "DEATHKNIGHT_frost": {
+                "gear": {"value": {"all": {"raid": [{"itemId": 1, "slot": "Head", "ilvl": 330}]}}},
+                "talents": {"value": {"all": {"raid": [{"export": "R"}]}}},
+                "enchants": {"value": {"all": {"all": {"Head": [{"id": 8017, "pop": 46.7}]}}}},
+                "gems": {"value": {"all": {"all": [{"primary": 240983, "pop": 12.6, "secondary": [240908]}]}}},
+            }
+        }
+        with patch("tools.classcodex_weights.run_simc", return_value=({}, scale_report())) as mock_run:
+            build_all_weights(specs, Path("simc"), goals=("RAID",))
+        self.assertIn("head=,id=1,ilevel=330,gem_id=240983/240908,enchant_id=8017", mock_run.call_args.args[1])
+
     def test_skips_a_spec_key_not_in_the_catalog(self) -> None:
         specs = {"NOTASPEC_madeup": {"gear": {"value": {}, "source": "ugg"}}}
         data = build_all_weights(specs, Path("simc"))
