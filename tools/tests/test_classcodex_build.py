@@ -25,16 +25,54 @@ def _lists(lua_like) -> list:
 
 
 class ClassCodexBuildTests(unittest.TestCase):
-    def test_prefers_ugg_over_icyveins_when_both_have_a_field(self) -> None:
+    def test_icy_veins_wins_pve_and_ugg_wins_pvp_for_every_guide_field(self) -> None:
+        for field_name in ("trinkets", "gear", "gems", "enchants", "talents"):
+            with self.subTest(field_name=field_name):
+                ugg = 'all = {mplus = {from = "ugg"}, raid = {from = "ugg"}, pvp = {from = "ugg"}}'
+                icy = 'all = {all = {from = "icy"}, mplus = {from = "icy"}, pvp = {from = "icy"}}'
+                sources = {
+                    "db_ugg": _plain_global_source("ugg", "DEATHKNIGHT", "frost", {field_name: ugg}),
+                    "db_icyveins": _plain_global_source("icyveins", "DEATHKNIGHT", "frost", {field_name: icy}),
+                }
+                merged = build(sources)["DEATHKNIGHT_frost"][field_name]
+                self.assertEqual("icyveins", merged["source"])
+                hero = merged["value"]["all"]
+                self.assertEqual("icy", hero["all"]["from"])
+                self.assertEqual("icy", hero["mplus"]["from"])
+                # u.gg's raid list would outrank Icy Veins' "all" for Raid: dropped.
+                self.assertNotIn("raid", hero)
+                self.assertEqual("ugg", hero["pvp"]["from"])
+                self.assertEqual({"all": "icyveins", "mplus": "icyveins", "pvp": "ugg"}, merged["origins"]["all"])
+
+    def test_icy_veins_spec_wide_pve_covers_ugg_hero_trees(self) -> None:
+        ugg = (
+            'deathbringer = {mplus = {{export = "U1"}}, pvp = {{export = "UP"}}},'
+            ' rider = {raid = {{export = "U2"}}}'
+        )
+        icy = 'all = {mplus = {{export = "I1"}}, raid = {{export = "I2"}}}'
         sources = {
-            "db_ugg": _plain_global_source("ugg", "DEATHKNIGHT", "frost", {"trinkets": 'from = "ugg"'}),
-            "db_icyveins": _plain_global_source(
-                "icyveins", "DEATHKNIGHT", "frost", {"trinkets": 'from = "icyveins"'}
-            ),
+            "db_ugg": _plain_global_source("ugg", "DEATHKNIGHT", "frost", {"talents": ugg}),
+            "db_icyveins": _plain_global_source("icyveins", "DEATHKNIGHT", "frost", {"talents": icy}),
         }
-        specs = build(sources)
-        self.assertEqual("ugg", specs["DEATHKNIGHT_frost"]["trinkets"]["source"])
-        self.assertEqual("ugg", specs["DEATHKNIGHT_frost"]["trinkets"]["value"]["from"])
+        value = build(sources)["DEATHKNIGHT_frost"]["talents"]["value"]
+        self.assertEqual({"pvp"}, set(value["deathbringer"]))
+        self.assertNotIn("rider", value)  # nothing PvP to add, PvE comes from Icy Veins' "all"
+        self.assertEqual("I1", value["all"]["mplus"][0]["export"])
+
+    def test_hero_trees_icy_veins_does_not_cover_for_pve_take_ugg(self) -> None:
+        # Icy Veins' only hero-"all" entry is PvP: it covers no PvE, so u.gg
+        # fills each hero tree it lacks; Icy Veins' own hero tree stays.
+        ugg = 'rider = {mplus = {{export = "U1"}}}, deathbringer = {mplus = {{export = "U2"}}}'
+        icy = 'all = {pvp = {{export = "IP"}}}, deathbringer = {mplus = {{export = "I2"}}}'
+        sources = {
+            "db_ugg": _plain_global_source("ugg", "DEATHKNIGHT", "frost", {"talents": ugg}),
+            "db_icyveins": _plain_global_source("icyveins", "DEATHKNIGHT", "frost", {"talents": icy}),
+        }
+        merged = build(sources)["DEATHKNIGHT_frost"]["talents"]
+        self.assertEqual("U1", merged["value"]["rider"]["mplus"][0]["export"])
+        self.assertEqual({"mplus": "ugg"}, merged["origins"]["rider"])
+        self.assertEqual("I2", merged["value"]["deathbringer"]["mplus"][0]["export"])
+        self.assertEqual("IP", merged["value"]["all"]["pvp"][0]["export"])
 
     def test_stat_priority_follows_icy_veins_but_keeps_ugg_pvp(self) -> None:
         ugg = (
@@ -91,7 +129,7 @@ class ClassCodexBuildTests(unittest.TestCase):
         }
         self.assertEqual("ugg", build(sources)["DEATHKNIGHT_blood"]["statPriority"]["source"])
 
-    def test_falls_back_to_icyveins_when_ugg_lacks_the_field(self) -> None:
+    def test_each_source_fills_a_field_the_other_lacks(self) -> None:
         sources = {
             "db_ugg": _plain_global_source("ugg", "DEATHKNIGHT", "frost", {"trinkets": 'from = "ugg"'}),
             "db_icyveins": _plain_global_source(
@@ -128,47 +166,70 @@ class ClassCodexBuildTests(unittest.TestCase):
         self.assertIn("statPriority", spec)
         self.assertNotIn("tierRank", spec)
 
-    def test_stat_targets_gems_and_enchants_come_from_ugg(self) -> None:
+    def test_stat_targets_come_from_ugg_only(self) -> None:
+        sources = {
+            "db_ugg": _plain_global_source(
+                "ugg", "DEATHKNIGHT", "frost", {"statTargets": "all = {mplus = {top50 = {crit = 699}}}"}
+            ),
+            "db_icyveins": _plain_global_source(
+                "icyveins", "DEATHKNIGHT", "frost", {"statTargets": "all = {mplus = {top50 = {crit = 1}}}"}
+            ),
+        }
+        spec = build(sources)["DEATHKNIGHT_frost"]
+        self.assertEqual({"all": {"mplus": {"top50": {"crit": 699}}}}, spec["statTargets"]["value"])
+        self.assertEqual("ugg", spec["statTargets"]["source"])
+        only_icy = {
+            "db_ugg": _plain_global_source("ugg", "DEATHKNIGHT", "frost", {"gear": 'from = "ugg"'}),
+            "db_icyveins": sources["db_icyveins"],
+        }
+        self.assertNotIn("statTargets", build(only_icy)["DEATHKNIGHT_frost"])
+
+    def test_enchants_and_gems_follow_icy_veins_for_pve(self) -> None:
         sources = {
             "db_ugg": _plain_global_source(
                 "ugg",
                 "DEATHKNIGHT",
                 "frost",
                 {
-                    "statTargets": "all = {mplus = {top50 = {crit = 699}}}",
-                    "gems": "all = {all = {{pop = 12.6, primary = 240983, secondary = {240908}}}}",
-                    "enchants": 'all = {all = {Head = {{id = 8017, pop = 46.7}}}}',
+                    "gems": "all = {all = {{pop = 12.6, primary = 1, secondary = {2}}}, pvp = {{pop = 5, secondary = {3}}}}",
+                    "enchants": "all = {all = {Head = {{id = 8017, itemId = 244007, spellId = 1236084, pop = 46.7}}},"
+                    " pvp = {Head = {{id = 243951, pop = 60}}}}",
                 },
             ),
-            "db_icyveins": _plain_global_source(
-                "icyveins", "DEATHKNIGHT", "frost", {"enchants": "all = {all = {Head = {{id = 99}}}}"}
-            ),
-        }
-        spec = build(sources)["DEATHKNIGHT_frost"]
-        self.assertEqual({"value": {"all": {"mplus": {"top50": {"crit": 699}}}}, "source": "ugg"}, spec["statTargets"])
-        self.assertEqual(240983, spec["gems"]["value"]["all"]["all"][0]["primary"])
-        self.assertEqual("ugg", spec["enchants"]["source"])
-        self.assertEqual(8017, spec["enchants"]["value"]["all"]["all"]["Head"][0]["id"])
-
-    def test_gems_enchants_and_stat_targets_never_fall_back_to_icy_veins(self) -> None:
-        # Icy Veins' enchant `id` is an item id, not a SimC enchant id, and
-        # its other shapes differ too: those fields are u.gg-only.
-        sources = {
-            "db_ugg": _plain_global_source("ugg", "DEATHKNIGHT", "frost", {"gear": 'from = "ugg"'}),
             "db_icyveins": _plain_global_source(
                 "icyveins",
                 "DEATHKNIGHT",
                 "frost",
                 {
-                    "enchants": "all = {all = {Head = {{id = 99}}}}",
-                    "gems": "all = {all = {{pop = 1, secondary = {1}}}}",
-                    "statTargets": "all = {mplus = {top50 = {crit = 1}}}",
+                    "gems": "all = {all = {{primary = 9, secondary = {8, 7}}}}",
+                    "enchants": "all = {all = {Head = {{id = 244007}}}}",
                 },
             ),
         }
         spec = build(sources)["DEATHKNIGHT_frost"]
-        for field_name in ("enchants", "gems", "statTargets"):
-            self.assertNotIn(field_name, spec)
+        self.assertEqual(9, spec["gems"]["value"]["all"]["all"][0]["primary"])
+        self.assertEqual([3], _lists(spec["gems"]["value"]["all"]["pvp"][0]["secondary"]))
+        self.assertEqual(244007, spec["enchants"]["value"]["all"]["all"]["Head"][0]["id"])
+        self.assertEqual(243951, spec["enchants"]["value"]["all"]["pvp"]["Head"][0]["id"])
+
+    def test_enchant_lookup_spans_every_ugg_spec_and_the_game_data_recipes(self) -> None:
+        ugg = (
+            "ClassCodexSource = ClassCodexSource or {}\n"
+            'ClassCodexSource["ugg"] = {data = {'
+            "DEATHKNIGHT = {frost = {enchants = {all = {all = {"
+            '["Main Hand"] = {{id = 3368, spellId = 53344}}}}}}},'
+            "MAGE = {fire = {enchants = {all = {all = {"
+            "Head = {{id = 8017, itemId = 244007, spellId = 1236084}}}, pvp = {Head = {{id = 243951}}}}}}}"
+            "}}\n"
+        )
+        game_data = "ClassCodexGameData = {recipes = {[1236084] = 244007, [1236062] = 243962}}\n"
+        specs = build({"db_ugg": ugg, "db_gamedata": game_data})
+        lookup = specs["DEATHKNIGHT_frost"]["enchantLookup"]["value"]
+        self.assertIs(lookup, specs["MAGE_fire"]["enchantLookup"]["value"])
+        self.assertEqual({"id": 8017, "item_id": 244007, "spell_id": 1236084}, lookup["byItem"][244007])
+        self.assertEqual({"id": 3368, "spell_id": 53344}, lookup["bySpell"][53344])
+        self.assertNotIn(243951, lookup["byItem"])  # a bare PvP scroll id is not a real enchant
+        self.assertEqual({244007: 1236084, 243962: 1236062}, lookup["recipeSpellByItem"])
 
     def test_talents_are_extracted_alongside_the_other_fields(self) -> None:
         # Without `talents`, tools/classcodex_targets.py and
