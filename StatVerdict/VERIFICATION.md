@@ -3,8 +3,12 @@
 Run the automated gate first:
 
 ```powershell
-python -m unittest discover -s tests -v
+pip install lupa
+$env:PYTHONPATH = ".;tools"
+python -m unittest discover -s tools/tests -v
 ```
+
+Run it from the repository root (`lupa` runs the addon's Lua tests; without it they are skipped).
 
 Never bypass it to create a release archive.
 

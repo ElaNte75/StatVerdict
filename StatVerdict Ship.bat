@@ -3,8 +3,6 @@ title StatVerdict Ship
 cd /d "C:\Users\ElaNte\Desktop\Projects\StatVerdict\StatVerdict"
 echo.
 echo StatVerdict Ship
-echo - Reads Bridge export from WoW SavedVariables
-echo - Updates Data\Generated
 echo - Bumps version
 echo - Creates StatVerdict-x.y.z.zip on Desktop
 echo.
