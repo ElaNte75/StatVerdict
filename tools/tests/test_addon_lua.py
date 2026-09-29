@@ -99,11 +99,12 @@ class WeightModeCoreTests(unittest.TestCase):
         self.assertEqual(["GUIDE", "MEASURED", "BLEND"], [modes[i].key for i in (1, 2, 3)])
         self.assertEqual(["Guide", "Measured", "Blend"], [modes[i].label for i in (1, 2, 3)])
         self.assertEqual("Recommended", modes[1].hint)
-        self.assertEqual("Priority and stat targets exactly as in ClassCodex (Icy Veins / u.gg). Recommended.",
-                         modes[1].about)
-        self.assertEqual("Our own: targets from best-in-slot gear with recommended gems and enchants, "
-                         "weights from simulations.", modes[2].about)
-        self.assertEqual("Average of both.", modes[3].about)
+        self.assertEqual("Priority and stat targets exactly as in ClassCodex (Icy Veins / u.gg); "
+                         "weights follow that priority. Recommended.", modes[1].about)
+        self.assertEqual("Our own: priority and weights from simulations, stat targets from best-in-slot "
+                         "gear with recommended gems and enchants.", modes[2].about)
+        self.assertEqual("Guide priority; weights and stat targets are the average of the guide's and ours.",
+                         modes[3].about)
         for i in (1, 2, 3):
             self.assertTrue(modes[i].meaning)
         self.assertEqual("Measured", self.ns.GetWeightModeInfo("MEASURED").label)
@@ -121,6 +122,31 @@ class WeightModeCoreTests(unittest.TestCase):
         self.assertFalse(self.ns.SetWeightMode("ELITE"))
         self.assertEqual("MEASURED", self.ns.GetWeightMode())
         self.assertEqual({"audit": 1, "indicators": 1}, self.calls)
+
+    def test_three_stat_target_levels_like_classcodex(self) -> None:
+        bins = self.ns.GetStatTargetBins()
+        self.assertEqual(["top20", "top50", "top80"], [bins[i].key for i in (1, 2, 3)])
+        self.assertEqual(["Top 20%", "Top 50%", "Top 80%"], [bins[i].label for i in (1, 2, 3)])
+        self.assertEqual("top20", self.ns.GetStatTargetBin())
+
+    def test_set_stat_target_bin_saves_it_and_refreshes(self) -> None:
+        self.assertTrue(self.ns.SetStatTargetBin("top50"))
+        self.assertEqual("top50", self.lua.globals().StatVerdictDB.statTargetBin)
+        self.assertEqual("top50", self.ns.GetStatTargetBin())
+        self.assertEqual({"audit": 1, "indicators": 1}, self.calls)
+        self.assertFalse(self.ns.SetStatTargetBin("top99"))
+        self.assertEqual("top50", self.ns.GetStatTargetBin())
+        self.assertEqual({"audit": 1, "indicators": 1}, self.calls)
+
+    def test_set_stat_target_bin_drops_the_cached_provider_views(self) -> None:
+        repo = self.ns.ProfileRepository
+        dropped = []
+        original = repo.InvalidateProviderViews
+        repo.InvalidateProviderViews = lambda: (dropped.append(True), original())
+        self.assertTrue(repo.SetStatTargetBin("top80"))
+        self.assertEqual([True], dropped)
+        self.assertFalse(repo.SetStatTargetBin("junk"))
+        self.assertEqual([True], dropped)
 
     def test_raider_io_helpers_are_gone(self) -> None:
         for name in ("IsBenchmarkRelevant", "IsBenchmarkSampleSmall", "GetBenchmarkLevel",
@@ -1138,7 +1164,7 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
     def test_title_intro_and_three_mode_rows(self) -> None:
         card = self.card()
         self.assertEqual("Weights", card.title.text)
-        self.assertEqual("Choose how stat priorities are decided.", card.intro.text)
+        self.assertEqual("Choose how stat priorities and targets are decided.", card.intro.text)
         self.assertEqual(["GUIDE", "MEASURED", "BLEND"], [card.modeRows[i].key for i in (1, 2, 3)])
         self.assertEqual(["Guide", "Measured", "Blend"], [card.modeRows[i].label.text for i in (1, 2, 3)])
         self.assertEqual("Recommended", card.modeRows[1].hint.text)
@@ -1227,6 +1253,40 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         source = (ADDON / "UI" / "SV_WeightsDrawerPanel.lua").read_text(encoding="utf-8-sig")
         for word in ("MythicPlusBenchmarks", "confidence", "sample", "Mythic+", "top 25"):
             self.assertNotIn(word, source)
+
+    def bin_checks(self, card):
+        return [card.binRows[i].check.checked for i in (1, 2, 3)]
+
+    def test_stat_target_group_below_the_mode_rows(self) -> None:
+        card = self.card()
+        self.assertEqual("Stat targets", card.binTitle.text)
+        self.assertEqual("Applies to Guide and Blend.", card.binNote.text)
+        self.assertEqual(["top20", "top50", "top80"], [card.binRows[i].key for i in (1, 2, 3)])
+        self.assertEqual(["Top 20%", "Top 50%", "Top 80%"], [card.binRows[i].label.text for i in (1, 2, 3)])
+        self.assertEqual([True, False, False], self.bin_checks(card))
+        # The status line (and the description under it) hangs below the group.
+        self.assertTrue(self.lua.eval("rawequal")(card.binGroup, card.status.points[1][2]))
+
+    def test_stat_target_group_shows_the_saved_bin(self) -> None:
+        self.lua.globals().StatVerdictDB.statTargetBin = "top80"
+        self.assertEqual([False, False, True], self.bin_checks(self.card()))
+
+    def test_invalid_saved_bin_shows_top_20(self) -> None:
+        self.lua.globals().StatVerdictDB.statTargetBin = "top99"
+        self.assertEqual([True, False, False], self.bin_checks(self.card()))
+
+    def test_clicking_a_stat_target_level_sets_it_and_refreshes(self) -> None:
+        card = self.card()
+        card.binRows[2].scripts.OnClick()
+        self.assertEqual("top50", self.lua.globals().StatVerdictDB.statTargetBin)
+        self.assertEqual("top50", self.ns.ProfileRepository.GetStatTargetBin())
+        self.assertEqual([False, True, False], self.bin_checks(card))
+        self.assertGreaterEqual(self.refreshes, 1)
+        card.binRows[1].scripts.OnClick()
+        self.assertEqual("top20", self.lua.globals().StatVerdictDB.statTargetBin)
+        self.assertEqual([True, False, False], self.bin_checks(card))
+        # The weight mode is left alone.
+        self.assertEqual("GUIDE", self.ns.GetWeightMode())
 
     def test_card_padding_copies_the_features_drawer(self) -> None:
         # The layout key stays "benchmark.card" so saved drawer positions carry over.

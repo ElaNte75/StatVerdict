@@ -479,6 +479,16 @@ function Repository.SetWeightMode(mode)
     return true
 end
 
+-- Saves the guide target bin (Weights drawer: Top 20/50/80%) and drops the
+-- cached provider views. false (nothing saved) for an unknown bin.
+function Repository.SetStatTargetBin(bin)
+    if type(bin) ~= "string" or not VALID_STAT_TARGET_BINS[bin] then return false end
+    _G.StatVerdictDB = type(_G.StatVerdictDB) == "table" and _G.StatVerdictDB or {}
+    _G.StatVerdictDB.statTargetBin = bin
+    Repository.InvalidateProviderViews()
+    return true
+end
+
 -- Hidden /svweights [guide|measured|blend]: no argument prints the mode.
 function ns.HandleWeightModeSlash(msg)
     local arg = string.upper((tostring(msg or ""):gsub("^%s+", ""):gsub("%s+$", "")))
