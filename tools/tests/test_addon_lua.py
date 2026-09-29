@@ -81,49 +81,56 @@ class AddonLuaSyntaxTests(unittest.TestCase):
 
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
-class BenchmarkCoreTests(unittest.TestCase):
+class WeightModeCoreTests(unittest.TestCase):
     def setUp(self) -> None:
         self.lua = new_runtime()
         self.ns = self.lua.table()
         self.lua.globals().StatVerdictDB = self.lua.table()
-        load_addon_file(self.lua, self.ns, "Core/SV_Benchmark.lua")
+        load_addon_file(self.lua, self.ns, "Core/SV_WeightModes.lua")
+        load_addon_file(self.lua, self.ns, "Core/SV_ProfileRepository.lua")
+        self.calls = {"audit": 0, "indicators": 0}
+        self.ns.RequestStatAuditRefresh = lambda: self.calls.__setitem__("audit", self.calls["audit"] + 1)
+        self.ns.RefreshUpgradeIndicators = lambda *a: self.calls.__setitem__("indicators", self.calls["indicators"] + 1)
 
-    def test_default_level_is_standard(self) -> None:
-        self.assertEqual("STANDARD", self.ns.GetBenchmarkLevel())
+    def test_three_modes_with_guide_recommended(self) -> None:
+        modes = self.ns.GetWeightModes()
+        self.assertEqual(["GUIDE", "MEASURED", "BLEND"], [modes[i].key for i in (1, 2, 3)])
+        self.assertEqual(["Guide", "Measured", "Blend"], [modes[i].label for i in (1, 2, 3)])
+        self.assertEqual("Recommended", modes[1].hint)
+        self.assertEqual("Stat priority from the guides (Icy Veins / u.gg). Recommended.", modes[1].about)
+        self.assertEqual("Stat values measured by our own simulations. May differ from the guides.", modes[2].about)
+        self.assertEqual("Guide order, with the size of the gaps adjusted by our simulations.", modes[3].about)
+        for i in (1, 2, 3):
+            self.assertTrue(modes[i].meaning)
+        self.assertEqual("Measured", self.ns.GetWeightModeInfo("MEASURED").label)
+        self.assertEqual("Guide", self.ns.GetWeightModeInfo("junk").label)
 
-    def test_set_level_is_saved_and_unknown_is_rejected(self) -> None:
-        self.assertTrue(self.ns.SetBenchmarkLevel("ELITE"))
-        self.assertEqual("ELITE", self.ns.GetBenchmarkLevel())
-        self.assertEqual("ELITE", self.lua.globals().StatVerdictDB.benchmarkLevel)
-        self.assertFalse(self.ns.SetBenchmarkLevel("TOP_25"))
-        self.assertEqual("ELITE", self.ns.GetBenchmarkLevel())
+    def test_default_mode_is_guide_and_old_benchmark_level_is_ignored(self) -> None:
+        self.lua.globals().StatVerdictDB.benchmarkLevel = "ELITE"
+        self.assertEqual("GUIDE", self.ns.GetWeightMode())
 
-    def test_garbage_saved_value_falls_back_to_default(self) -> None:
-        self.lua.globals().StatVerdictDB.benchmarkLevel = "nonsense"
-        self.assertEqual("STANDARD", self.ns.GetBenchmarkLevel())
+    def test_set_mode_saves_it_and_refreshes(self) -> None:
+        self.assertTrue(self.ns.SetWeightMode("MEASURED"))
+        self.assertEqual("MEASURED", self.lua.globals().StatVerdictDB.weightMode)
+        self.assertEqual("MEASURED", self.ns.GetWeightMode())
+        self.assertEqual({"audit": 1, "indicators": 1}, self.calls)
+        self.assertFalse(self.ns.SetWeightMode("ELITE"))
+        self.assertEqual("MEASURED", self.ns.GetWeightMode())
+        self.assertEqual({"audit": 1, "indicators": 1}, self.calls)
 
-    def test_level_names_and_meaning_lines(self) -> None:
-        levels = self.ns.GetBenchmarkLevels()
-        self.assertEqual(["Elite", "Standard", "Broad"], [levels[i].label for i in (1, 2, 3)])
-        self.assertEqual("Gear of the top 25 players", levels[1].meaning)
+    def test_raider_io_helpers_are_gone(self) -> None:
+        for name in ("IsBenchmarkRelevant", "IsBenchmarkSampleSmall", "GetBenchmarkLevel",
+                     "SetBenchmarkLevel", "GetBenchmarkLevels", "GetBenchmarkLevelInfo"):
+            self.assertIsNone(self.ns[name], name)
 
-    def test_benchmark_is_locked_for_every_goal(self) -> None:
-        # The Benchmark levels were Raider.IO cohorts; nothing is left to choose,
-        # so the button and drawer stay in the addon but are always locked.
-        for main, off, enabled in (("MYTHIC_PLUS", None, False), ("RAID", "MYTHIC_PLUS", True), ("PVP", None, False)):
-            selection = self.lua.table(goalMode=main, secondaryGoalMode=off, secondaryEnabled=enabled)
-            self.ns.GetSavedStatAuditSelection = lambda selection=selection: selection
-            self.assertFalse(self.ns.IsBenchmarkRelevant(), (main, off, enabled))
-        self.assertFalse(self.ns.IsBenchmarkRelevant())
 
-    def test_small_sample_warning(self) -> None:
-        small = self.lua.table(sampleSize=25, minimumSample=25, confidence="high")
-        self.assertTrue(self.ns.IsBenchmarkSampleSmall(small))  # Elite: only the minimum sample
-        enough = self.lua.table(sampleSize=100, minimumSample=25, confidence="high")
-        self.assertFalse(self.ns.IsBenchmarkSampleSmall(enough))
-        unsure = self.lua.table(sampleSize=100, minimumSample=25, confidence="medium")
-        self.assertTrue(self.ns.IsBenchmarkSampleSmall(unsure))
-        self.assertTrue(self.ns.IsBenchmarkSampleSmall(None))
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class CoreProfileTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.lua = new_runtime()
+        self.ns = self.lua.table()
+        self.lua.globals().StatVerdictDB = self.lua.table()
+        load_addon_file(self.lua, self.ns, "Core/SV_WeightModes.lua")
 
     def test_wording_is_best_in_slot_for_every_goal(self) -> None:
         for goal in ("MYTHIC_PLUS", "RAID", "PVP"):
@@ -884,36 +891,56 @@ class PanelModeTests(unittest.TestCase):
         self.lua = new_runtime()
         self.ns = self.lua.table()
         self.lua.globals().StatVerdictDB = self.lua.table()
-        load_addon_file(self.lua, self.ns, "Core/SV_Benchmark.lua")
+        load_addon_file(self.lua, self.ns, "Core/SV_WeightModes.lua")
         load_addon_file(self.lua, self.ns, "UI/SV_RightPanelMode.lua")
 
     def use_goal(self, goal: str) -> None:
         selection = self.lua.table(goalMode=goal)
         self.ns.GetSavedStatAuditSelection = lambda: selection
+        self.ns.GetStatAuditGoalMode = lambda: goal
 
-    def test_benchmark_cannot_be_opened_and_other_panels_stay(self) -> None:
-        self.use_goal("MYTHIC_PLUS")
-        self.ns.SetRightPanelMode("manual")
-        self.ns.SetRightPanelMode("benchmark")
-        self.assertEqual("manual", self.ns.GetRightPanelMode())
-        self.ns.ToggleRightPanelMode("benchmark")
-        self.assertEqual("manual", self.ns.GetRightPanelMode())
+    def test_weights_drawer_opens_for_every_goal(self) -> None:
+        for goal in ("MYTHIC_PLUS", "RAID", "PVP"):
+            self.use_goal(goal)
+            self.ns.SetRightPanelMode("manual")
+            self.ns.SetRightPanelMode("weights")
+            self.assertEqual("weights", self.ns.GetRightPanelMode(), goal)
+            self.assertTrue(self.lua.globals().StatVerdictDB.showWeightsPanel, goal)
+            self.ns.ToggleRightPanelMode("weights")
+            self.assertIsNone(self.ns.GetRightPanelMode(), goal)
 
-    def test_benchmark_is_a_valid_mode_when_unlocked_and_summary_is_not(self) -> None:
-        self.ns.IsBenchmarkRelevant = lambda: True  # the dormant drawer code still works if it is ever re-enabled
+    def test_old_benchmark_mode_and_summary_are_not_valid(self) -> None:
         self.ns.SetRightPanelMode("benchmark")
-        self.assertEqual("benchmark", self.ns.GetRightPanelMode())
+        self.assertIsNone(self.ns.GetRightPanelMode())
         self.ns.SetRightPanelMode("summary")
+        self.assertIsNone(self.ns.GetRightPanelMode())
+        self.lua.globals().StatVerdictDB.showBenchmarkPanel = True  # old saved flag is ignored
         self.assertIsNone(self.ns.GetRightPanelMode())
 
     def test_window_opens_with_every_panel_closed(self) -> None:
         self.assertIsNone(self.ns.GetRightPanelMode())
 
-    def test_toc_lists_benchmark_drawer_and_not_summary(self) -> None:
+    def test_toc_lists_weights_drawer_and_not_benchmark_or_summary(self) -> None:
         names = [path.name for path in toc_lua_files()]
-        self.assertIn("SV_BenchmarkDrawerPanel.lua", names)
-        self.assertNotIn("SV_CharacterSummaryDrawerPanel.lua", names)
+        self.assertIn("SV_WeightModes.lua", names)
+        self.assertIn("SV_WeightsDrawerPanel.lua", names)
+        self.assertLess(names.index("SV_WeightModes.lua"), names.index("SV_WeightsDrawerPanel.lua"))
+        for gone in ("SV_Benchmark.lua", "SV_BenchmarkDrawerPanel.lua", "SV_CharacterSummaryDrawerPanel.lua"):
+            self.assertNotIn(gone, names)
 
+    def test_weights_button_is_never_locked(self) -> None:
+        source = (ADDON / "UI" / "SV_SettingsPanel.lua").read_text(encoding="utf-8-sig")
+        self.assertIn('label = "Weights"', source)
+        self.assertIn('mode = "weights"', source)
+        self.assertNotIn("IsBenchmarkRelevant", source)
+        self.assertNotIn('label = "Benchmark"', source)
+        for path in toc_lua_files():
+            self.assertNotIn("IsBenchmarkRelevant", path.read_text(encoding="utf-8-sig"), path.name)
+
+    def test_manual_describes_the_weights_button(self) -> None:
+        source = (ADDON / "UI" / "SV_ManualDrawerPanel.lua").read_text(encoding="utf-8-sig")
+        self.assertIn("Weights — choose how stat priorities are decided: Guide, Measured or Blend.", source)
+        self.assertNotIn("Benchmark", source)
 
 
 FRAME_STUB = """
@@ -959,128 +986,121 @@ CreateFrame = function() return Stub() end
 
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
-class BenchmarkDrawerSmokeTests(unittest.TestCase):
+class WeightsDrawerSmokeTests(unittest.TestCase):
+    NO_DATA = "No measured data for this build: the guide is used."
+
     def setUp(self) -> None:
         self.lua = new_runtime()
         self.lua.execute(FRAME_STUB)
         self.ns = self.lua.table()
         self.lua.globals().StatVerdictDB = self.lua.table()
-        for relative in ("Core/SV_Benchmark.lua", "UI/SV_RightPanelMode.lua", "UI/SV_BenchmarkDrawerPanel.lua"):
+        for relative in ("Core/SV_WeightModes.lua", "Core/SV_ProfileRepository.lua",
+                         "UI/SV_RightPanelMode.lua", "UI/SV_WeightsDrawerPanel.lua"):
             load_addon_file(self.lua, self.ns, relative)
         self.frame = self.lua.eval("CreateFrame")()
-        self.ns.GetStatAuditGoalMode = lambda: "MYTHIC_PLUS"
-        self.ns.GetSavedStatAuditSelection = lambda: self.lua.table(goalMode="MYTHIC_PLUS")
-        self.ns.IsBenchmarkRelevant = lambda: True  # the drawer is locked in the shipped addon; test its dormant code
-        self.available = True
-        self.levels = {
-            "ELITE": dict(sampleSize=25, minimumSample=25, confidence="high"),
-            "STANDARD": dict(sampleSize=100, minimumSample=25, confidence="high"),
-            "BROAD": dict(sampleSize=200, minimumSample=25, confidence="high"),
-        }
-        self.has_data = True
-        self.apply_data()
-        self.ns.ProfileRepository = self.lua.table(
-            GetDataProvenance=lambda goal: self.lua.table(available=self.available, scrape="2026-09-26")
-        )
-        self.ns.SetRightPanelMode("benchmark")
+        self.refreshes = 0
 
-    def apply_data(self) -> None:
-        """Publish the fake benchmark file and the active profile for the current self.levels."""
-        levels = self.lua.table()
-        for key, values in self.levels.items():
-            levels[key] = self.lua.table(benchmark=self.lua.table(**values))
-        specs = self.lua.table(SPEC=self.lua.table(levels=levels))
-        self.ns.MythicPlusBenchmarks = self.lua.table(profiles=specs)
-        selected = self.levels[self.ns.GetBenchmarkLevel()]
-        generated = self.lua.table(benchmark=self.lua.table(**selected))
-        profile = self.lua.table(specKey="SPEC", generatedContext=generated)
-        context = self.lua.table(profile=profile) if self.has_data else self.lua.table()
-        self.ns.GetActivePanelContext = lambda: context
+        def refresh():
+            self.refreshes += 1
+
+        self.ns.RequestStatAuditRefresh = refresh
+        self.ns.GetStatAuditGoalMode = lambda: "RAID"
+        self.measured = True
+        self.has_profile = True
+        self.ns.SetRightPanelMode("weights")
 
     def card(self):
-        self.apply_data()
-        self.ns.StatVerdictBenchmarkDrawerPanel.Apply(self.frame)
-        return self.frame.benchmarkDrawerCard
+        weights = self.lua.table(haste=1.0, mastery=0.8) if self.measured else None
+        profile = self.lua.table(specKey="SPEC", secondaryWeights=weights)
+        context = self.lua.table(profile=profile) if self.has_profile else self.lua.table()
+        self.ns.GetActivePanelContext = lambda: context
+        self.ns.StatVerdictWeightsDrawerPanel.Apply(self.frame)
+        return self.frame.weightsDrawerCard
 
-    def test_level_cards_show_confidence_and_update_date(self) -> None:
-        self.levels["ELITE"]["confidence"] = "medium"
+    def test_title_intro_and_three_mode_rows(self) -> None:
         card = self.card()
-        # The date is secondary: dimmed and without the word "Updated" so the line stays short.
-        orange, green, date = "|cffff8000", "|cff33ff59", " |cff8c8c8c· 2026-09-26|r"
-        self.assertEqual(orange + "Medium confidence|r" + date, card.levelRows[1].meaning.text)
-        self.assertEqual(green + "High confidence|r" + date, card.levelRows[2].meaning.text)
-        self.assertEqual(green + "High confidence|r" + date, card.levelRows[3].meaning.text)
-        self.assertLessEqual(len("High confidence · 2026-09-26"), 32)
+        self.assertEqual("Weights", card.title.text)
+        self.assertEqual("Choose how stat priorities are decided.", card.intro.text)
+        self.assertEqual(["GUIDE", "MEASURED", "BLEND"], [card.modeRows[i].key for i in (1, 2, 3)])
+        self.assertEqual(["Guide", "Measured", "Blend"], [card.modeRows[i].label.text for i in (1, 2, 3)])
+        self.assertEqual("Recommended", card.modeRows[1].hint.text)
+        for i in (1, 2, 3):
+            self.assertTrue(card.modeRows[i].meaning.text)
 
-    def test_level_cards_fall_back_to_the_group_size_without_data(self) -> None:
-        self.has_data = False
+    def test_guide_is_selected_by_default(self) -> None:
         card = self.card()
-        self.assertEqual("Gear of the top 25 players", card.levelRows[1].meaning.text)
+        self.assertEqual([True, False, False], [card.modeRows[i].check.checked for i in (1, 2, 3)])
+        self.assertEqual("Guide weights", card.aboutTitle.text)
+        self.assertIn("Icy Veins", card.about.text)
 
-    def test_description_follows_the_selected_level(self) -> None:
+    def test_clicking_a_row_sets_the_weight_mode_and_marks_it(self) -> None:
         card = self.card()
-        self.assertEqual("Standard benchmark", card.aboutTitle.text)
-        self.assertIn("top 100", card.about.text)
-        card.levelRows[1].scripts.OnClick()
-        self.assertEqual("Elite benchmark", card.aboutTitle.text)
-        self.assertIn("top 25", card.about.text)
-        card.levelRows[3].scripts.OnClick()
-        self.assertEqual("Broad benchmark", card.aboutTitle.text)
-        self.assertIn("top 200", card.about.text)
+        card.modeRows[2].scripts.OnClick()
+        self.assertEqual("MEASURED", self.lua.globals().StatVerdictDB.weightMode)
+        self.assertEqual("MEASURED", self.ns.ProfileRepository.GetWeightMode())
+        self.assertEqual([False, True, False], [card.modeRows[i].check.checked for i in (1, 2, 3)])
+        self.assertEqual("Measured weights", card.aboutTitle.text)
+        self.assertIn("simulations", card.about.text)
+        self.assertGreaterEqual(self.refreshes, 1)
+        card.modeRows[3].scripts.OnClick()
+        self.assertEqual("BLEND", self.lua.globals().StatVerdictDB.weightMode)
+        self.assertEqual([False, False, True], [card.modeRows[i].check.checked for i in (1, 2, 3)])
+        self.assertEqual("Blend weights", card.aboutTitle.text)
+
+    def test_saved_mode_is_shown_as_selected(self) -> None:
+        self.lua.globals().StatVerdictDB.weightMode = "BLEND"
+        card = self.card()
+        self.assertEqual([False, False, True], [card.modeRows[i].check.checked for i in (1, 2, 3)])
 
     def test_description_hangs_from_its_title_so_it_cannot_leave_the_card(self) -> None:
         card = self.card()
         self.assertEqual("TOPLEFT", card.about.points[1][1])
         self.assertTrue(self.lua.eval("rawequal")(card.aboutTitle, card.about.points[1][2]))
-        for level in self.ns.GetBenchmarkLevels().values():
-            self.assertLessEqual(len(level.about), 300, level.key)  # about seven lines in the drawer
+        for mode in self.ns.GetWeightModes().values():
+            self.assertLessEqual(len(mode.about), 300, mode.key)  # about seven lines in the drawer
 
     def test_description_lines_have_extra_spacing(self) -> None:
-        card = self.card()
-        self.assertGreaterEqual(card.about.spacing, 3)
+        self.assertGreaterEqual(self.card().about.spacing, 3)
 
     def test_no_current_data_block_any_more(self) -> None:
         card = self.card()
         self.assertIsNone(card.dataRows)
         self.assertIsNone(card.infoTitle)
 
-    def test_status_is_empty_when_all_is_well(self) -> None:
+    def test_status_is_empty_in_guide_mode_even_without_measured_data(self) -> None:
+        self.measured = False
         self.assertEqual("", self.card().status.text)
 
-    def test_small_sample_shows_the_warning(self) -> None:
-        self.levels["STANDARD"] = dict(sampleSize=25, minimumSample=25, confidence="high")
-        self.assertIn("Smaller sample", self.card().status.text)
+    def test_status_is_empty_when_measured_data_exists(self) -> None:
+        for mode in ("MEASURED", "BLEND"):
+            self.lua.globals().StatVerdictDB.weightMode = mode
+            self.assertEqual("", self.card().status.text, mode)
 
-    def test_clicking_a_level_row_saves_it_and_marks_it(self) -> None:
-        card = self.card()
-        self.assertEqual(["ELITE", "STANDARD", "BROAD"], [card.levelRows[i].key for i in (1, 2, 3)])
-        self.assertTrue(card.levelRows[2].check.checked)
-        card.levelRows[3].scripts.OnClick()
-        self.assertEqual("BROAD", self.ns.GetBenchmarkLevel())
-        self.assertFalse(card.levelRows[2].check.checked)
-        self.assertTrue(card.levelRows[3].check.checked)
+    def test_status_says_the_guide_is_used_without_measured_data(self) -> None:
+        self.measured = False
+        for mode in ("MEASURED", "BLEND"):
+            self.lua.globals().StatVerdictDB.weightMode = mode
+            self.assertEqual(self.NO_DATA, self.card().status.text, mode)
 
-    def test_build_that_is_not_mythic_plus_gets_an_explanation(self) -> None:
-        self.ns.GetStatAuditGoalMode = lambda: "RAID"
-        self.assertIn("not Mythic+", self.card().status.text)
+    def test_status_is_empty_without_an_active_build(self) -> None:
+        self.has_profile = False
+        self.lua.globals().StatVerdictDB.weightMode = "MEASURED"
+        self.assertEqual("", self.card().status.text)
 
-    def test_out_of_date_data_says_so(self) -> None:
-        self.has_data = False
-        self.available = False
-        self.assertIn("out of date", self.card().status.text)
-
-    def test_missing_level_data_says_no_data(self) -> None:
-        self.has_data = False
-        self.assertIn("No data for this build", self.card().status.text)
+    def test_no_raider_io_wording_left(self) -> None:
+        source = (ADDON / "UI" / "SV_WeightsDrawerPanel.lua").read_text(encoding="utf-8-sig")
+        for word in ("MythicPlusBenchmarks", "confidence", "sample", "Mythic+", "top 25"):
+            self.assertNotIn(word, source)
 
     def test_card_padding_copies_the_features_drawer(self) -> None:
+        # The layout key stays "benchmark.card" so saved drawer positions carry over.
         pads = {"options.card.pad": self.lua.table(top=5, bottom=5, left=0, right=0)}
         zero = self.lua.table(top=0, bottom=0, left=0, right=0)
         self.ns.GetDevLayoutPadding = lambda key: pads.get(key, zero)
-        pad = self.ns.StatVerdictBenchmarkDrawerPanel.GetCardPad()
+        pad = self.ns.StatVerdictWeightsDrawerPanel.GetCardPad()
         self.assertEqual((5, 5, 0, 0), (pad.top, pad.bottom, pad.left, pad.right))
         pads["benchmark.card.pad"] = self.lua.table(top=2, bottom=3, left=0, right=0)
-        pad = self.ns.StatVerdictBenchmarkDrawerPanel.GetCardPad()
+        pad = self.ns.StatVerdictWeightsDrawerPanel.GetCardPad()
         self.assertEqual((2, 3), (pad.top, pad.bottom))
 
 

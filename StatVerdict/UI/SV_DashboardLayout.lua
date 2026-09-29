@@ -165,9 +165,9 @@ function Layout.GetRightPanelWidth(frame)
         if preferred and delta < 0 then delta = 0 end
         return Clamp(baseWidth + delta, 200, 520)
     end
-    if mode == "benchmark" then
-        if ns.StatVerdictBenchmarkDrawerPanel and ns.StatVerdictBenchmarkDrawerPanel.GetPreferredWidth then
-            return ns.StatVerdictBenchmarkDrawerPanel.GetPreferredWidth(frame)
+    if mode == "weights" then
+        if ns.StatVerdictWeightsDrawerPanel and ns.StatVerdictWeightsDrawerPanel.GetPreferredWidth then
+            return ns.StatVerdictWeightsDrawerPanel.GetPreferredWidth(frame)
         end
         return Clamp(280 + SizeDelta("benchmark.width"), 200, 520)
     end
@@ -442,8 +442,8 @@ function Layout.SyncFrameWidthToRightPanel(frame)
         card = frame.optionsDrawerCard
     elseif mode == "manual" then
         card = frame.manualDrawerCard
-    elseif mode == "benchmark" then
-        card = frame.benchmarkDrawerCard
+    elseif mode == "weights" then
+        card = frame.weightsDrawerCard
     end
     local cardX = Layout.GetRightPanelX(frame)
     local cardW = nil
@@ -472,7 +472,7 @@ function Layout.Apply(frame, usedRows, controls)
     local mode = ns.GetRightPanelMode and ns.GetRightPanelMode() or nil
     local showOptions = mode == "options"
     local showManual = mode == "manual"
-    local showBenchmark = mode == "benchmark"
+    local showWeights = mode == "weights"
     local showTrinkets = mode == "trinkets"
     local showBis = mode == "bis"
     local showRightPanel = mode ~= nil
@@ -533,8 +533,8 @@ function Layout.Apply(frame, usedRows, controls)
         if frame.devOptionsWidthRegion then frame.devOptionsWidthRegion:Hide() end
         if frame.manualDrawerCard then frame.manualDrawerCard:Hide() end
         if frame.devManualWidthRegion then frame.devManualWidthRegion:Hide() end
-        if frame.benchmarkDrawerCard then frame.benchmarkDrawerCard:Hide() end
-        if ns.UnregisterDevLayoutRegion and not showBenchmark then
+        if frame.weightsDrawerCard then frame.weightsDrawerCard:Hide() end
+        if ns.UnregisterDevLayoutRegion and not showWeights then
             ns.UnregisterDevLayoutRegion("benchmark.card")
         end
         -- Drop orphan AdvDev targets from inactive drawers so cyan ghosts cannot linger.
@@ -564,8 +564,8 @@ function Layout.Apply(frame, usedRows, controls)
         ns.StatVerdictOptionsDrawerPanel.Apply(frame)
     elseif showManual and ns.StatVerdictManualDrawerPanel then
         ns.StatVerdictManualDrawerPanel.Apply(frame)
-    elseif showBenchmark and ns.StatVerdictBenchmarkDrawerPanel then
-        ns.StatVerdictBenchmarkDrawerPanel.Apply(frame)
+    elseif showWeights and ns.StatVerdictWeightsDrawerPanel then
+        ns.StatVerdictWeightsDrawerPanel.Apply(frame)
     elseif (showBis or showTrinkets) and ns.StatVerdictBisProgressPanel then
         ns.StatVerdictBisProgressPanel.Apply(frame)
         if frame.bisProgressCard then frame.bisProgressCard:Show() end
@@ -578,8 +578,8 @@ function Layout.Apply(frame, usedRows, controls)
         if ns.StatVerdictManualDrawerPanel and ns.StatVerdictManualDrawerPanel.Apply then
             ns.StatVerdictManualDrawerPanel.Apply(frame)
         end
-        if ns.StatVerdictBenchmarkDrawerPanel and ns.StatVerdictBenchmarkDrawerPanel.Apply then
-            ns.StatVerdictBenchmarkDrawerPanel.Apply(frame)
+        if ns.StatVerdictWeightsDrawerPanel and ns.StatVerdictWeightsDrawerPanel.Apply then
+            ns.StatVerdictWeightsDrawerPanel.Apply(frame)
         end
         Layout.SyncFrameWidthToRightPanel(frame)
     end

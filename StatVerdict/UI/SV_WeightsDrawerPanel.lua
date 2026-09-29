@@ -1,7 +1,7 @@
 local addonName, ns = ...
 
 local Panel = {}
-ns.StatVerdictBenchmarkDrawerPanel = Panel
+ns.StatVerdictWeightsDrawerPanel = Panel
 
 local DRAWER_PREFERRED_WIDTH = 280
 local MARGIN = 14
@@ -15,6 +15,7 @@ local WHITE = { 1.0, 1.0, 1.0 }
 local ORANGE = { 1.0, 0.5, 0.0 }
 local LINE = { 0.72, 0.74, 0.78, 0.30 }
 
+-- Layout keys keep the old "benchmark.*" names so saved drawer positions carry over.
 local function Offset(key)
     if ns.GetDevLayoutOffset then return ns.GetDevLayoutOffset(key) end
     return 0, 0
@@ -30,35 +31,12 @@ local function ActiveProfile()
     return context and context.profile or nil
 end
 
-local function ActiveBenchmark()
+-- Only MEASURED and BLEND read measured weights; a build without them falls back
+-- to the guide order, which the status line says.
+local function MissingMeasuredData(mode)
+    if mode ~= "MEASURED" and mode ~= "BLEND" then return false end
     local profile = ActiveProfile()
-    local generated = type(profile) == "table" and profile.generatedContext or nil
-    return type(generated) == "table" and generated.benchmark or nil
-end
-
--- Benchmark numbers of one level for the build on screen (from the bundled Mythic+ file).
-local function LevelBenchmark(levelKey)
-    local profile = ActiveProfile()
-    local root = ns.MythicPlusBenchmarks
-    local profiles = type(root) == "table" and root.profiles or nil
-    local spec = type(profile) == "table" and type(profiles) == "table" and profiles[profile.specKey] or nil
-    local levels = type(spec) == "table" and spec.levels or nil
-    local context = type(levels) == "table" and levels[levelKey] or nil
-    return type(context) == "table" and context.benchmark or nil
-end
-
--- Second line of a level card: how reliable that level's data is, then the update date
--- (dimmed: it matters less than the confidence).
-local function CardLine(level, bench, updated)
-    if type(bench) ~= "table" or not updated then return level.meaning end
-    local confidence = tostring(bench.confidence or "unknown")
-    local color = confidence == "high" and "|cff33ff59" or "|cffff8000"
-    return color .. confidence:sub(1, 1):upper() .. confidence:sub(2) .. " confidence|r |cff8c8c8c· " .. tostring(updated) .. "|r"
-end
-
-local function ActiveGoalIsMythicPlus()
-    local goal = ns.GetStatAuditGoalMode and ns.GetStatAuditGoalMode() or "MYTHIC_PLUS"
-    return goal == "MYTHIC_PLUS"
+    return type(profile) == "table" and profile.secondaryWeights == nil
 end
 
 local function PaintRow(row, selected, hovered)
@@ -94,12 +72,12 @@ local function AddText(card, template, y, justify)
     return text
 end
 
-local function EnsureLevelRow(card, index, level)
-    card.levelRows = card.levelRows or {}
-    if card.levelRows[index] then return card.levelRows[index] end
+local function EnsureModeRow(card, index, mode)
+    card.modeRows = card.modeRows or {}
+    if card.modeRows[index] then return card.modeRows[index] end
 
     local row = CreateFrame("Button", nil, card, "BackdropTemplate")
-    row.key = level.key
+    row.key = mode.key
     row:SetHeight(ROW_HEIGHT)
     row:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
@@ -118,39 +96,39 @@ local function EnsureLevelRow(card, index, level)
 
     row.label = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     row.label:SetPoint("TOPLEFT", row, "TOPLEFT", 42, -9)
-    row.label:SetText(level.label)
+    row.label:SetText(mode.label)
 
     row.hint = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     row.hint:SetPoint("TOPRIGHT", row, "TOPRIGHT", -12, -11)
     row.hint:SetJustifyH("RIGHT")
     row.hint:SetTextColor(GREY[1], GREY[2], GREY[3])
-    row.hint:SetText(level.hint or "")
+    row.hint:SetText(mode.hint or "")
 
     row.meaning = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     row.meaning:SetPoint("TOPLEFT", row.label, "BOTTOMLEFT", 0, -4)
     row.meaning:SetJustifyH("LEFT")
     row.meaning:SetTextColor(GREY[1], GREY[2], GREY[3])
-    row.meaning:SetText(level.meaning)
+    row.meaning:SetText(mode.meaning)
 
     row:SetScript("OnEnter", function(self)
         self.hovered = true
-        PaintRow(self, ns.GetBenchmarkLevel() == self.key, true)
+        PaintRow(self, ns.GetWeightMode() == self.key, true)
     end)
     row:SetScript("OnLeave", function(self)
         self.hovered = false
-        PaintRow(self, ns.GetBenchmarkLevel() == self.key, false)
+        PaintRow(self, ns.GetWeightMode() == self.key, false)
     end)
     row:SetScript("OnClick", function()
-        ns.SetBenchmarkLevel(level.key)
+        ns.SetWeightMode(mode.key)
         Panel.Sync(card)
     end)
 
-    card.levelRows[index] = row
+    card.modeRows[index] = row
     return row
 end
 
 local function EnsureCard(frame)
-    if frame.benchmarkDrawerCard then return frame.benchmarkDrawerCard end
+    if frame.weightsDrawerCard then return frame.weightsDrawerCard end
 
     local card = CreateFrame("Frame", nil, frame, "BackdropTemplate")
     card:SetFrameLevel(math.max(1, frame:GetFrameLevel() - 1))
@@ -167,17 +145,17 @@ local function EnsureCard(frame)
 
     card.title = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     card.title:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, -14)
-    card.title:SetText("Benchmark Level")
+    card.title:SetText("Weights")
     card.title:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
 
     AddLine(card, -36)
 
     card.intro = AddText(card, "GameFontHighlightSmall", -46)
     card.intro:SetTextColor(GREY[1], GREY[2], GREY[3])
-    card.intro:SetText("Choose which players your Mythic+ targets and popular gear are based on.")
+    card.intro:SetText("Choose how stat priorities are decided.")
 
-    for index, level in ipairs(ns.GetBenchmarkLevels()) do
-        local row = EnsureLevelRow(card, index, level)
+    for index, mode in ipairs(ns.GetWeightModes()) do
+        local row = EnsureModeRow(card, index, mode)
         local y = ROWS_TOP - ((index - 1) * ROW_STEP)
         row:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, y)
         row:SetPoint("TOPRIGHT", card, "TOPRIGHT", -MARGIN, y)
@@ -185,7 +163,7 @@ local function EnsureCard(frame)
 
     -- Everything below hangs from the element above it, so nothing depends on a guessed
     -- card height: status line (empty when all is well) > separator > title > description.
-    local rowsBottom = ROWS_TOP - ((#ns.GetBenchmarkLevels() - 1) * ROW_STEP) - ROW_HEIGHT
+    local rowsBottom = ROWS_TOP - ((#ns.GetWeightModes() - 1) * ROW_STEP) - ROW_HEIGHT
     card.status = AddText(card, "GameFontHighlightSmall", rowsBottom - 8)
 
     card.separator = card:CreateTexture(nil, "ARTWORK")
@@ -208,59 +186,42 @@ local function EnsureCard(frame)
     card.about:SetSpacing(4)
     card.about:SetTextColor(0.85, 0.85, 0.85)
 
-    frame.benchmarkDrawerCard = card
+    frame.weightsDrawerCard = card
     return card
 end
 
 function Panel.Sync(card)
     if not card then return end
 
-    local mythicPlus = ActiveGoalIsMythicPlus()
-    local provenance = ns.ProfileRepository and ns.ProfileRepository.GetDataProvenance
-        and ns.ProfileRepository.GetDataProvenance("MYTHIC_PLUS") or nil
-    local updated = provenance and provenance.scrape or nil
-
-    local selected = ns.GetBenchmarkLevel()
-    for _, row in ipairs(card.levelRows or {}) do
+    local selected = ns.GetWeightMode()
+    for _, row in ipairs(card.modeRows or {}) do
         row.check:SetChecked(row.key == selected)
         PaintRow(row, row.key == selected, row.hovered == true)
-        local level = ns.GetBenchmarkLevelInfo(row.key)
-        row.meaning:SetText(CardLine(level, mythicPlus and LevelBenchmark(row.key) or nil, updated))
     end
 
-    local info = ns.GetBenchmarkLevelInfo(selected)
-    card.aboutTitle:SetText(info.label .. " benchmark")
+    local info = ns.GetWeightModeInfo(selected)
+    card.aboutTitle:SetText(info.label .. " weights")
     card.about:SetText(info.about or "")
 
-    local bench = mythicPlus and ActiveBenchmark() or nil
-    local status, color = "", ORANGE
-    if not mythicPlus then
-        status, color = "This view is not Mythic+. Your Mythic+ build uses this level.", GREY
-    elseif provenance and provenance.available == false then
-        status = "Benchmark data is out of date. Update StatVerdict."
-    elseif not bench then
-        status = "No data for this build at this level."
-    elseif ns.IsBenchmarkSampleSmall(bench) then
-        status = "Smaller sample: results can be less stable."
-    end
-    card.status:SetTextColor(color[1], color[2], color[3])
+    local status = MissingMeasuredData(selected) and "No measured data for this build: the guide is used." or ""
+    card.status:SetTextColor(ORANGE[1], ORANGE[2], ORANGE[3])
     card.status:SetText(status)
 end
 
 function Panel.IsOpen()
-    return ns.GetRightPanelMode and ns.GetRightPanelMode() == "benchmark"
+    return ns.GetRightPanelMode and ns.GetRightPanelMode() == "weights"
 end
 
 function Panel.SetOpen(open)
     if open then
-        if ns.SetRightPanelMode then ns.SetRightPanelMode("benchmark") end
+        if ns.SetRightPanelMode then ns.SetRightPanelMode("weights") end
     elseif Panel.IsOpen() and ns.SetRightPanelMode then
         ns.SetRightPanelMode(nil)
     end
 end
 
 function Panel.Toggle()
-    if ns.ToggleRightPanelMode then ns.ToggleRightPanelMode("benchmark") end
+    if ns.ToggleRightPanelMode then ns.ToggleRightPanelMode("weights") end
 end
 
 -- The drawer copies the padding of the Features drawer, so its outline sits exactly
@@ -287,7 +248,7 @@ end
 function Panel.Apply(frame)
     if not frame then return end
     if not Panel.IsOpen() then
-        if frame.benchmarkDrawerCard then frame.benchmarkDrawerCard:Hide() end
+        if frame.weightsDrawerCard then frame.weightsDrawerCard:Hide() end
         if ns.UnregisterDevLayoutRegion then ns.UnregisterDevLayoutRegion("benchmark.card") end
         return
     end
@@ -318,7 +279,7 @@ function Panel.Apply(frame)
     card:SetWidth(math.max(120, cardWidth - (cardPad.left or 0) - (cardPad.right or 0)))
     card:Show()
     if ns.ApplyRightDrawerCardDev then
-        ns.ApplyRightDrawerCardDev(card, "benchmark.card", "Benchmark drawer", "benchmark.width", DRAWER_PREFERRED_WIDTH)
+        ns.ApplyRightDrawerCardDev(card, "benchmark.card", "Weights drawer", "benchmark.width", DRAWER_PREFERRED_WIDTH)
     end
 
     Panel.Sync(card)
