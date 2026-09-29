@@ -188,6 +188,42 @@ def compare(lua, ns, profile, baseline_gear: dict[str, Any], row: dict[str, Any]
     }
 
 
+RATING_KEYS = {
+    "crit": ("ITEM_MOD_CRIT_RATING_SHORT", "crit_rating"),
+    "haste": ("ITEM_MOD_HASTE_RATING_SHORT", "haste_rating"),
+    "mastery": ("ITEM_MOD_MASTERY_RATING_SHORT", "mastery_rating"),
+    "versatility": ("ITEM_MOD_VERSATILITY", "versatility_rating"),
+}
+
+
+def target_progress(profile, ratings: dict[str, float], candidate: dict[str, Any], replaced: dict[str, Any] | None):
+    """How far the four secondary stats are from the profile's target stats before and after the swap.
+
+    The addon's aim is to bring the character to its target stats (the ratings that give the
+    best result), so an item helps when it lowers the total shortfall: the rating points still
+    missing to reach each target (a stat above its target has no shortfall). Returns None when the
+    profile has no targets."""
+    targets = {}
+    for row in lua_list(profile.auditTargets.rows):
+        if isinstance(row.target, (int, float)) and row.target > 0:
+            targets[str(row.key)] = float(row.target)
+    if not targets:
+        return None
+    before = after = 0.0
+    per_stat = []
+    for name, (lua_key, gear_key) in RATING_KEYS.items():
+        target = targets.get(lua_key)
+        if target is None:
+            continue
+        now = float(ratings.get(name, 0))
+        new = now + float(candidate.get(gear_key, 0) or 0) - float((replaced or {}).get(gear_key, 0) or 0)
+        short_before, short_after = max(0.0, target - now), max(0.0, target - new)
+        before += short_before
+        after += short_after
+        per_stat.append({"stat": name, "target": target, "now": now, "after": new})
+    return {"before": before, "after": after, "closer_by": before - after, "per_stat": per_stat}
+
+
 def simc_verdict(row: dict[str, Any]) -> tuple[str, float | None, float | None]:
     """What SimC says about one row: upgrade / same / downgrade beyond its own noise."""
     st = row.get("st")
@@ -265,7 +301,11 @@ def replay(data: dict[str, Any], goals=("MYTHIC_PLUS", "RAID"), modes=("GUIDE", 
                 row_gear = {**gear}
                 answer = compare(lua, ns, profile, row_gear, row)
                 simc, pct, err_pct = simc_verdict(row)
-                results.append({"row": row, "addon": answer, "simc": simc, "pct": pct, "err_pct": err_pct})
+                slot_key = row.get("replaced_slot") or row["slot"]
+                progress = target_progress(profile, stats.get("ratings") or {}, row.get("gear") or {},
+                                           row.get("replaced_gear") or gear.get(slot_key))
+                results.append({"row": row, "addon": answer, "simc": simc, "pct": pct, "err_pct": err_pct,
+                                "target": progress})
             weights = {}
             for label, key in (("Item level", "STATVERDICT_ITEM_LEVEL"), ("Agility", "ITEM_MOD_AGILITY_SHORT"),
                                ("Crit", "ITEM_MOD_CRIT_RATING_SHORT"), ("Haste", "ITEM_MOD_HASTE_RATING_SHORT"),
@@ -275,6 +315,39 @@ def replay(data: dict[str, Any], goals=("MYTHIC_PLUS", "RAID"), modes=("GUIDE", 
                     weights[label] = float(value)
             out["runs"][f"{goal}/{mode}"] = {"heroKey": str(profile.heroKey), "weights": weights, "rows": results}
     return out
+
+
+def target_diagnosis(rows: list[dict[str, Any]]) -> str:
+    """Three-way check: SimC (real DPS), the target stats, and the addon. Where two agree and
+    the third does not, that third one is the suspect."""
+    tally = {"targets_vs_simc": [0, 0], "addon_vs_targets": [0, 0]}
+    odd_targets, odd_addon = [], []
+    for r in rows:
+        target, addon = r.get("target"), (r["addon"] or {}).get("verdict")
+        if not target or addon is None or r["simc"] in ("unreliable", "not simulated"):
+            continue
+        helps_target = target["closer_by"] > 0.5
+        simc_helps = r["simc"] == "upgrade"
+        addon_helps = addon == "upgrade"
+        tally["targets_vs_simc"][0] += helps_target == simc_helps
+        tally["targets_vs_simc"][1] += 1
+        tally["addon_vs_targets"][0] += addon_helps == helps_target
+        tally["addon_vs_targets"][1] += 1
+        if helps_target != simc_helps:
+            odd_targets.append(r["row"]["name"])
+        if addon_helps != helps_target:
+            odd_addon.append(r["row"]["name"])
+    a, b = tally["targets_vs_simc"], tally["addon_vs_targets"]
+    out = ["### Three-way check: SimC DPS, target stats, addon", "",
+           "The addon aims at the target stats (the ratings that give the best result), SimC measures DPS. "
+           "An item is counted as helping the targets when it lowers the total rating shortfall.", "",
+           f"- Target stats agree with SimC on **{a[0]} of {a[1]}** items"
+           + (f" (they differ on: {', '.join(odd_targets)})" if odd_targets else "")
+           + ". A difference here points at the *targets* (or at what the targets leave out: item level, primary stat).",
+           f"- Addon agrees with the target stats on **{b[0]} of {b[1]}** items"
+           + (f" (they differ on: {', '.join(odd_addon)})" if odd_addon else "")
+           + ". A difference here points at the *addon's scoring* (weights, live modifiers, item level).", ""]
+    return "\n".join(out)
 
 
 def render(data: dict[str, Any], replayed: dict[str, Any]) -> str:
@@ -308,14 +381,17 @@ def render(data: dict[str, Any], replayed: dict[str, Any]) -> str:
         lines += [f"- {name}: **{count}**" for name, count in sorted(tally.items())]
         lines += [f"- Rank agreement (Spearman, addon points vs SimC gain, {len(pairs)} items): "
                   + (f"**{rho:.2f}** (1.0 = same order, 0 = unrelated)" if rho is not None else "n/a"), ""]
-        lines += ["| Item | Slot | SimC gain (ST) | SimC says | Addon points | Addon says | Result |",
-                  "|---|---|---:|---|---:|---|---|"]
+        lines += ["| Item | Slot | SimC gain (ST) | SimC says | Addon points | Addon says | Target stats: shortfall before -> after | Result |",
+                  "|---|---|---:|---|---:|---|---|---|"]
         for r in sorted(rows, key=lambda r: -(r["pct"] if r["pct"] is not None else -999)):
             row, addon = r["row"], r["addon"] or {}
             pts = addon.get("points")
             gain = f"{r['pct']:+.2f}% ±{r['err_pct']:.2f}" if r["pct"] is not None else "-"
+            target = r.get("target")
+            short = f"{target['before']:.0f} -> {target['after']:.0f} ({target['closer_by']:+.0f})" if target else "-"
             lines.append(f"| {row['name']} | {row['slot']} | {gain} | {r['simc']} | "
-                         f"{'-' if pts is None else f'{pts:+.2f}'} | {addon.get('verdict', 'no verdict')} | {r['class']} |")
+                         f"{'-' if pts is None else f'{pts:+.2f}'} | {addon.get('verdict', 'no verdict')} | {short} | {r['class']} |")
+        lines += ["", target_diagnosis(rows)]
         bad = [r for r in rows if r["class"].startswith(("WRONG", "MISSED"))]
         if bad:
             lines += ["", "### Disagreements: why the addon answers as it does", ""]

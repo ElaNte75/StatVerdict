@@ -49,7 +49,11 @@ class ReplayTests(unittest.TestCase):
         self.assertEqual("unreliable", by_name["On-use"]["simc"])
         self.assertGreater(by_name["Better Neck"]["addon"]["points"], 0)
         self.assertTrue(by_name["Better Neck"]["addon"]["breakdown"])
+        target = by_name["Better Neck"]["target"]
+        self.assertIsNotNone(target)
+        self.assertGreater(target["closer_by"], 0)  # +150 haste, +150 mastery toward the targets
         text = verdict.render(result(), replayed)
+        self.assertIn("Three-way check", text)
         self.assertIn("OK: both say upgrade", text)
         self.assertIn("OK: both say not an upgrade", text)
 
