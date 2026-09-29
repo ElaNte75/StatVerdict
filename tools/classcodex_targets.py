@@ -201,22 +201,30 @@ class LoadoutUpgrades(NamedTuple):
     "item_id"?: enchant scroll item id, "spell_id"?: enchant spell id}};
     an enchant without "id" could not be translated (resolve_enchant) and
     is shown but never simulated.
-    gems: gem item ids (SimC gem_id), primary gem first.
+    gems: {"primary"?: gem item id, "secondary"?: gem item id} (SimC
+    gem_id). The primary gem is UNIQUE-EQUIPPED (worn once); the secondary
+    one fills every other socket.
 
     Only the single best choice is kept (owner decision 2026-09-29: no
     alternatives are shown)."""
 
     enchants: dict[str, dict[str, int]]
-    gems: list[int]
+    gems: dict[str, int]
 
 
-NO_UPGRADES = LoadoutUpgrades({}, [])
+NO_UPGRADES = LoadoutUpgrades({}, {})
 
-# Slots that never get gems. ClassCodex does not say which items have a
-# socket, so gems go on every other item and SimC fills whatever sockets an
-# item really has (gem ids beyond an item's sockets are ignored; see
-# simc_stat_engine.run_simc_with_recovery for the safety net).
-GEMLESS_SIMC_SLOTS = frozenset({"TRINKET_1", "TRINKET_2"})
+# Slots that never get gems in the simulated loadout.
+GEMLESS_SIMC_SLOTS = frozenset({"TRINKET_1", "TRINKET_2", "MAIN_HAND", "OFF_HAND"})
+
+# APPROXIMATION: ClassCodex does not say which items have sockets (the addon
+# reads them at runtime from tooltips). So the secondary gem goes on every
+# gem-able item and SimC fills only the sockets an item really has (gem ids
+# beyond an item's sockets are ignored). The unique primary gem is worn ONCE,
+# on the first item present in this order (jewelry commonly carries the
+# sockets); if that item has no socket, the primary is not simulated. See
+# simc_stat_engine.run_simc_with_recovery for the "gems dropped" safety net.
+PRIMARY_GEM_SLOT_ORDER = ("NECK", "FINGER_1", "FINGER_2", "HEAD")
 
 
 def _int_or_none(value: Any) -> int | None:
@@ -317,22 +325,24 @@ def select_loadout_upgrades(
             if enchant:
                 enchants[simc_slot] = enchant
 
-    gems: list[int] = []
+    gems: dict[str, int] = {}
     gem_sets = select_goal_context(gems_value, hero_talent_key, goal)
     candidates = [e for e in (gem_sets if isinstance(gem_sets, list) else []) if isinstance(e, dict)]
     if candidates:
         best = max(candidates, key=_pop)
         primary = _int_or_none(best.get("primary"))
         if primary is not None:
-            gems.append(primary)
-        gems.extend(_secondary_gems(best))
+            gems["primary"] = primary
+        secondary = _first_secondary_gem(best)
+        if secondary is not None:
+            gems["secondary"] = secondary
     return LoadoutUpgrades(enchants, gems)
 
 
-def _secondary_gems(gem_set: dict[str, Any]) -> list[int]:
+def _first_secondary_gem(gem_set: dict[str, Any]) -> int | None:
     secondary = gem_set.get("secondary")
     ids = [_int_or_none(gem) for gem in (secondary if isinstance(secondary, list) else [])]
-    return [gem_id for gem_id in ids if gem_id is not None]
+    return next((gem_id for gem_id in ids if gem_id is not None), None)
 
 
 def loadout_upgrades_for(fields: dict[str, Any], hero_talent_key: str, goal: str) -> LoadoutUpgrades:
@@ -354,12 +364,18 @@ def build_simc_items(
     slot tokens (as defined in CLASSCODEX_SLOT_TO_SIMC). Each item carries its
     itemId, optional itemLevel (ilvl), and optional bonusIds (camelCase bonusIDs),
     plus -- when `upgrades` is given -- enchantIds for slots with a
-    recommended enchant and gemIds on every non-trinket item.
+    recommended enchant and gemIds: the secondary gem on every non-trinket,
+    non-weapon item, plus the unique primary gem once (see
+    PRIMARY_GEM_SLOT_ORDER for this approximation).
     Skips entries with unknown slots or missing itemIds; see gear_by_simc_slot
     for duplicate slots."""
     upgrades = upgrades or NO_UPGRADES
+    gear = gear_by_simc_slot(gear_list)
+    primary = upgrades.gems.get("primary")
+    secondary = upgrades.gems.get("secondary")
+    primary_slot = next((slot for slot in PRIMARY_GEM_SLOT_ORDER if slot in gear), None) if primary is not None else None
     items: dict[str, dict[str, Any]] = {}
-    for simc_slot, entry in gear_by_simc_slot(gear_list).items():
+    for simc_slot, entry in gear.items():
         item: dict[str, Any] = {"itemId": int(entry["itemId"])}
         ilvl = entry.get("ilvl")
         if isinstance(ilvl, (int, float)):
@@ -367,8 +383,12 @@ def build_simc_items(
         bonus_ids = _bonus_ids(entry)
         if bonus_ids is not None:
             item["bonusIds"] = bonus_ids
-        if upgrades.gems and simc_slot not in GEMLESS_SIMC_SLOTS:
-            item["gemIds"] = list(upgrades.gems)
+        if simc_slot not in GEMLESS_SIMC_SLOTS:
+            gem_ids = [primary] if simc_slot == primary_slot else []
+            if secondary is not None:
+                gem_ids.append(secondary)
+            if gem_ids:
+                item["gemIds"] = gem_ids
         enchant = upgrades.enchants.get(simc_slot)
         if enchant and enchant.get("id") is not None:
             # Never a scroll/spell id: untranslated enchants are display-only.
@@ -720,8 +740,8 @@ def reconstruct_target_context(
 
     `upgrades` (select_loadout_upgrades) adds the recommended enchants and
     gems to the simulated items; whatever was really applied (not dropped
-    by a recovery step) is counted in targetMetadata and shown on the BiS
-    slots."""
+    by a recovery step) is counted in targetMetadata; the enchants are
+    shown on the BiS slots and the guide's gems once as bis.gems."""
     items = build_simc_items(gear_list, upgrades)
     if not items:
         raise ComboSkipped("no usable gear for this goal")
@@ -788,7 +808,6 @@ def reconstruct_target_context(
             item["bonus_ids"] = bonus_ids
         simulated = items[simc_slot]
         if gems_applied and simulated.get("gemIds"):
-            item["gem_ids"] = list(simulated["gemIds"])
             gem_count += 1
         enchant = upgrade_enchants.get(simc_slot)
         if enchants_applied and simulated.get("enchantIds"):
@@ -818,6 +837,13 @@ def reconstruct_target_context(
         # Auditable: this combo only succeeded after a SimC recovery step.
         target_metadata["recovery"] = recovery
 
+    bis: dict[str, Any] = {"label": "ClassCodex BiS"}
+    if upgrades.gems:
+        # The guide's gem recommendation for the whole loadout: one unique
+        # primary gem (worn once) + one secondary gem (every other socket).
+        # Shown even if a recovery step dropped gems from the simulation.
+        bis["gems"] = dict(upgrades.gems)
+    bis["slots"] = bis_slots
     return {
         "targets": {
             "averageItemLevel": average_ilvl,
@@ -827,7 +853,7 @@ def reconstruct_target_context(
             "targetMetadata": target_metadata,
             "sourceGoal": goal,
         },
-        "bis": {"label": "ClassCodex BiS", "slots": bis_slots},
+        "bis": bis,
     }
 
 

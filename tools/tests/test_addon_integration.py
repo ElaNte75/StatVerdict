@@ -210,9 +210,10 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
             self.fail("\n  ".join(problems[:20] + [f"({len(problems)} problems)"]))
 
     def test_bis_gems_and_enchants_have_the_shape_the_panel_reads(self) -> None:
-        """The Best in Slot panel shows each slot's recommended gems and enchant:
-        gem_ids is a list of positive item ids, enchant a table with a positive
-        id and optional positive item_id / spell_id. Some slots must have one."""
+        """The Best in Slot data carries the guide's gems once per context
+        (bis.gems = {primary?, secondary?}, positive item ids) and each slot's
+        recommended enchant: a table with a positive id and optional positive
+        item_id / spell_id. Some slots must have one."""
         ns = self.ns
         targets = ns.ClassCodexTargets.profiles
 
@@ -226,14 +227,19 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
             for goal in goals.keys():
                 heroes = goals[goal].heroTalents
                 for hero in heroes.keys():
-                    for entry in lua_list(heroes[hero].bis.slots):
+                    bis = heroes[hero].bis
+                    if bis.gems is not None:
+                        where = f"{spec_key} {goal} {hero} gems"
+                        keys = set(bis.gems.keys())
+                        if not keys or not keys <= {"primary", "secondary"}:
+                            problems.append(f"{where}: bad keys {sorted(keys)}")
+                        for key in keys:
+                            if not positive_int(bis.gems[key]):
+                                problems.append(f"{where}: bad {key} {bis.gems[key]}")
+                        with_gems += 1
+                    for entry in lua_list(bis.slots):
                         where = f"{spec_key} {goal} {hero} {entry.slot}"
                         item = entry.item
-                        if item.gem_ids is not None:
-                            gems = lua_list(item.gem_ids)
-                            if not gems or not all(positive_int(g) for g in gems):
-                                problems.append(f"{where}: bad gem_ids {gems}")
-                            with_gems += 1
                         enchant = item.enchant
                         if enchant is not None:
                             # An enchant the pipeline could not translate has no real
@@ -249,7 +255,7 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
         self.assertGreater(with_enchant, 0)
         if problems:
             self.fail("\n  ".join(problems[:20] + [f"({len(problems)} problems)"]))
-        print(f"\n[bis recommendations] {with_enchant} slots with an enchant, {with_gems} with gems")
+        print(f"\n[bis recommendations] {with_enchant} slots with an enchant, {with_gems} contexts with gems")
 
     def test_missing_hero_tree_name_uses_the_first_sorted_hero_key(self) -> None:
         ns, lua = self.ns, self.lua

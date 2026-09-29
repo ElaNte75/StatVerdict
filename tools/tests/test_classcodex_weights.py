@@ -213,7 +213,8 @@ class BuildAllWeightsTests(unittest.TestCase):
     def test_simulates_the_same_gems_and_enchants_as_the_targets(self) -> None:
         specs = {
             "DEATHKNIGHT_frost": {
-                "gear": {"value": {"all": {"raid": [{"itemId": 1, "slot": "Head", "ilvl": 330}]}}},
+                "gear": {"value": {"all": {"raid": [
+                    {"itemId": 1, "slot": "Head", "ilvl": 330}, {"itemId": 2, "slot": "Neck", "ilvl": 330}]}}},
                 "talents": {"value": {"all": {"raid": [{"export": "R"}]}}},
                 "enchants": {"value": {"all": {"all": {"Head": [{"id": 8017, "itemId": 244007, "spellId": 1236084, "pop": 46.7}]}}}},
                 "gems": {"value": {"all": {"all": [{"primary": 240983, "pop": 12.6, "secondary": [240908]}]}}},
@@ -221,7 +222,9 @@ class BuildAllWeightsTests(unittest.TestCase):
         }
         with patch("tools.classcodex_weights.run_simc", return_value=({}, scale_report())) as mock_run:
             build_all_weights(specs, Path("simc"), goals=("RAID",))
-        self.assertIn("head=,id=1,ilevel=330,gem_id=240983/240908,enchant_id=8017", mock_run.call_args.args[1])
+        profile = mock_run.call_args.args[1]
+        self.assertIn("head=,id=1,ilevel=330,gem_id=240908,enchant_id=8017", profile)
+        self.assertIn("neck=,id=2,ilevel=330,gem_id=240983/240908", profile)
 
     def test_skips_a_spec_key_not_in_the_catalog(self) -> None:
         specs = {"NOTASPEC_madeup": {"gear": {"value": {}, "source": "ugg"}}}

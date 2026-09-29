@@ -28,13 +28,13 @@ class RenderLuaTests(unittest.TestCase):
             },
             "bis": {
                 "label": "ClassCodex BiS",
+                "gems": {"primary": 240983, "secondary": 240908},
                 "slots": [
                     {
                         "slot": "Head",
                         "item": {
                             "item_id": 1,
                             "bonus_ids": [7],
-                            "gem_ids": [240983, 240908],
                             "enchant": {"id": 8017, "item_id": 243981, "spell_id": 1236001},
                         },
                     }
@@ -46,7 +46,8 @@ class RenderLuaTests(unittest.TestCase):
         loaded = namespace["ClassCodexTargets"]["profiles"]["DEATHKNIGHT_FROST"]["goals"]["RAID"]["heroTalents"]["all"]
         self.assertEqual(1413.0, loaded["targets"]["guideTargets"]["top20"]["critical_strike"])
         item = loaded["bis"]["slots"][0]["item"]
-        self.assertEqual([240983, 240908], item["gem_ids"])
+        self.assertEqual({"primary": 240983, "secondary": 240908}, loaded["bis"]["gems"])
+        self.assertNotIn("gem_ids", item)
         self.assertEqual({"id": 8017, "item_id": 243981, "spell_id": 1236001}, item["enchant"])
 
 
