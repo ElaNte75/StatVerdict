@@ -40,6 +40,13 @@ local STAT_LABEL = {
     STATVERDICT_ARMOR = "Armor",
 }
 
+local SECONDARY_STAT = {
+    ITEM_MOD_CRIT_RATING_SHORT = true,
+    ITEM_MOD_HASTE_RATING_SHORT = true,
+    ITEM_MOD_MASTERY_RATING_SHORT = true,
+    ITEM_MOD_VERSATILITY = true,
+}
+
 local function NormalizeToken(value)
     if type(value) ~= "string" then return "" end
     return value:lower():gsub("[^%a%d]+", "")
@@ -49,62 +56,85 @@ local MAX_GENERATED_AGE_DAYS = 30
 local MIN_CONTEXT_ITEMS = 10
 local MAX_LOW_ITEM_RATIO = 0.25
 
-local function ParseUtcDate(value)
-    if type(value) ~= "string" or type(time) ~= "function" then return nil end
+-- ClassCodex buildIds start with the UTC build time: "20260929064954-6702fd4-878715d1".
+local function ParseBuildTime(buildId)
+    if type(buildId) ~= "string" or type(time) ~= "function" then return nil end
     local year, month, day, hour, minute, second =
-        value:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)T?(%d?%d?):?(%d?%d?):?(%d?%d?)")
-    if not year then
-        year, month, day = value:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)$")
-    end
+        buildId:match("^(%d%d%d%d)(%d%d)(%d%d)(%d%d)(%d%d)(%d%d)")
     if not year then return nil end
     return time({
         year = tonumber(year),
         month = tonumber(month),
         day = tonumber(day),
-        hour = tonumber(hour) or 0,
-        min = tonumber(minute) or 0,
-        sec = tonumber(second) or 0,
+        hour = tonumber(hour),
+        min = tonumber(minute),
+        sec = tonumber(second),
     })
 end
 
-local function IsRecentDate(value, maxAgeDays)
-    local timestamp = ParseUtcDate(value)
-    if not timestamp or type(time) ~= "function" then return false end
+local function IsRecentBuild(buildId, maxAgeDays)
+    local timestamp = ParseBuildTime(buildId)
+    if not timestamp then return false end
     local age = time() - timestamp
     return age >= -86400 and age <= (maxAgeDays * 86400)
 end
 
-local MYTHIC_PLUS_SCHEMA_VERSION = 1
-
--- Mythic+ data comes from the live benchmark file (tools/addon_benchmarks.py),
--- one context per benchmark level. Raid and PvP have no live data source yet
--- (see tools/classcodex_build.py, not wired into the addon yet) -- GetGoalRoot
--- and GetContext return nil for them below, same as any other missing source.
-local function GetMythicPlusRoot()
-    local root = ns.MythicPlusBenchmarks
-    if type(root) ~= "table" or root.schemaVersion ~= MYTHIC_PLUS_SCHEMA_VERSION then
-        return nil
-    end
-    if not IsRecentDate(root.generatedAt, MAX_GENERATED_AGE_DAYS) then
-        return nil
-    end
+-- All goals (Mythic+, Raid, PvP) come from the ClassCodex targets file
+-- (tools/classcodex_targets_cli.py): profiles[specKey].goals[goal].heroTalents[heroKey].
+-- Stale or missing data fails closed: every lookup below returns nil.
+local function GetTargetsRoot()
+    local root = ns.ClassCodexTargets
+    if type(root) ~= "table" or type(root.profiles) ~= "table" then return nil end
+    if not IsRecentBuild(root.buildId, MAX_GENERATED_AGE_DAYS) then return nil end
     return root
 end
 
-local function GetGoalRoot(goal)
-    if goal == "MYTHIC_PLUS" then return GetMythicPlusRoot() end
-    return nil
+local function GetSpecProfile(specKey)
+    local root = GetTargetsRoot()
+    local profile = root and specKey and root.profiles[specKey] or nil
+    return type(profile) == "table" and profile or nil
 end
 
-local function GetContext(specKey, goal)
-    if goal ~= "MYTHIC_PLUS" then return nil, nil end
-    local root = GetMythicPlusRoot()
-    local profiles = root and root.profiles
-    local profile = type(profiles) == "table" and profiles[specKey] or nil
-    if type(profile) ~= "table" or type(profile.levels) ~= "table" then return nil, nil end
-    local level = ns.GetBenchmarkLevel and ns.GetBenchmarkLevel() or "STANDARD"
-    local context = profile.levels[level]
-    return type(context) == "table" and context or nil, profile
+local function GetHeroTalents(specKey, goal)
+    if not VALID_GOALS[goal] then return nil, nil end
+    local profile = GetSpecProfile(specKey)
+    local goals = profile and profile.goals
+    local goalRoot = type(goals) == "table" and goals[goal] or nil
+    local heroTalents = type(goalRoot) == "table" and goalRoot.heroTalents or nil
+    return type(heroTalents) == "table" and heroTalents or nil, profile
+end
+
+local function GetContext(specKey, goal, heroKey)
+    if not heroKey then return nil, nil end
+    local heroTalents, profile = GetHeroTalents(specKey, goal)
+    local context = heroTalents and heroTalents[heroKey] or nil
+    if type(context) ~= "table" then return nil, nil end
+    return context, profile
+end
+
+-- Player hero tree name ("San'layn", "Master of Harmony") -> ClassCodex key
+-- ("sanlayn", "master-of-harmony"). Only a name that matches one of this
+-- spec/goal's keys counts: an unknown or missing hero tree gives nil (no data),
+-- never another tree's data. heroSubTreeID is accepted for callers, but the
+-- ClassCodex data carries no subtree IDs to match it against.
+local function ResolveHeroKey(specKey, goal, heroTalentName, heroSubTreeID)
+    local wanted = NormalizeToken(heroTalentName)
+    if wanted == "" then return nil end
+    local heroTalents = GetHeroTalents(specKey, goal)
+    if not heroTalents then return nil end
+    for heroKey in pairs(heroTalents) do
+        if NormalizeToken(heroKey) == wanted then return heroKey end
+    end
+    -- Best-matching name: exactly one key containing the other ("shadopan" / "theshadopan").
+    local match
+    for heroKey in pairs(heroTalents) do
+        local normalized = NormalizeToken(heroKey)
+        if normalized ~= "" and (normalized:find(wanted, 1, true) or wanted:find(normalized, 1, true)) then
+            if match then return nil end -- ambiguous: no data rather than a guess
+            match = heroKey
+        end
+    end
+    return match
 end
 
 local function CountPositiveTargets(statTargets)
@@ -119,9 +149,6 @@ end
 local function ValidateGeneratedContext(context, goal)
     local targets = type(context) == "table" and context.targets or nil
     if type(targets) ~= "table" then return false, "Profile targets are missing." end
-    if targets.sourceGoal ~= nil and targets.sourceGoal ~= goal then
-        return false, "Profile targets belong to a different goal."
-    end
     if CountPositiveTargets(targets.statTargets) < 2 then
         return false, "Profile has too few usable stat targets."
     end
@@ -133,8 +160,10 @@ local function ValidateGeneratedContext(context, goal)
     end
 
     local itemCount = tonumber(targets.itemCount) or 0
-    local averageItemLevel = tonumber(type(targets) == "table" and targets.averageItemLevel or nil)
-    if averageItemLevel == nil or averageItemLevel < MIN_VALID_MAX_LEVEL_TARGET_ILVL then
+    local averageItemLevel = tonumber(targets.averageItemLevel)
+    -- ClassCodex PvP gear carries no item level, so PvP targets have none.
+    local itemLevelOptional = goal == "PVP" and targets.averageItemLevel == nil
+    if not itemLevelOptional and (averageItemLevel == nil or averageItemLevel < MIN_VALID_MAX_LEVEL_TARGET_ILVL) then
         return false, "Generated target item level is not valid for a max-level profile."
     end
     if itemCount < MIN_CONTEXT_ITEMS then
@@ -148,74 +177,52 @@ local function ValidateGeneratedContext(context, goal)
     return true
 end
 
+Repository.ValidateGeneratedContext = ValidateGeneratedContext
+
 function Repository.GetDataProvenance(goal)
-    if goal == "MYTHIC_PLUS" then
-        local root = ns.MythicPlusBenchmarks
-        local level = ns.GetBenchmarkLevelInfo and ns.GetBenchmarkLevelInfo(ns.GetBenchmarkLevel()) or nil
-        local generatedAt = type(root) == "table" and root.generatedAt or nil
-        return {
-            available = GetMythicPlusRoot() ~= nil,
-            generatedAt = generatedAt,
-            scrape = type(generatedAt) == "string" and generatedAt:sub(1, 10) or nil,
-            sourceName = "StatVerdict live benchmarks" .. (level and (" · " .. level.label) or ""),
-        }
+    if not VALID_GOALS[goal] then return { available = false } end
+    local root = ns.ClassCodexTargets
+    local buildId = type(root) == "table" and root.buildId or nil
+    local year, month, day
+    if type(buildId) == "string" then
+        year, month, day = buildId:match("^(%d%d%d%d)(%d%d)(%d%d)")
     end
-    -- Raid and PvP have no live data source yet -- see the GetGoalRoot comment above.
-    return { available = false }
+    return {
+        available = GetTargetsRoot() ~= nil,
+        buildId = buildId,
+        scrape = year and (year .. "-" .. month .. "-" .. day) or nil,
+        sourceName = "StatVerdict ClassCodex data",
+    }
 end
 
-local function PriorityScore(row, heroTalentName, contextName, heroSubTreeID)
-    if type(row) ~= "table" then return -1 end
-    local score = 0
-    local wantedHero = NormalizeToken(heroTalentName)
-    local rowHero = NormalizeToken(row.heroTalent)
-    if heroSubTreeID and row.heroSubTreeID ~= nil then
-        if tonumber(row.heroSubTreeID) == tonumber(heroSubTreeID) then
-            score = score + 4
-        end
-    elseif row.heroSubTreeID == nil and wantedHero ~= "" and rowHero == wantedHero then
-        score = score + 4
-    elseif row.heroSubTreeID == nil and (rowHero == "" or rowHero == "all") then
-        score = score + 1
-    end
-
-    local wantedContext = NormalizeToken(contextName)
-    local rowContext = NormalizeToken(row.context)
-    if wantedContext ~= "" and rowContext == wantedContext then
-        score = score + 3
-    elseif rowContext == "general" then
-        score = score + 1
-    end
-    return score
+function Repository.GetContext(specKey, goal, heroKey)
+    local context = GetContext(specKey, goal, heroKey)
+    return context
 end
 
-function Repository.GetContext(specKey, goal)
-    if not VALID_GOALS[goal] then return nil end
-    return GetContext(specKey, goal)
+function Repository.ResolveHeroKey(specKey, goal, heroTalentName, heroSubTreeID)
+    return ResolveHeroKey(specKey, goal, heroTalentName, heroSubTreeID)
 end
 
-function Repository.GetPriority(specKey, goal, heroTalentName, heroSubTreeID)
-    local context = Repository.GetContext(specKey, goal)
+-- Measured SimC stat weights (highest = 1.0) for one spec/goal/hero tree, or nil
+-- when that combination has none (the caller then uses rank weights).
+function Repository.GetWeights(specKey, goal, heroKey)
+    if not VALID_GOALS[goal] or not specKey or not heroKey then return nil end
+    local root = ns.ClassCodexWeights
+    local profiles = type(root) == "table" and root.profiles or nil
+    local profile = type(profiles) == "table" and profiles[specKey] or nil
+    local goals = type(profile) == "table" and profile.goals or nil
+    local goalRoot = type(goals) == "table" and goals[goal] or nil
+    local heroTalents = type(goalRoot) == "table" and goalRoot.heroTalents or nil
+    local weights = type(heroTalents) == "table" and heroTalents[heroKey] or nil
+    return type(weights) == "table" and weights or nil
+end
+
+-- Each ClassCodex hero context carries its own priority row.
+local function GetPriority(context)
     local rows = type(context) == "table" and context.priorityProfiles or nil
-    if type(rows) ~= "table" then return nil end
-
-    local contextName = "General"
-    if goal == "MYTHIC_PLUS" then
-        contextName = "Mythic+"
-    elseif goal == "RAID" then
-        contextName = "Raid"
-    elseif goal == "PVP" then
-        contextName = "PvP"
-    end
-    local best, bestScore
-    for _, row in ipairs(rows) do
-        local score = PriorityScore(row, heroTalentName, contextName, heroSubTreeID)
-        if bestScore == nil or score > bestScore then
-            best = row
-            bestScore = score
-        end
-    end
-    return best
+    local priority = type(rows) == "table" and rows[1] or nil
+    return type(priority) == "table" and priority or nil
 end
 
 local function BuildSecondaryOrder(priority)
@@ -268,6 +275,40 @@ local function BuildSecondaryOrderFromTargets(targets, fallbackPriority)
     end
 
     return {}
+end
+
+-- Measured weights keyed by runtime stat key, keeping only positive numbers of
+-- the secondary stats; nil when none are usable (rank weights apply then).
+local function BuildSecondaryWeights(weights)
+    if type(weights) ~= "table" then return nil end
+    local result, count = {}, 0
+    for canonicalKey, value in pairs(weights) do
+        local statKey = STAT_KEY[canonicalKey]
+        local weight = tonumber(value)
+        if statKey and SECONDARY_STAT[statKey] and weight and weight > 0 then
+            result[statKey] = weight
+            count = count + 1
+        end
+    end
+    return count > 0 and result or nil
+end
+
+-- Measured weights order the secondaries (highest first); ties and stats
+-- without a weight keep the ClassCodex priority order, then the key.
+local function SortByWeights(order, secondaryWeights)
+    if not secondaryWeights then return order end
+    local priorityIndex = {}
+    for index, statKey in ipairs(order) do priorityIndex[statKey] = index end
+    local sorted = {}
+    for index, statKey in ipairs(order) do sorted[index] = statKey end
+    table.sort(sorted, function(a, b)
+        local weightA, weightB = secondaryWeights[a] or 0, secondaryWeights[b] or 0
+        if weightA ~= weightB then return weightA > weightB end
+        local indexA, indexB = priorityIndex[a] or math.huge, priorityIndex[b] or math.huge
+        if indexA ~= indexB then return indexA < indexB end
+        return tostring(a) < tostring(b)
+    end)
+    return sorted
 end
 
 local function BuildEqualGroups(priority, secondaryOrder)
@@ -343,20 +384,23 @@ function Repository.BuildRuntimeProfile(context)
         or DEFAULT_GOAL
     if not VALID_GOALS[goal] then goal = DEFAULT_GOAL end
 
-    local generatedContext, generatedProfile = GetContext(specKey, goal)
+    local heroTalentName = context.heroTalentName
+        or (ns.GetSnapshotHeroTalentName and ns.GetSnapshotHeroTalentName(context))
+    local heroSubTreeID = context.heroSubTreeID
+        or (ns.GetSnapshotHeroSubTreeID and ns.GetSnapshotHeroSubTreeID(context))
+    local heroKey = ResolveHeroKey(specKey, goal, heroTalentName, heroSubTreeID)
+    local generatedContext, generatedProfile = GetContext(specKey, goal, heroKey)
     if type(generatedContext) ~= "table" or type(generatedProfile) ~= "table" then
         return nil
     end
     local validGeneratedContext, invalidReason = ValidateGeneratedContext(generatedContext, goal)
     local invalidGeneratedContext = not validGeneratedContext
 
-    local heroTalentName = context.heroTalentName
-        or (ns.GetSnapshotHeroTalentName and ns.GetSnapshotHeroTalentName(context))
-    local heroSubTreeID = context.heroSubTreeID
-        or (ns.GetSnapshotHeroSubTreeID and ns.GetSnapshotHeroSubTreeID(context))
-    local priority = Repository.GetPriority(specKey, goal, heroTalentName, heroSubTreeID)
-    local secondaryOrder = BuildSecondaryOrderFromTargets(generatedContext.targets, priority)
+    local priority = GetPriority(generatedContext)
+    local secondaryWeights = BuildSecondaryWeights(Repository.GetWeights(specKey, goal, heroKey))
+    local secondaryOrder = SortByWeights(BuildSecondaryOrderFromTargets(generatedContext.targets, priority), secondaryWeights)
     local primaryStat = STAT_KEY[generatedProfile.primaryStat]
+    if not primaryStat then return nil end
     local role = context.role
         or (ns.GetStatVerdictRoleBySpecID and ns.GetStatVerdictRoleBySpecID(context.specID))
     local hiddenTrackedStats = {
@@ -384,6 +428,7 @@ function Repository.BuildRuntimeProfile(context)
         profileKey = profileID,
         goal = goal,
         specKey = specKey,
+        heroKey = heroKey,
         class = generatedProfile.classToken or context.classFile,
         className = context.className,
         specID = context.specID,
@@ -395,6 +440,7 @@ function Repository.BuildRuntimeProfile(context)
         source = "generated_classcodex",
         primaryStat = primaryStat,
         secondaryOrder = secondaryOrder,
+        secondaryWeights = secondaryWeights,
         hiddenTrackedStats = hiddenTrackedStats,
         equalGroups = BuildEqualGroups(priority, secondaryOrder),
         caps = {},
@@ -411,7 +457,7 @@ function Repository.BuildRuntimeProfile(context)
 end
 
 function Repository.BuildProviderView(goal)
-    local root = GetGoalRoot(goal)
+    local root = VALID_GOALS[goal] and GetTargetsRoot() or nil
     local provider = {}
     if not root then return provider end
 

@@ -36,7 +36,7 @@ try:
         run_with_talent_fallback,
         talent_exports_from_entries,
     )
-    from tools.live_benchmark_engine import SPEC_BY_KEY
+    from tools.spec_catalog import SPEC_BY_KEY
     from tools.simc_stat_engine import run_simc
 except ModuleNotFoundError:
     from classcodex_targets import (
@@ -53,7 +53,7 @@ except ModuleNotFoundError:
         run_with_talent_fallback,
         talent_exports_from_entries,
     )
-    from live_benchmark_engine import SPEC_BY_KEY
+    from spec_catalog import SPEC_BY_KEY
     from simc_stat_engine import run_simc
 
 # SimC long stat names for its `scale_only=` filter (SimC's parse_stat_type
@@ -90,9 +90,8 @@ SCALE_FACTOR_TIMEOUT_SECONDS = 1200
 
 def scale_factor_threads() -> int:
     """All cores of the runner (GitHub's standard ubuntu-latest has 4). The
-    weights pipeline runs one SimC process at a time, unlike the Raider.IO
-    pipeline, which keeps run_simc's threads=1 default and parallelizes
-    across worker processes instead."""
+    weights pipeline runs one SimC process at a time, unlike the targets
+    pipeline, which keeps run_simc's threads=1 default."""
     return max(1, os.cpu_count() or 1)
 
 
