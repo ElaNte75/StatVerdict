@@ -397,17 +397,64 @@ def build_target_context(
         return None
 
 
+SIMC_TARGET_SOURCE = "ClassCodex BiS + SimulationCraft"
+WOWHEAD_TARGET_SOURCE = "ClassCodex BiS + Wowhead gear totals (no SimC support for this spec)"
+
+# SimC's messages for a spec it cannot initialise at all (Holy Paladin:
+# "is using an unsupported spec"; Restoration Shaman: "role (hybrid) or spec
+# isn't supported yet"). Only these trigger the Wowhead fallback.
+UNSUPPORTED_SPEC_MARKERS = ("unsupported", "isn't supported yet")
+
+
+def is_unsupported_spec_error(message: str) -> bool:
+    return any(marker in message for marker in UNSUPPORTED_SPEC_MARKERS)
+
+
+def canonical_secondaries(raw_stats: dict[str, Any]) -> dict[str, float]:
+    """The four secondaries of a raw {stat name: number} dict, canonical keys."""
+    stats: dict[str, float] = {}
+    for raw, value in raw_stats.items():
+        canonical = canonical_stat_name(raw)
+        if canonical is not None and isinstance(value, (int, float)) and not isinstance(value, bool):
+            stats[canonical] = float(value)
+    return stats
+
+
+def wowhead_gear_stats(
+    spec: Any, items: dict[str, dict[str, Any]], wowhead_reconstruct: Callable[..., dict[str, Any]]
+) -> dict[str, float]:
+    """Gear-only secondary totals from Wowhead tooltips (no base stats,
+    racials or talents). Any lookup failure -- including one unresolved
+    slot -- skips the combo rather than shipping a partial sum."""
+    try:
+        loadout = wowhead_reconstruct(items, primary=spec.primary)
+    except Exception as exc:  # noqa: BLE001 - fail closed (network, parsing, ...)
+        print(f"Wowhead fallback error for {spec.spec_name}: {exc}", file=sys.stderr)
+        raise ComboSkipped("wowhead fallback failed") from exc
+    if not isinstance(loadout, dict) or loadout.get("failures") or not isinstance(loadout.get("totals"), dict):
+        failures = loadout.get("failures") if isinstance(loadout, dict) else None
+        print(f"Wowhead fallback error for {spec.spec_name}: {failures or 'unusable result'}", file=sys.stderr)
+        raise ComboSkipped("wowhead fallback failed")
+    return canonical_secondaries(loadout["totals"])
+
+
 def reconstruct_target_context(
     spec: Any,
     goal: str,
     gear_list: list[dict[str, Any]] | None,
     talent_loadout: str | list[str] | None,
     simc_binary: Path = Path("simc"),
+    wowhead_reconstruct: Callable[..., dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """build_target_context's core, taking an already-selected talent export
     (or the ordered list of exports to fall back through, see
     run_with_talent_fallback). Raises ComboSkipped (never returns None) so
-    callers can report why."""
+    callers can report why.
+
+    `wowhead_reconstruct` (tools/wowhead_stat_engine.reconstruct_loadout's
+    signature) enables the gear-only fallback, used ONLY when SimC reports
+    that it cannot initialise the spec at all (see is_unsupported_spec_error);
+    None disables it."""
     items = build_simc_items(gear_list)
     if not items:
         raise ComboSkipped("no usable gear for this goal")
@@ -416,6 +463,7 @@ def reconstruct_target_context(
     if not talent_exports:
         raise ComboSkipped("no talent export for this goal")
 
+    source = SIMC_TARGET_SOURCE
     try:
         stats_by_actor, _report, recovery, actor_name = run_with_talent_fallback(
             # Paper-doll run: only the stat sheet is read, so skip the
@@ -426,24 +474,25 @@ def reconstruct_target_context(
         # The skip reason stays short (it is grouped in the run summary); the
         # actual SimC message goes to the log so a failure can be diagnosed.
         print(f"SimC error for {spec.spec_name}: {format_simc_error(exc)}", file=sys.stderr)
-        raise ComboSkipped(f"SimC run failed ({type(exc).__name__})") from exc
-    reconstructed = stats_by_actor.get(actor_name)
-    if not reconstructed:
-        raise ComboSkipped("SimC report had no stats for the actor")
-    ratings = reconstructed.get("ratings") or {}
-    stats: dict[str, float] = {}
-    for raw, value in ratings.items():
-        canonical = canonical_stat_name(raw)
-        if canonical is not None and isinstance(value, (int, float)):
-            stats[canonical] = float(value)
+        if wowhead_reconstruct is None or not is_unsupported_spec_error(str(exc)):
+            raise ComboSkipped(f"SimC run failed ({type(exc).__name__})") from exc
+        stats = wowhead_gear_stats(spec, items, wowhead_reconstruct)
+        source = WOWHEAD_TARGET_SOURCE
+        recovery = ["wowhead fallback"]
+    else:
+        reconstructed = stats_by_actor.get(actor_name)
+        if not reconstructed:
+            raise ComboSkipped("SimC report had no stats for the actor")
+        stats = canonical_secondaries(reconstructed.get("ratings") or {})
     # Same rule as the addon's CountPositiveTargets (SV_ProfileRepository.lua):
     # only values > 0 count as usable targets.
     if sum(1 for value in stats.values() if value > 0) < 2:
         raise ComboSkipped("fewer than 2 usable secondary stats")
 
     # Everything below derives from the same last-one-wins slot map as the
-    # SimC items above, so BiS slots, item count and item level all describe
-    # exactly the loadout that was simulated.
+    # SimC items above, so BiS slots, item count and item level describe the
+    # full ClassCodex loadout (even if a weapon recovery simulated without
+    # one of the weapons, see targetMetadata.recovery).
     loadout = list(gear_by_simc_slot(gear_list).values())
     bis_slots: list[dict[str, Any]] = []
     for entry in loadout:
@@ -465,7 +514,7 @@ def reconstruct_target_context(
             "averageItemLevel": average_item_level(loadout),
             "itemCount": len(items),
             "itemLevelSlots": item_level_slots,
-            "statTargets": {"context": goal, "source": "ClassCodex BiS + SimulationCraft", "stats": stats},
+            "statTargets": {"context": goal, "source": source, "stats": stats},
             "targetMetadata": target_metadata,
             "sourceGoal": goal,
         },
@@ -598,12 +647,15 @@ def build_all(
     simc_binary: Path,
     goals: tuple[str, ...] = ("MYTHIC_PLUS", "RAID", "PVP"),
     skips: list[SkipRecord] | None = None,
+    wowhead_reconstruct: Callable[..., dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Loops over every ClassCodex spec/goal/hero-talent combo, reconstructing
     stat targets via SimC for each, and assembles the full per-spec document.
     Skips spec keys not in the SPEC_BY_KEY catalog and combos with no usable
     data or a failed SimC run; when `skips` is given, one SkipRecord per
-    skipped spec/combo is appended to it."""
+    skipped spec/combo is appended to it. `wowhead_reconstruct` enables the
+    gear-only fallback for specs SimC cannot initialise (see
+    reconstruct_target_context)."""
     skipped: list[SkipRecord] = skips if skips is not None else []
     profiles: dict[str, Any] = {}
     for spec_key, fields in specs.items():
@@ -628,7 +680,9 @@ def build_all(
                 gear_list = select_goal_context(gear_value, hero_talent_key, goal)
                 talent_loadout = talent_exports_from_entries(select_goal_context(talents_value, hero_talent_key, goal))
                 try:
-                    target_context = reconstruct_target_context(spec, goal, gear_list, talent_loadout, simc_binary)
+                    target_context = reconstruct_target_context(
+                        spec, goal, gear_list, talent_loadout, simc_binary, wowhead_reconstruct=wowhead_reconstruct
+                    )
                 except ComboSkipped as skip:
                     skipped.append(SkipRecord(catalog_key, goal, hero_talent_key, skip.reason))
                     continue

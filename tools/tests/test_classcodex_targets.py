@@ -234,6 +234,93 @@ class TargetRecoveryTests(unittest.TestCase):
         self.assertEqual(3, context["targets"]["itemCount"])
 
 
+UNSUPPORTED_ERRORS = (
+    "Player sv_0001 is using an unsupported spec",
+    "Player sv_0001 role (hybrid) or spec isn't supported yet",
+)
+
+
+def wowhead_loadout(totals: dict, failures: list | None = None) -> dict:
+    return {"slotCount": 1, "resolvedSlots": 1, "totals": totals, "slots": {}, "failures": failures or []}
+
+
+class WowheadFallbackTests(unittest.TestCase):
+    spec = SPEC_BY_KEY["PALADIN_HOLY"]
+    gear = [{"itemId": 1, "slot": "Head", "ilvl": 300, "bonusIDs": [7]}]
+
+    def run_fallback(self, simc_effect, wowhead):
+        with patch("tools.classcodex_targets.run_simc", side_effect=simc_effect), redirect_stderr(io.StringIO()):
+            return reconstruct_target_context(self.spec, "RAID", self.gear, "X", wowhead_reconstruct=wowhead)
+
+    def test_uses_wowhead_gear_totals_when_simc_does_not_support_the_spec(self) -> None:
+        for message in UNSUPPORTED_ERRORS:
+            calls = []
+
+            def fake_wowhead(items, *, primary):
+                calls.append((items, primary))
+                return wowhead_loadout({"crit": 900, "haste": 1200, "mastery": 0, "intellect": 5000, "stamina": 1})
+
+            context = self.run_fallback(RuntimeError(message), fake_wowhead)
+            self.assertEqual([({"HEAD": {"itemId": 1, "itemLevel": 300, "bonusIds": [7]}}, "intellect")], calls)
+            stat_targets = context["targets"]["statTargets"]
+            self.assertEqual({"critical_strike": 900.0, "haste": 1200.0, "mastery": 0.0}, stat_targets["stats"])
+            self.assertEqual(
+                "ClassCodex BiS + Wowhead gear totals (no SimC support for this spec)", stat_targets["source"]
+            )
+            self.assertEqual(["wowhead fallback"], context["targets"]["targetMetadata"]["recovery"])
+            self.assertEqual([{"slot": "Head", "item": {"item_id": 1, "bonus_ids": [7]}}], context["bis"]["slots"])
+
+    def test_never_runs_when_simc_succeeds_or_fails_for_another_reason(self) -> None:
+        def forbidden(*_args, **_kwargs):
+            raise AssertionError("wowhead fallback must not run")
+
+        context = self.run_fallback([GOOD], forbidden)
+        self.assertEqual("ClassCodex BiS + SimulationCraft", context["targets"]["statTargets"]["source"])
+        with self.assertRaisesRegex(ComboSkipped, "SimC run failed"):
+            self.run_fallback(RuntimeError("could not find spell data"), forbidden)
+
+    def test_without_an_injected_reconstructor_the_combo_is_skipped_as_before(self) -> None:
+        with patch("tools.classcodex_targets.run_simc", side_effect=RuntimeError(UNSUPPORTED_ERRORS[0])), \
+                redirect_stderr(io.StringIO()), self.assertRaisesRegex(ComboSkipped, "SimC run failed"):
+            reconstruct_target_context(self.spec, "RAID", self.gear, "X")
+
+    def test_any_wowhead_failure_skips_the_combo(self) -> None:
+        def raising(*_args, **_kwargs):
+            raise OSError("network down")
+
+        def partial(*_args, **_kwargs):
+            return wowhead_loadout({"crit": 900, "haste": 1200}, failures=[{"slot": "HEAD"}])
+
+        for wowhead in (raising, partial):
+            with self.assertRaises(ComboSkipped) as caught:
+                self.run_fallback(RuntimeError(UNSUPPORTED_ERRORS[0]), wowhead)
+            self.assertEqual("wowhead fallback failed", caught.exception.reason)
+
+    def test_fewer_than_two_positive_secondaries_skips(self) -> None:
+        def one_stat(*_args, **_kwargs):
+            return wowhead_loadout({"crit": 900, "haste": 0, "intellect": 5000})
+
+        with self.assertRaisesRegex(ComboSkipped, "fewer than 2 usable secondary stats"):
+            self.run_fallback(RuntimeError(UNSUPPORTED_ERRORS[0]), one_stat)
+
+    def test_build_all_passes_the_reconstructor_through(self) -> None:
+        specs = {
+            "PALADIN_holy": {
+                "gear": {"value": {"all": {"raid": self.gear}}},
+                "talents": {"value": {"all": {"raid": [{"export": "X"}]}}},
+            }
+        }
+
+        def fake_wowhead(items, *, primary):
+            return wowhead_loadout({"crit": 900, "versatility": 700})
+
+        with patch("tools.classcodex_targets.run_simc", side_effect=RuntimeError(UNSUPPORTED_ERRORS[1])), \
+                redirect_stderr(io.StringIO()):
+            data = build_all(specs, Path("simc"), goals=("RAID",), wowhead_reconstruct=fake_wowhead)
+        context = data["profiles"]["PALADIN_HOLY"]["goals"]["RAID"]["heroTalents"]["all"]
+        self.assertEqual(["wowhead fallback"], context["targets"]["targetMetadata"]["recovery"])
+
+
 class BuildTrinketsAndPriorityTests(unittest.TestCase):
     def test_build_trinkets_passes_through_tier_and_bonus_ids(self) -> None:
         trinkets = {"all": {"raid": [{"itemId": 270175, "bonusIDs": [13848], "tier": "S"}]}}
