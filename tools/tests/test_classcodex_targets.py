@@ -585,12 +585,22 @@ class TargetUpgradeTests(unittest.TestCase):
                         "item_id": 1,
                         "bonus_ids": [7],
                         "gem_ids": [240983, 240908, 240910],
+                        "gem_alt_id": 240892,
                         "enchant": {"id": 8017, "item_id": 243981, "spell_id": 1236001},
+                        "enchant_alt": {"id": 7991},
                     },
                 },
-                {"slot": "Neck", "item": {"item_id": 2, "gem_ids": [240983, 240908, 240910]}},
+                {"slot": "Neck", "item": {"item_id": 2, "gem_ids": [240983, 240908, 240910], "gem_alt_id": 240892}},
                 {"slot": "Trinket 1", "item": {"item_id": 3}},
-                {"slot": "Main Hand", "item": {"item_id": 4, "gem_ids": [240983, 240908, 240910], "enchant": {"id": 3368}}},
+                {
+                    "slot": "Main Hand",
+                    "item": {
+                        "item_id": 4,
+                        "gem_ids": [240983, 240908, 240910],
+                        "gem_alt_id": 240892,
+                        "enchant": {"id": 3368},
+                    },
+                },
             ],
             context["bis"]["slots"],
         )
@@ -765,6 +775,110 @@ class PvpEnchantScrollTests(unittest.TestCase):
 
         upgrades = select_loadout_upgrades(self.ENCHANTS, None, "hero", "PVP")
         self.assertNotIn("CHEST", upgrades.enchants)
+
+
+class LoadoutAlternativeTests(unittest.TestCase):
+    """One alternative gem and enchant per slot, shown next to the
+    recommended ones; never simulated."""
+
+    def test_gem_alt_is_the_next_set_with_a_different_secondary(self) -> None:
+        gems = {
+            "all": {
+                "all": [
+                    {"primary": 1, "pop": 30, "secondary": [240908, 240910]},
+                    {"primary": 2, "pop": 20, "secondary": [240910]},  # same secondary as chosen
+                    {"primary": 1, "pop": 10, "secondary": [240892, 240908]},
+                    {"primary": 1, "pop": 5, "secondary": [240999]},
+                ]
+            }
+        }
+        upgrades = select_loadout_upgrades(None, gems, "all", "RAID")
+        self.assertEqual([1, 240908, 240910], upgrades.gems)
+        self.assertEqual(240892, upgrades.gem_alt)
+
+    def test_no_gem_alt_when_every_set_uses_the_same_secondaries(self) -> None:
+        gems = {"all": {"all": [{"pop": 30, "secondary": [240908]}, {"pop": 10, "secondary": [240908]}]}}
+        self.assertIsNone(select_loadout_upgrades(None, gems, "all", "RAID").gem_alt)
+        one = {"all": {"all": [{"pop": 30, "secondary": [240908]}]}}
+        self.assertIsNone(select_loadout_upgrades(None, one, "all", "RAID").gem_alt)
+
+    def test_enchant_alt_is_the_second_most_popular_different_enchant(self) -> None:
+        upgrades = select_loadout_upgrades(ENCHANTS, GEMS, "all", "RAID")
+        # Chosen Head enchant is 8017; 7991 is the runner-up. Main Hand has one entry only.
+        self.assertEqual({"HEAD": {"id": 7991}}, upgrades.enchant_alts)
+
+    def test_enchant_alt_skips_entries_with_the_chosen_id(self) -> None:
+        enchants = {"all": {"all": {"Head": [{"id": 5, "pop": 50}, {"id": 5, "pop": 40}, {"id": 6, "pop": 30}]}}}
+        self.assertEqual({"HEAD": {"id": 6}}, select_loadout_upgrades(enchants, None, "all", "RAID").enchant_alts)
+
+    def test_pvp_enchant_alt_is_translated_or_dropped(self) -> None:
+        enchants = {
+            "all": {
+                "all": {
+                    "Head": [
+                        {"id": 7961, "itemId": 243981, "spellId": 1236100, "pop": 50},
+                        {"id": 7962, "itemId": 243982, "spellId": 1236200, "pop": 40},
+                    ]
+                },
+                "pvp": {
+                    "Head": [{"id": 243981, "pop": 60}, {"id": 243982, "pop": 30}],
+                    "Chest": [{"id": 243981, "pop": 60}, {"id": 999999, "pop": 30}],
+                },
+            }
+        }
+        upgrades = select_loadout_upgrades(enchants, None, "hero", "PVP")
+        self.assertEqual({"id": 7962, "item_id": 243982, "spell_id": 1236200}, upgrades.enchant_alts["HEAD"])
+        self.assertNotIn("CHEST", upgrades.enchant_alts)
+
+    def test_alternatives_are_shown_on_bis_slots_but_never_simulated(self) -> None:
+        gems = {
+            "all": {
+                "all": [
+                    {"primary": 240983, "pop": 12.6, "secondary": [240908, 240910]},
+                    {"primary": 240983, "pop": 9.5, "secondary": [240892]},
+                ]
+            }
+        }
+        upgrades = select_loadout_upgrades(ENCHANTS, gems, "all", "RAID")
+        items = build_simc_items(UPGRADE_GEAR, upgrades)
+        for item in items.values():
+            self.assertNotIn(240892, item.get("gemIds", []))
+            self.assertNotIn(7991, item.get("enchantIds", []))
+        with patch("tools.classcodex_targets.run_simc", return_value=GOOD) as mock_run, \
+                redirect_stderr(io.StringIO()):
+            context = reconstruct_target_context(
+                SPEC_BY_KEY["DEATHKNIGHT_FROST"], "RAID", UPGRADE_GEAR, "X", upgrades=upgrades
+            )
+        profile = mock_run.call_args.args[1]
+        self.assertNotIn("240892", profile)
+        self.assertNotIn("7991", profile)
+        slots = {slot["slot"]: slot["item"] for slot in context["bis"]["slots"]}
+        self.assertEqual(
+            {
+                "item_id": 1,
+                "bonus_ids": [7],
+                "gem_ids": [240983, 240908, 240910],
+                "gem_alt_id": 240892,
+                "enchant": {"id": 8017, "item_id": 243981, "spell_id": 1236001},
+                "enchant_alt": {"id": 7991},
+            },
+            slots["Head"],
+        )
+        self.assertEqual({"item_id": 2, "gem_ids": [240983, 240908, 240910], "gem_alt_id": 240892}, slots["Neck"])
+        self.assertEqual({"item_id": 3}, slots["Trinket 1"])
+        self.assertNotIn("enchant_alt", slots["Main Hand"])
+
+    def test_alternatives_are_hidden_when_the_recommended_ones_were_dropped(self) -> None:
+        gems = {"all": {"all": [{"pop": 12, "secondary": [1]}, {"pop": 9, "secondary": [2]}]}}
+        upgrades = select_loadout_upgrades(ENCHANTS, gems, "all", "RAID")
+        errors = [RuntimeError("invalid gem_id"), RuntimeError("unknown enchant_id"), GOOD]
+        with patch("tools.classcodex_targets.run_simc", side_effect=errors), redirect_stderr(io.StringIO()):
+            context = reconstruct_target_context(
+                SPEC_BY_KEY["DEATHKNIGHT_FROST"], "RAID", UPGRADE_GEAR, "X", upgrades=upgrades
+            )
+        for slot in context["bis"]["slots"]:
+            self.assertNotIn("gem_alt_id", slot["item"])
+            self.assertNotIn("enchant_alt", slot["item"])
 
 
 if __name__ == "__main__":

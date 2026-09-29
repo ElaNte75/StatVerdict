@@ -167,10 +167,16 @@ class LoadoutUpgrades(NamedTuple):
 
     enchants: {SimC slot: {"id": SpellItemEnchantment id (SimC enchant_id),
     "item_id"?: enchant scroll item id, "spell_id"?: enchant spell id}}.
-    gems: gem item ids (SimC gem_id), primary gem first."""
+    gems: gem item ids (SimC gem_id), primary gem first.
+
+    enchant_alts / gem_alt: ONE alternative enchant per enchanted slot (same
+    shape as `enchants`) and one alternative secondary gem, shown next to the
+    recommended ones on the BiS slots. They are never simulated."""
 
     enchants: dict[str, dict[str, int]]
     gems: list[int]
+    enchant_alts: dict[str, dict[str, int]] = {}
+    gem_alt: int | None = None
 
 
 NO_UPGRADES = LoadoutUpgrades({}, [])
@@ -226,6 +232,7 @@ def select_loadout_upgrades(enchants_value: Any, gems_value: Any, hero_talent_ke
     "all" -- see select_goal_context). Unknown slots and entries without a
     numeric id are skipped."""
     enchants: dict[str, dict[str, int]] = {}
+    enchant_alts: dict[str, dict[str, int]] = {}
     scroll_map = _scroll_to_enchant(enchants_value)
     by_slot = select_goal_context(enchants_value, hero_talent_key, goal)
     if isinstance(by_slot, dict):
@@ -238,24 +245,22 @@ def select_loadout_upgrades(enchants_value: Any, gems_value: Any, hero_talent_ke
             if simc_slot is None or not candidates:
                 continue
             best = max(candidates, key=_pop)
-            enchant = {"id": _int_or_none(best["id"])}
-            for source_key, out_key in (("itemId", "item_id"), ("spellId", "spell_id")):
-                value = _int_or_none(best.get(source_key))
-                if value is not None:
-                    enchant[out_key] = value
-            if "item_id" not in enchant and "spell_id" not in enchant:
-                # In PvP lists a bare id is a scroll item id: translate it to
-                # the real enchant, or drop the enchant rather than ship a
-                # scroll id where an enchant id belongs (PvE bare ids are
-                # real enchant ids and stay as they are).
-                real = scroll_map.get(enchant["id"])
-                if real is not None:
-                    enchant = {"item_id": enchant["id"], **real}
-                elif goal == "PVP":
-                    continue
+            enchant = _shape_enchant(best, scroll_map, goal)
+            if enchant is None:
+                continue
             enchants[simc_slot] = enchant
+            # The alternative: the next most popular enchant with another
+            # (real) id; untranslatable PvP scrolls are skipped.
+            for entry in sorted(candidates, key=_pop, reverse=True):
+                if entry is best:
+                    continue
+                alt = _shape_enchant(entry, scroll_map, goal)
+                if alt is not None and alt["id"] != enchant["id"]:
+                    enchant_alts[simc_slot] = alt
+                    break
 
     gems: list[int] = []
+    gem_alt: int | None = None
     gem_sets = select_goal_context(gems_value, hero_talent_key, goal)
     candidates = [e for e in (gem_sets if isinstance(gem_sets, list) else []) if isinstance(e, dict)]
     if candidates:
@@ -263,12 +268,45 @@ def select_loadout_upgrades(enchants_value: Any, gems_value: Any, hero_talent_ke
         primary = _int_or_none(best.get("primary"))
         if primary is not None:
             gems.append(primary)
-        secondary = best.get("secondary")
-        for gem in secondary if isinstance(secondary, list) else []:
-            gem_id = _int_or_none(gem)
-            if gem_id is not None:
-                gems.append(gem_id)
-    return LoadoutUpgrades(enchants, gems)
+        chosen_secondary = _secondary_gems(best)
+        gems.extend(chosen_secondary)
+        # The alternative: the first secondary gem of the next most popular
+        # set whose first secondary differs from the chosen set's.
+        for entry in sorted(candidates, key=_pop, reverse=True):
+            if entry is best:
+                continue
+            secondary = _secondary_gems(entry)
+            if secondary and secondary[0] not in chosen_secondary:
+                gem_alt = secondary[0]
+                break
+    return LoadoutUpgrades(enchants, gems, enchant_alts, gem_alt)
+
+
+def _secondary_gems(gem_set: dict[str, Any]) -> list[int]:
+    secondary = gem_set.get("secondary")
+    ids = [_int_or_none(gem) for gem in (secondary if isinstance(secondary, list) else [])]
+    return [gem_id for gem_id in ids if gem_id is not None]
+
+
+def _shape_enchant(entry: dict[str, Any], scroll_map: dict[int, dict[str, int]], goal: str) -> dict[str, int] | None:
+    """One u.gg enchant entry as {"id", "item_id"?, "spell_id"?}, or None
+    when it cannot be used."""
+    enchant = {"id": _int_or_none(entry["id"])}
+    for source_key, out_key in (("itemId", "item_id"), ("spellId", "spell_id")):
+        value = _int_or_none(entry.get(source_key))
+        if value is not None:
+            enchant[out_key] = value
+    if "item_id" not in enchant and "spell_id" not in enchant:
+        # In PvP lists a bare id is a scroll item id: translate it to
+        # the real enchant, or drop the enchant rather than ship a
+        # scroll id where an enchant id belongs (PvE bare ids are
+        # real enchant ids and stay as they are).
+        real = scroll_map.get(enchant["id"])
+        if real is not None:
+            enchant = {"item_id": enchant["id"], **real}
+        elif goal == "PVP":
+            return None
+    return enchant
 
 
 def loadout_upgrades_for(fields: dict[str, Any], hero_talent_key: str, goal: str) -> LoadoutUpgrades:
@@ -674,7 +712,8 @@ def reconstruct_target_context(
     # neither counted nor shown.
     gems_applied = "gems dropped" not in recovery
     enchants_applied = "enchants dropped" not in recovery
-    upgrade_enchants = (upgrades or NO_UPGRADES).enchants
+    upgrades = upgrades or NO_UPGRADES
+    upgrade_enchants = upgrades.enchants
     bis_slots: list[dict[str, Any]] = []
     gem_count = 0
     enchant_count = 0
@@ -684,12 +723,18 @@ def reconstruct_target_context(
         if bonus_ids is not None:
             item["bonus_ids"] = bonus_ids
         simulated = items[simc_slot]
+        # The alternatives (never simulated) only sit next to a recommended
+        # gem/enchant that really was simulated.
         if gems_applied and simulated.get("gemIds"):
             item["gem_ids"] = list(simulated["gemIds"])
             gem_count += 1
+            if upgrades.gem_alt is not None:
+                item["gem_alt_id"] = upgrades.gem_alt
         if enchants_applied and simulated.get("enchantIds"):
             item["enchant"] = dict(upgrade_enchants[simc_slot])
             enchant_count += 1
+            if simc_slot in upgrades.enchant_alts:
+                item["enchant_alt"] = dict(upgrades.enchant_alts[simc_slot])
         bis_slots.append({"slot": entry["slot"], "item": item})
     # averageItemLevel only averages entries that carry an ilvl, so
     # itemLevelSlots counts exactly those (0 for real PvP gear, which has none).
