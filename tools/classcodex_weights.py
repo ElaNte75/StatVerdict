@@ -241,6 +241,17 @@ def build_all_weights(
             for hero_talent_key in hero_talent_keys:
                 gear_list = select_goal_context(gear_value, hero_talent_key, goal)
                 talent_loadout = talent_exports_from_entries(select_goal_context(talents_value, hero_talent_key, goal))
+                if not talent_loadout:
+                    # Same rule as the targets pipeline: ClassCodex has no
+                    # build for this goal/hero tree, borrow the same tree's
+                    # build from another goal (its stat effects are small).
+                    for other_goal in goals:
+                        borrowed = talent_exports_from_entries(
+                            select_goal_context(talents_value, hero_talent_key, other_goal)
+                        )
+                        if borrowed:
+                            talent_loadout = borrowed
+                            break
                 try:
                     weights = compute_weight_context(spec, gear_list, talent_loadout, simc_binary)
                 except ComboSkipped as skip:

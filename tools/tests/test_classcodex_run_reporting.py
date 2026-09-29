@@ -92,6 +92,15 @@ class SkipRecordingTests(unittest.TestCase):
             SkipRecord("DEATHKNIGHT_FROST", "MYTHIC_PLUS", "deathbringer", "negative dps scale factor (noise)"), skips
         )
 
+    def test_build_all_weights_borrows_talents_from_another_goal(self) -> None:
+        by_stat = {"Crit": 1.0, "Haste": 0.5, "Mastery": 0.4, "Vers": 0.2}
+        report = {"sim": {"players": [{"name": "sv_0001", "scale_factors_all": {"dps": by_stat}}]}}
+        skips: list[SkipRecord] = []
+        with patch("tools.classcodex_weights.run_simc", return_value=({}, report)):
+            data = build_all_weights(SPECS, Path("simc"), goals=("MYTHIC_PLUS", "RAID"), skips=skips)
+        self.assertIn("RAID", data["profiles"]["DEATHKNIGHT_FROST"]["goals"])
+        self.assertEqual([], [skip for skip in skips if skip.spec_key == "DEATHKNIGHT_FROST"])
+
     def test_skip_argument_is_optional(self) -> None:
         with patch("tools.classcodex_targets.run_simc", side_effect=RuntimeError("boom")):
             self.assertEqual({}, build_all(SPECS, Path("simc"))["profiles"])
