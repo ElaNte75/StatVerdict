@@ -381,7 +381,6 @@ function Panel.Apply(frame)
     if not frame then return end
     if not Panel.IsOpen() then
         if frame.weightsDrawerCard then frame.weightsDrawerCard:Hide() end
-        if ns.UnregisterDevLayoutRegion then ns.UnregisterDevLayoutRegion("benchmark.card") end
         return
     end
 

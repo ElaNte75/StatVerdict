@@ -464,24 +464,8 @@ function ns.PlaceMsOsTitleChip(parent, _layoutPrefixIgnored, panelKind)
     HideInactiveTitleHandles(parent, layoutPrefix)
 
     if ns.UnregisterDevLayoutRegion then
-        ns.UnregisterDevLayoutRegion(layoutPrefix .. ".msTab")
-        ns.UnregisterDevLayoutRegion(layoutPrefix .. ".osTab")
-        ns.UnregisterDevLayoutRegion(layoutPrefix .. ".viewToggle")
-        ns.UnregisterDevLayoutRegion(layoutPrefix .. ".viewToggle.width")
         -- Drop shared key so it cannot steal hits from per-panel keys.
-        ns.UnregisterDevLayoutRegion("bisTrinkets.title")
-        ns.UnregisterDevLayoutRegion("bisTrinkets.title.width")
-        ns.UnregisterDevLayoutRegion("bisTrinkets.title.height")
         -- On the shared BiS card, only the active mode's title is registered.
-        if layoutPrefix == "bis" then
-            ns.UnregisterDevLayoutRegion("trinkets.title")
-            ns.UnregisterDevLayoutRegion("trinkets.title.width")
-            ns.UnregisterDevLayoutRegion("trinkets.title.height")
-        elseif layoutPrefix == "trinkets" then
-            ns.UnregisterDevLayoutRegion("bis.title")
-            ns.UnregisterDevLayoutRegion("bis.title.width")
-            ns.UnregisterDevLayoutRegion("bis.title.height")
-        end
     end
     local label = "Panel title"
     if layoutPrefix == "bis" then
@@ -489,35 +473,8 @@ function ns.PlaceMsOsTitleChip(parent, _layoutPrefixIgnored, panelKind)
     elseif layoutPrefix == "trinkets" then
         label = "Ranked Trinkets title (Main/Off Spec)"
     end
-    if ns.RegisterDevLayoutRegion then
-        ns.RegisterDevLayoutRegion(layoutPrefix .. ".title", label, toggle, {
-            axis = "xy",
-            padding = 0,
-            group = "controls",
-            protect = true,
-            exactHit = true,
-            alwaysCapture = true,
-        })
-    end
 
     -- Outer pad (Move / Size / Padding) replaces the legacy width/height nubs.
-    if ns.RegisterDevLayoutOuterSpec then
-        ns.RegisterDevLayoutOuterSpec(layoutPrefix .. ".title", {
-            label = label,
-            moveKey = layoutPrefix .. ".title",
-            widthKey = layoutPrefix .. ".title.width",
-            heightKey = layoutPrefix .. ".title.height",
-            padKey = layoutPrefix .. ".title.pad",
-            baseW = chipBaseW,
-            baseH = chipBaseH,
-            sharedFrameHeight = false,
-            lockKey = layoutPrefix .. ".title.locked",
-        })
-    end
-    if ns.UnregisterDevLayoutRegion then
-        ns.UnregisterDevLayoutRegion(layoutPrefix .. ".title.width")
-        ns.UnregisterDevLayoutRegion(layoutPrefix .. ".title.height")
-    end
     HideInactiveTitleHandles(parent, "__none__")
 end
 
@@ -582,31 +539,5 @@ function ns.ApplyRightDrawerCardDev(card, key, label, widthKey, baseW)
     elseif card.SetBackdropBorderColor then
         card:SetBackdropBorderColor(0.72, 0.74, 0.78, 0.86)
     end
-    if ns.RegisterDevLayoutOuterSpec then
-        ns.RegisterDevLayoutOuterSpec(key, {
-            label = label,
-            moveKey = "right.card",
-            moveAxis = "x",
-            widthKey = widthKey,
-            padKey = key .. ".pad",
-            baseW = baseW,
-            sharedFrameHeight = false,
-            lockKey = key .. ".locked",
-        })
-    end
-    if ns.RegisterDevLayoutRegion then
-        ns.RegisterDevLayoutRegion(key, label, card, {
-            axis = "x",
-            padding = 0,
-            group = "panels",
-            protect = true,
-            exactHit = true,
-            alwaysCapture = true,
-            nudgeKey = "right.card",
-        })
-    end
     -- The whole-card region replaces the legacy shared "right.card" strip.
-    if ns.UnregisterDevLayoutRegion then
-        ns.UnregisterDevLayoutRegion("right.card")
-    end
 end

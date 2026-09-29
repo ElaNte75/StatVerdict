@@ -18,29 +18,10 @@ local function HeightDelta(key)
     return 0
 end
 
-local function Register(key, label, region, options)
-    if ns.RegisterDevLayoutRegion then ns.RegisterDevLayoutRegion(key, label, region, options) end
-end
 
 local function Padding(key)
     if ns.GetDevLayoutPadding then return ns.GetDevLayoutPadding(key) end
     return { top = 0, bottom = 0, left = 0, right = 0 }
-end
-
-local function RegisterPanel2Outer(key, label, baseW, baseH)
-    if not ns.RegisterDevLayoutOuterSpec then return end
-    ns.RegisterDevLayoutOuterSpec(key, {
-        label = label,
-        moveKey = key,
-        widthKey = key .. ".width",
-        heightKey = key .. ".height",
-        padKey = key .. ".pad",
-        baseW = baseW,
-        baseH = baseH,
-        sharedFrameHeight = false,
-        lockKey = key .. ".locked",
-        lockParent = "stats.card",
-    })
 end
 
 local function EnsureScreenBadge(screen, text)
@@ -687,19 +668,6 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
             if edge and edge.Hide then edge:Hide() end
         end
     end
-    if ns.UnregisterDevLayoutRegion then
-        ns.UnregisterDevLayoutRegion("stats.card.rim.top")
-        ns.UnregisterDevLayoutRegion("stats.card.rim.right")
-        ns.UnregisterDevLayoutRegion("stats.card.rim.bottom")
-    end
-    Register("stats.card", "Panel 2 — Stat Progress", card, {
-        axis = "xy",
-        padding = 0,
-        group = "panels",
-        protect = true,
-        exactHit = true,
-        alwaysCapture = true,
-    })
     -- Panel chrome border is always visible (not AdvDev-only).
     if ns.UnregisterDevLayoutBorderEditOnly then
         ns.UnregisterDevLayoutBorderEditOnly(card, 0.72, 0.74, 0.78, 0.86)
@@ -715,17 +683,10 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
     if frame._svTitleBoxes and frame._svTitleBoxes["stats.cardTitle"] then
         frame._svTitleBoxes["stats.cardTitle"]:Hide()
     end
-    if ns.UnregisterDevLayoutRegion then
-        ns.UnregisterDevLayoutRegion("stats.cardTitle")
-    end
 
     -- Size/move are pad-only now — no floating width/height nubs on this card.
     if frame.devStatsWidthRegion then
         frame.devStatsWidthRegion:Hide()
-    end
-    if ns.UnregisterDevLayoutRegion then
-        ns.UnregisterDevLayoutRegion("stats.width")
-        ns.UnregisterDevLayoutRegion("stats.height")
     end
 
     -- Character Summary moved to the right-side Summary drawer.
@@ -777,21 +738,9 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
             frame.subtitle:SetNonSpaceWrap(false)
         end
         Panel.FitSpecTitle(frame)
-        RegisterPanel2Outer("stats.specTitle", "Main Spec title", 490, 18)
-        Register("stats.specTitle", "Main Spec title", titleBox, {
-            axis = "xy",
-            padding = 0,
-            group = "controls",
-            protect = true,
-            exactHit = true,
-            alwaysCapture = true,
-        })
 
         -- Outer pad owns Size W — hide legacy width nub.
         if frame.devSpecTitleWidthRegion then frame.devSpecTitleWidthRegion:Hide() end
-        if ns.UnregisterDevLayoutRegion then
-            ns.UnregisterDevLayoutRegion("stats.specTitle.width")
-        end
     end
     if frame.secondarySubtitle then
         frame.secondarySubtitle:SetJustifyH("LEFT")
@@ -884,34 +833,7 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
     )
     mainHost:SetSize(mainHostVisW, mainHostVisH)
     mainHost:Show()
-    if ns.RegisterDevLayoutOuterSpec then
-        ns.RegisterDevLayoutOuterSpec(msKey, {
-            label = "MS stats",
-            moveKey = msKey,
-            widthKey = msKey .. ".width",
-            heightKey = msKey .. ".height",
-            padKey = msKey .. ".pad",
-            baseW = msBaseW,
-            baseH = msBaseH,
-            sharedFrameHeight = false,
-            lockKey = msKey .. ".locked",
-            lockParent = "screen.1",
-        })
-    end
-    Register(msKey, "MS stats", mainHost, {
-        axis = "xy",
-        padding = 0,
-        group = "controls",
-        protect = true,
-        exactHit = true,
-        alwaysCapture = true,
-    })
     -- Drop the old independent Panel-2 content host key.
-    if ns.UnregisterDevLayoutRegion then
-        ns.UnregisterDevLayoutRegion("stats.mainContent")
-        ns.UnregisterDevLayoutRegion("stats.mainContent.width")
-        ns.UnregisterDevLayoutRegion("stats.mainContent.height")
-    end
 
     local tableH = mainHostVisH
     local fixedRows = math.max(1, math.floor((tableH - 34) / rowHeight))
@@ -922,14 +844,6 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
     -- Edit-only: "screen 1" badge (Lock/Unlock is on the AdvDev pad only).
     EnsureScreenBadge(mainScreen, "screen 1")
 
-    Register("screen.1", "Screen 1", mainScreen, {
-        axis = "xy",
-        padding = 0,
-        group = "panels",
-        protect = true,
-        exactHit = true,
-        alwaysCapture = true,
-    })
 
     -- Average Progress: child of MS stats (moves with Screen 1 → MS stats).
     if frame.avgProgressText then
@@ -966,41 +880,12 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
         if frame.svMainSpecMissingMessage == true or frame.svMainSpecEmptyHint == true then
             avgBox:Hide()
             frame.avgProgressText:Hide()
-            if ns.UnregisterDevLayoutRegion then
-                ns.UnregisterDevLayoutRegion(avgKey)
-                ns.UnregisterDevLayoutRegion("stats.average")
-            end
             if frame._svTitleBoxes and frame._svTitleBoxes["stats.average"] then
                 frame._svTitleBoxes["stats.average"]:Hide()
             end
         else
             avgBox:Show()
             frame.avgProgressText:Show()
-            if ns.RegisterDevLayoutOuterSpec then
-                ns.RegisterDevLayoutOuterSpec(avgKey, {
-                    label = "Average Progress",
-                    moveKey = avgKey,
-                    widthKey = avgKey .. ".width",
-                    heightKey = avgKey .. ".height",
-                    padKey = avgKey .. ".pad",
-                    baseW = 160,
-                    baseH = 16,
-                    sharedFrameHeight = false,
-                    lockKey = avgKey .. ".locked",
-                    lockParent = "screen.1.msStats",
-                })
-            end
-            Register(avgKey, "Average Progress", avgBox, {
-                axis = "xy",
-                padding = 0,
-                group = "controls",
-                protect = true,
-                exactHit = true,
-                alwaysCapture = true,
-            })
-            if ns.UnregisterDevLayoutRegion then
-                ns.UnregisterDevLayoutRegion("stats.average")
-            end
             if frame._svTitleBoxes and frame._svTitleBoxes["stats.average"] then
                 frame._svTitleBoxes["stats.average"]:Hide()
             end
@@ -1124,10 +1009,6 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
     end
 
     EnsureOffSpecEmptyHint(frame)
-    if ns.UnregisterDevLayoutRegion then
-        ns.UnregisterDevLayoutRegion("stats.offSpecHint")
-        ns.UnregisterDevLayoutRegion("stats.offTable")
-    end
     if frame._svDevStripRegions and frame._svDevStripRegions["stats.offTable"] then
         frame._svDevStripRegions["stats.offTable"]:Hide()
     end
@@ -1176,20 +1057,8 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
         frame.secondarySubtitle:Show()
         Panel.FitOffSpecTitle(frame)
 
-        RegisterPanel2Outer("stats.offSpecTitle", "Off Spec title", 490, 18)
-        Register("stats.offSpecTitle", "Off Spec title", offTitleBox, {
-            axis = "xy",
-            padding = 0,
-            group = "controls",
-            protect = true,
-            exactHit = true,
-            alwaysCapture = true,
-        })
 
         if frame.devOffSpecTitleWidthRegion then frame.devOffSpecTitleWidthRegion:Hide() end
-        if ns.UnregisterDevLayoutRegion then
-            ns.UnregisterDevLayoutRegion("stats.offSpecTitle.width")
-        end
     end
 
     offScreen:ClearAllPoints()
@@ -1198,14 +1067,6 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
     offScreen:Show()
 
     EnsureScreenBadge(offScreen, "screen 2")
-    Register("screen.2", "Screen 2", offScreen, {
-        axis = "xy",
-        padding = 0,
-        group = "panels",
-        protect = true,
-        exactHit = true,
-        alwaysCapture = true,
-    })
 
     -- OS stats: child of Screen 2 (mirrors MS stats under Screen 1).
     local offHost = EnsureOSStatsBox(frame, offScreen)
@@ -1236,37 +1097,8 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
     -- When empty-hint box 1 fills Screen 2, hide OS stats so it does not float beside it.
     if showEmptyHint then
         offHost:Hide()
-        if ns.UnregisterDevLayoutRegion then
-            ns.UnregisterDevLayoutRegion(osKey)
-            ns.UnregisterDevLayoutRegion("stats.offContent")
-        end
     else
         offHost:Show()
-        if ns.RegisterDevLayoutOuterSpec then
-            ns.RegisterDevLayoutOuterSpec(osKey, {
-                label = "OS stats",
-                moveKey = osKey,
-                widthKey = osKey .. ".width",
-                heightKey = osKey .. ".height",
-                padKey = osKey .. ".pad",
-                baseW = osBaseW,
-                baseH = osBaseH,
-                sharedFrameHeight = false,
-                lockKey = osKey .. ".locked",
-                lockParent = "screen.2",
-            })
-        end
-        Register(osKey, "OS stats", offHost, {
-            axis = "xy",
-            padding = 0,
-            group = "controls",
-            protect = true,
-            exactHit = true,
-            alwaysCapture = true,
-        })
-        if ns.UnregisterDevLayoutRegion then
-            ns.UnregisterDevLayoutRegion("stats.offContent")
-        end
     end
 
     -- Off Spec Average Progress: child of OS stats.
@@ -1304,31 +1136,6 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
             frame.offAvgProgressText:SetWidth(avgVisW)
             offAvgBox:Show()
             frame.offAvgProgressText:Show()
-            if ns.RegisterDevLayoutOuterSpec then
-                ns.RegisterDevLayoutOuterSpec(avgKey, {
-                    label = "OS Average Progress",
-                    moveKey = avgKey,
-                    widthKey = avgKey .. ".width",
-                    heightKey = avgKey .. ".height",
-                    padKey = avgKey .. ".pad",
-                    baseW = 160,
-                    baseH = 16,
-                    sharedFrameHeight = false,
-                    lockKey = avgKey .. ".locked",
-                    lockParent = "screen.2.osStats",
-                })
-            end
-            Register(avgKey, "OS Average Progress", offAvgBox, {
-                axis = "xy",
-                padding = 0,
-                group = "controls",
-                protect = true,
-                exactHit = true,
-                alwaysCapture = true,
-            })
-            if ns.UnregisterDevLayoutRegion then
-                ns.UnregisterDevLayoutRegion("stats.offAverage")
-            end
             if frame._svTitleBoxes and frame._svTitleBoxes["stats.offAverage"] then
                 frame._svTitleBoxes["stats.offAverage"]:Hide()
             end
@@ -1340,10 +1147,6 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
                 frame._svTitleBoxes["stats.offAverage"]:Hide()
             end
             frame.offAvgProgressText:Hide()
-            if ns.UnregisterDevLayoutRegion then
-                ns.UnregisterDevLayoutRegion("screen.2.osStats.average")
-                ns.UnregisterDevLayoutRegion("stats.offAverage")
-            end
         end
     end
 
@@ -1387,9 +1190,6 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
         if frame.svOSCardTextbox1 then
             HideOffSpecEmptyHintContent(frame.svOSCardTextbox1)
             frame.svOSCardTextbox1:Hide()
-            if ns.UnregisterDevLayoutRegion then
-                ns.UnregisterDevLayoutRegion("screen.2.box.1")
-            end
         end
         if ns.LayoutOffSpecMissingSnapshotUI then
             ns.LayoutOffSpecMissingSnapshotUI(frame)
@@ -1423,37 +1223,12 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
         osBox:Show()
         EnsureOffSpecEmptyHintContent(osBox)
         LayoutOffSpecEmptyHintContent(osBox)
-        if ns.RegisterDevLayoutOuterSpec then
-            ns.RegisterDevLayoutOuterSpec("screen.2.box.1", {
-                label = "OS card textbox",
-                moveKey = "screen.2.box.1",
-                widthKey = "screen.2.box.1.width",
-                heightKey = "screen.2.box.1.height",
-                padKey = "screen.2.box.1.pad",
-                baseW = math.max(80, offVisW - 8),
-                baseH = math.max(40, offVisH - 8),
-                sharedFrameHeight = false,
-                lockKey = "screen.2.box.1.locked",
-                lockParent = "screen.2",
-            })
-        end
-        Register("screen.2.box.1", "OS card textbox", osBox, {
-            axis = "xy",
-            padding = 0,
-            group = "controls",
-            protect = true,
-            exactHit = true,
-            alwaysCapture = true,
-        })
     else
         HideOffSpecEmptyHintContent(offHost)
         HideOffSpecEmptyHintContent(offScreen)
         if frame.svOSCardTextbox1 then
             HideOffSpecEmptyHintContent(frame.svOSCardTextbox1)
             frame.svOSCardTextbox1:Hide()
-            if ns.UnregisterDevLayoutRegion then
-                ns.UnregisterDevLayoutRegion("screen.2.box.1")
-            end
         end
         if not missingMsg then
             if frame.offMissingSnapshotText then frame.offMissingSnapshotText:Hide() end

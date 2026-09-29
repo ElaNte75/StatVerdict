@@ -27,9 +27,6 @@ local function Padding(key)
     return { top = 0, bottom = 0, left = 0, right = 0 }
 end
 
-local function Register(key, label, region, options)
-    if ns.RegisterDevLayoutRegion then ns.RegisterDevLayoutRegion(key, label, region, options) end
-end
 
 local function IsLocked(key)
     return ns.IsDevLayoutScreenLocked and ns.IsDevLayoutScreenLocked(key)
@@ -48,22 +45,6 @@ local function RelTopLeft(child, parent)
     local ps = parent:GetEffectiveScale() or 1
     if ps == 0 then ps = 1 end
     return (cl * cs - pl * ps) / ps, (ct * cs - pt * ps) / ps
-end
-
-local function RegisterOuterSpec(key, label, baseW, baseH)
-    if not ns.RegisterDevLayoutOuterSpec then return end
-    ns.RegisterDevLayoutOuterSpec(key, {
-        label = label,
-        moveKey = key,
-        widthKey = key .. ".width",
-        heightKey = key .. ".height",
-        padKey = key .. ".pad",
-        baseW = baseW,
-        baseH = baseH,
-        sharedFrameHeight = false,
-        lockKey = key .. ".locked",
-        lockParent = "setup.card",
-    })
 end
 
 -- Place a Panel 1 child with the shared AdvDev pad (Move / Size / Padding).
@@ -150,15 +131,6 @@ local function PlaceSetupChild(frame, card, region, spec)
                 end
                 region:SetFrameLevel((card:GetFrameLevel() or 1) + (spec.levelBoost or 6))
                 region:Show()
-                RegisterOuterSpec(key, spec.label or key, baseW, baseH)
-                Register(key, spec.label or key, region, {
-                    axis = "xy",
-                    padding = 0,
-                    group = "controls",
-                    protect = true,
-                    exactHit = true,
-                    alwaysCapture = true,
-                })
                 if ns.EnsureDevLayoutLockButton then
                     ns.EnsureDevLayoutLockButton(region, key)
                 end
@@ -195,15 +167,6 @@ local function PlaceSetupChild(frame, card, region, spec)
     region:SetFrameLevel((card:GetFrameLevel() or 1) + (spec.levelBoost or 6))
     region:Show()
 
-    RegisterOuterSpec(key, spec.label or key, baseW, baseH)
-    Register(key, spec.label or key, region, {
-        axis = "xy",
-        padding = 0,
-        group = "controls",
-        protect = true,
-        exactHit = true,
-        alwaysCapture = true,
-    })
     if ns.EnsureDevLayoutLockButton then
         ns.EnsureDevLayoutLockButton(region, key)
     end
@@ -518,18 +481,6 @@ function Panel.Apply(frame, controls)
     end
     if frame.devSetupWidthRegion then frame.devSetupWidthRegion:Hide() end
     if frame.devSetupHeightRegion then frame.devSetupHeightRegion:Hide() end
-    if ns.UnregisterDevLayoutRegion then
-        ns.UnregisterDevLayoutRegion("setup.width")
-        ns.UnregisterDevLayoutRegion("setup.height")
-    end
-    Register("setup.card", "Panel 1 — Setup", card, {
-        axis = "xy",
-        padding = 0,
-        group = "panels",
-        protect = true,
-        exactHit = true,
-        alwaysCapture = true,
-    })
     -- Panel chrome border is always visible (not AdvDev-only).
     if ns.UnregisterDevLayoutBorderEditOnly then
         ns.UnregisterDevLayoutBorderEditOnly(card, 0.72, 0.74, 0.78, 0.86)

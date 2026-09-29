@@ -2467,9 +2467,6 @@ local function HideOffSpecEmptyHint(frame)
     end
     HideEmptyOn(frame.offStatProgressTableCard)
     HideEmptyOn(frame.svOffStatContentHost)
-    if ns.UnregisterDevLayoutRegion then
-        ns.UnregisterDevLayoutRegion("stats.offSpecHint")
-    end
 end
 
 local function HideOffSpecTable(frame)
@@ -2506,10 +2503,6 @@ local function HideOffSpecTable(frame)
     if frame.offMissingSnapshotOK then frame.offMissingSnapshotOK:Hide() end
     if frame.offMissingSnapshotRespec then frame.offMissingSnapshotRespec:Hide() end
     HideOffSpecEmptyHint(frame)
-    if ns.UnregisterDevLayoutRegion then
-        ns.UnregisterDevLayoutRegion("stats.offAverage")
-        ns.UnregisterDevLayoutRegion("stats.offSpecHint")
-    end
 end
 
 local function HideMissingSnapshotButtons(frame)

@@ -37,9 +37,6 @@ local function Padding(key)
     return { top = 0, bottom = 0, left = 0, right = 0 }
 end
 
-local function Register(key, label, region, options)
-    if ns.RegisterDevLayoutRegion then ns.RegisterDevLayoutRegion(key, label, region, options) end
-end
 
 local function Clamp(value, minValue, maxValue)
     value = tonumber(value) or 0
@@ -89,28 +86,7 @@ local function PlaceFeaturesTitle(card, fontString, layoutKey, label, defaultX, 
         local visH = math.max(10, logicalH - (pad.top or 0) - (pad.bottom or 0))
         hit:SetSize(visW, visH)
     end
-    if ns.RegisterDevLayoutOuterSpec then
-        ns.RegisterDevLayoutOuterSpec(layoutKey, {
-            label = label,
-            moveKey = layoutKey,
-            widthKey = layoutKey .. ".width",
-            heightKey = layoutKey .. ".height",
-            padKey = layoutKey .. ".pad",
-            baseW = baseW,
-            baseH = baseH,
-            sharedFrameHeight = false,
-            lockKey = layoutKey .. ".locked",
-        })
-    end
     if hit then
-        Register(layoutKey, label, hit, {
-            axis = "xy",
-            padding = 0,
-            group = "controls",
-            protect = true,
-            exactHit = true,
-            alwaysCapture = true,
-        })
     end
 end
 
@@ -149,27 +125,6 @@ local function PlaceBagChecksBlock(card, block, layoutKey, label, defaultX, defa
             block:SetBackdropColor(0, 0, 0, 0)
         end
     end
-    if ns.RegisterDevLayoutOuterSpec then
-        ns.RegisterDevLayoutOuterSpec(layoutKey, {
-            label = label,
-            moveKey = layoutKey,
-            widthKey = layoutKey .. ".width",
-            heightKey = layoutKey .. ".height",
-            padKey = layoutKey .. ".pad",
-            baseW = baseW,
-            baseH = baseH,
-            sharedFrameHeight = false,
-            lockKey = layoutKey .. ".locked",
-        })
-    end
-    Register(layoutKey, label, block, {
-        axis = "xy",
-        padding = 0,
-        group = "controls",
-        protect = true,
-        exactHit = true,
-        alwaysCapture = true,
-    })
     return visW
 end
 
@@ -334,11 +289,6 @@ local function HideLegacyTitleFontUi(card)
     if card.titleFontValue then card.titleFontValue:Hide() end
     if card.titleFontMinus then card.titleFontMinus:Hide() end
     if card.titleFontPlus then card.titleFontPlus:Hide() end
-    if ns.UnregisterDevLayoutRegion then
-        ns.UnregisterDevLayoutRegion("options.displayTitle")
-        ns.UnregisterDevLayoutRegion("options.titleFont")
-        ns.UnregisterDevLayoutRegion("options.showBagIndicators")
-    end
 end
 
 local function EnsureBagChecksBlock(card, field)
@@ -359,19 +309,6 @@ local function EnsureBagChecksBlock(card, field)
     block:SetBackdropBorderColor(0, 0, 0, 0)
     card[field] = block
     return block
-end
-
-local function UnregisterFeaturesInnerDev()
-    if not ns.UnregisterDevLayoutRegion then return end
-    ns.UnregisterDevLayoutRegion("options.title")
-    ns.UnregisterDevLayoutRegion("options.bagMarkersTitle")
-    ns.UnregisterDevLayoutRegion("options.bagChecks")
-    ns.UnregisterDevLayoutRegion("options.showBagIndicators")
-    for _, option in ipairs(BAG_INDICATOR_OPTIONS) do
-        ns.UnregisterDevLayoutRegion("options." .. option.key)
-    end
-    ns.UnregisterDevLayoutRegion("options.bisTooltipTitle")
-    ns.UnregisterDevLayoutRegion("options.bisTooltipChecks")
 end
 
 local function EnsureCard(frame)
@@ -445,8 +382,6 @@ function Panel.Apply(frame)
     if not Panel.IsOpen() then
         if frame.optionsDrawerCard then frame.optionsDrawerCard:Hide() end
         if frame.devOptionsWidthRegion then frame.devOptionsWidthRegion:Hide() end
-        if ns.UnregisterDevLayoutRegion then ns.UnregisterDevLayoutRegion("options.card") end
-        UnregisterFeaturesInnerDev()
         return
     end
 
@@ -488,9 +423,6 @@ function Panel.Apply(frame)
     if frame.devOptionsWidthRegion then
         frame.devOptionsWidthRegion:Hide()
     end
-    if ns.UnregisterDevLayoutRegion then
-        ns.UnregisterDevLayoutRegion("options.width")
-    end
 
     PlaceFeaturesTitle(card, card.title, "options.title", "Features title", CONTENT_MARGIN, -12)
     PlaceFeaturesTitle(card, card.bagMarkersTitle, "options.bagMarkersTitle", "Bag Markers title", CONTENT_MARGIN, -40)
@@ -523,12 +455,6 @@ function Panel.Apply(frame)
         blockBaseW, blockBaseH) or blockBaseW
 
     -- Per-checkbox AdvDev keys retired — the group owns Move / Size / Padding.
-    if ns.UnregisterDevLayoutRegion then
-        ns.UnregisterDevLayoutRegion("options.showBagIndicators")
-        for _, option in ipairs(BAG_INDICATOR_OPTIONS) do
-            ns.UnregisterDevLayoutRegion("options." .. option.key)
-        end
-    end
 
     for index, option in ipairs(BAG_INDICATOR_OPTIONS) do
         local check = EnsureOptionCheckbox(card, option, block)

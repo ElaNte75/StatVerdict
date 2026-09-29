@@ -1081,9 +1081,6 @@ local function LayoutContentHost(card)
     if not host then return end
 
     -- Content host is not an AdvDev target — orphan cyan boxes over the list.
-    if ns.UnregisterDevLayoutRegion then
-        ns.UnregisterDevLayoutRegion("bisTrinkets.content")
-    end
     if ns.UnregisterDevLayoutBorderEditOnly then
         ns.UnregisterDevLayoutBorderEditOnly(host, 0, 0, 0, 0)
     elseif host.SetBackdropBorderColor then
@@ -1252,9 +1249,6 @@ function Panel.Apply(frame)
         end
         ns.ApplyRightDrawerCardDev(card, cardKey, cardLabel, widthKey, baseW)
     end
-    if ns.UnregisterDevLayoutRegion then
-        ns.UnregisterDevLayoutRegion(showTrinkets and "bis.card" or "trinkets.card")
-    end
 
     LayoutContentHost(card)
 
@@ -1269,19 +1263,8 @@ function Panel.Apply(frame)
     if frame.devBisTrinketsGroupRegion then
         frame.devBisTrinketsGroupRegion:Hide()
     end
-    if ns.UnregisterDevLayoutRegion then
-        ns.UnregisterDevLayoutRegion("bisTrinkets.width")
-        ns.UnregisterDevLayoutRegion("bisTrinkets.group")
-        ns.UnregisterDevLayoutRegion("bisTrinkets.content")
-        ns.UnregisterDevLayoutRegion("bis.width")
-        ns.UnregisterDevLayoutRegion("trinkets.width")
-    end
     if card.titleHit then
         card.titleHit:Hide()
-        if ns.UnregisterDevLayoutRegion then
-            ns.UnregisterDevLayoutRegion("bis.titleHit")
-            ns.UnregisterDevLayoutRegion("trinkets.titleHit")
-        end
     end
 end
 

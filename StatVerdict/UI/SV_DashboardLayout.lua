@@ -39,9 +39,6 @@ local function Offset(key)
     return 0, 0
 end
 
-local function Register(key, label, region, options)
-    if ns.RegisterDevLayoutRegion then ns.RegisterDevLayoutRegion(key, label, region, options) end
-end
 
 local function SizeDelta(key)
     if ns.GetDevLayoutSizeDelta then return ns.GetDevLayoutSizeDelta(key) end
@@ -534,31 +531,7 @@ function Layout.Apply(frame, usedRows, controls)
         if frame.manualDrawerCard then frame.manualDrawerCard:Hide() end
         if frame.devManualWidthRegion then frame.devManualWidthRegion:Hide() end
         if frame.weightsDrawerCard then frame.weightsDrawerCard:Hide() end
-        if ns.UnregisterDevLayoutRegion and not showWeights then
-            ns.UnregisterDevLayoutRegion("benchmark.card")
-        end
         -- Drop orphan AdvDev targets from inactive drawers so cyan ghosts cannot linger.
-        if ns.UnregisterDevLayoutRegion then
-            if not showOptions then
-                ns.UnregisterDevLayoutRegion("options.card")
-                ns.UnregisterDevLayoutRegion("options.title")
-                ns.UnregisterDevLayoutRegion("options.bagMarkersTitle")
-                ns.UnregisterDevLayoutRegion("options.bagChecks")
-                ns.UnregisterDevLayoutRegion("options.bisTooltipTitle")
-                ns.UnregisterDevLayoutRegion("options.bisTooltipChecks")
-            end
-            if not showManual then
-                ns.UnregisterDevLayoutRegion("manual.card")
-                ns.UnregisterDevLayoutRegion("manual.title")
-            end
-            if not showBis and not showTrinkets then
-                ns.UnregisterDevLayoutRegion("bis.card")
-                ns.UnregisterDevLayoutRegion("trinkets.card")
-                ns.UnregisterDevLayoutRegion("bisTrinkets.content")
-                ns.UnregisterDevLayoutRegion("bis.title")
-                ns.UnregisterDevLayoutRegion("trinkets.title")
-            end
-        end
     end
 
     HideAllRightDrawers()
@@ -755,12 +728,6 @@ function Layout.Apply(frame, usedRows, controls)
             if frame.devStatHeaderRegions[key] then
                 frame.devStatHeaderRegions[key]:Hide()
             end
-            if ns.UnregisterDevLayoutRegion then
-                ns.UnregisterDevLayoutRegion("stats.header." .. key)
-                ns.UnregisterDevLayoutRegion("stats.column." .. key)
-                ns.UnregisterDevLayoutRegion("stats.headerText." .. key)
-                ns.UnregisterDevLayoutRegion("stats.column." .. key .. ".width")
-            end
         else
             local colX, colY = Offset("stats.column." .. key)
             local colW = math.max(16, ColumnWidth(column))
@@ -768,9 +735,6 @@ function Layout.Apply(frame, usedRows, controls)
 
             if frame.devStatHeaderRegions[key] then
                 frame.devStatHeaderRegions[key]:Hide()
-            end
-            if ns.UnregisterDevLayoutRegion then
-                ns.UnregisterDevLayoutRegion("stats.header." .. key)
             end
 
             if not frame.devStatColumnRegions[key] then
@@ -797,24 +761,6 @@ function Layout.Apply(frame, usedRows, controls)
             local colBaseW = math.max(16, tonumber(column.width) or 16)
             local colKey = "stats.column." .. key
             local widthKey = colKey .. ".width"
-            if ns.RegisterDevLayoutOuterSpec then
-                ns.RegisterDevLayoutOuterSpec(colKey, {
-                    label = column.label .. " column",
-                    moveKey = colKey,
-                    widthKey = widthKey,
-                    baseW = colBaseW,
-                    baseH = colH,
-                    lockKey = colKey .. ".locked",
-                })
-            end
-            Register(colKey, column.label .. " column", columnRegion, {
-                axis = "xy",
-                padding = 1,
-                group = "columns",
-                protect = true,
-                exactHit = true,
-                alwaysCapture = true,
-            })
 
             -- Title letters: cyan hit around the text; Move X only on the outer pad.
             local header = frame.headers and frame.headers[key]
@@ -831,31 +777,10 @@ function Layout.Apply(frame, usedRows, controls)
                     justify = "CENTER",
                 })
                 if textHit then
-                    if ns.RegisterDevLayoutOuterSpec then
-                        ns.RegisterDevLayoutOuterSpec(textKey, {
-                            label = column.label .. " title",
-                            moveKey = textKey,
-                            moveAxis = "x",
-                            baseW = math.max(8, stringW + 2),
-                            baseH = 14,
-                            lockKey = textKey .. ".locked",
-                        })
-                    end
-                    Register(textKey, column.label .. " title", textHit, {
-                        axis = "x",
-                        padding = 0,
-                        group = "controls",
-                        protect = true,
-                        exactHit = true,
-                        alwaysCapture = true,
-                    })
                 end
             end
 
             -- Drop legacy orange width nubs — Size W lives on the outer pad now.
-            if ns.UnregisterDevLayoutRegion then
-                ns.UnregisterDevLayoutRegion(widthKey)
-            end
             if frame._svDevWidthHandles and frame._svDevWidthHandles[widthKey] then
                 frame._svDevWidthHandles[widthKey]:Hide()
             end
@@ -901,14 +826,6 @@ function Layout.Apply(frame, usedRows, controls)
     end
     frame.devStatTableMoveGrip:SetHeight(18)
     frame.devStatTableMoveGrip:Show()
-    Register("stats.table", "Stat table move (top bar)", frame.devStatTableMoveGrip, {
-        axis = "xy",
-        padding = 1,
-        group = "panels",
-        protect = true,
-        exactHit = true,
-        alwaysCapture = true,
-    })
 
     if not frame.devStatTableWidthRegion then
         frame.devStatTableWidthRegion = CreateFrame("Frame", nil, frame)
@@ -926,13 +843,6 @@ function Layout.Apply(frame, usedRows, controls)
         frame.devStatTableWidthRegion:SetSize(10, 28)
         frame.devStatTableWidthRegion:Show()
     end
-    Register("stats.table.width", "Stat table width", frame.devStatTableWidthRegion, {
-        axis = "width",
-        group = "size",
-        protect = true,
-        exactHit = true,
-        alwaysCapture = true,
-    })
 
     local tableHeightHandle
     if ns.EnsureDevLayoutHeightHandle and tableAnchor then
@@ -944,13 +854,6 @@ function Layout.Apply(frame, usedRows, controls)
     end
     if tableHeightHandle then
         frame.devStatTableHeightRegion = tableHeightHandle
-        Register("stats.table.height", "Stat table height", tableHeightHandle, {
-            axis = "height",
-            group = "size",
-            protect = true,
-            exactHit = true,
-            alwaysCapture = true,
-        })
     end
 
     -- Legacy stats.table grips replaced by Screen 1 / Screen 2. Do not mass-strip
@@ -964,22 +867,11 @@ function Layout.Apply(frame, usedRows, controls)
     if frame._svDevStripRegions and frame._svDevStripRegions["stats.offTable"] then
         frame._svDevStripRegions["stats.offTable"]:Hide()
     end
-    if ns.UnregisterDevLayoutRegion then
-        ns.UnregisterDevLayoutRegion("stats.table")
-        ns.UnregisterDevLayoutRegion("stats.table.width")
-        ns.UnregisterDevLayoutRegion("stats.table.height")
-        ns.UnregisterDevLayoutRegion("stats.offTable")
-    end
 
     -- Main frame size/move AdvDev targets removed: window size follows Frames 1+2.
     if frame.devDashboardMoveRegion then frame.devDashboardMoveRegion:Hide() end
     if frame.devDashboardWidthRegion then frame.devDashboardWidthRegion:Hide() end
     if frame.devPanelGutterRegion then frame.devPanelGutterRegion:Hide() end
-    if ns.UnregisterDevLayoutRegion then
-        ns.UnregisterDevLayoutRegion("dashboard.move")
-        ns.UnregisterDevLayoutRegion("dashboard.width")
-        ns.UnregisterDevLayoutRegion("panel.gutter")
-    end
     -- Panel 1 children keep their own AdvDev targets (titles / dropdowns / drawer buttons).
     if frame.devSetupWidthRegion then frame.devSetupWidthRegion:Hide() end
     if frame.devSetupHeightRegion then frame.devSetupHeightRegion:Hide() end

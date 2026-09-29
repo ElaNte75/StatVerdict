@@ -194,7 +194,6 @@ function Panel.Apply(frame)
     if not Panel.IsOpen() then
         if frame.manualDrawerCard then frame.manualDrawerCard:Hide() end
         if frame.devManualWidthRegion then frame.devManualWidthRegion:Hide() end
-        if ns.UnregisterDevLayoutRegion then ns.UnregisterDevLayoutRegion("manual.card") end
         return
     end
 
@@ -234,19 +233,10 @@ function Panel.Apply(frame)
         ns.ApplyRightDrawerCardDev(card, "manual.card", "Manual drawer", "manual.width", DRAWER_PREFERRED_WIDTH)
     end
     -- Manual body text is not AdvDev-editable — drop any leftover title/content ghosts.
-    if ns.UnregisterDevLayoutRegionsMatching then
-        ns.UnregisterDevLayoutRegionsMatching("manual.", { "manual.card" })
-    elseif ns.UnregisterDevLayoutRegion then
-        ns.UnregisterDevLayoutRegion("manual.title")
-        ns.UnregisterDevLayoutRegion("manual.width")
-    end
 
     -- Outer pad owns Size W — retire the legacy right-edge width strip.
     if frame.devManualWidthRegion then
         frame.devManualWidthRegion:Hide()
-    end
-    if ns.UnregisterDevLayoutRegion then
-        ns.UnregisterDevLayoutRegion("manual.width")
     end
 
     local titleX, titleY = Offset("manual.title")
