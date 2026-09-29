@@ -8046,7 +8046,7 @@ ns.ClassCodexTargets = {
                     },
                 },
             },
-            ["primaryStat"] = "agility",
+            ["primaryStat"] = "intellect",
             ["specKey"] = "DEMONHUNTER_DEVOURER",
         },
         ["DEMONHUNTER_HAVOC"] = {
