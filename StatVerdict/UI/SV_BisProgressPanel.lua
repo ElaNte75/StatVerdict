@@ -27,10 +27,6 @@ local function SizeDelta(key)
     return 0
 end
 
-local function Register(key, label, region, options)
-    if ns.RegisterDevLayoutRegion then ns.RegisterDevLayoutRegion(key, label, region, options) end
-end
-
 local function SafeNumber(value)
     if value == nil then return nil end
     return tonumber(value)

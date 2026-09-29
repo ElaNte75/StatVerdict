@@ -200,21 +200,6 @@ local function EnsureTitleBox(frame, storeKey)
     return box
 end
 
--- Content host for stats/bars (parent is Screen 1 / Screen 2 / Panel 2 depending on call site).
-local function EnsureContentHost(frame, fieldName, parent)
-    if not frame or not parent then return nil end
-    local host = frame[fieldName]
-    if not host then
-        host = CreateFrame("Frame", nil, parent)
-        host:EnableMouse(false)
-        frame[fieldName] = host
-    end
-    if host.GetParent and host:GetParent() ~= parent then
-        host:SetParent(parent)
-    end
-    return host
-end
-
 -- MS stats: child of Screen 1. Holds headers / columns / progress bars / # grid.
 local function EnsureMSStatsBox(frame, screen)
     if not (frame and screen) then return nil end
@@ -383,9 +368,6 @@ local function EnsureOffSpecEmptyHint(frame)
     return nil
 end
 
-local function LayoutOffSpecEmptyHint()
-end
-
 local function HideLegacyTitleFontSteppers(frame)
     -- Removed from main UI; hide any leftover frames from older builds.
     if not (frame and frame._svTitleFontSteppers) then return end
@@ -396,10 +378,6 @@ end
 
 local function GetProgressBarWidth()
     return Clamp(220 + SizeDelta("stats.column.progress.width"), 60, 900)
-end
-
-local function GetSummaryCardWidth()
-    return Clamp(360 + SizeDelta("stats.summary.width"), 40, 1200)
 end
 
 local function EnsureBorder(frame, owner, prefix)
@@ -601,24 +579,6 @@ end
 local function SetCardVisible(card, visible)
     if not card then return end
     if visible then card:Show() else card:Hide() end
-end
-
-local function EnsureSummaryHeightRegion(frame, card)
-    if not frame.devSummaryHeightRegion then
-        frame.devSummaryHeightRegion = CreateFrame("Frame", nil, frame)
-        frame.devSummaryHeightRegion:EnableMouse(false)
-    end
-    frame.devSummaryHeightRegion:ClearAllPoints()
-    frame.devSummaryHeightRegion:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 0, -1)
-    frame.devSummaryHeightRegion:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", 0, -1)
-    frame.devSummaryHeightRegion:SetHeight(18)
-    frame.devSummaryHeightRegion:Show()
-    Register("stats.summary.card.height", "Character Summary height", frame.devSummaryHeightRegion, { axis = "height" })
-end
-
-local function RegisterSummaryText(key, label, owner)
-    if not owner then return end
-    Register(key, label, owner, { axis = "xy", padding = 1 })
 end
 
 local function CreateProgressBar(parent)

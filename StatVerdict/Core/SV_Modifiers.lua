@@ -439,59 +439,6 @@ local function GetCurrentTargetStatValue(statKey, profile)
     return SafePlainNumber(value)
 end
 
-local function HasHigherPriorityGaps(profile, priority)
-    if not priority then
-        return false
-    end
-    local rows = ns.GetStatVerdictTargetRows and ns.GetStatVerdictTargetRows(profile) or nil
-    if type(rows) ~= "table" then
-        return false
-    end
-    for _, row in ipairs(rows) do
-        if row.priority and row.priority < priority then
-            local current = SafePlainNumber(GetCurrentTargetStatValue(row.key, profile))
-            local target = SafePlainNumber(row.target)
-            if current and target and target > 0 and (current / target) < ns.GlobalStatVerdictModifiers.dynamicTarget.lowPriorityThrottleRatio then
-                return true
-            end
-        end
-    end
-    return false
-end
-
-local function GetTargetGapUrgency(baseWeight, row)
-    if not baseWeight or not row then
-        return 0
-    end
-
-    local target = SafePlainNumber(row.target)
-    local current = SafePlainNumber(GetCurrentTargetStatValue(row.key, profile))
-    if not target or target <= 0 or not current then
-        return 0
-    end
-
-    local gapRatio = math.max(0, (target - current) / target)
-    local priority = tonumber(row.priority) or 99
-    local priorityPressure = 1 / math.max(priority, 1)
-    return gapRatio * math.max(baseWeight, 0) * (0.70 + priorityPressure)
-end
-
-local function GetProfileMaxGapUrgency(profile)
-    local rows = ns.GetStatVerdictTargetRows and ns.GetStatVerdictTargetRows(profile) or nil
-    if type(rows) ~= "table" then
-        return 0
-    end
-
-    local maxUrgency = 0
-    for _, row in ipairs(rows) do
-        local baseWeight = ns.GetStatWeight and ns.GetStatWeight(profile, row.key) or nil
-        if baseWeight and baseWeight > 0 then
-            maxUrgency = math.max(maxUrgency, GetTargetGapUrgency(baseWeight, row))
-        end
-    end
-    return maxUrgency
-end
-
 
 local GetSecondaryRankForDelta
 
@@ -1023,16 +970,6 @@ local function GetBudgetedDefaultStatWeight(profile, statKey)
     end
 
     return raw
-end
-
-local function GetExtraWeight(profile, statKey)
-    if statKey == "STATVERDICT_MAIN_HAND_DPS" or statKey == "STATVERDICT_OFF_HAND_DPS" then
-        if not GetTargetRow(profile, statKey) then
-            return nil
-        end
-    end
-
-    return GetBudgetedDefaultStatWeight(profile, statKey)
 end
 
 

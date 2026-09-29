@@ -305,15 +305,6 @@ local function GetTargetDrivenWeight(profile, statKey, equipLocation)
     return ns.GetStatWeight and ns.GetStatWeight(profile, statKey) or nil
 end
 
-local function AddTrackedKeys(keys, source)
-    if type(source) ~= "table" then
-        return
-    end
-    for statKey in pairs(source) do
-        keys[statKey] = true
-    end
-end
-
 function ns.GetTrackedProfileStats(profile)
     local keys = {
         [PRISMATIC_SOCKET_STAT_KEY] = true,

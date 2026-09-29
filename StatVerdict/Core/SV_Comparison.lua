@@ -1,11 +1,5 @@
 local addonName, ns = ...
 
-local function SafeNumber(value)
-    local ok, num = pcall(tonumber, value)
-    if ok and num then return num end
-    return nil
-end
-
 function ns.GetComparableSlots(itemLink)
     local equipLocation = ns.GetItemEquipLocation and ns.GetItemEquipLocation(itemLink) or nil
     if not equipLocation or equipLocation == "" then

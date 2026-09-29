@@ -60,15 +60,6 @@ local function FormatProgress(current, target)
     return string.format("%.1f%%", ratio * 100)
 end
 
-local function SafeStringWidth(fs, text)
-    if not fs or type(fs.GetStringWidth) ~= "function" then return 0 end
-    local old = fs:GetText() or ""
-    fs:SetText(text or "")
-    local w = fs:GetStringWidth() or 0
-    fs:SetText(old)
-    return w
-end
-
 local function GetClassColor(context)
     local classFile = context and context.classFile
     local classColor = classFile and RAID_CLASS_COLORS and RAID_CLASS_COLORS[classFile]
@@ -299,15 +290,6 @@ function ns.GetStatAuditTargetPointTotal(context, profile)
     end
     if total > 0 then return total end
     return nil
-end
-
-local function CreateSeparator(parent, x)
-    local texture = parent:CreateTexture(nil, "ARTWORK")
-    texture:SetColorTexture(0.9, 0.78, 0.28, 0.35)
-    texture:SetPoint("TOPLEFT", parent, "TOPLEFT", x, -78)
-    texture:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", x, 22)
-    texture:SetWidth(1)
-    return texture
 end
 
 local function CreateText(parent, x, y, width, justify, fontObject)
@@ -811,14 +793,6 @@ local function FitWindowOnScreen(frame, persistUserPos)
     end
 end
 
-local function EnsureWindowOnScreen(frame)
-    FitWindowOnScreen(frame, false)
-end
-
-local function ClampWindowToScreen(frame)
-    FitWindowOnScreen(frame, false)
-end
-
 -- Re-apply remembered user spot after panel width changes, then fit if overflowing.
 function ns.ReapplyStatAuditWindowLayout(frame)
     frame = frame or AuditFrame
@@ -1034,15 +1008,6 @@ SaveSelection = function(selection)
     db.statAuditSelectionByCharacter[key].activeView = (selection.activeView == "OFF") and "OFF" or "MAIN"
     db.statAuditSelectionByCharacter[key].goalMode = NormalizeRequiredGoalMode(selection.goalMode)
     db.statAuditSelectionByCharacter[key].secondaryGoalMode = NormalizeOptionalGoalMode(selection.secondaryGoalMode)
-end
-
-local function SetSetupCheckboxTextColor(control, active)
-    if not (control and control.Text) then return end
-    if active then
-        control.Text:SetTextColor(1.0, 1.0, 1.0)
-    else
-        control.Text:SetTextColor(0.55, 0.55, 0.55)
-    end
 end
 
 local function ApplyToggleLabelColors(selection)
@@ -2021,13 +1986,6 @@ local function EnsureFrame()
     return frame
 end
 
-local function BuildAspectLabel(specName, heroName)
-    if heroName and heroName ~= "" then
-        return tostring(specName) .. " / " .. tostring(heroName)
-    end
-    return tostring(specName)
-end
-
 local inventoryRefreshGeneration = 0
 
 RequestInventoryVerdictRefresh = function(kind)
@@ -2475,25 +2433,6 @@ local function EnsureIncompleteBuildText(frame)
     text:SetTextColor(0.92, 0.82, 0.45)
     frame.incompleteBuildText = text
     return text
-end
-
-local function EnsureMissingSnapshotButtons(frame)
-    if frame.missingSnapshotOK and frame.missingSnapshotRespec then
-        return frame.missingSnapshotOK, frame.missingSnapshotRespec
-    end
-    local ok = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    ok:SetSize(72, 22)
-    ok:SetText("OK")
-    ok:Hide()
-
-    local respec = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    respec:SetSize(92, 22)
-    respec:SetText("Respec")
-    respec:Hide()
-
-    frame.missingSnapshotOK = ok
-    frame.missingSnapshotRespec = respec
-    return ok, respec
 end
 
 local function SetStatProgressTableVisible(frame, visible)

@@ -19,10 +19,6 @@ local function SizeDelta(key)
     return 0
 end
 
-local function Register(key, label, region, options)
-    if ns.RegisterDevLayoutRegion then ns.RegisterDevLayoutRegion(key, label, region, options) end
-end
-
 local MANUAL_LINES = {
     { title = true, text = "Manual" },
     { text = "StatVerdict compares gear against a virtual loadout — a saved picture of the gear you want to play, not necessarily what you are wearing right now." },

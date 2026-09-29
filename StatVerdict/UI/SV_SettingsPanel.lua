@@ -232,45 +232,6 @@ local function EnsureTitleHost(card, storeKey, fontString, text)
     return host, tw, 16
 end
 
-local function ApplyDropdownLabelFont(dropdown)
-    if not (dropdown and dropdown.GetName) then return end
-    local name = dropdown:GetName()
-    local text = name and _G[name .. "Text"] or nil
-    if not (text and text.GetFont and text.SetFont) then return end
-    local font, _, flags = text:GetFont()
-    if font then text:SetFont(font, DROPDOWN_LABEL_FONT_SIZE, flags) end
-    -- Keep selected / placeholder labels consistently left-aligned.
-    if type(UIDropDownMenu_JustifyText) == "function" then
-        UIDropDownMenu_JustifyText(dropdown, "LEFT")
-    elseif text.SetJustifyH then
-        text:SetJustifyH("LEFT")
-    end
-end
-
-local function EnsureViewToggle(parent, name, onClick)
-    local button = parent[name]
-    if not button then
-        button = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
-        button:SetSize(22, 22)
-        button:SetScale(1.0)
-        if button.Text then button.Text:Hide() end
-        parent[name] = button
-    end
-    button:SetScript("OnClick", onClick)
-    return button
-end
-
-local function EnsureResizeRegion(frame, key)
-    frame.statVerdictSetupResizeRegions = frame.statVerdictSetupResizeRegions or {}
-    local region = frame.statVerdictSetupResizeRegions[key]
-    if not region then
-        region = CreateFrame("Frame", nil, frame)
-        region:EnableMouse(false)
-        frame.statVerdictSetupResizeRegions[key] = region
-    end
-    return region
-end
-
 local function EnsureCard(frame)
     if frame.settingsCard then return frame.settingsCard end
 
