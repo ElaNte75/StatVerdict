@@ -2453,11 +2453,11 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
         return [(bool(c.checked), self.active(c)) for c in (self.check(k) for k, _ in self.OPTIONS)]
 
     def test_defaults_ours_on_gems_on_game_tooltip_off(self) -> None:
-        self.assertEqual([(True, True), (True, True), (False, False)], self.states())
+        self.assertEqual([(True, True), (True, True), (False, True)], self.states())
 
     def test_defaults_without_saved_settings(self) -> None:
         self.lua.globals().StatVerdictDB = None
-        self.assertEqual([(True, True), (True, True), (False, False)], self.states())
+        self.assertEqual([(True, True), (True, True), (False, True)], self.states())
 
     def test_our_tooltip_and_gems_save_their_choice(self) -> None:
         for key in ("showBisGemsEnchants", "showBisTooltip"):
@@ -2467,7 +2467,6 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
             self.assertIs(True, self.db()[key], key)
 
     def test_game_tooltip_saves_its_choice(self) -> None:
-        self.click("showBisTooltip", False)
         self.assertTrue(self.click("bisUseGameTooltip", True).checked)
         self.assertIs(True, self.db().bisUseGameTooltip)
         self.assertFalse(self.click("bisUseGameTooltip", False).checked)
@@ -2475,41 +2474,57 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
 
     def test_old_gems_and_enchants_choice_is_kept(self) -> None:
         self.db().showBisGemsEnchants = False
-        self.assertEqual([(True, True), (False, True), (False, False)], self.states())
+        self.assertEqual([(True, True), (False, True), (False, True)], self.states())
 
-    def test_our_tooltip_on_locks_the_game_tooltip(self) -> None:
-        self.assertFalse(self.click("bisUseGameTooltip", True).checked)
-        self.assertIsNone(self.db().bisUseGameTooltip)
-        self.assertLess(self.check("bisUseGameTooltip")._alpha, 1)
+    def test_both_tooltip_options_are_always_clickable_and_white(self) -> None:
+        for ours, game in ((None, None), (False, None), (False, True), (False, False), (True, False)):
+            self.db().showBisTooltip = ours
+            self.db().bisUseGameTooltip = game
+            for key in ("showBisTooltip", "bisUseGameTooltip"):
+                check = self.check(key)
+                self.assertTrue(self.active(check), (key, ours, game))
+                self.assertEqual(1, check._alpha, (key, ours, game))
 
-    def test_both_off_locks_gems_and_keeps_its_value(self) -> None:
-        self.db().showBisGemsEnchants = False
-        self.click("showBisTooltip", False)
-        self.assertEqual([(False, True), (False, False), (False, True)], self.states())
-        self.assertFalse(self.click("showBisGemsEnchants", True).checked)
-        self.assertIs(False, self.db().showBisGemsEnchants)
-
-    def test_game_tooltip_on_locks_our_tooltip_and_gems(self) -> None:
-        self.click("showBisTooltip", False)
+    def test_ticking_the_game_tooltip_turns_ours_off(self) -> None:
         self.click("bisUseGameTooltip", True)
-        self.assertEqual([(False, False), (True, False), (True, True)], self.states())
-        self.assertFalse(self.click("showBisTooltip", True).checked)
+        self.assertEqual([(False, True), (True, False), (True, True)], self.states())
         self.assertIs(False, self.db().showBisTooltip)
-        self.assertTrue(self.click("showBisGemsEnchants", False).checked)
-        self.assertIsNone(self.db().showBisGemsEnchants)
-        self.assertLess(self.check("showBisTooltip")._alpha, 1)
+        self.assertIs(True, self.db().bisUseGameTooltip)
 
-    def test_untick_game_tooltip_then_pick_ours_again(self) -> None:
+    def test_ticking_ours_turns_the_game_tooltip_off(self) -> None:
+        self.click("bisUseGameTooltip", True)
+        self.click("showBisTooltip", True)
+        self.assertEqual([(True, True), (True, True), (False, True)], self.states())
+        self.assertIs(True, self.db().showBisTooltip)
+        self.assertIs(False, self.db().bisUseGameTooltip)
+
+    def test_unticking_the_active_one_leaves_both_off(self) -> None:
         self.click("showBisTooltip", False)
+        self.assertEqual([(False, True), (True, False), (False, True)], self.states())
         self.click("bisUseGameTooltip", True)
         self.click("bisUseGameTooltip", False)
         self.assertEqual([(False, True), (True, False), (False, True)], self.states())
+        self.assertIs(False, self.db().showBisTooltip)
+        self.assertIs(False, self.db().bisUseGameTooltip)
+
+    def test_gems_is_locked_and_keeps_its_value_while_ours_is_off(self) -> None:
+        self.db().showBisGemsEnchants = False
+        for other in (("showBisTooltip", False), ("bisUseGameTooltip", True)):
+            self.db().showBisTooltip = None
+            self.db().bisUseGameTooltip = None
+            self.click(*other)
+            gems = self.check("showBisGemsEnchants")
+            self.assertFalse(self.active(gems), other)
+            self.assertLess(gems._alpha, 1, other)
+            self.assertFalse(self.click("showBisGemsEnchants", True).checked, other)
+            self.assertIs(False, self.db().showBisGemsEnchants, other)
         self.click("showBisTooltip", True)
-        self.assertEqual([(True, True), (True, True), (False, False)], self.states())
+        self.assertEqual((False, True), self.states()[1])
+        self.assertTrue(self.click("showBisGemsEnchants", True).checked)
 
     def test_both_saved_on_our_tooltip_wins(self) -> None:
         self.db().bisUseGameTooltip = True
-        self.assertEqual([(True, True), (True, True), (False, False)], self.states())
+        self.assertEqual([(True, True), (True, True), (False, True)], self.states())
 
     def test_bag_marker_toggles_are_unchanged(self) -> None:
         self.click("showBisTooltip", False)
@@ -2524,6 +2539,8 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
         source = (ADDON / "UI" / "SV_ManualDrawerPanel.lua").read_text(encoding="utf-8-sig")
         for _, label in self.OPTIONS:
             self.assertIn(label, source)
+        self.assertIn("turns the other off", source)
+        self.assertNotIn("untick one to pick the other", source)
 
 
 if __name__ == "__main__":
