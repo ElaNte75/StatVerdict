@@ -21,6 +21,12 @@ $RECYCLE.BIN/
 releases/
 *.zip
 
+# Source / export icons not used by the live addon (runtime uses .tga)
+StatVerdict/Media/*.png
+
+# Live Wowhead proof dumps (player names + loadouts)
+tools/data/wowhead_proof_last.json
+
 # VS Code / Cursor local settings
 .vscode/
 .cursor/

@@ -85,7 +85,6 @@ $include = @(
     "StatVerdict.toc",
     "StatVerdict.lua",
     "Bindings.xml",
-    "STORE.md",
     "Core",
     "UI",
     "Data",
@@ -100,28 +99,38 @@ foreach ($name in $include) {
     }
 }
 
-# Never ship bridge/dev leftovers if present.
+# Dev / tooling artifacts that must never reach Curse zip.
 $ban = @(
+    (Join-Path $stageAddon "Data\Generated\SV_ProfileData.json"),
+    (Join-Path $stageAddon "Media\StatVerdictIcon.png"),
+    (Join-Path $stageAddon "STORE.md"),
+    (Join-Path $stageAddon "VERIFICATION.md"),
+    (Join-Path $stageAddon "VERDICT_MODEL.md"),
+    (Join-Path $stageAddon "_check_profiles.py"),
+    (Join-Path $stageAddon "scripts"),
+    (Join-Path $stageAddon "tests"),
     (Join-Path $stageAddon "Tools"),
     (Join-Path $stageAddon "UI\SV_AdvancedDevelopmentMode.lua"),
     (Join-Path $stageAddon "UI\SV_DevLayoutNudge.lua"),
-    (Join-Path $stageAddon "StatVerdict.toc.public"),
-    (Join-Path $stageAddon "_recovery_StatVerdict_SV_2026-07-25.lua.bak")
+    (Join-Path $stageAddon "StatVerdict.toc.public")
 )
+Get-ChildItem -Path $stageAddon -Recurse -Directory -Filter "__pycache__" -ErrorAction SilentlyContinue |
+    Remove-Item -Recurse -Force
+Get-ChildItem -Path $stageAddon -Recurse -Include "*.bak","*.tmp","*.pyc" -File -ErrorAction SilentlyContinue |
+    Remove-Item -Force
 foreach ($path in $ban) {
     if (Test-Path -LiteralPath $path) {
         Remove-Item -LiteralPath $path -Recurse -Force
     }
 }
 
-# Public TOC must not reference Removed files.
+# Public TOC: SavedVariables only, no leftover dev file refs.
 $tocLines = Get-Content -LiteralPath (Join-Path $stageAddon "StatVerdict.toc") | Where-Object {
     $_ -notmatch "AdvancedDevelopmentMode" -and
     $_ -notmatch "DevLayoutNudge" -and
     $_ -notmatch "Tools/" -and
     $_ -notmatch "StatVerdictBISResolverDB"
 }
-# Ensure SavedVariables is public-only.
 $tocLines = foreach ($line in $tocLines) {
     if ($line -match "^##\s*SavedVariables\s*:") {
         "## SavedVariables: StatVerdictDB"
