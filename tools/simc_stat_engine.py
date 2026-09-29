@@ -68,7 +68,12 @@ def render_player(
     talent_loadout: str,
     items: dict[str, dict[str, Any]],
     level: int = 90,
+    stat_sheet_only: bool = False,
 ) -> str:
+    """`stat_sheet_only` adds `default_actions=0`, so SimC does not build the
+    spec's default action list: a paper-doll run only reads the stat sheet,
+    and an outdated default APL (e.g. Holy/Discipline Priest) would otherwise
+    fail the whole run."""
     if not talent_loadout:
         raise ValueError(f"{actor_name}: talent loadout is required")
     class_token = SIMC_CLASS_MAP.get(class_name.casefold(), simc_token(class_name))
@@ -79,6 +84,8 @@ def render_player(
         f"spec={simc_token(spec_name)}",
         f"talents={talent_loadout}",
     ]
+    if stat_sheet_only:
+        lines.append("default_actions=0")
     if role == "tank":
         lines.append("role=tank")
     elif role == "healer":
@@ -100,6 +107,7 @@ def render_profiles(
     calculate_scale_factors: bool = False,
     scale_only: tuple[str, ...] | None = None,
     target_error: float | None = None,
+    stat_sheet_only: bool = False,
 ) -> tuple[str, dict[str, dict[str, Any]]]:
     """Renders a SimC profile for one or more actors of `spec`.
 
@@ -138,6 +146,7 @@ def render_profiles(
                 talent_loadout=record.get("runTalentLoadout") or "",
                 items=record["items"],
                 level=int(record.get("level") or 90),
+                stat_sheet_only=stat_sheet_only,
             )
         )
         actor_map[actor_name] = record
@@ -212,3 +221,51 @@ def run_simc(
             raise RuntimeError(f"SimulationCraft failed with exit {completed.returncode}: {detail}")
         report = json.loads(report_path.read_text(encoding="utf-8"))
         return parse_report(report), report
+
+
+# SimC rejects a loadout that lists a 2-hander together with another weapon
+# (ClassCodex lists Main Hand + Off Hand even when one of them is 2h).
+WEAPON_CONFLICT_MARKERS = ("Off-Hand weapon equipped with a 2h", "both a 1-hand and 2-hand")
+# Weapon slots dropped, in order, while the conflict persists (at most one
+# retry per slot, so never more than two retries).
+WEAPON_RECOVERY_SLOTS = ("OFF_HAND", "MAIN_HAND")
+
+
+def is_weapon_conflict(message: str) -> bool:
+    return any(marker in message for marker in WEAPON_CONFLICT_MARKERS)
+
+
+def run_simc_with_recovery(
+    simc_binary: Path,
+    spec: Any,
+    record: dict[str, Any],
+    *,
+    render_kwargs: dict[str, Any] | None = None,
+    run_kwargs: dict[str, Any] | None = None,
+    run_simc_fn: Any = None,
+) -> tuple[dict[str, dict[str, Any]], dict[str, Any], list[str], str]:
+    """Renders and runs one actor, retrying only on a SimC weapon conflict:
+    first without the off-hand, then also without the main hand. Any other
+    error (or a conflict after both retries) is re-raised unchanged.
+    Returns (stats_by_actor, report, recovery labels, actor name); the
+    labels (e.g. ["dropped OFF_HAND"]) say which retries were needed.
+    `run_simc_fn` defaults to run_simc (injectable for tests and callers
+    that patch their own reference)."""
+    run = run_simc_fn or run_simc
+    items = dict(record.get("items") or {})
+    recovery: list[str] = []
+    pending = list(WEAPON_RECOVERY_SLOTS)
+    while True:
+        profile_text, actor_map = render_profiles(spec, [{**record, "items": items}], **(render_kwargs or {}))
+        try:
+            stats_by_actor, report = run(simc_binary, profile_text, **(run_kwargs or {}))
+        except RuntimeError as exc:
+            droppable = [slot for slot in pending if slot in items]
+            if not is_weapon_conflict(str(exc)) or not droppable:
+                raise
+            slot = droppable[0]
+            pending = pending[pending.index(slot) + 1:]
+            items.pop(slot)
+            recovery.append(f"dropped {slot}")
+            continue
+        return stats_by_actor, report, recovery, next(iter(actor_map))
