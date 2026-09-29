@@ -227,6 +227,11 @@ local BAG_INDICATOR_OPTIONS = {
     { key = "showMsOsLabels", label = "|cff00ff00MS|r / |cff00ff00OS|r Labels" },
 }
 
+-- Best in Slot section: the hover tooltip's Recommended (gems / enchant) block.
+local BIS_TOOLTIP_OPTIONS = {
+    { key = "showBisGemsEnchants", label = "Best in Slot tooltip: gems and enchants" },
+}
+
 local function EnsureOptionCheckbox(card, option, parent)
     local optionKey = option.key
     card.bagIndicatorChecks = card.bagIndicatorChecks or {}
@@ -257,12 +262,14 @@ end
 
 local function SyncBagIndicatorOptionChecks(card)
     if not card or not card.bagIndicatorChecks then return end
-    for _, option in ipairs(BAG_INDICATOR_OPTIONS) do
-        local check = card.bagIndicatorChecks[option.key]
-        if check then
-            check:SetChecked(OptionFlagOn(option.key))
-            check:Enable()
-            check:SetAlpha(1)
+    for _, options in ipairs({ BAG_INDICATOR_OPTIONS, BIS_TOOLTIP_OPTIONS }) do
+        for _, option in ipairs(options) do
+            local check = card.bagIndicatorChecks[option.key]
+            if check then
+                check:SetChecked(OptionFlagOn(option.key))
+                check:Enable()
+                check:SetAlpha(1)
+            end
         end
     end
     -- Legacy Enable All checkbox removed from UI.
@@ -288,8 +295,9 @@ local function HideLegacyTitleFontUi(card)
     end
 end
 
-local function EnsureBagChecksBlock(card)
-    local block = card.bagChecksBlock
+local function EnsureBagChecksBlock(card, field)
+    field = field or "bagChecksBlock"
+    local block = card[field]
     if block then return block end
     block = CreateFrame("Frame", nil, card, "BackdropTemplate")
     block:EnableMouse(false)
@@ -303,7 +311,7 @@ local function EnsureBagChecksBlock(card)
     })
     block:SetBackdropColor(0, 0, 0, 0)
     block:SetBackdropBorderColor(0, 0, 0, 0)
-    card.bagChecksBlock = block
+    card[field] = block
     return block
 end
 
@@ -316,6 +324,8 @@ local function UnregisterFeaturesInnerDev()
     for _, option in ipairs(BAG_INDICATOR_OPTIONS) do
         ns.UnregisterDevLayoutRegion("options." .. option.key)
     end
+    ns.UnregisterDevLayoutRegion("options.bisTooltipTitle")
+    ns.UnregisterDevLayoutRegion("options.bisTooltipChecks")
 end
 
 local function EnsureCard(frame)
@@ -482,6 +492,31 @@ function Panel.Apply(frame)
             _G.StatVerdictDB[option.key] = self:GetChecked() and true or false
             SyncBagIndicatorOptionChecks(card)
             RefreshBagIndicatorsSoon()
+        end)
+    end
+
+    -- Best in Slot section, same look as Bag Markers, below it.
+    if not card.bisTooltipTitle then
+        card.bisTooltipTitle = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        card.bisTooltipTitle:SetText("Best in Slot")
+        card.bisTooltipTitle:SetTextColor(1.0, 0.82, 0.0)
+    end
+    local bisTitleY = -70 - blockBaseH - 16
+    PlaceFeaturesTitle(card, card.bisTooltipTitle, "options.bisTooltipTitle", "Best in Slot title", 12, bisTitleY)
+    local bisBlock = EnsureBagChecksBlock(card, "bisTooltipChecksBlock")
+    local bisBlockH = math.max(BAG_CHECK_STEP, #BIS_TOOLTIP_OPTIONS * BAG_CHECK_STEP)
+    PlaceBagChecksBlock(card, bisBlock, "options.bisTooltipChecks", "Best in Slot checkboxes", 12, bisTitleY - 30,
+        blockBaseW, bisBlockH)
+    for index, option in ipairs(BIS_TOOLTIP_OPTIONS) do
+        local check = EnsureOptionCheckbox(card, option, bisBlock)
+        check:ClearAllPoints()
+        check:SetPoint("TOPLEFT", bisBlock, "TOPLEFT", 0, -((index - 1) * BAG_CHECK_STEP))
+        check:SetFrameLevel((bisBlock:GetFrameLevel() or 1) + 6)
+        check:Show()
+        check:SetScript("OnClick", function(self)
+            _G.StatVerdictDB = _G.StatVerdictDB or {}
+            _G.StatVerdictDB[option.key] = self:GetChecked() and true or false
+            SyncBagIndicatorOptionChecks(card)
         end)
     end
     SyncBagIndicatorOptionChecks(card)

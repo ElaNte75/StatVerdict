@@ -242,7 +242,7 @@ local function EnsureCard(frame)
 
     card.title = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     card.title:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, -14)
-    card.title:SetText("Weights")
+    card.title:SetText("Mode")
     card.title:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
 
     AddLine(card, -36)
@@ -405,7 +405,7 @@ function Panel.Apply(frame)
     end
     card:Show()
     if ns.ApplyRightDrawerCardDev then
-        ns.ApplyRightDrawerCardDev(card, "benchmark.card", "Weights drawer", "benchmark.width", DRAWER_PREFERRED_WIDTH)
+        ns.ApplyRightDrawerCardDev(card, "benchmark.card", "Mode drawer", "benchmark.width", DRAWER_PREFERRED_WIDTH)
     end
 
     Panel.Sync(card)

@@ -63,24 +63,6 @@ local function GetBonusIDs(entry)
     return #out > 0 and out or nil
 end
 
-local function BuildItemLink(itemID, bonusIDs)
-    itemID = SafeNumber(itemID)
-    if not itemID then return nil end
-    -- Match Tools/SV_BISResolver.lua: bonuses must sit after linkLevel + 3 empty fields
-    -- (spec, modifiersMask, itemContext) or rarity/ilvl tooltips stay on the base item.
-    if type(bonusIDs) ~= "table" or #bonusIDs == 0 then
-        return "item:" .. tostring(itemID)
-    end
-    local level = 90
-    if type(UnitLevel) == "function" then
-        local unitLevel = SafeNumber(UnitLevel("player"))
-        if unitLevel and unitLevel > 0 then
-            level = unitLevel
-        end
-    end
-    return ("item:%d::::::::%d::::%d:%s"):format(itemID, level, #bonusIDs, table.concat(bonusIDs, ":"))
-end
-
 local function GetEntryItemID(entry)
     if type(entry) ~= "table" then return nil end
     local item = entry.item
@@ -89,6 +71,81 @@ local function GetEntryItemID(entry)
     end
     return SafeNumber(entry.item_id)
 end
+
+local function PlayerLinkLevel()
+    local level = 90
+    if type(UnitLevel) == "function" then
+        local unitLevel = SafeNumber(UnitLevel("player"))
+        if unitLevel and unitLevel > 0 then
+            level = unitLevel
+        end
+    end
+    return level
+end
+
+local function BuildItemLink(itemID, bonusIDs)
+    itemID = SafeNumber(itemID)
+    if not itemID then return nil end
+    -- Match Tools/SV_BISResolver.lua: bonuses must sit after linkLevel + 3 empty fields
+    -- (spec, modifiersMask, itemContext) or rarity/ilvl tooltips stay on the base item.
+    if type(bonusIDs) ~= "table" or #bonusIDs == 0 then
+        return "item:" .. tostring(itemID)
+    end
+    local level = PlayerLinkLevel()
+    return ("item:%d::::::::%d::::%d:%s"):format(itemID, level, #bonusIDs, table.concat(bonusIDs, ":"))
+end
+
+local function GetEntryGemIDs(entry)
+    local item = type(entry) == "table" and entry.item or nil
+    if type(item) ~= "table" or type(item.gem_ids) ~= "table" then return {} end
+    local out = {}
+    for _, gemID in ipairs(item.gem_ids) do
+        gemID = SafeNumber(gemID)
+        if gemID then out[#out + 1] = gemID end
+    end
+    return out
+end
+
+local function GetEntryEnchant(entry)
+    local item = type(entry) == "table" and entry.item or nil
+    if type(item) ~= "table" or type(item.enchant) ~= "table" then return nil end
+    local enchant = {
+        id = SafeNumber(item.enchant.id),
+        itemID = SafeNumber(item.enchant.item_id),
+        spellID = SafeNumber(item.enchant.spell_id),
+    }
+    if not (enchant.id or enchant.itemID or enchant.spellID) then return nil end
+    return enchant
+end
+
+-- The complete recommended item as a hyperlink, so the game itself shows it at its
+-- recommended item level / upgrade track with the recommended gems and enchant.
+-- Retail field order: itemID, enchantID, gemID1-4, suffixID, uniqueID, linkLevel,
+-- specializationID, modifiersMask, itemContext, numBonusIDs, bonusIDs...
+local function BuildRecommendedItemLink(entry, specID)
+    local itemID = GetEntryItemID(entry)
+    if not itemID then return nil end
+    local enchant = GetEntryEnchant(entry)
+    local gems = GetEntryGemIDs(entry)
+    local gemFields = {}
+    for index = 1, 4 do
+        gemFields[index] = gems[index] and tostring(gems[index]) or ""
+    end
+    local bonusIDs = GetBonusIDs(entry) or {}
+    local link = ("item:%d:%s:%s:::%d:%d::0:%d"):format(
+        itemID,
+        enchant and enchant.id and tostring(enchant.id) or "",
+        table.concat(gemFields, ":"),
+        PlayerLinkLevel(),
+        SafeNumber(specID) or 0,
+        #bonusIDs
+    )
+    if #bonusIDs > 0 then
+        link = link .. ":" .. table.concat(bonusIDs, ":")
+    end
+    return link
+end
+Panel.BuildRecommendedItemLink = BuildRecommendedItemLink
 
 local function GetEntryStaticName(entry)
     if type(entry) ~= "table" then return nil end
@@ -141,7 +198,7 @@ local function GetQualityHex(quality)
 end
 
 -- Name of a plain item (gem, enchant scroll); nil until the game has its data,
--- in which case the load is requested and the row refreshes when it arrives.
+-- in which case the load is requested and an open tooltip redraws when it arrives.
 local function GetPlainItemName(itemID)
     itemID = SafeNumber(itemID)
     if not itemID then return nil end
@@ -167,42 +224,180 @@ local function GetSpellNameByID(spellID)
     return nil
 end
 
--- The recommended gems and enchant for a best-in-slot item, as one line:
--- "Gems: A, B  ·  Enchant: X". Empty when the slot has neither (or old data).
-local function BuildRecommendationText(entry)
-    local item = type(entry) == "table" and entry.item or nil
-    if type(item) ~= "table" then return "" end
-    local parts = {}
+-- "Gems: A, B" and "Enchant: X" for a best-in-slot entry (nil when it has none).
+local function BuildRecommendationTexts(entry)
+    local gemsText, enchantText = nil, nil
+    local gems = {}
+    for _, gemID in ipairs(GetEntryGemIDs(entry)) do
+        gems[#gems + 1] = GetPlainItemName(gemID) or ("Gem #" .. tostring(gemID))
+    end
+    if #gems > 0 then
+        gemsText = "Gems: " .. table.concat(gems, ", ")
+    end
+    local enchant = GetEntryEnchant(entry)
+    if enchant then
+        local name = GetPlainItemName(enchant.itemID) or GetSpellNameByID(enchant.spellID)
+        if not name then
+            name = "Enchant #" .. tostring(enchant.id or enchant.itemID or enchant.spellID)
+        end
+        enchantText = "Enchant: " .. name
+    end
+    return gemsText, enchantText
+end
 
-    if type(item.gem_ids) == "table" then
-        local gems = {}
-        for _, gemID in ipairs(item.gem_ids) do
-            gemID = SafeNumber(gemID)
-            if gemID then
-                gems[#gems + 1] = GetPlainItemName(gemID) or ("Gem #" .. tostring(gemID))
+---------------------------------------------------------------------------
+-- Best in Slot tooltip: the game's own lines for the recommended item, cut
+-- down to the item's identity and stats (no comparison, effects or set text).
+---------------------------------------------------------------------------
+
+local function CleanTooltipText(text)
+    if type(text) ~= "string" then return "" end
+    text = text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+    text = text:gsub("|T.-|t", ""):gsub("|A.-|a", "")
+    text = text:gsub("^%s+", ""):gsub("%s+$", "")
+    -- Gem-colour / rank markers some tooltips append ("+142 Haste #1").
+    text = text:gsub("%s*#%d+$", "")
+    return text
+end
+
+-- A game format string ("Item Level %d") as a Lua pattern anchored at the start.
+local function FormatPrefixPattern(format)
+    if type(format) ~= "string" or format == "" then return nil end
+    local prefix = format:match("^(.-)%%") or format
+    if prefix == "" then return nil end
+    return "^" .. prefix:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1")
+end
+
+local function MatchesAny(text, patterns)
+    for _, pattern in ipairs(patterns) do
+        if pattern and text:find(pattern) then return true end
+    end
+    return false
+end
+
+local SLOT_NAMES = {
+    Head = true, Neck = true, Shoulder = true, Shoulders = true, Back = true, Chest = true,
+    Shirt = true, Tabard = true, Wrist = true, Hands = true, Waist = true, Legs = true,
+    Feet = true, Finger = true, Trinket = true, ["One-Hand"] = true, ["Two-Hand"] = true,
+    ["Main Hand"] = true, ["Off Hand"] = true, ["Held In Off-hand"] = true, Ranged = true,
+}
+for _, key in ipairs({
+    "INVTYPE_HEAD", "INVTYPE_NECK", "INVTYPE_SHOULDER", "INVTYPE_CLOAK", "INVTYPE_CHEST",
+    "INVTYPE_ROBE", "INVTYPE_WRIST", "INVTYPE_HAND", "INVTYPE_WAIST", "INVTYPE_LEGS",
+    "INVTYPE_FEET", "INVTYPE_FINGER", "INVTYPE_TRINKET", "INVTYPE_WEAPON", "INVTYPE_2HWEAPON",
+    "INVTYPE_WEAPONMAINHAND", "INVTYPE_WEAPONOFFHAND", "INVTYPE_HOLDABLE", "INVTYPE_SHIELD",
+    "INVTYPE_RANGED",
+}) do
+    local name = _G and _G[key]
+    if type(name) == "string" and name ~= "" then SLOT_NAMES[name] = true end
+end
+
+local function HeaderPatterns()
+    return {
+        itemLevel = { "^Item Level %d", FormatPrefixPattern(_G and _G.ITEM_LEVEL) },
+        upgrade = { "^Upgrade Level:", FormatPrefixPattern(_G and _G.ITEM_UPGRADE_TOOLTIP_FORMAT_STRING) },
+        binds = {
+            "^Binds ", "^Soulbound", "^Warbound", "^Account Bound", "Blizzard Account",
+            FormatPrefixPattern(_G and _G.ITEM_BIND_ON_PICKUP), FormatPrefixPattern(_G and _G.ITEM_BIND_ON_EQUIP),
+            FormatPrefixPattern(_G and _G.ITEM_SOULBOUND),
+        },
+        armor = { "^[%d,%.]+ Armor$" },
+        weapon = { "^[%d,%.]+ %- [%d,%.]+ Damage", "^%([%d,%.]+ damage per second%)$", "^Speed [%d,%.]+$" },
+        effects = {
+            "^Equip:", "^Use:", "^Chance on hit:",
+            FormatPrefixPattern(_G and _G.ITEM_SPELL_TRIGGER_ONEQUIP),
+            FormatPrefixPattern(_G and _G.ITEM_SPELL_TRIGGER_ONUSE),
+        },
+    }
+end
+
+local function LineColor(line)
+    local color = type(line) == "table" and line.leftColor or nil
+    if type(color) == "table" then
+        local r, g, b = tonumber(color.r), tonumber(color.g), tonumber(color.b)
+        if r and g and b then return { r, g, b } end
+    end
+    return { 1, 1, 1 }
+end
+
+local function IsSocketLine(line)
+    if line.gemIcon or line.socketType then return true end
+    local lineTypes = Enum and Enum.TooltipDataLineType
+    return lineTypes ~= nil and lineTypes.GemSocket ~= nil and line.type == lineTypes.GemSocket
+end
+
+-- Pure filter over tooltip data lines ({leftText, rightText, leftColor, ...}).
+-- Keeps: the item name, item level, upgrade level, binding, slot / armor type,
+-- armor (or weapon damage), the "+N Stat" block and the set name "(x/y)".
+-- Drops everything else, and all text from the stats' end onward except the
+-- set name line (no effects, set pieces, set bonuses, sockets or flavor text).
+function Panel.FilterItemTooltipLines(lines)
+    local out = {}
+    if type(lines) ~= "table" then return out end
+    local patterns = HeaderPatterns()
+    local phase = "header"
+    local function add(left, right, line)
+        out[#out + 1] = { left = left, right = (right ~= "" and right) or nil, color = LineColor(line) }
+    end
+    for index, line in ipairs(lines) do
+        if type(line) == "table" then
+            local left = CleanTooltipText(line.leftText)
+            local right = CleanTooltipText(line.rightText)
+            local isStat = left:find("^%+[%d,%.]+ %S") ~= nil
+            if index == 1 then
+                if left ~= "" then add(left, right, line) end
+            elseif IsSocketLine(line) then
+                if phase == "stats" then phase = "tail" end
+            elseif phase == "header" and isStat then
+                phase = "stats"
+                add(left, right, line)
+            elseif phase == "header" then
+                if MatchesAny(left, patterns.effects) then
+                    phase = "tail"
+                elseif SLOT_NAMES[left]
+                    or MatchesAny(left, patterns.itemLevel)
+                    or MatchesAny(left, patterns.upgrade)
+                    or MatchesAny(left, patterns.binds)
+                    or MatchesAny(left, patterns.armor)
+                    or MatchesAny(left, patterns.weapon)
+                then
+                    add(left, right, line)
+                end
+            elseif phase == "stats" and isStat then
+                add(left, right, line)
+            else
+                phase = "tail"
+            end
+            if phase == "tail" and left:find("^.+ %(%d+/%d+%)$") then
+                add(left, "", line)
+                break
             end
         end
-        if #gems > 0 then
-            parts[#parts + 1] = "Gems: " .. table.concat(gems, ", ")
-        end
     end
+    return out
+end
 
-    local enchant = item.enchant
-    if type(enchant) == "table" then
-        local enchantID = SafeNumber(enchant.id)
-        local scrollID = SafeNumber(enchant.item_id)
-        local spellID = SafeNumber(enchant.spell_id)
-        local name = GetPlainItemName(scrollID) or GetSpellNameByID(spellID)
-        local fallbackID = enchantID or scrollID or spellID
-        if not name and fallbackID then
-            name = "Enchant #" .. tostring(fallbackID)
-        end
-        if name then
-            parts[#parts + 1] = "Enchant: " .. name
-        end
+local function IsRetrievingText(text)
+    if text == "" then return true end
+    if type(_G) == "table" and type(_G.RETRIEVING_ITEM_INFO) == "string" and text == _G.RETRIEVING_ITEM_INFO then
+        return true
     end
+    return text == "Retrieving item information"
+end
 
-    return table.concat(parts, "  ·  ")
+-- Filtered lines for an item link, or nil when the game has no data for it yet.
+local function ReadRecommendedItemLines(link)
+    if not link then return nil end
+    if not (type(C_TooltipInfo) == "table" and type(C_TooltipInfo.GetHyperlink) == "function") then
+        return nil
+    end
+    local ok, data = pcall(C_TooltipInfo.GetHyperlink, link)
+    if not ok or type(data) ~= "table" or type(data.lines) ~= "table" or not data.lines[1] then
+        return nil
+    end
+    if IsRetrievingText(CleanTooltipText(data.lines[1].leftText)) then return nil end
+    local filtered = Panel.FilterItemTooltipLines(data.lines)
+    return #filtered > 0 and filtered or nil
 end
 
 local function GetLinkItemLevel(itemLink)
@@ -298,14 +493,194 @@ local function ScanOwnedItemLevels()
     return equippedCounts, bagCounts, equippedLevels, bagLevels
 end
 
+-- Features toggle: the Recommended (gems / enchant) block. Unset counts as on.
+local function RecommendedBlockOn()
+    local db = _G and _G.StatVerdictDB
+    return type(db) ~= "table" or db.showBisGemsEnchants ~= false
+end
+
+local TOOLTIP_PAD = 10
+local TOOLTIP_LINE_GAP = 2
+local TOOLTIP_SECTION_GAP = 8
+local TOOLTIP_MIN_WIDTH = 170
+local TOOLTIP_RIGHT_GAP = 16
+local TOOLTIP_OFFSET = 12
+local GOLD = { 1.0, 0.82, 0.0 }
+local TEXT_COLOR = { 0.92, 0.92, 0.92 }
+local DIM_COLOR = { 0.55, 0.55, 0.55 }
+
+-- The lines of the Best in Slot tooltip for one row, as data:
+-- { left, right?, color, font = "title"|"header"|nil, gapBefore? }.
+local function BuildRecommendedTooltipLines(row)
+    local entry = row and row.recommendedEntry
+    if not entry then return {} end
+    local link = BuildRecommendedItemLink(entry, row.specID)
+    local lines = ReadRecommendedItemLines(link)
+    if lines then
+        lines[1].font = "title"
+    else
+        -- No game data yet: name only, and redraw once the item arrives.
+        local itemID = GetEntryItemID(entry)
+        local name, _, quality = GetItemInfoByLinkOrID(link, itemID)
+        RequestItemLoad(itemID)
+        lines = { {
+            left = GetQualityHex(quality) .. tostring(name or GetEntryStaticName(entry)
+                or (itemID and ("item:" .. tostring(itemID))) or "Unknown item") .. "|r",
+            color = { 1, 1, 1 },
+            font = "title",
+        } }
+    end
+
+    if RecommendedBlockOn() then
+        local gemsText, enchantText = BuildRecommendationTexts(entry)
+        if gemsText or enchantText then
+            lines[#lines + 1] = { left = "Recommended", color = GOLD, font = "header", gapBefore = true }
+            if gemsText then lines[#lines + 1] = { left = gemsText, color = TEXT_COLOR } end
+            if enchantText then lines[#lines + 1] = { left = enchantText, color = TEXT_COLOR } end
+        end
+    end
+
+    if row.ownedState == "equipped" or row.ownedState == "bag" then
+        lines[#lines + 1] = { left = "You have this item", color = DIM_COLOR, gapBefore = true }
+    end
+    return lines
+end
+Panel.BuildRecommendedTooltipLines = BuildRecommendedTooltipLines
+
+local recommendedTooltip = nil
+local tooltipRow = nil
+
+-- Our own small tooltip frame: not GameTooltip, so no gear comparison and no
+-- other addon can add lines to it. Never takes the mouse; clamped on screen.
+local function EnsureRecommendedTooltip()
+    if recommendedTooltip then return recommendedTooltip end
+    local tip = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+    tip:SetFrameStrata("TOOLTIP")
+    tip:SetClampedToScreen(true)
+    tip:EnableMouse(false)
+    tip:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true,
+        tileSize = 16,
+        edgeSize = 12,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 },
+    })
+    tip:SetBackdropColor(0.018, 0.022, 0.030, 0.96)
+    tip:SetBackdropBorderColor(0.72, 0.74, 0.78, 0.86)
+    tip.separator = tip:CreateTexture(nil, "ARTWORK")
+    tip.separator:SetHeight(1)
+    tip.separator:SetColorTexture(0.72, 0.74, 0.78, 0.35)
+    tip.lefts = {}
+    tip.rights = {}
+    tip:Hide()
+    recommendedTooltip = tip
+    return tip
+end
+
+function Panel.GetRecommendedTooltip()
+    return recommendedTooltip
+end
+
+local FONT_FOR = { title = "GameFontNormal", header = "GameFontNormalSmall" }
+
+local function TooltipFontString(tip, list, index, font)
+    local fs = list[index]
+    if not fs or fs.svFont ~= font then
+        if fs then fs:Hide() end
+        fs = tip:CreateFontString(nil, "OVERLAY", font)
+        fs.svFont = font
+        fs:SetJustifyH(list == tip.rights and "RIGHT" or "LEFT")
+        fs:SetWordWrap(false)
+        list[index] = fs
+    end
+    return fs
+end
+
+local function RenderRecommendedTooltip(row, lines)
+    local tip = EnsureRecommendedTooltip()
+    tip.shownLines = lines
+    local y = -TOOLTIP_PAD
+    local width = TOOLTIP_MIN_WIDTH
+    local separatorShown = false
+    tip.separator:Hide()
+    for index, line in ipairs(lines) do
+        local font = FONT_FOR[line.font] or "GameFontHighlightSmall"
+        if line.gapBefore then
+            y = y - TOOLTIP_SECTION_GAP
+            if line.font == "header" and not separatorShown then
+                separatorShown = true
+                tip.separator:ClearAllPoints()
+                tip.separator:SetPoint("TOPLEFT", tip, "TOPLEFT", TOOLTIP_PAD, y + TOOLTIP_SECTION_GAP / 2)
+                tip.separator:SetPoint("TOPRIGHT", tip, "TOPRIGHT", -TOOLTIP_PAD, y + TOOLTIP_SECTION_GAP / 2)
+                tip.separator:Show()
+            end
+        end
+        local left = TooltipFontString(tip, tip.lefts, index, font)
+        left:ClearAllPoints()
+        left:SetPoint("TOPLEFT", tip, "TOPLEFT", TOOLTIP_PAD, y)
+        left:SetText(line.left or "")
+        local color = line.color or TEXT_COLOR
+        left:SetTextColor(color[1], color[2], color[3])
+        left:Show()
+        local lineWidth = left:GetStringWidth() or 0
+
+        local right = TooltipFontString(tip, tip.rights, index, font)
+        if line.right then
+            right:ClearAllPoints()
+            right:SetPoint("TOPRIGHT", tip, "TOPRIGHT", -TOOLTIP_PAD, y)
+            right:SetText(line.right)
+            right:SetTextColor(color[1], color[2], color[3])
+            right:Show()
+            lineWidth = lineWidth + TOOLTIP_RIGHT_GAP + (right:GetStringWidth() or 0)
+        else
+            right:SetText("")
+            right:Hide()
+        end
+
+        local height = left:GetStringHeight() or 12
+        if height < 10 then height = 12 end
+        y = y - height - TOOLTIP_LINE_GAP
+        if lineWidth + TOOLTIP_PAD * 2 > width then width = lineWidth + TOOLTIP_PAD * 2 end
+    end
+    for index = #lines + 1, #tip.lefts do
+        tip.lefts[index]:Hide()
+        if tip.rights[index] then tip.rights[index]:Hide() end
+    end
+
+    width = math.ceil(width)
+    tip:SetSize(width, math.ceil(-y + TOOLTIP_PAD - TOOLTIP_LINE_GAP))
+    tip:ClearAllPoints()
+    -- Next to the row: to its right, or to its left when there is no room.
+    local rowRight = row.GetRight and SafeNumber(row:GetRight()) or nil
+    local screenRight = UIParent and UIParent.GetRight and SafeNumber(UIParent:GetRight()) or nil
+    if rowRight and screenRight and rowRight + TOOLTIP_OFFSET + width > screenRight then
+        tip:SetPoint("TOPRIGHT", row, "TOPLEFT", -TOOLTIP_OFFSET, 0)
+    else
+        tip:SetPoint("TOPLEFT", row, "TOPRIGHT", TOOLTIP_OFFSET, 0)
+    end
+    tip:Show()
+end
+
 local function HideTooltip(row)
+    if row and row == tooltipRow then
+        tooltipRow = nil
+        if recommendedTooltip then recommendedTooltip:Hide() end
+    end
     if GameTooltip and GameTooltip:IsOwned(row) then
         GameTooltip:Hide()
     end
 end
 
 local function ShowItemTooltip(row)
-    if not row or not row.itemLink then return end
+    if not row then return end
+    if row.recommendedEntry then
+        tooltipRow = row
+        RenderRecommendedTooltip(row, BuildRecommendedTooltipLines(row))
+        return
+    end
+    -- Ranked Trinkets: the game's item tooltip, as before.
+    if not row.itemLink then return end
     if not GameTooltip then return end
     GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
     GameTooltip:SetHyperlink(row.itemLink)
@@ -313,8 +688,8 @@ local function ShowItemTooltip(row)
 end
 
 local function EnsureRowMouse(row)
-    if row.StatVerdictMouseReady then return end
-    row.StatVerdictMouseReady = true
+    if row.svMouseReady then return end
+    row.svMouseReady = true
     row:EnableMouse(true)
     row:SetScript("OnEnter", function(self)
         ShowItemTooltip(self)
@@ -355,22 +730,6 @@ local function SetRowItemVisual(row, display)
     row.name:SetTextColor(1, 1, 1)
 end
 
-local function SetRowDetails(row, text)
-    if not row.details then return end
-    text = text or ""
-    row.detailsText = text
-    row.details:SetText(text)
-    if text ~= "" then
-        row.details:Show()
-    else
-        row.details:Hide()
-    end
-end
-
-local function HasDetails(row)
-    return type(row.detailsText) == "string" and row.detailsText ~= ""
-end
-
 local function OwnershipState(itemID, occurrence, equippedCounts, bagCounts)
     if not itemID then return "missing" end
     local equippedCount = equippedCounts[itemID] or 0
@@ -384,9 +743,48 @@ local function OwnershipState(itemID, occurrence, equippedCounts, bagCounts)
     return "missing"
 end
 
-local ROW_LAYOUT_VERSION = 11
+local ROW_LAYOUT_VERSION = 10
 -- Title chip sits near TOP (-12). List content starts below it; AdvDev can nudge further.
 local CONTENT_TOP_BASE = -50
+local ROW_PITCH = 21
+local ROW_HEIGHT = 20
+local ROW_PITCH_MIN = 14
+-- "BiS Progress: x/16" sits SUMMARY_BOTTOM above the card bottom; rows stop FOOTER_GAP above it.
+local SUMMARY_BOTTOM = 12
+local FOOTER_GAP = 4
+
+-- Row spacing for the Best in Slot list: the usual 21 px, tightened only as much
+-- as needed so every row ends above the progress footer. Ranked Trinkets keep 21.
+local function RowPitchFor(card, fitToCard)
+    local count = SafeNumber(card and card.shownRowCount) or 0
+    if not fitToCard or count <= 1 or not card.GetHeight then
+        return ROW_PITCH, ROW_HEIGHT
+    end
+    local cardHeight = SafeNumber(card:GetHeight())
+    if not cardHeight or cardHeight <= 0 then
+        return ROW_PITCH, ROW_HEIGHT
+    end
+    local summaryHeight = card.summary and card.summary.GetStringHeight and SafeNumber(card.summary:GetStringHeight()) or 12
+    if not summaryHeight or summaryHeight < 12 then summaryHeight = 12 end
+    local available = cardHeight + CONTENT_TOP_BASE - SUMMARY_BOTTOM - summaryHeight - FOOTER_GAP
+    if (count - 1) * ROW_PITCH + ROW_HEIGHT <= available then
+        return ROW_PITCH, ROW_HEIGHT
+    end
+    -- count rows of (pitch - 1) px, one px apart: count * pitch - 1 <= available.
+    local pitch = math.floor((available + 1) / count)
+    if pitch < ROW_PITCH_MIN then pitch = ROW_PITCH_MIN end
+    if pitch > ROW_PITCH then pitch = ROW_PITCH end
+    return pitch, math.min(ROW_HEIGHT, pitch - 1)
+end
+
+local function PlaceRows(card, host)
+    local pitch, height = RowPitchFor(card, card.fitRowsToCard)
+    for index, row in ipairs(card.rows or {}) do
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", host, "TOPLEFT", 10, -((index - 1) * pitch))
+        row:SetHeight(height)
+    end
+end
 
 local function EnsureContentHost(card)
     if not card then return nil end
@@ -406,11 +804,10 @@ local function EnsureContentHost(card)
     host:SetPoint("TOPLEFT", card, "TOPLEFT", 0, CONTENT_TOP_BASE)
     host:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", 0, 0)
 
-    for index, row in ipairs(card.rows or {}) do
+    for _, row in ipairs(card.rows or {}) do
         row:SetParent(host)
-        row:ClearAllPoints()
-        row:SetPoint("TOPLEFT", host, "TOPLEFT", 10, -((index - 1) * 21))
     end
+    PlaceRows(card, host)
     if card.summary then
         card.summary:SetParent(host)
         card.summary:ClearAllPoints()
@@ -443,10 +840,7 @@ local function LayoutContentHost(card)
         host:SetBackdrop(nil)
     end
 
-    for index, row in ipairs(card.rows or {}) do
-        row:ClearAllPoints()
-        row:SetPoint("TOPLEFT", host, "TOPLEFT", 10, -((index - 1) * 21))
-    end
+    PlaceRows(card, host)
     if card.summary then
         card.summary:ClearAllPoints()
         card.summary:SetPoint("BOTTOMLEFT", host, "BOTTOMLEFT", 12, 12)
@@ -460,8 +854,6 @@ local GAP_AROUND_DASH_BIS = 16
 local GAP_AROUND_DASH_TRINKETS = 10
 local OWNED_COL_MIN = 12
 local SLOT_COL_MIN = 36
-local DETAILS_GAP = 8
-local DETAILS_COLOR = { 0.55, 0.55, 0.55 }
 
 local function GapsForMode(showTrinkets)
     local gap = showTrinkets and GAP_AROUND_DASH_TRINKETS or GAP_AROUND_DASH_BIS
@@ -544,16 +936,6 @@ local function EnsurePanel(frame)
         row.name:SetPoint("RIGHT", row, "RIGHT", -4, 0)
         row.name:SetJustifyH("LEFT")
         row.name:SetWordWrap(false)
-
-        -- Recommended gems + enchant, dimmed, on the same line after the name
-        -- (the card height is fixed, so a second line per row would not fit).
-        row.details = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        row.details:SetPoint("LEFT", row.name, "RIGHT", DETAILS_GAP, 0)
-        row.details:SetPoint("RIGHT", row, "RIGHT", -4, 0)
-        row.details:SetJustifyH("LEFT")
-        row.details:SetWordWrap(false)
-        row.details:SetTextColor(DETAILS_COLOR[1], DETAILS_COLOR[2], DETAILS_COLOR[3])
-        row.details:SetText("")
 
         EnsureRowMouse(row)
         card.rows[index] = row
@@ -672,11 +1054,7 @@ local function MeasureAndApplyAutoWidth(frame, card, showTrinkets)
                 if w > maxOwnedW then maxOwnedW = w end
             end
             if row.name and row.name.GetStringWidth then
-                -- Name plus its gems/enchant line count as one column.
                 local w = row.name:GetStringWidth() or 0
-                if HasDetails(row) and row.details.GetStringWidth then
-                    w = w + DETAILS_GAP + (row.details:GetStringWidth() or 0)
-                end
                 if w > maxNameW then maxNameW = w end
             end
         end
@@ -693,16 +1071,7 @@ local function MeasureAndApplyAutoWidth(frame, card, showTrinkets)
         row.ownedIlvl:SetPoint("LEFT", row.slot, "RIGHT", gapSlotToOwned, 0)
         row.name:ClearAllPoints()
         row.name:SetPoint("LEFT", row.ownedIlvl, "RIGHT", gapOwnedToName, 0)
-        if HasDetails(row) then
-            -- Name keeps its own width; the gems/enchant line takes the rest (and
-            -- is the part cut off when the card is at its maximum width).
-            row.name:SetWidth(math.ceil(row.name:GetStringWidth() or 0) + 1)
-            row.details:ClearAllPoints()
-            row.details:SetPoint("LEFT", row.name, "RIGHT", DETAILS_GAP, 0)
-            row.details:SetPoint("RIGHT", row, "RIGHT", -4, 0)
-        else
-            row.name:SetPoint("RIGHT", row, "RIGHT", -4, 0)
-        end
+        row.name:SetPoint("RIGHT", row, "RIGHT", -4, 0)
     end
 
     -- status(16)+gap(2)+slot+gap+owned+gap+name+padding
@@ -856,14 +1225,17 @@ function Panel.Refresh(frame, profile)
                 SetRowOwnership(row, state)
                 SetRowOwnedLevel(row, ownedLevel)
                 SetRowItemVisual(row, display)
-                SetRowDetails(row, "")
+                row.recommendedEntry = nil
                 row:Show()
             else
                 row.itemLink = nil
-                SetRowDetails(row, "")
+                row.recommendedEntry = nil
                 row:Hide()
             end
         end
+        card.fitRowsToCard = false
+        card.shownRowCount = shown
+        PlaceRows(card, card.contentHost)
         card.summary:SetText(string.format("Trinkets: %d ranked · Owned %d/%d", shown, owned, shown))
         card.summary:SetTextColor(1.00, 0.82, 0.20)
         MeasureAndApplyAutoWidth(frame, card, true)
@@ -905,14 +1277,20 @@ function Panel.Refresh(frame, profile)
             SetRowOwnership(row, state)
             SetRowOwnedLevel(row, ownedLevel)
             SetRowItemVisual(row, display)
-            SetRowDetails(row, BuildRecommendationText(entry))
+            -- Hover shows the complete recommended item (own tooltip).
+            row.recommendedEntry = entry
+            row.specID = type(profile) == "table" and SafeNumber(profile.specID) or nil
+            row.ownedState = state
             row:Show()
         else
             row.itemLink = nil
-            SetRowDetails(row, "")
+            row.recommendedEntry = nil
             row:Hide()
         end
     end
+    card.fitRowsToCard = true
+    card.shownRowCount = total
+    PlaceRows(card, card.contentHost)
 
     local wording = ns.GetReferenceWording and ns.GetReferenceWording() or nil
     card.summary:SetText(string.format(
@@ -947,6 +1325,10 @@ if not refreshFrame then
             Panel.Refresh(lastRefreshFrame, lastRefreshProfile)
         elseif ns.RequestStatAuditRefresh then
             ns.RequestStatAuditRefresh()
+        end
+        -- A hovered Best in Slot tooltip fills in names that just arrived.
+        if tooltipRow and tooltipRow.recommendedEntry then
+            ShowItemTooltip(tooltipRow)
         end
     end)
 end

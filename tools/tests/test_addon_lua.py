@@ -997,7 +997,8 @@ class PanelModeTests(unittest.TestCase):
 
     def test_weights_button_is_never_locked(self) -> None:
         source = (ADDON / "UI" / "SV_SettingsPanel.lua").read_text(encoding="utf-8-sig")
-        self.assertIn('label = "Weights"', source)
+        self.assertIn('label = "Mode"', source)
+        self.assertNotIn('label = "Weights"', source)
         self.assertIn('mode = "weights"', source)
         self.assertNotIn("IsBenchmarkRelevant", source)
         self.assertNotIn('label = "Benchmark"', source)
@@ -1008,7 +1009,7 @@ class PanelModeTests(unittest.TestCase):
 
     def test_manual_describes_the_weights_button(self) -> None:
         source = (ADDON / "UI" / "SV_ManualDrawerPanel.lua").read_text(encoding="utf-8-sig")
-        self.assertIn("Weights — choose how stat priorities and targets are decided: Guide (from the guides, "
+        self.assertIn("Mode — choose how stat priorities and targets are decided: Guide (from the guides, "
                       "recommended) or Measured (our own measurement).", source)
         self.assertIn("With Guide you also pick a stat target difficulty: Easy, Normal or Hard.", source)
         self.assertNotIn("Benchmark", source)
@@ -1123,7 +1124,7 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
 
     def test_title_intro_and_two_mode_rows(self) -> None:
         card = self.card()
-        self.assertEqual("Weights", card.title.text)
+        self.assertEqual("Mode", card.title.text)
         self.assertEqual("Choose how stat priorities and targets are decided.", card.intro.text)
         self.assertEqual(2, len(card.modeRows))
         self.assertEqual(["GUIDE", "MEASURED"], [card.modeRows[i].key for i in (1, 2)])
@@ -1455,6 +1456,21 @@ C_Item = {
     RequestLoadItemDataByID = function(id) REQUESTED[id] = true end,
 }
 C_Spell = { GetSpellName = function(id) return SPELL_NAMES[id] end }
+-- The game's tooltip data per hyperlink (nil = not loaded yet).
+TOOLTIP_DATA = {}
+C_TooltipInfo = { GetHyperlink = function(link) return TOOLTIP_DATA[link] end }
+-- Records what the panel asks the game tooltip to show, in order.
+TOOLTIP_CALLS = {}
+GameTooltip = {}
+function GameTooltip:SetOwner(owner, anchor)
+    self.owner = owner
+    TOOLTIP_CALLS[#TOOLTIP_CALLS + 1] = { "SetOwner", anchor }
+end
+function GameTooltip:SetHyperlink(link) TOOLTIP_CALLS[#TOOLTIP_CALLS + 1] = { "SetHyperlink", link } end
+function GameTooltip:AddLine(text) TOOLTIP_CALLS[#TOOLTIP_CALLS + 1] = { "AddLine", text } end
+function GameTooltip:Show() TOOLTIP_CALLS[#TOOLTIP_CALLS + 1] = { "Show" } end
+function GameTooltip:Hide() self.owner = nil TOOLTIP_CALLS[#TOOLTIP_CALLS + 1] = { "Hide" } end
+function GameTooltip:IsOwned(frame) return self.owner == frame end
 CREATED = {}
 local plainCreate = CreateFrame
 -- Font strings measure their text (6 px a character) so the auto width can be checked.
@@ -1466,24 +1482,78 @@ end
 CreateFrame = function(...)
     local frame = plainCreate(...)
     rawset(frame, "CreateFontString", function() return MeasuredFontString() end)
+    rawset(frame, "Show", function(self) rawset(self, "_visible", true) end)
+    rawset(frame, "Hide", function(self) rawset(self, "_visible", false) end)
     CREATED[#CREATED + 1] = frame
     return frame
 end
 """
 
+# One real Guardian Druid Mythic+ head slot from the generated data.
+GUARDIAN_HEAD = {
+    "item_id": 271528,
+    "bonus_ids": [13334, 6652, 13696, 13847, 13692, 13698, 12854],
+    "gem_ids": [240983, 240894],
+    "enchant": {"id": 7961, "item_id": 243951, "spell_id": 1236056},
+}
+GUARDIAN_HEAD_LINK = ("item:271528:7961:240983:240894:::::90:104::0:7:"
+                      "13334:6652:13696:13847:13692:13698:12854")
+EPIC = (0.64, 0.21, 0.93)
+# The game's tooltip for that head, as in the owner's screenshot (left, right, colour).
+GUARDIAN_HEAD_TOOLTIP = [
+    ("Enigmatic Dreamwatcher's Somnolent Stare", None, EPIC),
+    ("Heroic", None, (0.12, 1, 0)),
+    ("Venomcursed", None, (0.12, 1, 0)),
+    ("Item Level 334", None, (1, 0.82, 0)),
+    ("Upgrade Level: Myth 6/6", None, (1, 0.82, 0)),
+    ("Binds when picked up", None, (1, 1, 1)),
+    ("Head", "Leather", (1, 1, 1)),
+    ("147 Armor", None, (1, 1, 1)),
+    ("+189 Agility", None, (1, 1, 1)),
+    ("+3,910 Stamina", None, (1, 1, 1)),
+    ("+142 Haste #1", None, (1, 1, 1)),
+    ("+59 Versatility #2", None, (1, 1, 1)),
+    ("+189 Intellect", None, (0.5, 0.5, 0.5)),
+    ("Equip: Your attacks have a chance to lull your foes.", None, (0.12, 1, 0)),
+    ("Bark of the Enigmatic Dreamwatcher (0/5)", None, (1, 0.82, 0)),
+    ("  Enigmatic Dreamwatcher's Somnolent Stare", None, (0.5, 0.5, 0.5)),
+    ("  Enigmatic Dreamwatcher's Bark Mantle", None, (0.5, 0.5, 0.5)),
+    ("(2) Set: Your abilities grow stronger.", None, (0.5, 0.5, 0.5)),
+    ("(4) Set: Your abilities grow much stronger.", None, (0.5, 0.5, 0.5)),
+]
+GUARDIAN_HEAD_KEPT = [
+    ("Enigmatic Dreamwatcher's Somnolent Stare", None),
+    ("Item Level 334", None),
+    ("Upgrade Level: Myth 6/6", None),
+    ("Binds when picked up", None),
+    ("Head", "Leather"),
+    ("147 Armor", None),
+    ("+189 Agility", None),
+    ("+3,910 Stamina", None),
+    ("+142 Haste", None),
+    ("+59 Versatility", None),
+    ("+189 Intellect", None),
+    ("Bark of the Enigmatic Dreamwatcher (0/5)", None),
+]
+BIS_SLOTS = ("Head", "Neck", "Shoulders", "Back", "Chest", "Wrist", "Hands", "Waist", "Legs", "Feet",
+             "Finger 1", "Finger 2", "Trinket 1", "Trinket 2", "Main Hand", "Off Hand")
+
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
-class BisPanelRecommendationTests(unittest.TestCase):
-    """Each Best in Slot row shows the item with its recommended gems and enchant."""
+class BisPanelTests(unittest.TestCase):
+    """Best in Slot rows are a compact list; hovering one shows our own small
+    tooltip: the recommended item's identity and stats, then the gems/enchant."""
 
     def setUp(self) -> None:
         self.lua = new_runtime()
         self.lua.execute(FRAME_STUB)
         self.lua.execute(BIS_PANEL_STUB)
+        self.lua.globals().StatVerdictDB = self.lua.table()
         self.ns = self.lua.table()
         self.mode = "bis"
         self.ns.GetRightPanelMode = lambda: self.mode
         load_addon_file(self.lua, self.ns, "UI/SV_BisProgressPanel.lua")
+        self.panel = self.ns.StatVerdictBisProgressPanel
         # The first frame the file creates listens for item data arriving.
         self.item_events = self.lua.globals().CREATED[1]
         self.frame = self.lua.eval("CreateFrame")()
@@ -1491,6 +1561,11 @@ class BisPanelRecommendationTests(unittest.TestCase):
         g.ITEM_NAMES[1001] = "Crown of Tests"
         g.ITEM_NAMES[1002] = "Amulet of Tests"
         g.ITEM_NAMES[1003] = "Blade of Tests"
+        g.ITEM_NAMES[240983] = "Flawless Gem"
+        g.ITEM_NAMES[240894] = "Quick Gem"
+        g.ITEM_NAMES[243951] = "Enchant Helm - Scroll"
+
+    # --- helpers ---------------------------------------------------------------------
 
     def slots(self, *entries):
         table = self.lua.table()
@@ -1498,84 +1573,335 @@ class BisPanelRecommendationTests(unittest.TestCase):
             table[index] = entry
         return table
 
-    def item(self, item_id, gems=None, enchant=None):
+    def item(self, item_id, gems=None, enchant=None, bonus_ids=None, gem_ids=None):
+        gems = gem_ids if gems is None else gems
         item = self.lua.table(item_id=item_id)
+        if bonus_ids is not None:
+            item.bonus_ids = self.lua.table(*bonus_ids)
         if gems is not None:
             item.gem_ids = self.lua.table(*gems)
         if enchant is not None:
             item.enchant = self.lua.table(**enchant)
         return item
 
-    def refresh(self, *entries):
+    def entry(self, slot="Head", **item):
+        return self.lua.table(slot=slot, item=self.item(**item))
+
+    def guardian_head(self):
+        return self.lua.table(slot="Head", item=self.item(**GUARDIAN_HEAD))
+
+    def tooltip_lines(self, rows):
+        lines = self.lua.table()
+        for index, (left, right, color) in enumerate(rows, start=1):
+            line = self.lua.table(leftText=left, leftColor=self.lua.table(r=color[0], g=color[1], b=color[2]))
+            if right is not None:
+                line.rightText = right
+            lines[index] = line
+        return lines
+
+    def game_knows(self, link, rows):
+        self.lua.globals().TOOLTIP_DATA[link] = self.lua.table(lines=self.tooltip_lines(rows))
+
+    def refresh(self, *entries, spec_id=None):
         bis = self.lua.table(slots=self.slots(*entries))
-        profile = self.lua.table(generatedContext=self.lua.table(bis=bis))
-        self.ns.StatVerdictBisProgressPanel.Refresh(self.frame, profile)
+        profile = self.lua.table(generatedContext=self.lua.table(bis=bis), specID=spec_id)
+        self.panel.Refresh(self.frame, profile)
         return self.frame.bisProgressCard
 
-    def test_row_shows_gems_and_enchant_next_to_the_item(self) -> None:
-        g = self.lua.globals()
-        g.ITEM_NAMES[213746] = "Masterful Gem"
-        g.ITEM_NAMES[213743] = "Quick Gem"
-        g.ITEM_NAMES[243981] = "Enchant Helm - Scroll"
-        card = self.refresh(self.lua.table(slot="Head", item=self.item(
-            1001, gems=[213746, 213743], enchant={"id": 8017, "item_id": 243981, "spell_id": 1236001})))
+    def refresh_trinkets(self, count=1):
+        self.mode = "trinkets"
+        trinkets = self.slots(*[self.lua.table(item_id=1003, tier="S", bonus_ids=self.lua.table(6652))
+                                for _ in range(count)])
+        profile = self.lua.table(generatedContext=self.lua.table(trinkets=trinkets))
+        self.panel.Refresh(self.frame, profile)
+        return self.frame.bisProgressCard
+
+    @staticmethod
+    def pairs_of(lines):
+        return [(lines[i].left, lines[i].right) for i in range(1, len(lines) + 1)]
+
+    def hover(self, row):
+        """Hovers a row; returns the shown tooltip lines as (left, right) pairs."""
+        row.scripts.OnEnter(row)
+        tip = self.panel.GetRecommendedTooltip()
+        self.assertTrue(tip._visible)
+        return self.pairs_of(tip.shownLines)
+
+    # --- hyperlink -------------------------------------------------------------------
+
+    def test_recommended_link_for_a_real_guardian_head(self) -> None:
+        self.assertEqual(GUARDIAN_HEAD_LINK, self.panel.BuildRecommendedItemLink(self.guardian_head(), 104))
+
+    def test_recommended_link_uses_the_player_level(self) -> None:
+        self.lua.globals().UnitLevel = self.lua.eval("function() return 80 end")
+        link = self.panel.BuildRecommendedItemLink(self.entry(item_id=1001, bonus_ids=[10, 11]), None)
+        self.assertEqual("item:1001::::::::80:0::0:2:10:11", link)
+
+    def test_recommended_link_without_bonuses_gems_or_enchant(self) -> None:
+        link = self.panel.BuildRecommendedItemLink(self.lua.table(slot="Neck", item_id=1002), None)
+        self.assertEqual("item:1002::::::::90:0::0:0", link)
+
+    def test_recommended_link_keeps_at_most_four_gems(self) -> None:
+        link = self.panel.BuildRecommendedItemLink(self.entry(item_id=1001, gems=[1, 2, 3, 4, 5]), 0)
+        self.assertEqual("item:1001::1:2:3:4:::90:0::0:0", link)
+
+    # --- line filter -----------------------------------------------------------------
+
+    def test_filter_keeps_identity_and_stats_of_the_guardian_head(self) -> None:
+        kept = self.panel.FilterItemTooltipLines(self.tooltip_lines(GUARDIAN_HEAD_TOOLTIP))
+        self.assertEqual(GUARDIAN_HEAD_KEPT, self.pairs_of(kept))
+        self.assertEqual(list(EPIC), [kept[1].color[i] for i in (1, 2, 3)])  # quality colour
+        self.assertEqual([0.5, 0.5, 0.5], [kept[11].color[i] for i in (1, 2, 3)])  # inactive stat stays grey
+
+    def test_filter_drops_sockets_enchant_and_everything_after_the_stats(self) -> None:
+        rows = self.tooltip_lines([
+            ("|cffa335eeBlade of Tests|r", None, EPIC),
+            ("Item Level 334", None, (1, 0.82, 0)),
+            ("Unique-Equipped", None, (1, 1, 1)),
+            ("One-Hand", "Dagger", (1, 1, 1)),
+            ("210 - 350 Damage", "Speed 1.80", (1, 1, 1)),
+            ("(155.6 damage per second)", None, (1, 1, 1)),
+            ("+120 Agility", None, (1, 1, 1)),
+            ("+70 Critical Strike", None, (1, 1, 1)),
+            ("Enchanted: +80 Haste", None, (0.12, 1, 0)),
+            ("+70 Haste", None, (1, 1, 1)),
+            ("Durability 100 / 100", None, (1, 1, 1)),
+            ("Requires Level 90", None, (1, 1, 1)),
+            ("Use: Stab things.", None, (0.12, 1, 0)),
+            ('"A very sharp test."', None, (1, 0.82, 0)),
+        ])
+        rows[10].gemIcon = 1234  # a filled socket
+        kept = self.pairs_of(self.panel.FilterItemTooltipLines(rows))
+        self.assertEqual([
+            ("Blade of Tests", None),
+            ("Item Level 334", None),
+            ("One-Hand", "Dagger"),
+            ("210 - 350 Damage", "Speed 1.80"),
+            ("(155.6 damage per second)", None),
+            ("+120 Agility", None),
+            ("+70 Critical Strike", None),
+        ], kept)
+
+    def test_filter_stops_at_equip_text_when_an_item_has_no_stats(self) -> None:
+        kept = self.pairs_of(self.panel.FilterItemTooltipLines(self.tooltip_lines([
+            ("Trinket of Tests", None, EPIC),
+            ("Item Level 334", None, (1, 0.82, 0)),
+            ("Trinket", None, (1, 1, 1)),
+            ("Equip: +500 Haste while testing.", None, (0.12, 1, 0)),
+            ("+300 Mastery", None, (1, 1, 1)),
+        ])))
+        self.assertEqual([("Trinket of Tests", None), ("Item Level 334", None), ("Trinket", None)], kept)
+
+    # --- our tooltip -----------------------------------------------------------------
+
+    def test_hover_shows_the_item_then_the_recommended_block(self) -> None:
+        self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_TOOLTIP)
+        card = self.refresh(self.guardian_head(), spec_id=104)
+        self.assertEqual(GUARDIAN_HEAD_KEPT + [
+            ("Recommended", None),
+            ("Gems: Flawless Gem, Quick Gem", None),
+            ("Enchant: Enchant Helm - Scroll", None),
+        ], self.hover(card.rows[1]))
+        self.assertEqual([], [None for _ in self.lua.globals().TOOLTIP_CALLS])  # never the game tooltip
+
+    def test_tooltip_frame_sits_next_to_the_row_and_ignores_the_mouse(self) -> None:
+        card = self.refresh(self.guardian_head())
         row = card.rows[1]
-        self.assertIn("Crown of Tests", row.name.text)
-        self.assertEqual("Gems: Masterful Gem, Quick Gem  ·  Enchant: Enchant Helm - Scroll", row.details.text)
+        self.hover(row)
+        tip = self.panel.GetRecommendedTooltip()
+        self.assertIs(False, tip._mouse)
+        last = tip.points[len(tip.points)]
+        self.assertEqual(("TOPLEFT", "TOPRIGHT"), (last[1], last[3]))
+        self.assertTrue(self.lua.eval("function(a, b) return a == b end")(last[2], row))
+        row.scripts.OnLeave(row)
+        self.assertIs(False, tip._visible)
+
+    def test_toggle_off_shows_the_item_without_the_recommended_block(self) -> None:
+        self.lua.globals().StatVerdictDB.showBisGemsEnchants = False
+        self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_TOOLTIP)
+        card = self.refresh(self.guardian_head(), spec_id=104)
+        self.assertEqual(GUARDIAN_HEAD_KEPT, self.hover(card.rows[1]))
+
+    def test_toggle_is_on_without_saved_settings(self) -> None:
+        self.lua.globals().StatVerdictDB = None
+        card = self.refresh(self.guardian_head(), spec_id=104)
+        self.assertIn(("Recommended", None), self.hover(card.rows[1]))
+
+    def test_owned_item_adds_a_dim_line(self) -> None:
+        g = self.lua.globals()
+        g.GetInventoryItemLink = self.lua.eval(
+            'function(unit, slot) if slot == 1 then return "item:271528::::::::90" end end')
+        card = self.refresh(self.guardian_head(), spec_id=104)
+        lines = self.hover(card.rows[1])
+        self.assertEqual(("You have this item", None), lines[-1])
+        tip = self.panel.GetRecommendedTooltip()
+        last = tip.shownLines[len(tip.shownLines)]
+        self.assertEqual([0.55, 0.55, 0.55], [last.color[i] for i in (1, 2, 3)])
+
+    def test_item_without_gems_or_enchant_has_no_block(self) -> None:
+        card = self.refresh(self.entry(slot="Neck", item_id=1002, bonus_ids=[5]),
+                            self.entry(slot="Neck", item_id=1002, gems=[], enchant={}))
+        for index in (1, 2):
+            self.assertNotIn(("Recommended", None), self.hover(card.rows[index]), index)
+
+    def test_without_game_data_the_name_shows_and_the_rest_fills_in(self) -> None:
+        g = self.lua.globals()
+        card = self.refresh(self.guardian_head(), spec_id=104)
+        lines = self.hover(card.rows[1])
+        self.assertEqual(3 + 1, len(lines))  # name + Recommended block
+        self.assertIn("item:271528", lines[0][0])
+        self.assertTrue(g.REQUESTED[271528])
+        self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_TOOLTIP)
+        self.item_events.scripts.OnEvent(self.item_events, "GET_ITEM_INFO_RECEIVED", 271528, True)
+        tip = self.panel.GetRecommendedTooltip()
+        self.assertEqual(GUARDIAN_HEAD_KEPT, self.pairs_of(tip.shownLines)[:len(GUARDIAN_HEAD_KEPT)])
+
+    def test_gem_and_enchant_names_fill_in_when_they_arrive(self) -> None:
+        g = self.lua.globals()
+        card = self.refresh(self.entry(item_id=1001, gems=[777001], enchant={"id": 8017, "item_id": 777002}))
+        lines = self.hover(card.rows[1])
+        self.assertIn(("Gems: Gem #777001", None), lines)
+        self.assertIn(("Enchant: Enchant #8017", None), lines)
+        self.assertTrue(g.REQUESTED[777001] and g.REQUESTED[777002])
+        g.ITEM_NAMES[777001] = "Masterful Gem"
+        g.ITEM_NAMES[777002] = "Enchant Helm - Scroll"
+        self.item_events.scripts.OnEvent(self.item_events, "GET_ITEM_INFO_RECEIVED", 777001, True)
+        self.item_events.scripts.OnEvent(self.item_events, "GET_ITEM_INFO_RECEIVED", 777002, True)
+        shown = self.pairs_of(self.panel.GetRecommendedTooltip().shownLines)
+        self.assertIn(("Gems: Masterful Gem", None), shown)
+        self.assertIn(("Enchant: Enchant Helm - Scroll", None), shown)
 
     def test_enchant_name_falls_back_to_spell_then_id(self) -> None:
         self.lua.globals().SPELL_NAMES[1236001] = "Radiant Mastery"
         card = self.refresh(
-            self.lua.table(slot="Ring", item=self.item(1001, enchant={"id": 8017, "spell_id": 1236001})),
-            self.lua.table(slot="Main Hand", item=self.item(1003, enchant={"id": 3368})),
+            self.entry(slot="Finger 1", item_id=1001, enchant={"id": 8017, "spell_id": 1236001}),
+            self.entry(slot="Main Hand", item_id=1003, enchant={"id": 3368}),
         )
-        self.assertEqual("Enchant: Radiant Mastery", card.rows[1].details.text)
-        self.assertEqual("Enchant: Enchant #3368", card.rows[2].details.text)
+        self.assertIn(("Enchant: Radiant Mastery", None), self.hover(card.rows[1]))
+        self.assertIn(("Enchant: Enchant #3368", None), self.hover(card.rows[2]))
 
-    def test_line_is_empty_without_gems_or_enchant(self) -> None:
-        card = self.refresh(
-            self.lua.table(slot="Neck", item=self.item(1002)),
-            self.lua.table(slot="Neck", item=self.item(1002, gems=[], enchant={})),
-        )
-        for index in (1, 2):
-            self.assertEqual("", card.rows[index].details.text, index)
+    def test_ranked_trinkets_keep_the_game_tooltip(self) -> None:
+        self.refresh(self.guardian_head())
+        card = self.refresh_trinkets()
+        card.rows[1].scripts.OnEnter(card.rows[1])
+        calls = self.lua.globals().TOOLTIP_CALLS
+        self.assertEqual([
+            ("SetOwner", "ANCHOR_RIGHT"),
+            ("SetHyperlink", "item:1003::::::::90::::1:6652"),
+            ("Show",),
+        ], [tuple(calls[i][j] for j in range(1, len(calls[i]) + 1)) for i in range(1, len(calls) + 1)])
+        tip = self.panel.GetRecommendedTooltip()
+        self.assertTrue(tip is None or not tip._visible)
 
-    def test_old_data_with_a_flat_entry_has_no_errors(self) -> None:
-        card = self.refresh(self.lua.table(slot="Neck", item_id=1002))
-        self.assertIn("Amulet of Tests", card.rows[1].name.text)
-        self.assertEqual("", card.rows[1].details.text)
+    # --- compact rows and geometry ---------------------------------------------------
 
-    def test_gem_names_fill_in_when_the_item_data_arrives(self) -> None:
-        g = self.lua.globals()
-        card = self.refresh(self.lua.table(slot="Head", item=self.item(1001, gems=[213746])))
-        self.assertEqual("Gems: Gem #213746", card.rows[1].details.text)
-        self.assertTrue(g.REQUESTED[213746])
-        g.ITEM_NAMES[213746] = "Masterful Gem"
-        self.item_events.scripts.OnEvent(self.item_events, "GET_ITEM_INFO_RECEIVED", 213746, True)
-        self.assertEqual("Gems: Masterful Gem", card.rows[1].details.text)
+    def test_rows_show_only_slot_and_coloured_name(self) -> None:
+        card = self.refresh(self.entry(item_id=1001, gems=[240983], enchant={"id": 8017, "item_id": 243951}))
+        row = card.rows[1]
+        self.assertEqual("Head", row.slot.text)
+        self.assertEqual("|cffdbdbdbCrown of Tests|r", row.name.text)
+        self.assertIsNone(row.details)
 
-    def test_enchant_scroll_name_fills_in_when_the_item_data_arrives(self) -> None:
-        g = self.lua.globals()
-        card = self.refresh(self.lua.table(slot="Head", item=self.item(
-            1001, enchant={"id": 8017, "item_id": 243981})))
-        self.assertEqual("Enchant: Enchant #8017", card.rows[1].details.text)
-        g.ITEM_NAMES[243981] = "Enchant Helm - Scroll"
-        self.item_events.scripts.OnEvent(self.item_events, "GET_ITEM_INFO_RECEIVED", 243981, True)
-        self.assertEqual("Enchant: Enchant Helm - Scroll", card.rows[1].details.text)
+    def test_card_width_does_not_grow_with_gems_or_enchant(self) -> None:
+        plain = self.refresh(self.entry(item_id=1001)).preferredWidth
+        full = self.refresh(self.entry(item_id=1001, gems=[240983, 240894],
+                                       enchant={"id": 8017, "item_id": 243951})).preferredWidth
+        self.assertEqual(plain, full)
+        # status 16 + gap 2 + slot (min 36) + 16 + owned (min 12) + 16 + name + 24, at least 240.
+        name_width = len(self.frame.bisProgressCard.rows[1].name.text) * 6
+        self.assertEqual(max(240, 16 + 2 + 36 + 16 + 12 + 16 + name_width + 24), full)
 
-    def test_ranked_trinkets_rows_have_no_recommendation_line(self) -> None:
-        self.refresh(self.lua.table(slot="Head", item=self.item(1001, gems=[213746])))
-        self.mode = "trinkets"
-        trinkets = self.slots(self.lua.table(item_id=1003, tier="S"))
-        profile = self.lua.table(generatedContext=self.lua.table(trinkets=trinkets))
-        self.ns.StatVerdictBisProgressPanel.Refresh(self.frame, profile)
-        self.assertEqual("", self.frame.bisProgressCard.rows[1].details.text)
+    def row_geometry(self, card):
+        points = card.contentHost.points
+        host_y = [points[i][5] for i in range(1, len(points) + 1) if points[i][1] == "TOPLEFT"][-1]
+        rows = []
+        for index in range(1, 17):
+            row = card.rows[index]
+            y = row.points[len(row.points)][5]
+            rows.append((-host_y - y, -host_y - y + row._height))  # top, bottom from card top
+        return rows
 
-    def test_panel_width_makes_room_for_the_line(self) -> None:
-        plain = self.refresh(self.lua.table(slot="Head", item=self.item(1001))).preferredWidth
-        with_line = self.refresh(self.lua.table(slot="Head", item=self.item(
-            1001, enchant={"id": 3368}))).preferredWidth
-        self.assertGreater(with_line, plain)
+    def full_bis(self, card_height):
+        entries = [self.entry(slot=slot, item_id=1001) for slot in BIS_SLOTS]
+        card = self.refresh(*entries)
+        card.GetHeight = self.lua.eval(f"function() return {card_height} end")
+        return self.refresh(*entries)
+
+    def test_sixteen_rows_never_overlap_the_progress_footer(self) -> None:
+        for height in (300, 360, 420):
+            card = self.full_bis(height)
+            self.assertEqual("BiS Progress: 0/16", card.summary.text)
+            footer_top = height - 12 - 12  # anchored 12 above the bottom, 12 high
+            rows = self.row_geometry(card)
+            self.assertLessEqual(rows[-1][1], footer_top, height)
+            for upper, lower in zip(rows, rows[1:]):
+                self.assertLessEqual(upper[1], lower[0], height)  # rows do not overlap each other
+
+    def test_rows_keep_their_spacing_when_they_fit(self) -> None:
+        rows = self.row_geometry(self.full_bis(500))
+        self.assertEqual([50 + 21 * i for i in range(16)], [top for top, _ in rows])
+        self.assertEqual({20}, {bottom - top for top, bottom in rows})
+
+    def test_ranked_trinkets_rows_keep_the_old_spacing(self) -> None:
+        self.refresh(self.entry(item_id=1001))
+        self.frame.bisProgressCard.GetHeight = self.lua.eval("function() return 360 end")
+        card = self.refresh_trinkets(count=14)
+        rows = self.row_geometry(card)
+        self.assertEqual([50 + 21 * i for i in range(16)], [top for top, _ in rows])
+        self.assertEqual({20}, {bottom - top for top, bottom in rows})
+        self.assertEqual("|cffff8000#1 S|r", card.rows[1].slot.text)
+        self.assertEqual("Trinkets: 14 ranked · Owned 0/14", card.summary.text)
+
+
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class BisTooltipFeatureToggleTests(unittest.TestCase):
+    LABEL = "Best in Slot tooltip: gems and enchants"
+
+    def setUp(self) -> None:
+        self.lua = new_runtime()
+        self.lua.execute(FRAME_STUB)
+        self.ns = self.lua.table()
+        self.ns.GetRightPanelMode = lambda: "options"
+        load_addon_file(self.lua, self.ns, "UI/SV_OptionsDrawerPanel.lua")
+        self.frame = self.lua.eval("CreateFrame")()
+
+    def check(self):
+        self.ns.StatVerdictOptionsDrawerPanel.Apply(self.frame)
+        return self.frame.optionsDrawerCard.bagIndicatorChecks["showBisGemsEnchants"]
+
+    def test_toggle_is_shown_and_on_by_default(self) -> None:
+        self.lua.globals().StatVerdictDB = self.lua.table()
+        check = self.check()
+        self.assertEqual(self.LABEL, check.Text.text)
+        self.assertTrue(check.checked)
+        self.assertEqual("Best in Slot", self.frame.optionsDrawerCard.bisTooltipTitle.text)
+
+    def test_toggle_is_on_without_saved_settings(self) -> None:
+        self.lua.globals().StatVerdictDB = None
+        self.assertTrue(self.check().checked)
+
+    def test_clicking_saves_the_choice(self) -> None:
+        self.lua.globals().StatVerdictDB = self.lua.table()
+        check = self.check()
+        check.GetChecked = lambda self: False
+        check.scripts.OnClick(check)
+        self.assertIs(False, self.lua.globals().StatVerdictDB.showBisGemsEnchants)
+        self.assertFalse(self.check().checked)
+        check.GetChecked = lambda self: True
+        check.scripts.OnClick(check)
+        self.assertIs(True, self.lua.globals().StatVerdictDB.showBisGemsEnchants)
+
+    def test_bag_marker_toggles_are_unchanged(self) -> None:
+        self.lua.globals().StatVerdictDB = self.lua.table()
+        self.check()
+        card = self.frame.optionsDrawerCard
+        self.assertEqual("Upgrade Arrow", card.bagIndicatorChecks["showUpgradeArrow"].Text.text)
+        self.assertEqual("|cff00ff00MS|r / |cff00ff00OS|r Labels", card.bagIndicatorChecks["showMsOsLabels"].Text.text)
+        self.assertEqual("Bag Markers", card.bagMarkersTitle.text)
+
+    def test_manual_mentions_the_toggle(self) -> None:
+        source = (ADDON / "UI" / "SV_ManualDrawerPanel.lua").read_text(encoding="utf-8-sig")
+        self.assertIn("Features → Best in Slot tooltip: gems and enchants", source)
 
 
 if __name__ == "__main__":

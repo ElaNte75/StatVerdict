@@ -417,7 +417,7 @@ local PANEL_TOGGLE_BUTTONS = {
     {
         mode = "weights",
         field = "weightsDrawerButton",
-        label = "Weights",
+        label = "Mode",
         tooltip = "Choose how stat priorities and targets are decided: Guide or Measured.",
         -- Layout key kept from the Summary button (later Benchmark) this replaced,
         -- so saved button positions carry over.
