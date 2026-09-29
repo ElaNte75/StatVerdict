@@ -106,31 +106,19 @@ local function GetEntryGemIDs(entry)
     return out
 end
 
-local function ParseEnchant(raw)
-    if type(raw) ~= "table" then return nil end
+-- The recommended enchant. `id` (the real enchant id) may be missing when the data
+-- could not translate a scroll: the name then comes from item_id / spell_id, and
+-- the hyperlink leaves its enchant field empty.
+local function GetEntryEnchant(entry)
+    local item = type(entry) == "table" and entry.item or nil
+    if type(item) ~= "table" or type(item.enchant) ~= "table" then return nil end
     local enchant = {
-        id = SafeNumber(raw.id),
-        itemID = SafeNumber(raw.item_id),
-        spellID = SafeNumber(raw.spell_id),
+        id = SafeNumber(item.enchant.id),
+        itemID = SafeNumber(item.enchant.item_id),
+        spellID = SafeNumber(item.enchant.spell_id),
     }
     if not (enchant.id or enchant.itemID or enchant.spellID) then return nil end
     return enchant
-end
-
-local function GetEntryEnchant(entry)
-    local item = type(entry) == "table" and entry.item or nil
-    return type(item) == "table" and ParseEnchant(item.enchant) or nil
-end
-
--- Optional alternatives (not in every data build): one gem, one enchant.
-local function GetEntryGemAltID(entry)
-    local item = type(entry) == "table" and entry.item or nil
-    return type(item) == "table" and SafeNumber(item.gem_alt_id) or nil
-end
-
-local function GetEntryEnchantAlt(entry)
-    local item = type(entry) == "table" and entry.item or nil
-    return type(item) == "table" and ParseEnchant(item.enchant_alt) or nil
 end
 
 -- The complete recommended item as a hyperlink, so the game itself shows it at its
@@ -568,22 +556,20 @@ local TOOLTIP_OFFSET = 12
 local GOLD = { 1.0, 0.82, 0.0 }
 local TEXT_COLOR = { 0.92, 0.92, 0.92 }
 local DIM_COLOR = { 0.55, 0.55, 0.55 }
-local OR_PREFIX = "|cff8c8c8cor|r "
 
 -- One recommended gem / enchant name: indented, in its quality colour, and wrapped
 -- to the tooltip's width instead of widening it.
-local function RecommendationNameLine(name, quality, isAlternative)
+local function RecommendationNameLine(name, quality)
     return {
-        left = (isAlternative and OR_PREFIX or "") .. name,
+        left = name,
         color = GetQualityRGB(quality),
         indent = true,
         wrap = true,
     }
 end
 
--- The Recommended block's lines under its heading, stacked:
---   Gems / one gem per real socket / "or" alternative gem,
---   Enchant / the enchant / "or" alternative enchant.
+-- The Recommended block's lines under its heading, stacked, only the single best
+-- choice: Gems / one gem per real socket, then Enchant / the enchant.
 -- itemLines: the recommended item's raw tooltip lines, nil while not loaded.
 local function BuildRecommendationLines(entry, itemLines)
     local out = {}
@@ -592,11 +578,6 @@ local function BuildRecommendationLines(entry, itemLines)
         out[#out + 1] = { left = "Gems", color = DIM_COLOR }
         for _, gemID in ipairs(gems) do
             out[#out + 1] = RecommendationNameLine(GetGemDisplay(gemID))
-        end
-        local altID = GetEntryGemAltID(entry)
-        if altID then
-            local name, quality = GetGemDisplay(altID)
-            out[#out + 1] = RecommendationNameLine(name, quality, true)
         end
     end
     local enchant = GetEntryEnchant(entry)
@@ -607,11 +588,6 @@ local function BuildRecommendationLines(entry, itemLines)
             gap = (#out > 0) and TOOLTIP_SUBSECTION_GAP or nil,
         }
         out[#out + 1] = RecommendationNameLine(GetEnchantDisplay(enchant))
-        local alt = GetEntryEnchantAlt(entry)
-        if alt then
-            local name, quality = GetEnchantDisplay(alt)
-            out[#out + 1] = RecommendationNameLine(name, quality, true)
-        end
     end
     return out
 end

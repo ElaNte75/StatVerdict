@@ -1541,8 +1541,7 @@ GUARDIAN_HEAD_KEPT = [
     ("+189 Intellect", None),
     ("Part of the tier set", None),
 ]
-# The Recommended block: dim sub-headings, one name per line, "or" alternatives.
-OR = "|cff8c8c8cor|r "
+# The Recommended block: dim sub-headings, one name per line, only the best choice.
 HEAD_RECOMMENDED = [
     ("Recommended", None),
     ("Gems", None),
@@ -1606,8 +1605,7 @@ class BisPanelTests(unittest.TestCase):
             table[index] = entry
         return table
 
-    def item(self, item_id, gems=None, enchant=None, bonus_ids=None, gem_ids=None,
-             gem_alt_id=None, enchant_alt=None):
+    def item(self, item_id, gems=None, enchant=None, bonus_ids=None, gem_ids=None):
         gems = gem_ids if gems is None else gems
         item = self.lua.table(item_id=item_id)
         if bonus_ids is not None:
@@ -1616,10 +1614,6 @@ class BisPanelTests(unittest.TestCase):
             item.gem_ids = self.lua.table(*gems)
         if enchant is not None:
             item.enchant = self.lua.table(**enchant)
-        if gem_alt_id is not None:
-            item.gem_alt_id = gem_alt_id
-        if enchant_alt is not None:
-            item.enchant_alt = self.lua.table(**enchant_alt)
         return item
 
     def entry(self, slot="Head", **item):
@@ -1809,48 +1803,27 @@ class BisPanelTests(unittest.TestCase):
         for name in ("Gem #777001", "Enchant #8017"):
             self.assertEqual([1, 1, 1], [block[name].color[i] for i in (1, 2, 3)], name)
 
-    def test_alternative_gem_and_enchant_follow_with_or(self) -> None:
-        g = self.lua.globals()
-        g.ITEM_NAMES[240900] = "Deadly Gem"
-        g.ITEM_NAMES[243960] = "Enchant Helm - Other Scroll"
-        entry = self.lua.table(slot="Head", item=self.item(
-            **GUARDIAN_HEAD, gem_alt_id=240900, enchant_alt={"id": 7962, "item_id": 243960}))
-        self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_SOCKETED_TOOLTIP)
-        lines = self.hover(self.refresh(entry, spec_id=104).rows[1])
-        self.assertEqual(GUARDIAN_HEAD_KEPT + [
-            ("Recommended", None),
-            ("Gems", None),
-            ("Flawless Gem", None),
-            ("Quick Gem", None),
-            (OR + "Deadly Gem", None),
-            ("Enchant", None),
-            ("Enchant Helm - Scroll", None),
-            (OR + "Enchant Helm - Other Scroll", None),
-        ], lines)
-        self.assertTrue(self.shown()[-1].indent)
+    # --- enchant without a real enchant id (scroll id not translated) ---------------
 
-    def test_alternative_enchant_names_resolve_like_the_main_enchant(self) -> None:
-        self.lua.globals().SPELL_NAMES[1236001] = "Radiant Mastery"
+    def test_link_leaves_the_enchant_out_without_a_real_id(self) -> None:
+        for enchant in ({"item_id": 243951, "spell_id": 1236056}, {"item_id": 243951}, {"spell_id": 1236056}):
+            link = self.panel.BuildRecommendedItemLink(
+                self.entry(item_id=1001, gems=[240983], enchant=enchant), 0)
+            self.assertEqual("item:1001::240983::::::90:0::0:0", link, enchant)
+
+    def test_enchant_without_id_is_named_from_its_scroll_or_spell(self) -> None:
+        g = self.lua.globals()
+        g.SPELL_NAMES[1236001] = "Radiant Mastery"
         card = self.refresh(
-            self.entry(slot="Finger 1", item_id=1001, enchant={"id": 8017, "item_id": 243951},
-                       enchant_alt={"id": 8018, "spell_id": 1236001}),
-            self.entry(slot="Main Hand", item_id=1003, enchant={"id": 8017, "item_id": 243951},
-                       enchant_alt={"id": 3368}),
+            self.entry(slot="Head", item_id=1001, enchant={"item_id": 243951, "spell_id": 1236001}),
+            self.entry(slot="Finger 1", item_id=1001, enchant={"spell_id": 1236001}),
+            self.entry(slot="Wrist", item_id=1001, enchant={"item_id": 777003}),
         )
-        self.assertIn((OR + "Radiant Mastery", None), self.hover(card.rows[1]))
-        self.assertIn((OR + "Enchant #3368", None), self.hover(card.rows[2]))
-
-    def test_alternative_gem_needs_a_socket_and_missing_fields_are_fine(self) -> None:
-        g = self.lua.globals()
-        g.ITEM_NAMES[240900] = "Deadly Gem"
-        entry = self.lua.table(slot="Head", item=self.item(**GUARDIAN_HEAD, gem_alt_id=240900))
-        self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_TOOLTIP)  # no sockets
-        lines = self.hover(self.refresh(entry, spec_id=104).rows[1])
-        self.assertNotIn(("Gems", None), lines)
-        self.assertNotIn((OR + "Deadly Gem", None), lines)
-        # Enchant alternative without any main enchant shows nothing.
-        card = self.refresh(self.entry(slot="Neck", item_id=1002, enchant_alt={"id": 3368}))
-        self.assertNotIn(("Recommended", None), self.hover(card.rows[1]))
+        self.assertIn(("Enchant Helm - Scroll", None), self.hover(card.rows[1]))
+        self.assertIn(("Radiant Mastery", None), self.hover(card.rows[2]))
+        # Scroll not loaded yet: its number stands in, and the load is requested.
+        self.assertIn(("Enchant #777003", None), self.hover(card.rows[3]))
+        self.assertTrue(g.REQUESTED[777003])
 
     def test_item_without_sockets_shows_no_gems(self) -> None:
         self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_TOOLTIP)
