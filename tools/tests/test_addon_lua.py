@@ -99,9 +99,11 @@ class WeightModeCoreTests(unittest.TestCase):
         self.assertEqual(["GUIDE", "MEASURED", "BLEND"], [modes[i].key for i in (1, 2, 3)])
         self.assertEqual(["Guide", "Measured", "Blend"], [modes[i].label for i in (1, 2, 3)])
         self.assertEqual("Recommended", modes[1].hint)
-        self.assertEqual("Stat priority from the guides (Icy Veins / u.gg). Recommended.", modes[1].about)
-        self.assertEqual("Stat values measured by our own simulations. May differ from the guides.", modes[2].about)
-        self.assertEqual("Guide order, with the size of the gaps adjusted by our simulations.", modes[3].about)
+        self.assertEqual("Priority and stat targets exactly as in ClassCodex (Icy Veins / u.gg). Recommended.",
+                         modes[1].about)
+        self.assertEqual("Our own: targets from best-in-slot gear with recommended gems and enchants, "
+                         "weights from simulations.", modes[2].about)
+        self.assertEqual("Average of both.", modes[3].about)
         for i in (1, 2, 3):
             self.assertTrue(modes[i].meaning)
         self.assertEqual("Measured", self.ns.GetWeightModeInfo("MEASURED").label)
@@ -1101,6 +1103,7 @@ CreateFrame = function() return Stub() end
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
 class WeightsDrawerSmokeTests(unittest.TestCase):
     NO_DATA = "No measured data for this build: the guide is used."
+    NO_GUIDE_TARGETS = "No ClassCodex targets for this build: our own are used."
 
     def setUp(self) -> None:
         self.lua = new_runtime()
@@ -1119,12 +1122,14 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         self.ns.RequestStatAuditRefresh = refresh
         self.ns.GetStatAuditGoalMode = lambda: "RAID"
         self.measured = True
+        self.guide_targets = True
         self.has_profile = True
         self.ns.SetRightPanelMode("weights")
 
     def card(self):
         weights = self.lua.table(haste=1.0, mastery=0.8) if self.measured else None
-        profile = self.lua.table(specKey="SPEC", secondaryWeights=weights)
+        profile = self.lua.table(specKey="SPEC", secondaryWeights=weights,
+                                 guideTargetsMissing=not self.guide_targets)
         context = self.lua.table(profile=profile) if self.has_profile else self.lua.table()
         self.ns.GetActivePanelContext = lambda: context
         self.ns.StatVerdictWeightsDrawerPanel.Apply(self.frame)
@@ -1197,8 +1202,26 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
 
     def test_status_is_empty_without_an_active_build(self) -> None:
         self.has_profile = False
-        self.lua.globals().StatVerdictDB.weightMode = "MEASURED"
-        self.assertEqual("", self.card().status.text)
+        for mode in ("GUIDE", "MEASURED"):
+            self.lua.globals().StatVerdictDB.weightMode = mode
+            self.assertEqual("", self.card().status.text, mode)
+
+    def test_status_says_our_targets_are_used_without_classcodex_targets(self) -> None:
+        self.guide_targets = False
+        self.assertEqual(self.NO_GUIDE_TARGETS, self.card().status.text)
+        # Only in Guide mode: Measured shows our own targets anyway, Blend keeps its own message.
+        for mode in ("MEASURED", "BLEND"):
+            self.lua.globals().StatVerdictDB.weightMode = mode
+            self.assertEqual("", self.card().status.text, mode)
+        self.measured = False
+        self.assertEqual(self.NO_DATA, self.card().status.text)
+
+    def test_mode_rows_describe_targets_too(self) -> None:
+        card = self.card()
+        self.assertIn("ClassCodex", card.about.text)
+        self.assertIn("stat targets", card.about.text)
+        for i in (1, 2, 3):
+            self.assertLessEqual(len(card.modeRows[i].meaning.text), 31, i)  # one line in the row
 
     def test_no_raider_io_wording_left(self) -> None:
         source = (ADDON / "UI" / "SV_WeightsDrawerPanel.lua").read_text(encoding="utf-8-sig")
