@@ -30,6 +30,7 @@ try:
         _hero_talent_keys,
         build_simc_items,
         canonical_stat_name,
+        format_simc_error,
         select_goal_context,
         select_talent_export,
         talent_export_from_entries,
@@ -45,6 +46,7 @@ except ModuleNotFoundError:
         _hero_talent_keys,
         build_simc_items,
         canonical_stat_name,
+        format_simc_error,
         select_goal_context,
         select_talent_export,
         talent_export_from_entries,
@@ -181,7 +183,7 @@ def compute_weight_context(
     except Exception as exc:  # noqa: BLE001 - fail closed; caller skips this combo
         # The skip reason stays short (it is grouped in the run summary); the
         # actual SimC message goes to the log so a failure can be diagnosed.
-        print(f"SimC error for {spec.spec_name}: {str(exc)[-500:]}", file=sys.stderr)
+        print(f"SimC error for {spec.spec_name}: {format_simc_error(exc)}", file=sys.stderr)
         raise ComboSkipped(f"SimC run failed ({type(exc).__name__})") from exc
     metric = scale_metric_for_role(spec.role)
     try:

@@ -16,6 +16,7 @@ from tools.classcodex_targets import (
     build_all,
     count_contexts,
     coverage_problem,
+    format_simc_error,
     format_skip_summary,
     gate_and_write,
     previous_context_count,
@@ -80,6 +81,36 @@ class SkipRecordingTests(unittest.TestCase):
     def test_skip_argument_is_optional(self) -> None:
         with patch("tools.classcodex_targets.run_simc", side_effect=RuntimeError("boom")):
             self.assertEqual({}, build_all(SPECS, Path("simc"))["profiles"])
+
+
+LONG_SIMC_ERROR = "FATAL-HEAD " + ("x" * 3000) + " Trivial: TAIL-END"
+
+
+class SimcErrorLoggingTests(unittest.TestCase):
+    """The real fatal SimC error is usually near the start of its output,
+    followed by pages of trailing `Trivial:` warnings; both ends must be
+    visible in the log."""
+
+    def test_targets_log_the_head_and_the_tail_of_a_long_simc_error(self) -> None:
+        stderr = io.StringIO()
+        with redirect_stderr(stderr), patch("tools.classcodex_targets.run_simc", side_effect=RuntimeError(LONG_SIMC_ERROR)):
+            build_all(SPECS, Path("simc"), goals=("MYTHIC_PLUS",))
+        self.assertIn("FATAL-HEAD", stderr.getvalue())
+        self.assertIn("TAIL-END", stderr.getvalue())
+        self.assertLess(len(stderr.getvalue()), 2500)
+
+    def test_weights_log_the_head_and_the_tail_of_a_long_simc_error(self) -> None:
+        stderr = io.StringIO()
+        with redirect_stderr(stderr), patch("tools.classcodex_weights.run_simc", side_effect=RuntimeError(LONG_SIMC_ERROR)):
+            build_all_weights(SPECS, Path("simc"), goals=("MYTHIC_PLUS",))
+        self.assertIn("FATAL-HEAD", stderr.getvalue())
+        self.assertIn("TAIL-END", stderr.getvalue())
+
+    def test_short_errors_are_logged_whole(self) -> None:
+        self.assertEqual("boom", format_simc_error(RuntimeError("boom")))
+        formatted = format_simc_error(RuntimeError(LONG_SIMC_ERROR))
+        self.assertTrue(formatted.startswith(LONG_SIMC_ERROR[:1200]))
+        self.assertTrue(formatted.endswith(LONG_SIMC_ERROR[-600:]))
 
 
 class FormatSkipSummaryTests(unittest.TestCase):

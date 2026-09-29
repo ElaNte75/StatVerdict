@@ -293,6 +293,20 @@ def priority_row_from_context(context: Any, context_label: str, hero_talent_name
     }
 
 
+SIMC_ERROR_HEAD_CHARS = 1200
+SIMC_ERROR_TAIL_CHARS = 600
+
+
+def format_simc_error(exc: BaseException) -> str:
+    """The SimC error text for the CI log. SimC prints the real fatal error
+    early and then pages of trailing `Trivial:` warnings, so a long message
+    keeps both its head and its tail."""
+    text = str(exc)
+    if len(text) <= SIMC_ERROR_HEAD_CHARS + SIMC_ERROR_TAIL_CHARS:
+        return text
+    return text[:SIMC_ERROR_HEAD_CHARS] + " [...] " + text[-SIMC_ERROR_TAIL_CHARS:]
+
+
 class ComboSkipped(Exception):
     """Raised by the per-combo builders with a short, human-readable reason
     for why one spec/goal/hero-talent combo produced no output (fail closed:
@@ -346,7 +360,7 @@ def reconstruct_target_context(
     except Exception as exc:  # noqa: BLE001 - fail closed; caller skips this combo
         # The skip reason stays short (it is grouped in the run summary); the
         # actual SimC message goes to the log so a failure can be diagnosed.
-        print(f"SimC error for {spec.spec_name}: {str(exc)[-500:]}", file=sys.stderr)
+        print(f"SimC error for {spec.spec_name}: {format_simc_error(exc)}", file=sys.stderr)
         raise ComboSkipped(f"SimC run failed ({type(exc).__name__})") from exc
     actor_name = next(iter(actor_map))
     reconstructed = stats_by_actor.get(actor_name)
