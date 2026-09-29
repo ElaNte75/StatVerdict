@@ -573,8 +573,10 @@ local function BuildAuditTargets(averageItemLevel, targetValues, weightMode, sec
     local function add(statKey, statType, priority, baseModifier)
         if not statKey or seen[statKey] then return end
         seen[statKey] = true
-        local target = targetValues[statKey]
-        if target == nil then return end
+        -- A secondary stat always keeps its row: a stat with no target (e.g. our
+        -- measured Versatility is 0 when the best gear carries none) shows with
+        -- target 0, which every consumer already treats as "no target".
+        local target = targetValues[statKey] or 0
         rows[#rows + 1] = {
             key = statKey,
             label = STAT_LABEL[statKey] or statKey,

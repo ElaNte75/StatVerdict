@@ -475,7 +475,8 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
     def check_targets(self, cell: str, context, profile, mode: str, problems: list[str]) -> None:
         """The audit rows show the mode's targets: GUIDE the ClassCodex (u.gg) top20
         targets when the data has them, MEASURED our own.
-        A stat missing on one side uses the other side's target."""
+        A stat missing on one side uses the other side's target; a secondary with no
+        target at all keeps its row with target 0 (never dropped)."""
         def positive(table, key):
             value = table[key] if table is not None else None
             return float(value) if isinstance(value, (int, float)) and value > 0 else None
@@ -492,7 +493,9 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
             own_value, guide_value = positive(own, canonical), positive(guide, canonical)
             target = float(row.target)
             expected = own_value if mode == "MEASURED" or guide_value is None else guide_value
-            if expected is None or abs(target - expected) > 1e-6:
+            if expected is None:
+                expected = 0.0
+            if abs(target - expected) > 1e-6:
                 problems.append(f"{cell}: {canonical} target {target}, expected {expected}")
 
 

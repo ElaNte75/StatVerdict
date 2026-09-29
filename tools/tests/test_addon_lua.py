@@ -898,6 +898,25 @@ class CoreProfileTests(unittest.TestCase):
         self.assertEqual(self.keys(*self.MEASURED_ORDER), self.order(profile))
         self.assertEqual("MEASURED", profile.auditTargets.targetMode)
 
+    def test_a_secondary_without_a_target_keeps_its_row_in_both_modes(self) -> None:
+        # Our measured Versatility is 0 when the best gear carries none: the stat
+        # must still show as a row (target 0), never be dropped.
+        for weight_mode in (None, "MEASURED"):
+            build_id = now_build_id()
+            targets = add_guide_targets(make_classcodex_targets(build_id), "DEATHKNIGHT_BLOOD", "MYTHIC_PLUS",
+                                        "sanlayn", make_guide_targets(**self.GUIDE_BINS))
+            context = targets["profiles"]["DEATHKNIGHT_BLOOD"]["goals"]["MYTHIC_PLUS"]["heroTalents"]["sanlayn"]
+            del context["targets"]["statTargets"]["stats"]["versatility"]
+            targets_root = context["targets"]
+            if weight_mode is None:
+                targets_root["guideTargets"] = {}
+            lua, ns = self.build_runtime(build_id=build_id, targets=targets, weight_mode=weight_mode)
+            profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+            by_key = self.targets(profile)
+            self.assertEqual(4, len(profile.auditTargets.rows), weight_mode)
+            self.assertEqual(0, by_key[SECONDARY["vers"]], weight_mode)
+            self.assertEqual(self.OWN_TARGETS["crit"], by_key[SECONDARY["crit"]], weight_mode)
+
     def test_quality_checks_still_read_our_own_targets(self) -> None:
         build_id = now_build_id()
         targets = add_guide_targets(make_classcodex_targets(build_id), "DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "sanlayn",
