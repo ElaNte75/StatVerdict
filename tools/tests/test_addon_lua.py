@@ -1390,6 +1390,7 @@ local function Stub()
             end
         end
         if key == "SetSpacing" then return function(self, value) rawset(self, "spacing", value) end end
+        if key == "SetJustifyV" then return function(self, value) rawset(self, "_justifyV", value) end end
         if key == "SetChecked" then return function(self, value) rawset(self, "checked", value) end end
         if key == "SetWidth" then return function(self, value) rawset(self, "_width", value) end end
         if key == "SetBackdrop" then return function(self, value) rawset(self, "_backdrop", value) end end
@@ -1825,6 +1826,67 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
             card.binNote.text = about
             self.assertLessEqual(self.text_height(card.binNote, self.DRAWER_TEXT_WIDTH), card.binNote._height, about)
         print(f"\n[weights drawer] content bottom {-worst:.0f}px of {self.CARD_HEIGHT - self.BOTTOM_BORDER}px")
+
+    # --- Nothing moves: every element keeps its place and size in every state ------
+    def region_left(self, card, region) -> float:
+        point = region.points[1]
+        relative, x = point[2], point[4]
+        if self.lua.eval("rawequal")(relative, card):
+            return x
+        return self.region_left(card, relative) + x
+
+    def layout_snapshot(self, card):
+        regions = {"mode row 1": card.modeRows[1], "mode row 2": card.modeRows[2],
+                   "mode explanation": card.about, "status line": card.status,
+                   "separator": card.separator, "group": card.binGroup, "group title": card.binTitle,
+                   "card 1": card.binRows[1], "card 2": card.binRows[2], "card 3": card.binRows[3],
+                   "card explanation": card.binNote}
+        snapshot = {}
+        for name, region in regions.items():
+            if name.startswith("card ") and name != "card explanation":
+                top = self.region_top(card, card.binGroup) + region.points[1][5]
+                left = self.region_left(card, card.binGroup) + region.points[1][4]
+                height, width = region._height, region._width
+            else:
+                top, left = self.region_top(card, region), self.region_left(card, region)
+                # Width follows the anchors: the right edge's anchor and offset.
+                points = region.points
+                height = self.region_height(region)
+                width = None if points[2] is None else (points[2][3], points[2][4])
+            snapshot[name] = (round(top, 3), round(left, 3), round(height, 3), width)
+        return snapshot
+
+    def test_nothing_moves_or_resizes_in_any_state(self) -> None:
+        db = self.lua.globals().StatVerdictDB
+        tiers, levels = ("top80", "top50", "top20"), ("champion", "hero", "myth")
+        reference, states = None, 0
+        for mode in ("GUIDE", "MEASURED"):
+            for index in range(3):
+                for measured in (True, False):
+                    for guide_targets in (True, False):
+                        db.weightMode, db.statTargetBin, db.gearLevel = mode, tiers[index], levels[index]
+                        self.measured, self.guide_targets = measured, guide_targets
+                        state = (mode, index + 1, measured, guide_targets)
+                        snapshot = self.layout_snapshot(self.card())
+                        states += 1
+                        if reference is None:
+                            reference = snapshot
+                            continue
+                        for name, value in snapshot.items():
+                            self.assertEqual(reference[name], value, (name, state))
+        self.assertEqual(24, states)
+
+    def test_reserved_blocks_hold_their_longest_text(self) -> None:
+        card = self.card()
+        for mode in self.ns.GetWeightModes().values():
+            card.about.text = mode.about
+            self.assertLessEqual(self.text_height(card.about, self.DRAWER_TEXT_WIDTH), card.about._height, mode.key)
+        for status in (self.NO_DATA, self.NO_GUIDE_TARGETS):
+            card.status.text = status
+            self.assertLessEqual(self.text_height(card.status, self.DRAWER_TEXT_WIDTH), card.status._height, status)
+        # Shorter texts start at the top of their block and leave the space below empty.
+        for text in (card.about, card.status, card.binNote):
+            self.assertEqual("TOP", text._justifyV)
 
     def test_card_padding_copies_the_features_drawer(self) -> None:
         # The layout key stays "benchmark.card" so saved drawer positions carry over.
