@@ -18,7 +18,7 @@ SPECS = (
     Spec("DEATHKNIGHT_BLOOD", "death-knight", "Blood", "tank", "strength"),
     Spec("DEATHKNIGHT_FROST", "death-knight", "Frost", "dps", "strength"),
     Spec("DEATHKNIGHT_UNHOLY", "death-knight", "Unholy", "dps", "strength"),
-    Spec("DEMONHUNTER_DEVOURER", "demon-hunter", "Devourer", "dps", "agility"),
+    Spec("DEMONHUNTER_DEVOURER", "demon-hunter", "Devourer", "dps", "intellect"),
     Spec("DEMONHUNTER_HAVOC", "demon-hunter", "Havoc", "dps", "agility"),
     Spec("DEMONHUNTER_VENGEANCE", "demon-hunter", "Vengeance", "tank", "agility"),
     Spec("DRUID_BALANCE", "druid", "Balance", "dps", "intellect"),
