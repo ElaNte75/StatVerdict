@@ -109,6 +109,8 @@ function ns.RenderTooltipVerdict(tooltip, context, comparison, isSecondary, show
         local wording = ns.GetReferenceWording and ns.GetReferenceWording(context.profile and context.profile.goal) or nil
         local tag = wording and wording.tag or "BIS"
         AddLine(tooltip, c.white .. "Reference: " .. "|cff00ccff(" .. tag .. ")|r" .. c.reset, 1, 1, 1)
+    elseif referenceInfo and referenceInfo.catalystPath then
+        AddLine(tooltip, c.white .. "Reference: " .. "|cff00ccffGood if converted to the set piece with the Catalyst|r" .. c.reset, 1, 1, 1)
     end
     if referenceInfo and referenceInfo.trinket then
         local trinket = referenceInfo.trinket

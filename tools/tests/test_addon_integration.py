@@ -168,6 +168,47 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
         if problems:
             self.fail("\n  ".join(problems[:20] + [f"({len(problems)} problems)"]))
 
+    def test_found_items_in_set_piece_slots_get_the_catalyst_bonus_in_every_cell(self) -> None:
+        """With the game saying every BiS item is a set piece, an upgradeable item
+        the player finds for head/shoulders/chest/hands/legs counts as that piece."""
+        ns, lua = self.ns, self.lua
+        candidates = {"Head": 99000001, "Shoulders": 99000002, "Chest": 99000003, "Hands": 99000004, "Legs": 99000005}
+        lua.execute("""
+        local EQUIP = { [99000001] = "INVTYPE_HEAD", [99000002] = "INVTYPE_SHOULDER", [99000003] = "INVTYPE_CHEST",
+                        [99000004] = "INVTYPE_HAND", [99000005] = "INVTYPE_LEGS" }
+        C_Item = {
+            GetItemInfo = function(item)
+                local id = tonumber(tostring(item):match("item:(%d+)") or item)
+                local setID = (not EQUIP[id]) and 1 or nil
+                return "Item", "item:" .. id, 4, 600, 80, "Armor", "Plate", 1, EQUIP[id] or "", 0, 0, 4, 4, 1, 11, setID, false
+            end,
+            GetItemUpgradeInfo = function() return { trackString = "Hero" } end,
+        }
+        """)
+        problems: list[str] = []
+        checked = 0
+        try:
+            targets = ns.ClassCodexTargets.profiles
+            for spec in SPECS:
+                for goal in GOALS:
+                    heroes = targets[spec.key].goals[goal].heroTalents
+                    for hero in heroes.keys():
+                        profile = lua.table(specKey=spec.key, goal=goal, heroKey=hero)
+                        for entry in lua_list(heroes[hero].bis.slots):
+                            candidate = candidates.get(str(entry.slot))
+                            if candidate is None:
+                                continue
+                            info = ns.GetItemReferenceInfo(f"item:{candidate}", profile)
+                            checked += 1
+                            path = info.catalystPath if info is not None else None
+                            if path is None or path.bonus < 8 or path.targetItemID != entry.item.item_id:
+                                problems.append(f"{spec.key} {goal} {hero}: {entry.slot} candidate has no catalyst bonus")
+        finally:
+            lua.execute("C_Item = nil")
+        self.assertGreater(checked, 1000)
+        if problems:
+            self.fail("\n  ".join(problems[:20] + [f"({len(problems)} problems)"]))
+
     def test_bis_gems_and_enchants_have_the_shape_the_panel_reads(self) -> None:
         """The Best in Slot panel shows each slot's recommended gems and enchant:
         gem_ids is a list of positive item ids, enchant a table with a positive
