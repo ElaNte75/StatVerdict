@@ -163,6 +163,44 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
         if problems:
             self.fail("\n  ".join(problems[:20] + [f"({len(problems)} problems)"]))
 
+    def test_bis_gems_and_enchants_have_the_shape_the_panel_reads(self) -> None:
+        """The Best in Slot panel shows each slot's recommended gems and enchant:
+        gem_ids is a list of positive item ids, enchant a table with a positive
+        id and optional positive item_id / spell_id. Some slots must have one."""
+        ns = self.ns
+        targets = ns.ClassCodexTargets.profiles
+
+        def positive_int(value) -> bool:
+            return isinstance(value, (int, float)) and value > 0 and int(value) == value
+
+        problems: list[str] = []
+        with_enchant = with_gems = 0
+        for spec_key in targets.keys():
+            goals = targets[spec_key].goals
+            for goal in goals.keys():
+                heroes = goals[goal].heroTalents
+                for hero in heroes.keys():
+                    for entry in lua_list(heroes[hero].bis.slots):
+                        where = f"{spec_key} {goal} {hero} {entry.slot}"
+                        item = entry.item
+                        if item.gem_ids is not None:
+                            gems = lua_list(item.gem_ids)
+                            if not gems or not all(positive_int(g) for g in gems):
+                                problems.append(f"{where}: bad gem_ids {gems}")
+                            with_gems += 1
+                        enchant = item.enchant
+                        if enchant is not None:
+                            if not positive_int(enchant.id):
+                                problems.append(f"{where}: enchant without a positive id")
+                            for field in ("item_id", "spell_id"):
+                                if enchant[field] is not None and not positive_int(enchant[field]):
+                                    problems.append(f"{where}: bad enchant {field} {enchant[field]}")
+                            with_enchant += 1
+        self.assertGreater(with_enchant, 0)
+        if problems:
+            self.fail("\n  ".join(problems[:20] + [f"({len(problems)} problems)"]))
+        print(f"\n[bis recommendations] {with_enchant} slots with an enchant, {with_gems} with gems")
+
     def test_missing_hero_tree_name_uses_the_first_sorted_hero_key(self) -> None:
         ns, lua = self.ns, self.lua
         targets = ns.ClassCodexTargets.profiles
