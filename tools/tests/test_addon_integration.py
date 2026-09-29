@@ -257,6 +257,69 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
             self.fail("\n  ".join(problems[:20] + [f"({len(problems)} problems)"]))
         print(f"\n[bis recommendations] {with_enchant} slots with an enchant, {with_gems} contexts with gems")
 
+    def test_unique_primary_gem_goes_on_at_most_one_slot_in_every_cell(self) -> None:
+        """The guide's primary gem is unique-equipped. Wherever a cell lists
+        bis.gems, the panel's gem plan (the pure SlotGemPlan, with stub socket
+        counts) gives the primary to at most one slot, needs no per-slot gem_ids,
+        and every gem id is a positive item id."""
+        ns, lua = self.ns, self.lua
+        targets = ns.ClassCodexTargets.profiles
+        plan_for = ns.StatVerdictBisProgressPanel.SlotGemPlan
+        # Copies of the slots without gem_ids, and socket counts from a pattern.
+        without_gem_ids = lua.eval("""function(slots)
+            local out = {}
+            for i, entry in ipairs(slots) do
+                local item = {}
+                for k, v in pairs(entry.item or {}) do if k ~= "gem_ids" then item[k] = v end end
+                out[i] = { slot = entry.slot, item = item }
+            end
+            return out
+        end""")
+        counter = lua.eval("""function(slots, pattern)
+            local byEntry = {}
+            for i, entry in ipairs(slots) do byEntry[entry] = pattern[(i - 1) % #pattern + 1] end
+            return function(entry) return byEntry[entry] end
+        end""")
+        patterns = ([1], [2], [3], [0, 1], [0, 0, 2], [1, 0, 3, 0])
+
+        def positive_int(value) -> bool:
+            return isinstance(value, (int, float)) and value > 0 and int(value) == value
+
+        problems: list[str] = []
+        cells = 0
+        for spec_key in targets.keys():
+            goals = targets[spec_key].goals
+            for goal in goals.keys():
+                heroes = goals[goal].heroTalents
+                for hero in heroes.keys():
+                    bis = heroes[hero].bis
+                    gems = bis.gems
+                    where = f"{spec_key} {goal} {hero}"
+                    if gems is None:
+                        # Data from before the guide gems: the rule is still checked on
+                        # the real slot list, with stand-in gem ids.
+                        gems = lua.table(primary=1, secondary=2)
+                    else:
+                        cells += 1
+                        for field in ("primary", "secondary"):
+                            if gems[field] is not None and not positive_int(gems[field]):
+                                problems.append(f"{where}: bad gems.{field} {gems[field]}")
+                        if gems.primary is None:
+                            continue
+                    slots = without_gem_ids(bis.slots)
+                    for pattern in patterns:
+                        count_of = counter(slots, lua.table(*pattern))
+                        holders = []
+                        for index in range(1, len(slots) + 1):
+                            plan = plan_for(gems, slots, index, count_of)
+                            if any(plan[i].id == gems.primary for i in range(1, len(plan) + 1)):
+                                holders.append(slots[index].slot)
+                        if len(holders) > 1:
+                            problems.append(f"{where} {pattern}: primary gem on {holders}")
+        if problems:
+            self.fail("\n  ".join(problems[:20] + [f"({len(problems)} problems)"]))
+        print(f"\n[bis gems] {cells} cells list the guide's primary/secondary gems")
+
     def test_missing_hero_tree_name_uses_the_first_sorted_hero_key(self) -> None:
         ns, lua = self.ns, self.lua
         targets = ns.ClassCodexTargets.profiles

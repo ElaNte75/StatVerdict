@@ -1693,6 +1693,22 @@ ONE_SOCKET_RING_TOOLTIP = [
     ("+400 Mastery", None, (1, 1, 1)),
     ("Prismatic Socket", None, (0.5, 0.5, 0.5), {"type": GEM_SOCKET, "socketType": "Prismatic"}),
 ]
+
+
+def socketed_item_tooltip(name: str, sockets: int) -> list:
+    """A plain item's tooltip with `sockets` empty Prismatic sockets."""
+    return [
+        (name, None, EPIC),
+        ("Item Level 334", None, (1, 0.82, 0)),
+        ("+3,000 Stamina", None, (1, 1, 1)),
+        ("+400 Mastery", None, (1, 1, 1)),
+    ] + [("Prismatic Socket", None, (0.5, 0.5, 0.5), {"type": GEM_SOCKET, "socketType": "Prismatic"})] * sockets
+
+
+# The guide's gems: one unique-equipped primary gem, one secondary gem for the rest.
+PRIMARY_GEM = 240990
+SECONDARY_GEM = 240894
+GUIDE_GEMS = {"primary": PRIMARY_GEM, "secondary": SECONDARY_GEM}
 BIS_SLOTS = ("Head", "Neck", "Shoulders", "Back", "Chest", "Wrist", "Hands", "Waist", "Legs", "Feet",
              "Finger 1", "Finger 2", "Trinket 1", "Trinket 2", "Main Hand", "Off Hand")
 
@@ -1721,6 +1737,7 @@ class BisPanelTests(unittest.TestCase):
         g.ITEM_NAMES[1003] = "Blade of Tests"
         g.ITEM_NAMES[240983] = "Flawless Gem"
         g.ITEM_NAMES[240894] = "Quick Gem"
+        g.ITEM_NAMES[240990] = "Indecipherable Eversong Diamond"
         g.ITEM_NAMES[243951] = "Enchant Helm - Scroll"
 
     # --- helpers ---------------------------------------------------------------------
@@ -1762,8 +1779,10 @@ class BisPanelTests(unittest.TestCase):
     def game_knows(self, link, rows):
         self.lua.globals().TOOLTIP_DATA[link] = self.lua.table(lines=self.tooltip_lines(rows))
 
-    def refresh(self, *entries, spec_id=None):
+    def refresh(self, *entries, spec_id=None, gems=None):
         bis = self.lua.table(slots=self.slots(*entries))
+        if gems is not None:
+            bis.gems = self.lua.table(**gems)
         profile = self.lua.table(generatedContext=self.lua.table(bis=bis), specID=spec_id)
         self.panel.Refresh(self.frame, profile)
         return self.frame.bisProgressCard
@@ -2090,6 +2109,135 @@ class BisPanelTests(unittest.TestCase):
         ], [tuple(calls[i][j] for j in range(1, len(calls[i]) + 1)) for i in range(1, len(calls) + 1)])
         tip = self.panel.GetRecommendedTooltip()
         self.assertTrue(tip is None or not tip._visible)
+
+    # --- guide gems: one unique primary gem, a secondary gem everywhere else ----------
+
+    def gem_block(self, lines):
+        """The names under the "Gems" heading of a shown tooltip (empty without one)."""
+        lefts = [left for left, _ in lines]
+        if "Gems" not in lefts:
+            return []
+        out = []
+        for left in lefts[lefts.index("Gems") + 1:]:
+            if left in ("Enchant", "You have this item"):
+                break
+            out.append(left)
+        return out
+
+    def socketed_entry(self, slot, item_id, sockets, known=True, **item):
+        entry = self.entry(slot=slot, item_id=item_id, **item)
+        if known:
+            self.game_knows(self.panel.BuildRecommendedItemLink(entry, 0),
+                            socketed_item_tooltip(f"Item {item_id}", sockets))
+        return entry
+
+    def test_unique_primary_gem_only_on_the_first_socketed_slot(self) -> None:
+        card = self.refresh(
+            self.socketed_entry("Head", 1001, 0),
+            self.socketed_entry("Neck", 1002, 2),
+            self.socketed_entry("Finger 1", 1003, 1),
+            self.socketed_entry("Wrist", 1004, 3),
+            gems=GUIDE_GEMS,
+        )
+        self.assertEqual([], self.gem_block(self.hover(card.rows[1])))  # no sockets: no Gems part
+        self.assertEqual(["Indecipherable Eversong Diamond", "Quick Gem"], self.gem_block(self.hover(card.rows[2])))
+        self.assertEqual(["Quick Gem"], self.gem_block(self.hover(card.rows[3])))
+        self.assertEqual(["Quick Gem x3"], self.gem_block(self.hover(card.rows[4])))
+
+    def test_primary_slot_counts_the_other_sockets_as_secondary(self) -> None:
+        card = self.refresh(self.socketed_entry("Head", 1001, 3), self.socketed_entry("Neck", 1002, 2),
+                            gems=GUIDE_GEMS)
+        self.assertEqual(["Indecipherable Eversong Diamond", "Quick Gem x2"],
+                         self.gem_block(self.hover(card.rows[1])))
+        self.assertEqual(["Quick Gem x2"], self.gem_block(self.hover(card.rows[2])))
+
+    def test_gem_block_keeps_its_look(self) -> None:
+        g = self.lua.globals()
+        g.GetItemQualityColor = self.lua.eval(
+            "function(q) if q == 4 then return 0.64, 0.21, 0.93, 'ffa335ee' end return 1, 1, 1, 'ffffffff' end")
+        card = self.refresh(self.socketed_entry("Neck", 1002, 2, enchant={"id": 8017, "item_id": 243951}),
+                            gems=GUIDE_GEMS)
+        self.hover(card.rows[1])
+        block = {line.left: line for line in self.shown()}
+        self.assertEqual([0.55, 0.55, 0.55], [block["Gems"].color[i] for i in (1, 2, 3)])
+        for name in ("Indecipherable Eversong Diamond", "Quick Gem"):
+            self.assertTrue(block[name].indent and block[name].wrap, name)
+            self.assertEqual([0.64, 0.21, 0.93], [block[name].color[i] for i in (1, 2, 3)], name)
+        self.assertGreater(block["Enchant"].gap, 0)
+        self.assertIn("Enchant Helm - Scroll", block)
+
+    def test_no_primary_anywhere_until_earlier_slots_are_known(self) -> None:
+        g = self.lua.globals()
+        head = self.socketed_entry("Head", 1001, 0, known=False)
+        card = self.refresh(head, self.socketed_entry("Neck", 1002, 2), gems=GUIDE_GEMS)
+        # The head's sockets are unknown: the neck might not be the first socketed slot.
+        self.assertEqual(["Quick Gem x2"], self.gem_block(self.hover(card.rows[2])))
+        self.assertTrue(g.REQUESTED[1001])
+        # The head arrives with no sockets: the neck is the first socketed slot after all.
+        self.game_knows(self.panel.BuildRecommendedItemLink(head, 0), socketed_item_tooltip("Item 1001", 0))
+        self.item_events.scripts.OnEvent(self.item_events, "GET_ITEM_INFO_RECEIVED", 1001, True)
+        self.assertEqual(["Indecipherable Eversong Diamond", "Quick Gem"],
+                         self.gem_block(self.pairs_of(self.panel.GetRecommendedTooltip().shownLines)))
+
+    def test_primary_moves_to_an_earlier_slot_once_it_is_known(self) -> None:
+        head = self.socketed_entry("Head", 1001, 0, known=False)
+        card = self.refresh(head, self.socketed_entry("Neck", 1002, 1), gems=GUIDE_GEMS)
+        self.assertEqual(["Quick Gem"], self.gem_block(self.hover(card.rows[2])))
+        self.game_knows(self.panel.BuildRecommendedItemLink(head, 0), socketed_item_tooltip("Item 1001", 1))
+        self.item_events.scripts.OnEvent(self.item_events, "GET_ITEM_INFO_RECEIVED", 1001, True)
+        self.assertEqual(["Quick Gem"], self.gem_block(self.pairs_of(self.panel.GetRecommendedTooltip().shownLines)))
+        self.assertEqual(["Indecipherable Eversong Diamond"], self.gem_block(self.hover(card.rows[1])))
+
+    def test_only_a_primary_gem_in_the_data(self) -> None:
+        card = self.refresh(self.socketed_entry("Head", 1001, 2), self.socketed_entry("Neck", 1002, 1),
+                            gems={"primary": PRIMARY_GEM})
+        self.assertEqual(["Indecipherable Eversong Diamond"], self.gem_block(self.hover(card.rows[1])))
+        self.assertNotIn(("Gems", None), self.hover(card.rows[2]))
+
+    def test_only_a_secondary_gem_in_the_data(self) -> None:
+        card = self.refresh(self.socketed_entry("Head", 1001, 2), self.socketed_entry("Neck", 1002, 1),
+                            gems={"secondary": SECONDARY_GEM})
+        self.assertEqual(["Quick Gem x2"], self.gem_block(self.hover(card.rows[1])))
+        self.assertEqual(["Quick Gem"], self.gem_block(self.hover(card.rows[2])))
+
+    def test_unknown_sockets_of_the_hovered_item_show_no_gems(self) -> None:
+        card = self.refresh(self.socketed_entry("Head", 1001, 2, known=False), gems=GUIDE_GEMS)
+        self.assertNotIn(("Gems", None), self.hover(card.rows[1]))
+
+    def test_old_gem_ids_are_ignored_once_the_guide_gems_exist(self) -> None:
+        entry = self.entry(slot="Neck", item_id=1002, gems=[240983, 240983])
+        link = self.panel.BuildRecommendedItemLink(entry, 0, True)
+        self.assertEqual("item:1002::::::::90:0::0:0", link)  # no per-slot gems in the link
+        self.game_knows(link, socketed_item_tooltip("Item 1002", 2))
+        card = self.refresh(entry, gems=GUIDE_GEMS)
+        lines = self.hover(card.rows[1])
+        self.assertEqual(["Indecipherable Eversong Diamond", "Quick Gem"], self.gem_block(lines))
+        self.assertNotIn(("Flawless Gem", None), lines)
+
+    def test_old_data_without_guide_gems_keeps_the_per_slot_gems(self) -> None:
+        entry = self.entry(slot="Neck", item_id=1002, gems=[240983, 240894])
+        self.game_knows(self.panel.BuildRecommendedItemLink(entry, 0), socketed_item_tooltip("Item 1002", 2))
+        card = self.refresh(self.entry(slot="Head", item_id=1001, gems=[240983]), entry)
+        self.assertEqual(["Flawless Gem", "Quick Gem"], self.gem_block(self.hover(card.rows[2])))
+
+    def plan(self, gems, counts, index):
+        """The pure gem plan for slot `index` with stub socket counts (None = unknown)."""
+        slots = self.slots(*[self.entry(slot=f"S{i}", item_id=5000 + i) for i in range(len(counts))])
+        count_of = self.lua.eval("function(counts) return function(entry) return counts[entry.item.item_id] end end")(
+            self.lua.table_from({5000 + i: c for i, c in enumerate(counts) if c is not None}))
+        plan = self.panel.SlotGemPlan(self.lua.table(**gems), slots, index, count_of)
+        return [(plan[i].id, plan[i].count) for i in range(1, len(plan) + 1)]
+
+    def test_slot_gem_plan_is_pure_and_gives_the_primary_once(self) -> None:
+        counts = [0, 2, 1, None, 3]
+        self.assertEqual([], self.plan(GUIDE_GEMS, counts, 1))
+        self.assertEqual([(PRIMARY_GEM, 1), (SECONDARY_GEM, 1)], self.plan(GUIDE_GEMS, counts, 2))
+        self.assertEqual([(SECONDARY_GEM, 1)], self.plan(GUIDE_GEMS, counts, 3))
+        self.assertEqual([], self.plan(GUIDE_GEMS, counts, 4))  # own count unknown
+        self.assertEqual([(SECONDARY_GEM, 3)], self.plan(GUIDE_GEMS, counts, 5))
+        # An unknown earlier slot means no primary yet, never a possibly wrong one.
+        self.assertEqual([(SECONDARY_GEM, 2)], self.plan(GUIDE_GEMS, [None, 2], 2))
+        self.assertEqual([], self.plan({"primary": PRIMARY_GEM}, [None, 2], 2))
 
     # --- compact rows and geometry ---------------------------------------------------
 
