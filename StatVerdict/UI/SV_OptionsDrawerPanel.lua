@@ -227,10 +227,27 @@ local BAG_INDICATOR_OPTIONS = {
     { key = "showMsOsLabels", label = "|cff00ff00MS|r / |cff00ff00OS|r Labels" },
 }
 
--- Best in Slot section: the hover tooltip's Recommended (gems / enchant) block.
+-- Best in Slot section: what hovering a Best in Slot row shows.
+-- Our tooltip and the game tooltip exclude each other (both may be off); the
+-- gems / enchants block only exists inside our tooltip. showBisGemsEnchants is
+-- the older single toggle's key, kept so saved choices survive.
 local BIS_TOOLTIP_OPTIONS = {
-    { key = "showBisGemsEnchants", label = "Best in Slot tooltip" },
+    { key = "showBisTooltip", label = "Best in Slot tooltip" },
+    { key = "showBisGemsEnchants", label = "Gems and enchants", indent = true },
+    { key = "bisUseGameTooltip", label = "Use the game tooltip instead" },
 }
+local BIS_CHILD_INDENT = 18
+local LOCKED_ALPHA = 0.45
+
+-- checked, clickable for one Best in Slot option. Unset: ours and gems on, game off.
+local function BisOptionState(key)
+    local db = _G.StatVerdictDB
+    local ours = OptionFlagOn("showBisTooltip")
+    local game = (not ours) and type(db) == "table" and db.bisUseGameTooltip == true
+    if key == "showBisTooltip" then return ours, not game end
+    if key == "showBisGemsEnchants" then return OptionFlagOn(key), ours end
+    return game, not ours
+end
 
 local function EnsureOptionCheckbox(card, option, parent)
     local optionKey = option.key
@@ -262,14 +279,23 @@ end
 
 local function SyncBagIndicatorOptionChecks(card)
     if not card or not card.bagIndicatorChecks then return end
-    for _, options in ipairs({ BAG_INDICATOR_OPTIONS, BIS_TOOLTIP_OPTIONS }) do
-        for _, option in ipairs(options) do
-            local check = card.bagIndicatorChecks[option.key]
-            if check then
-                check:SetChecked(OptionFlagOn(option.key))
-                check:Enable()
-                check:SetAlpha(1)
-            end
+    for _, option in ipairs(BAG_INDICATOR_OPTIONS) do
+        local check = card.bagIndicatorChecks[option.key]
+        if check then
+            check:SetChecked(OptionFlagOn(option.key))
+            check:Enable()
+            check:SetAlpha(1)
+        end
+    end
+    -- Locked options are dimmed and not clickable; their saved value is kept.
+    for _, option in ipairs(BIS_TOOLTIP_OPTIONS) do
+        local check = card.bagIndicatorChecks[option.key]
+        if check then
+            local checked, active = BisOptionState(option.key)
+            check:SetChecked(checked)
+            check.svLocked = not active
+            if active then check:Enable() else check:Disable() end
+            check:SetAlpha(active and 1 or LOCKED_ALPHA)
         end
     end
     -- Legacy Enable All checkbox removed from UI.
@@ -510,10 +536,15 @@ function Panel.Apply(frame)
     for index, option in ipairs(BIS_TOOLTIP_OPTIONS) do
         local check = EnsureOptionCheckbox(card, option, bisBlock)
         check:ClearAllPoints()
-        check:SetPoint("TOPLEFT", bisBlock, "TOPLEFT", 0, -((index - 1) * BAG_CHECK_STEP))
+        local indent = option.indent and BIS_CHILD_INDENT or 0
+        check:SetPoint("TOPLEFT", bisBlock, "TOPLEFT", indent, -((index - 1) * BAG_CHECK_STEP))
         check:SetFrameLevel((bisBlock:GetFrameLevel() or 1) + 6)
         check:Show()
         check:SetScript("OnClick", function(self)
+            if self.svLocked then
+                SyncBagIndicatorOptionChecks(card)
+                return
+            end
             _G.StatVerdictDB = _G.StatVerdictDB or {}
             _G.StatVerdictDB[option.key] = self:GetChecked() and true or false
             SyncBagIndicatorOptionChecks(card)
