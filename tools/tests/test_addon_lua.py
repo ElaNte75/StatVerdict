@@ -185,7 +185,7 @@ class CoreProfileTests(unittest.TestCase):
             self.assertFalse(wording.popular, goal)
 
     def build_runtime(self, build_id: str | None = None, targets: dict | None = None, weights: dict | None = None,
-                      weight_mode: str | None = None):
+                      weight_mode: str | None = None, lua_setup: str | None = None):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         build_id = build_id or now_build_id()
@@ -196,6 +196,8 @@ class CoreProfileTests(unittest.TestCase):
         lua = new_runtime()
         ns = lua.table()
         lua.globals().StatVerdictDB = lua.table(weightMode=weight_mode)
+        if lua_setup:
+            lua.execute(lua_setup)
         load = lua.eval("function(path, ns) local f = assert(loadfile(path)) f('StatVerdict', ns) end")
         load(str(targets_path), ns)
         load(str(weights_path), ns)
@@ -532,6 +534,93 @@ class CoreProfileTests(unittest.TestCase):
             self.assertEqual(goal, info.goal)
             self.assertEqual(108, info.bonus, goal)
             self.assertIsNone(info.catalystPath)  # no catalyst data in ClassCodex BiS lists
+
+    # The game's item data: BiS Head 1000, Shoulders 1002 and Chest 1004 are set
+    # pieces; Legs 1008 is not; Hands 1006 is not loaded yet. Candidates 7000+ are
+    # items the player found (7003 has no upgrade track).
+    CATALYST_GAME = """
+    SET_IDS = { [1000] = 1920, [1002] = 1920, [1004] = 1920 }
+    LOADED = { [1000] = true, [1002] = true, [1004] = true, [1008] = true }
+    EQUIP = { [7000] = "INVTYPE_HEAD", [7001] = "INVTYPE_NECK", [7002] = "INVTYPE_ROBE", [7003] = "INVTYPE_HEAD",
+              [7004] = "INVTYPE_LEGS", [7005] = "INVTYPE_HAND", [7006] = "INVTYPE_SHOULDER" }
+    TRACKED = { [7000] = true, [7001] = true, [7002] = true, [7004] = true, [7005] = true, [7006] = true }
+    REQUESTED = {}
+    EVENT_HANDLERS = {}
+    local function IdOf(item) return tonumber(tostring(item):match("item:(%d+)") or item) end
+    C_Item = {
+        GetItemInfo = function(item)
+            local id = IdOf(item)
+            if not LOADED[id] then return nil end
+            return "Item " .. id, "item:" .. id, 4, 600, 80, "Armor", "Plate", 1, EQUIP[id] or "", 0, 0, 4, 4, 1, 11,
+                SET_IDS[id], false
+        end,
+        RequestLoadItemDataByID = function(id) REQUESTED[id] = true end,
+        GetItemUpgradeInfo = function(link)
+            if TRACKED[IdOf(link)] then return { trackString = "Hero", currentLevel = 1, maxLevel = 6 } end
+            return nil
+        end,
+    }
+    CreateFrame = function()
+        local frame = { events = {} }
+        function frame:RegisterEvent(event) self.events[event] = true end
+        function frame:SetScript(_, handler) EVENT_HANDLERS[#EVENT_HANDLERS + 1] = { frame = self, handler = handler } end
+        return frame
+    end
+    """
+
+    def catalyst_runtime(self):
+        lua, ns = self.build_runtime(lua_setup=self.CATALYST_GAME)
+        ns.GetItemEquipLocation = lua.eval("function(link) return EQUIP[tonumber(tostring(link):match('item:(%d+)'))] end")
+        return lua, ns, ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+
+    def test_found_item_in_a_set_piece_slot_counts_as_the_set_piece(self) -> None:
+        lua, ns, profile = self.catalyst_runtime()
+        for link, slot, target in (("item:7000", "Head", 1000), ("item:7006", "Shoulders", 1002),
+                                   ("item:7002", "Chest", 1004)):
+            info = ns.GetItemReferenceInfo(link, profile)
+            self.assertIsNotNone(info, link)
+            self.assertIsNone(info.bis, link)
+            self.assertEqual(8, info.catalystPath.bonus, link)  # same bonus a BiS item gets
+            self.assertEqual(slot, info.catalystPath.slot, link)
+            self.assertEqual(target, info.catalystPath.targetItemID, link)
+            self.assertEqual(8, info.bonus, link)
+            self.assertEqual(8, ns.GetItemReferenceBonus(link, profile)[0])
+
+    def test_no_catalyst_rule_when_the_bis_piece_is_not_a_set_piece(self) -> None:
+        lua, ns, profile = self.catalyst_runtime()
+        self.assertIsNone(ns.GetItemReferenceInfo("item:7004", profile))  # Legs BiS 1008 has no set
+
+    def test_the_set_piece_itself_is_plain_bis(self) -> None:
+        lua, ns, profile = self.catalyst_runtime()
+        lua.execute('EQUIP[1000] = "INVTYPE_HEAD"; TRACKED[1000] = true')
+        info = ns.GetItemReferenceInfo("item:1000", profile)
+        self.assertIsNotNone(info.bis)
+        self.assertIsNone(info.catalystPath)
+        self.assertEqual(8, info.bonus)
+
+    def test_no_catalyst_rule_for_other_slots_or_items_without_an_upgrade_track(self) -> None:
+        lua, ns, profile = self.catalyst_runtime()
+        self.assertIsNone(ns.GetItemReferenceInfo("item:7001", profile))  # neck
+        self.assertIsNone(ns.GetItemReferenceInfo("item:7003", profile))  # head, no upgrade track
+
+    def test_unloaded_set_data_gives_no_rule_until_it_loads(self) -> None:
+        lua, ns, profile = self.catalyst_runtime()
+        calls = []
+        ns.ClearUpgradeIndicatorDecisionCache = lambda: calls.append("clear")
+        ns.RefreshUpgradeIndicators = lambda kind=None: calls.append(("refresh", kind))
+        self.assertIsNone(ns.GetItemReferenceInfo("item:7005", profile))  # Hands BiS 1006 not loaded
+        self.assertTrue(lua.globals().REQUESTED[1006])
+        handlers = lua.globals().EVENT_HANDLERS
+        self.assertEqual(1, len(handlers))
+        self.assertTrue(handlers[1].frame.events["GET_ITEM_INFO_RECEIVED"])
+        handlers[1].handler(handlers[1].frame, "GET_ITEM_INFO_RECEIVED", 4242, True)  # unrelated item
+        self.assertEqual([], calls)
+        lua.execute("LOADED[1006] = true; SET_IDS[1006] = 1920")
+        handlers[1].handler(handlers[1].frame, "GET_ITEM_INFO_RECEIVED", 1006, True)
+        self.assertEqual(["clear", ("refresh", "full")], calls)
+        info = ns.GetItemReferenceInfo("item:7005", profile)
+        self.assertEqual(1006, info.catalystPath.targetItemID)
+        self.assertEqual(8, info.bonus)
 
     def order(self, profile) -> list[str]:
         return [profile.secondaryOrder[i] for i in range(1, len(profile.secondaryOrder) + 1)]
@@ -950,6 +1039,43 @@ class TooltipProvenanceTests(unittest.TestCase):
         lines = self.lines(self.lua.table())
         self.assertEqual(["PVP"], self.asked)
         self.assertTrue(any("profile data unavailable" in line for line in lines))
+
+
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class VerdictReferenceLabelTests(unittest.TestCase):
+    CATALYST_TEXT = "Good if converted to the set piece with the Catalyst"
+
+    def render(self, reference_info):
+        lua = new_runtime()
+        ns = lua.table()
+        lua.execute("C_Item = { GetItemInfo = function() return nil end }")
+        ns.Colors = lua.table(white="|cffffffff", reset="|r", green="|cff00ff00", red="|cffff0000", yellow="|cffffff00")
+        load_addon_file(lua, ns, "UI/SV_Render.lua")
+        ns.GetItemReferenceInfo = lambda link, profile: reference_info(lua) if reference_info else None
+        tooltip = lua.execute("""
+        local lines = {}
+        return { lines = lines, AddLine = function(self, text) lines[#lines + 1] = text end, Show = function() end }
+        """)
+        selected = lua.table(isUpgrade=True, deltaScore=5, slotLabel="Head")
+        context = lua.table(specName="Blood", profile=lua.table(goal="MYTHIC_PLUS"))
+        ns.RenderTooltipVerdict(tooltip, context, lua.table(selected=selected, itemLink="item:7000"))
+        return [tooltip.lines[i] for i in range(1, len(tooltip.lines) + 1)]
+
+    def test_catalyst_candidate_gets_the_plain_catalyst_line(self) -> None:
+        lines = self.render(lambda lua: lua.table(catalystPath=lua.table(bonus=8, slot="Head", targetItemID=1000)))
+        catalyst = [line for line in lines if self.CATALYST_TEXT in line]
+        self.assertEqual(1, len(catalyst))
+        self.assertTrue(catalyst[0].startswith("|cffffffffReference: "))
+        self.assertFalse(any("(BIS)" in line for line in lines))
+
+    def test_bis_item_keeps_the_bis_tag_without_the_catalyst_line(self) -> None:
+        lines = self.render(lambda lua: lua.table(bis=lua.table(bonus=8, slot="Head")))
+        self.assertTrue(any("(BIS)" in line for line in lines))
+        self.assertFalse(any(self.CATALYST_TEXT in line for line in lines))
+
+    def test_no_reference_means_no_reference_line(self) -> None:
+        lines = self.render(None)
+        self.assertFalse(any("Reference:" in line for line in lines))
 
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
