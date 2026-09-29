@@ -56,21 +56,40 @@ local MAX_GENERATED_AGE_DAYS = 30
 local MIN_CONTEXT_ITEMS = 10
 local MAX_LOW_ITEM_RATIO = 0.25
 
+-- Seconds to add to time(fields) so fields written in UTC give the real UTC
+-- timestamp: time() reads a date table as LOCAL time. Both sides are read as
+-- standard time (isdst = false), so daylight saving cancels out. 0 when WoW's
+-- date() is missing (then the error is at most the client's UTC offset, <= 14h,
+-- which the 30-day freshness window and its 1-day future tolerance absorb).
+local function GetUtcCorrection(localStamp)
+    if type(date) ~= "function" then return 0 end
+    local ok, utc = pcall(date, "!*t", localStamp)
+    if not ok or type(utc) ~= "table" then return 0 end
+    utc.isdst = false
+    local okTime, asLocal = pcall(time, utc)
+    if not okTime or type(asLocal) ~= "number" then return 0 end
+    return localStamp - asLocal
+end
+
 -- ClassCodex buildIds start with the UTC build time: "20260929064954-6702fd4-878715d1".
 local function ParseBuildTime(buildId)
     if type(buildId) ~= "string" or type(time) ~= "function" then return nil end
     local year, month, day, hour, minute, second =
         buildId:match("^(%d%d%d%d)(%d%d)(%d%d)(%d%d)(%d%d)(%d%d)")
     if not year then return nil end
-    return time({
+    local localStamp = time({
         year = tonumber(year),
         month = tonumber(month),
         day = tonumber(day),
         hour = tonumber(hour),
         min = tonumber(minute),
         sec = tonumber(second),
+        isdst = false,
     })
+    if type(localStamp) ~= "number" then return nil end
+    return localStamp + GetUtcCorrection(localStamp)
 end
+Repository.ParseBuildTime = ParseBuildTime
 
 local function IsRecentBuild(buildId, maxAgeDays)
     local timestamp = ParseBuildTime(buildId)

@@ -41,11 +41,9 @@ end })
 # The data's own build time stands in for "now", so the 30-day freshness check
 # tests the data, not the date the test happens to run on.
 PIN_TIME_TO_BUILD = """
-local buildId = ...
+local buildId, parseBuildTime = ...
 local realTime = os.time
-local y, mo, d, h, mi, s = buildId:match("^(%d%d%d%d)(%d%d)(%d%d)(%d%d)(%d%d)(%d%d)")
-local now = realTime({ year = tonumber(y), month = tonumber(mo), day = tonumber(d),
-    hour = tonumber(h), min = tonumber(mi), sec = tonumber(s) }) + 3600
+local now = assert(parseBuildTime(buildId)) + 3600
 time = function(t) if t then return realTime(t) end return now end
 """
 
@@ -66,8 +64,8 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
         for path in toc_lua_files():
             compile_lua_file(lua, path)("StatVerdict", ns)
         lua.execute("setmetatable(_G, nil)")
-        lua.eval("function(src, buildId) assert(loadstring or load)(src)(buildId) end")(
-            PIN_TIME_TO_BUILD, ns.ClassCodexTargets.buildId)
+        lua.eval("function(src, buildId, parse) assert(loadstring(src))(buildId, parse) end")(
+            PIN_TIME_TO_BUILD, ns.ClassCodexTargets.buildId, ns.ProfileRepository.ParseBuildTime)
         cls.lua, cls.ns = lua, ns
 
     def test_every_toc_file_loaded_and_exposes_the_repository(self) -> None:

@@ -31,7 +31,7 @@ def toc_lua_files() -> list[Path]:
 
 def new_runtime():
     lua = LuaRuntime(unpack_returned_tuples=True)
-    lua.execute("time = os.time")  # WoW provides time()
+    lua.execute("time = os.time; date = os.date")  # WoW provides time() and date()
     return lua
 
 
@@ -316,6 +316,54 @@ class RepositoryTests(unittest.TestCase):
         self.assertIsNone(ns.ProfileRepository.BuildRuntimeProfile(self.context(lua)))
         self.assertIsNone(ns.ProfileRepository.GetContext("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "sanlayn"))
         self.assertFalse(ns.ProfileRepository.GetDataProvenance("MYTHIC_PLUS").available)
+
+    FIXED_ZONE = """
+    -- A fake clock in a fixed time zone UTC+offset: time(t) reads t as local time.
+    local offset, now = ...
+    local function days_from_civil(y, m, d)
+        if m <= 2 then y = y - 1 end
+        local era = math.floor(y / 400)
+        local yoe = y - era * 400
+        local doy = math.floor((153 * ((m + 9) % 12) + 2) / 5) + d - 1
+        return era * 146097 + yoe * 365 + math.floor(yoe / 4) - math.floor(yoe / 100) + doy - 719468
+    end
+    time = function(t)
+        if t == nil then return now end
+        return days_from_civil(t.year, t.month, t.day) * 86400
+            + (t.hour or 12) * 3600 + (t.min or 0) * 60 + (t.sec or 0) - offset
+    end
+    date = function(format, t)
+        if format == "!*t" then return os.date("!*t", t) end
+        if format == "*t" then return os.date("!*t", t + offset) end
+        error("unsupported format " .. tostring(format))
+    end
+    """
+
+    def test_build_time_is_read_as_utc_in_any_time_zone(self) -> None:
+        build_utc = int(datetime(2026, 9, 29, 6, 49, 54, tzinfo=timezone.utc).timestamp())
+        for hours in (14, 3, 0, -10):
+            lua, ns = self.build_runtime()
+            lua.eval("function(src, offset, now) assert(loadstring(src))(offset, now) end")(
+                self.FIXED_ZONE, hours * 3600, build_utc)
+            self.assertEqual(build_utc, ns.ProfileRepository.ParseBuildTime("20260929064954-6702fd4-878715d1"), hours)
+        # And on this machine's real clock and zone.
+        lua, ns = self.build_runtime()
+        now = int(datetime.now(timezone.utc).timestamp())
+        self.assertLessEqual(abs(ns.ProfileRepository.ParseBuildTime(now_build_id()) - now), 5)
+
+    def test_freshness_does_not_shift_with_the_time_zone(self) -> None:
+        # 29 days 20 hours old: fresh everywhere. Read as local time at UTC+10 it
+        # would look 30 days 6 hours old and be dropped as stale.
+        build = datetime(2026, 9, 29, 6, 49, 54, tzinfo=timezone.utc)
+        now = int((build + timedelta(days=29, hours=20)).timestamp())
+        lua, ns = self.build_runtime(build_id=build.strftime("%Y%m%d%H%M%S") + "-6702fd4-878715d1")
+        lua.eval("function(src, offset, now) assert(loadstring(src))(offset, now) end")(self.FIXED_ZONE, 36000, now)
+        self.assertTrue(ns.ProfileRepository.GetDataProvenance("MYTHIC_PLUS").available)
+
+    def test_build_time_without_date_still_parses(self) -> None:
+        lua, ns = self.build_runtime()
+        lua.execute("date = nil")
+        self.assertIsNotNone(ns.ProfileRepository.ParseBuildTime(now_build_id()))
 
     def test_garbage_build_id_fails_closed(self) -> None:
         lua, ns = self.build_runtime(build_id="not-a-date")
