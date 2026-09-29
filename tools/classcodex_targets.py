@@ -422,6 +422,9 @@ def priority_row_from_context(context: Any, context_label: str, hero_talent_name
             continue
         valid_entries: list[str] = []
         for entry in group:
+            # Icy Veins sometimes annotates a stat: {"stat": "versatility", "note": "to 24%"}.
+            if isinstance(entry, dict):
+                entry = entry.get("stat")
             canonical = canonical_stat_name(entry)
             if canonical is not None and canonical not in order and canonical not in valid_entries:
                 valid_entries.append(canonical)

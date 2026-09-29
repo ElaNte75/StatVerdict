@@ -56,6 +56,32 @@ class ClassCodexBuildTests(unittest.TestCase):
         # A hero tree Icy Veins does not cover keeps u.gg's entry.
         self.assertIn("single-target", merged["value"]["wildhero"])
 
+    def test_spec_wide_icy_veins_list_covers_hero_trees_it_does_not_name(self) -> None:
+        ugg = (
+            'druidclaw = {["single-target"] = {secondary = {{"versatility"}}}, pvp = {secondary = {{"mastery"}}}},'
+            ' ["all"] = {pvp = {secondary = {{"crit"}}}}'
+        )
+        icy = '["all"] = {all = {secondary = {{"haste"}, {"versatility"}}}, damage = {secondary = {{"crit"}}}}'
+        sources = {
+            "db_ugg": _plain_global_source("ugg", "DRUID", "guardian", {"statPriority": ugg}),
+            "db_icyveins": _plain_global_source("icyveins", "DRUID", "guardian", {"statPriority": icy}),
+        }
+        merged = build(sources)["DRUID_guardian"]["statPriority"]["value"]
+        self.assertEqual([["haste"], ["versatility"]], _lists(merged["all"]["all"]["secondary"]))
+        self.assertNotIn("single-target", merged["druidclaw"])
+        self.assertEqual([["mastery"], ["crit"]][0], _lists(merged["druidclaw"]["pvp"]["secondary"])[0])
+        self.assertEqual(["pvp"], list(merged["druidclaw"]))
+
+    def test_icy_veins_own_pvp_list_wins_over_ugg_pvp(self) -> None:
+        ugg = 'hero = {pvp = {secondary = {{"crit"}}}}'
+        icy = 'hero = {all = {secondary = {{"haste"}}}, pvp = {secondary = {{"mastery"}}}}'
+        sources = {
+            "db_ugg": _plain_global_source("ugg", "HUNTER", "marksmanship", {"statPriority": ugg}),
+            "db_icyveins": _plain_global_source("icyveins", "HUNTER", "marksmanship", {"statPriority": icy}),
+        }
+        merged = build(sources)["HUNTER_marksmanship"]["statPriority"]["value"]
+        self.assertEqual([["mastery"]], _lists(merged["hero"]["pvp"]["secondary"]))
+
     def test_stat_priority_falls_back_to_ugg_when_icy_veins_has_none(self) -> None:
         sources = {
             "db_ugg": _plain_global_source(

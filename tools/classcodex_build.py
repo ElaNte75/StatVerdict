@@ -57,6 +57,7 @@ EXTRACTED_FIELDS = ("statPriority", "trinkets", "gear", "talents", "statTargets"
 UGG_ONLY_FIELDS = frozenset({"statTargets", "gems", "enchants"})
 
 SOURCE_PRIORITY = ("ugg", "icyveins")
+ALL_HERO_KEY = "all"
 
 
 @dataclass
@@ -117,14 +118,24 @@ def _merge_stat_priority(per_source: dict[str, Any]) -> tuple[Any, str] | None:
     for hero_key, contexts in icy.items():
         if isinstance(contexts, dict) and contexts:
             merged[hero_key] = dict(contexts)
+    spec_wide = icy.get(ALL_HERO_KEY) if isinstance(icy.get(ALL_HERO_KEY), dict) else {}
+
+    def icy_has_pvp(hero_key: str) -> bool:
+        own = icy.get(hero_key)
+        return bool((isinstance(own, dict) and own.get("pvp")) or spec_wide.get("pvp"))
+
     if isinstance(ugg, dict):
         for hero_key, contexts in ugg.items():
             if not isinstance(contexts, dict):
                 continue
-            if hero_key not in merged:
+            if hero_key in merged or spec_wide:
+                # Icy Veins covers this hero tree (by name or through its
+                # spec-wide list): u.gg contributes only its PvP list, and
+                # only when Icy Veins has no PvP list of its own.
+                if contexts.get("pvp") and not icy_has_pvp(hero_key):
+                    merged.setdefault(hero_key, {})["pvp"] = contexts["pvp"]
+            else:
                 merged[hero_key] = dict(contexts)
-            elif contexts.get("pvp"):
-                merged[hero_key]["pvp"] = contexts["pvp"]
     if not merged:
         return _merge_field(per_source)
     return merged, "icyveins"

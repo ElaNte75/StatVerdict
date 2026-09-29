@@ -742,3 +742,13 @@ class BuildAllTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AnnotatedPriorityEntryTests(unittest.TestCase):
+    def test_icy_veins_stat_notes_keep_the_stat(self) -> None:
+        from tools.classcodex_targets import priority_row_from_context
+
+        row = priority_row_from_context(
+            {"secondary": [[{"stat": "versatility", "note": "to 24%"}], ["mastery"], ["haste"], ["crit"]]}, "PvP", "hero"
+        )
+        self.assertEqual(["versatility", "mastery", "haste", "critical_strike"], row["order"])
