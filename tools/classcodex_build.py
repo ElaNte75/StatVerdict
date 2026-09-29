@@ -200,6 +200,31 @@ def build_enchant_lookup(ugg_root: dict | None, game_data: dict | None) -> dict[
     Enchants are shared across specs, so the tables span every spec."""
     by_item: dict[int, dict[str, int]] = {}
     by_spell: dict[int, dict[str, int]] = {}
+    if isinstance(ugg_root, dict):
+        for class_data in ugg_root.values():
+            if not isinstance(class_data, dict):
+                continue
+            for spec_data in class_data.values():
+                if isinstance(spec_data, dict):
+                    collect_real_enchants(spec_data.get("enchants"), by_item, by_spell)
+
+    recipe_spell_by_item: dict[int, int] = {}
+    recipes = game_data.get("recipes") if isinstance(game_data, dict) else None
+    if isinstance(recipes, dict):
+        for spell_id, item_id in recipes.items():
+            spell_key, item_key = _int_key(spell_id), _int_key(item_id)
+            if spell_key is not None and item_key is not None:
+                recipe_spell_by_item.setdefault(item_key, spell_key)
+    return {"byItem": by_item, "bySpell": by_spell, "recipeSpellByItem": recipe_spell_by_item}
+
+
+def collect_real_enchants(
+    enchants_value: Any, by_item: dict[int, dict[str, int]], by_spell: dict[int, dict[str, int]]
+) -> None:
+    """Adds every enchant entry of `enchants_value` (any nesting) whose `id`
+    is a real enchant id -- it differs from the entry's itemId or spellId --
+    to by_item (keyed by scroll item id) and by_spell (keyed by spell id).
+    The first entry seen for a key wins."""
 
     def walk(node: Any) -> None:
         if isinstance(node, dict):
@@ -224,22 +249,7 @@ def build_enchant_lookup(ugg_root: dict | None, game_data: dict | None) -> dict[
             for value in node:
                 walk(value)
 
-    if isinstance(ugg_root, dict):
-        for class_data in ugg_root.values():
-            if not isinstance(class_data, dict):
-                continue
-            for spec_data in class_data.values():
-                if isinstance(spec_data, dict):
-                    walk(spec_data.get("enchants"))
-
-    recipe_spell_by_item: dict[int, int] = {}
-    recipes = game_data.get("recipes") if isinstance(game_data, dict) else None
-    if isinstance(recipes, dict):
-        for spell_id, item_id in recipes.items():
-            spell_key, item_key = _int_key(spell_id), _int_key(item_id)
-            if spell_key is not None and item_key is not None:
-                recipe_spell_by_item.setdefault(item_key, spell_key)
-    return {"byItem": by_item, "bySpell": by_spell, "recipeSpellByItem": recipe_spell_by_item}
+    walk(enchants_value)
 
 
 def _load_game_data(sources: dict[str, str]) -> dict | None:

@@ -13,10 +13,12 @@ from pathlib import Path
 from typing import Any, Callable, NamedTuple
 
 try:
+    from tools.classcodex_build import ENCHANT_LOOKUP_FIELD, collect_real_enchants
     from tools.classcodex_lua_sandbox import run_addon_namespace
     from tools.simc_stat_engine import run_simc, run_simc_with_recovery
     from tools.spec_catalog import SPEC_BY_KEY
 except ModuleNotFoundError:
+    from classcodex_build import ENCHANT_LOOKUP_FIELD, collect_real_enchants
     from classcodex_lua_sandbox import run_addon_namespace
     from simc_stat_engine import run_simc, run_simc_with_recovery
     from spec_catalog import SPEC_BY_KEY
@@ -165,8 +167,10 @@ def _bonus_ids(entry: dict[str, Any]) -> list[int] | None:
 class LoadoutUpgrades(NamedTuple):
     """The recommended enchants and gems added to a simulated BiS loadout.
 
-    enchants: {SimC slot: {"id": SpellItemEnchantment id (SimC enchant_id),
-    "item_id"?: enchant scroll item id, "spell_id"?: enchant spell id}}.
+    enchants: {SimC slot: {"id"?: SpellItemEnchantment id (SimC enchant_id),
+    "item_id"?: enchant scroll item id, "spell_id"?: enchant spell id}};
+    an enchant without "id" could not be translated (resolve_enchant) and
+    is shown but never simulated.
     gems: gem item ids (SimC gem_id), primary gem first.
 
     Only the single best choice is kept (owner decision 2026-09-29: no
@@ -196,55 +200,92 @@ def _pop(entry: dict[str, Any]) -> float:
     return float(pop) if isinstance(pop, (int, float)) and not isinstance(pop, bool) else 0.0
 
 
-def _scroll_to_enchant(enchants_value: Any) -> dict[int, dict[str, int]]:
-    """u.gg's PvP enchant entries carry only the enchant SCROLL's item id in
-    `id`; the PvE entries carry both the real enchant id and the scroll's
-    itemId. This maps scroll item id -> {id, spell_id} from every entry that
-    has both, so a PvP scroll can be turned into its real enchant."""
-    mapping: dict[int, dict[str, int]] = {}
+class EnchantLookup(NamedTuple):
+    """Translation tables for enchant ids (see
+    tools/classcodex_build.build_enchant_lookup)."""
 
-    def walk(node: Any) -> None:
-        if isinstance(node, dict):
-            item_id = _int_or_none(node.get("itemId"))
-            enchant_id = _int_or_none(node.get("id"))
-            if item_id is not None and enchant_id is not None and item_id != enchant_id:
-                found = {"id": enchant_id}
-                spell_id = _int_or_none(node.get("spellId"))
-                if spell_id is not None:
-                    found["spell_id"] = spell_id
-                mapping.setdefault(item_id, found)
-            for value in node.values():
-                walk(value)
-        elif isinstance(node, list):
-            for value in node:
-                walk(value)
-
-    walk(enchants_value)
-    return mapping
+    by_item: dict[int, dict[str, int]]
+    by_spell: dict[int, dict[str, int]]
+    recipe_spell_by_item: dict[int, int]
 
 
-def select_loadout_upgrades(enchants_value: Any, gems_value: Any, hero_talent_key: str, goal: str) -> LoadoutUpgrades:
-    """u.gg's most popular enchant per slot and most popular gem set for one
-    goal/hero talent (goal context, then "all"; hero talent, then hero
-    "all" -- see select_goal_context). Unknown slots and entries without a
-    numeric id are skipped."""
+def _enchant_lookup(enchants_value: Any, lookup_value: Any) -> EnchantLookup:
+    """The build's shared lookup (lookup_value, may be None) plus every real
+    enchant entry found in enchants_value itself."""
+    lookup = lookup_value if isinstance(lookup_value, dict) else {}
+    by_item = dict(lookup.get("byItem") or {})
+    by_spell = dict(lookup.get("bySpell") or {})
+    collect_real_enchants(enchants_value, by_item, by_spell)
+    return EnchantLookup(by_item, by_spell, dict(lookup.get("recipeSpellByItem") or {}))
+
+
+def resolve_enchant(entry: dict[str, Any], lookup: EnchantLookup) -> dict[str, int] | None:
+    """One ClassCodex enchant entry as {"id"?, "item_id"?, "spell_id"?}.
+
+    `id` is present ONLY when it is a real SpellItemEnchantment id (SimC
+    enchant_id); an entry that cannot be translated keeps just the scroll
+    item id / spell id it carried, so it can still be shown by name but is
+    never simulated. Shapes:
+      - {id, itemId?, spellId?} with id differing from itemId/spellId
+        (u.gg PvE): already real.
+      - {id, spellId} with id == spellId (Icy Veins' weapon runes): a spell
+        id, translated through lookup.by_spell.
+      - bare {id} (Icy Veins, u.gg PvP): an enchant SCROLL item id,
+        translated through lookup.by_item, else the db_gamedata recipe's
+        spell id and lookup.by_spell.
+    Returns None for an entry with no usable number at all."""
+    raw_id = _int_or_none(entry.get("id"))
+    item_id = _int_or_none(entry.get("itemId"))
+    spell_id = _int_or_none(entry.get("spellId"))
+    if raw_id is not None and (
+        (item_id is not None and item_id != raw_id) or (spell_id is not None and spell_id != raw_id)
+    ):
+        enchant = {"id": raw_id}
+        if item_id is not None:
+            enchant["item_id"] = item_id
+        if spell_id is not None:
+            enchant["spell_id"] = spell_id
+        return enchant
+    if spell_id is not None:
+        real = lookup.by_spell.get(spell_id)
+        return dict(real) if real is not None else {"spell_id": spell_id}
+    scroll_id = item_id if item_id is not None else raw_id
+    if scroll_id is None:
+        return None
+    real = lookup.by_item.get(scroll_id)
+    if real is not None:
+        return {**real, "item_id": scroll_id}
+    recipe_spell = lookup.recipe_spell_by_item.get(scroll_id)
+    if recipe_spell is None:
+        return {"item_id": scroll_id}
+    real = lookup.by_spell.get(recipe_spell)
+    if real is not None:
+        return {**real, "item_id": scroll_id, "spell_id": recipe_spell}
+    return {"item_id": scroll_id, "spell_id": recipe_spell}
+
+
+def select_loadout_upgrades(
+    enchants_value: Any, gems_value: Any, hero_talent_key: str, goal: str, enchant_lookup: Any = None
+) -> LoadoutUpgrades:
+    """The single best enchant per slot and gem set for one goal/hero talent
+    (goal context, then "all"; hero talent, then hero "all" -- see
+    select_goal_context): Icy Veins' lists hold one entry, u.gg's (PvP)
+    are ranked by pop. Every enchant goes through resolve_enchant (with
+    `enchant_lookup`, the build's enchantLookup value); one without a real
+    `id` is kept for display only (build_simc_items skips it). Unknown slots
+    are skipped."""
     enchants: dict[str, dict[str, int]] = {}
-    scroll_map = _scroll_to_enchant(enchants_value)
+    lookup = _enchant_lookup(enchants_value, enchant_lookup)
     by_slot = select_goal_context(enchants_value, hero_talent_key, goal)
     if isinstance(by_slot, dict):
         for slot_name, entries in by_slot.items():
             simc_slot = CLASSCODEX_SLOT_TO_SIMC.get(str(slot_name))
-            candidates = [
-                e for e in (entries if isinstance(entries, list) else [])
-                if isinstance(e, dict) and _int_or_none(e.get("id")) is not None
-            ]
+            candidates = [e for e in (entries if isinstance(entries, list) else []) if isinstance(e, dict)]
             if simc_slot is None or not candidates:
                 continue
-            best = max(candidates, key=_pop)
-            enchant = _shape_enchant(best, scroll_map, goal)
-            if enchant is None:
-                continue
-            enchants[simc_slot] = enchant
+            enchant = resolve_enchant(max(candidates, key=_pop), lookup)
+            if enchant:
+                enchants[simc_slot] = enchant
 
     gems: list[int] = []
     gem_sets = select_goal_context(gems_value, hero_talent_key, goal)
@@ -264,32 +305,15 @@ def _secondary_gems(gem_set: dict[str, Any]) -> list[int]:
     return [gem_id for gem_id in ids if gem_id is not None]
 
 
-def _shape_enchant(entry: dict[str, Any], scroll_map: dict[int, dict[str, int]], goal: str) -> dict[str, int] | None:
-    """One u.gg enchant entry as {"id", "item_id"?, "spell_id"?}, or None
-    when it cannot be used."""
-    enchant = {"id": _int_or_none(entry["id"])}
-    for source_key, out_key in (("itemId", "item_id"), ("spellId", "spell_id")):
-        value = _int_or_none(entry.get(source_key))
-        if value is not None:
-            enchant[out_key] = value
-    if "item_id" not in enchant and "spell_id" not in enchant:
-        # In PvP lists a bare id is a scroll item id: translate it to
-        # the real enchant, or drop the enchant rather than ship a
-        # scroll id where an enchant id belongs (PvE bare ids are
-        # real enchant ids and stay as they are).
-        real = scroll_map.get(enchant["id"])
-        if real is not None:
-            enchant = {"item_id": enchant["id"], **real}
-        elif goal == "PVP":
-            return None
-    return enchant
-
-
 def loadout_upgrades_for(fields: dict[str, Any], hero_talent_key: str, goal: str) -> LoadoutUpgrades:
     """select_loadout_upgrades on one spec's build() fields (shared by the
     targets and weights pipelines so both simulate the same gear)."""
     return select_loadout_upgrades(
-        (fields.get("enchants") or {}).get("value"), (fields.get("gems") or {}).get("value"), hero_talent_key, goal
+        (fields.get("enchants") or {}).get("value"),
+        (fields.get("gems") or {}).get("value"),
+        hero_talent_key,
+        goal,
+        (fields.get(ENCHANT_LOOKUP_FIELD) or {}).get("value"),
     )
 
 
@@ -316,7 +340,8 @@ def build_simc_items(
         if upgrades.gems and simc_slot not in GEMLESS_SIMC_SLOTS:
             item["gemIds"] = list(upgrades.gems)
         enchant = upgrades.enchants.get(simc_slot)
-        if enchant:
+        if enchant and enchant.get("id") is not None:
+            # Never a scroll/spell id: untranslated enchants are display-only.
             item["enchantIds"] = [enchant["id"]]
         items[simc_slot] = item
     return items
@@ -702,9 +727,14 @@ def reconstruct_target_context(
         if gems_applied and simulated.get("gemIds"):
             item["gem_ids"] = list(simulated["gemIds"])
             gem_count += 1
+        enchant = upgrade_enchants.get(simc_slot)
         if enchants_applied and simulated.get("enchantIds"):
-            item["enchant"] = dict(upgrade_enchants[simc_slot])
+            item["enchant"] = dict(enchant)
             enchant_count += 1
+        elif enchant and enchant.get("id") is None:
+            # Untranslated guide enchant: shown by its scroll item / spell
+            # id only, never simulated.
+            item["enchant"] = dict(enchant)
         bis_slots.append({"slot": entry["slot"], "item": item})
     # averageItemLevel only averages entries that carry an ilvl, so
     # itemLevelSlots counts exactly those (0 for real PvP gear, which has none).

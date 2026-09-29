@@ -503,7 +503,7 @@ ENCHANTS = {
     "all": {
         "all": {
             "Head": [{"id": 7991, "pop": 36.8}, {"id": 8017, "itemId": 243981, "spellId": 1236001, "pop": 46.7}],
-            "Main Hand": [{"id": 3368, "pop": 63.2}],
+            "Main Hand": [{"id": 3368, "spellId": 53344, "pop": 63.2}],
             "Relic": [{"id": 1, "pop": 99}],
         },
         "pvp": {"Head": [{"id": 243981, "pop": 33.3}]},
@@ -532,7 +532,7 @@ class LoadoutUpgradeTests(unittest.TestCase):
         self.assertEqual(
             {
                 "HEAD": {"id": 8017, "item_id": 243981, "spell_id": 1236001},
-                "MAIN_HAND": {"id": 3368},
+                "MAIN_HAND": {"id": 3368, "spell_id": 53344},
             },
             upgrades.enchants,
         )
@@ -596,7 +596,7 @@ class TargetUpgradeTests(unittest.TestCase):
                     "item": {
                         "item_id": 4,
                         "gem_ids": [240983, 240908, 240910],
-                        "enchant": {"id": 3368},
+                        "enchant": {"id": 3368, "spell_id": 53344},
                     },
                 },
             ],
@@ -768,11 +768,87 @@ class PvpEnchantScrollTests(unittest.TestCase):
         head = upgrades.enchants["HEAD"]
         self.assertEqual({"id": 7961, "item_id": 243981, "spell_id": 1236100}, head)
 
-    def test_an_unknown_bare_scroll_id_is_dropped_not_guessed(self) -> None:
-        from tools.classcodex_targets import select_loadout_upgrades
-
+    def test_an_unknown_bare_scroll_id_is_kept_for_display_but_never_simulated(self) -> None:
         upgrades = select_loadout_upgrades(self.ENCHANTS, None, "hero", "PVP")
-        self.assertNotIn("CHEST", upgrades.enchants)
+        self.assertEqual({"item_id": 999999}, upgrades.enchants["CHEST"])
+        items = build_simc_items([{"itemId": 5, "slot": "Chest"}], upgrades)
+        self.assertNotIn("enchantIds", items["CHEST"])
+
+
+# Real shapes (2026-09-29): Icy Veins' enchant ids are scroll item ids, its
+# weapon runes are {id = spellId, spellId}; u.gg's PvE entries carry the real
+# enchant id, the scroll's itemId and the spellId.
+ICY_ENCHANTS = {
+    "all": {
+        "all": {
+            "Head": [{"id": 244007}],
+            "Shoulders": [{"id": 243962}],
+            "Chest": [{"id": 777777}],
+            "Main Hand": [{"id": 53344, "spellId": 53344}],
+            "Off Hand": [{"id": 62158, "spellId": 62158}],
+        }
+    }
+}
+LOOKUP = {
+    "byItem": {244007: {"id": 8017, "item_id": 244007, "spell_id": 1236084}},
+    "bySpell": {
+        1236084: {"id": 8017, "item_id": 244007, "spell_id": 1236084},
+        1236062: {"id": 7973, "item_id": 243963, "spell_id": 1236062},
+        53344: {"id": 3368, "spell_id": 53344},
+    },
+    # db_gamedata recipes inverted: scroll item -> enchant spell.
+    "recipeSpellByItem": {244007: 1236084, 243962: 1236062},
+}
+
+
+class IcyVeinsEnchantTranslationTests(unittest.TestCase):
+    def test_scroll_ids_and_rune_spells_become_real_enchants(self) -> None:
+        upgrades = select_loadout_upgrades(ICY_ENCHANTS, None, "deathbringer", "RAID", LOOKUP)
+        self.assertEqual({"id": 8017, "item_id": 244007, "spell_id": 1236084}, upgrades.enchants["HEAD"])
+        # Not a u.gg itemId, but the recipe names its spell, which u.gg knows.
+        self.assertEqual({"id": 7973, "item_id": 243962, "spell_id": 1236062}, upgrades.enchants["SHOULDER"])
+        self.assertEqual({"id": 3368, "spell_id": 53344}, upgrades.enchants["MAIN_HAND"])
+
+    def test_untranslatable_enchants_keep_only_their_item_or_spell_id(self) -> None:
+        upgrades = select_loadout_upgrades(ICY_ENCHANTS, None, "deathbringer", "RAID", LOOKUP)
+        self.assertEqual({"item_id": 777777}, upgrades.enchants["CHEST"])
+        self.assertEqual({"spell_id": 62158}, upgrades.enchants["OFF_HAND"])
+        gear = [
+            {"itemId": 1, "slot": "Chest", "bonusIDs": [13848]},
+            {"itemId": 2, "slot": "Off Hand", "bonusIDs": [13848]},
+            {"itemId": 3, "slot": "Head", "bonusIDs": [13848]},
+        ]
+        items = build_simc_items(gear, upgrades)
+        self.assertNotIn("enchantIds", items["CHEST"])
+        self.assertNotIn("enchantIds", items["OFF_HAND"])
+        self.assertEqual([8017], items["HEAD"]["enchantIds"])
+        with patch("tools.classcodex_targets.run_simc", return_value=GOOD) as mock_run, redirect_stderr(io.StringIO()):
+            context = reconstruct_target_context(SPEC_BY_KEY["DEATHKNIGHT_FROST"], "RAID", gear, "X", upgrades=upgrades)
+        profile = mock_run.call_args.args[1]
+        self.assertNotIn("777777", profile)
+        self.assertNotIn("62158", profile)
+        slots = {slot["slot"]: slot["item"] for slot in context["bis"]["slots"]}
+        self.assertEqual({"item_id": 777777}, slots["Chest"]["enchant"])
+        self.assertEqual({"spell_id": 62158}, slots["Off Hand"]["enchant"])
+        self.assertEqual(8017, slots["Head"]["enchant"]["id"])
+        self.assertEqual(1, context["targets"]["targetMetadata"]["enchantCount"])
+
+    def test_icy_veins_single_gem_set_primary_first(self) -> None:
+        gems = {"all": {"all": [{"primary": 240967, "secondary": [240908, 240898]}]}}
+        self.assertEqual([240967, 240908, 240898], select_loadout_upgrades(None, gems, "hero", "RAID").gems)
+
+    def test_build_all_passes_the_builds_enchant_lookup(self) -> None:
+        specs = {
+            "DEATHKNIGHT_frost": {
+                "gear": {"value": {"all": {"raid": [{"itemId": 1, "slot": "Head", "ilvl": 300}]}}},
+                "talents": {"value": {"deathbringer": {"raid": [{"export": "X"}]}}},
+                "enchants": {"value": ICY_ENCHANTS, "source": "icyveins"},
+                "enchantLookup": {"value": LOOKUP, "source": "ugg+gamedata"},
+            }
+        }
+        with patch("tools.classcodex_targets.run_simc", return_value=GOOD) as mock_run:
+            build_all(specs, Path("simc"), goals=("RAID",))
+        self.assertIn("enchant_id=8017", mock_run.call_args.args[1])
 
 
 class NoAlternativesTests(unittest.TestCase):
