@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-29 18:33 UTC",
+  "generated_at": "2026-09-29 19:35 UTC",
   "character": "Enhancement Shaman",
   "settings": {
     "iterations": 30000,
@@ -12,8 +12,131 @@
   },
   "baseline": {
     "st": {
-      "mean": 65053.453708948815,
-      "std_err": 16.53011895826082
+      "mean": 65052.67531002139,
+      "std_err": 16.582623061646313
+    },
+    "gear": {
+      "head": {
+        "name": "elder_mosshorns",
+        "ilevel": 250,
+        "stamina": 1451,
+        "haste_rating": 84,
+        "mastery_rating": 49,
+        "agiint": 86
+      },
+      "neck": {
+        "name": "voidbreakers_choker",
+        "ilevel": 220,
+        "stamina": 573,
+        "haste_rating": 77,
+        "mastery_rating": 82
+      },
+      "shoulders": {
+        "name": "elder_mossvein_greatleaves",
+        "ilevel": 230,
+        "stamina": 863,
+        "versatility_rating": 53,
+        "mastery_rating": 34,
+        "agiint": 54
+      },
+      "chest": {
+        "name": "elder_mossmail",
+        "ilevel": 246,
+        "stamina": 1385,
+        "haste_rating": 45,
+        "mastery_rating": 84,
+        "agiint": 83
+      },
+      "waist": {
+        "name": "elder_mosscinch",
+        "ilevel": 250,
+        "stamina": 1089,
+        "crit_rating": 58,
+        "mastery_rating": 41,
+        "agiint": 65
+      },
+      "legs": {
+        "name": "gearlinked_leggings",
+        "ilevel": 246,
+        "stamina": 1385,
+        "haste_rating": 79,
+        "mastery_rating": 51,
+        "agiint": 83
+      },
+      "feet": {
+        "name": "voidstalkers_greaves",
+        "ilevel": 246,
+        "stamina": 1039,
+        "haste_rating": 66,
+        "mastery_rating": 32,
+        "agiint": 62,
+        "speed_rating": 42
+      },
+      "wrists": {
+        "name": "elder_mossbands",
+        "ilevel": 250,
+        "stamina": 816,
+        "haste_rating": 31,
+        "versatility_rating": 44,
+        "agiint": 48
+      },
+      "hands": {
+        "name": "elder_mossfeelers",
+        "ilevel": 250,
+        "stamina": 1089,
+        "crit_rating": 63,
+        "haste_rating": 37,
+        "agiint": 65
+      },
+      "finger1": {
+        "name": "radiant_phoenix_band",
+        "ilevel": 233,
+        "stamina": 665,
+        "crit_rating": 75,
+        "mastery_rating": 100
+      },
+      "finger2": {
+        "name": "omission_of_light",
+        "ilevel": 189,
+        "stamina": 371,
+        "haste_rating": 89,
+        "mastery_rating": 63
+      },
+      "trinket1": {
+        "name": "withered_saptors_paw",
+        "ilevel": 237,
+        "haste_rating": 87,
+        "speed_rating": 39
+      },
+      "trinket2": {
+        "name": "voidreapers_libram",
+        "ilevel": 250,
+        "agiint": 82
+      },
+      "back": {
+        "name": "voidbreakers_wrap",
+        "ilevel": 246,
+        "stamina": 779,
+        "haste_rating": 40,
+        "mastery_rating": 33,
+        "stragiint": 47
+      },
+      "main_hand": {
+        "name": "voidtouched_smasher",
+        "ilevel": 263,
+        "agility": 49,
+        "stamina": 847,
+        "crit_rating": 34,
+        "mastery_rating": 38
+      },
+      "off_hand": {
+        "name": "voidtouched_smasher",
+        "ilevel": 246,
+        "agility": 42,
+        "stamina": 692,
+        "crit_rating": 31,
+        "mastery_rating": 34
+      }
     },
     "stats": {
       "ratings": {
@@ -31,8 +154,8 @@
       "agility": 1612.0
     },
     "cleave": {
-      "mean": 128406.55154013261,
-      "std_err": 32.66247896995978
+      "mean": 128340.23480883565,
+      "std_err": 32.65545841887012
     }
   },
   "rows": [
@@ -49,29 +172,43 @@
       "replaced_slot": "neck",
       "replaced": "Voidbreaker's Choker",
       "replaced_ilevel": 220,
+      "gear": {
+        "name": "collar_of_jealousy",
+        "ilevel": 272,
+        "stamina": 1061,
+        "haste_rating": 121,
+        "mastery_rating": 143
+      },
+      "replaced_gear": {
+        "name": "voidbreakers_choker",
+        "ilevel": 220,
+        "stamina": 573,
+        "haste_rating": 77,
+        "mastery_rating": 82
+      },
       "st": {
         "dps": {
-          "mean": 66559.57244436507,
-          "std_err": 16.976972891828073
+          "mean": 66567.87022173319,
+          "std_err": 16.945485584453966
         },
         "delta": {
-          "abs": 1506.118735416254,
-          "pct": 2.315201806432409,
-          "err95": 46.442589448345444
+          "abs": 1515.1949117117983,
+          "pct": 2.3291815509367404,
+          "err95": 46.470309130600675
         }
       },
       "slot_attempts": {
-        "neck": 66559.6
+        "neck": 66567.9
       },
       "cleave": {
         "dps": {
-          "mean": 131554.4646343383,
-          "std_err": 33.541766089264314
+          "mean": 131526.14977585486,
+          "std_err": 33.403179699723125
         },
         "delta": {
-          "abs": 3147.9130942056945,
-          "pct": 2.4515206244923067,
-          "err95": 91.76249464128418
+          "abs": 3185.914967019213,
+          "pct": 2.4823976454185797,
+          "err95": 91.55846621708007
         }
       },
       "rank": 1
@@ -89,72 +226,46 @@
       "replaced_slot": "neck",
       "replaced": "Voidbreaker's Choker",
       "replaced_ilevel": 220,
+      "gear": {
+        "name": "chain_of_vengeance",
+        "ilevel": 272,
+        "stamina": 1061,
+        "crit_rating": 121,
+        "haste_rating": 143
+      },
+      "replaced_gear": {
+        "name": "voidbreakers_choker",
+        "ilevel": 220,
+        "stamina": 573,
+        "haste_rating": 77,
+        "mastery_rating": 82
+      },
       "st": {
         "dps": {
-          "mean": 66032.21416460015,
-          "std_err": 16.785504705186803
+          "mean": 66005.60798143847,
+          "std_err": 16.78597719626869
         },
         "delta": {
-          "abs": 978.7604556513397,
-          "pct": 1.5045480291182458,
-          "err95": 46.17445528182053
+          "abs": 952.932671417082,
+          "pct": 1.4648631541680537,
+          "err95": 46.24737926775873
         }
       },
       "slot_attempts": {
-        "neck": 66032.2
+        "neck": 66005.6
       },
       "cleave": {
         "dps": {
-          "mean": 130187.04659532516,
-          "std_err": 33.1794441734102
+          "mean": 130216.64616279866,
+          "std_err": 33.16646318242806
         },
         "delta": {
-          "abs": 1780.495055192543,
-          "pct": 1.3866076409941288,
-          "err95": 91.25506257548622
+          "abs": 1876.4113539630052,
+          "pct": 1.462060091099212,
+          "err95": 91.22727820323537
         }
       },
       "rank": 2
-    },
-    {
-      "key": "279195",
-      "slot": "neck",
-      "name": "Choker of Anger",
-      "item_id": 279195,
-      "ilevel": 272,
-      "stats": "Crit 140, Vers 125",
-      "source": "quest",
-      "note": "",
-      "simulable": true,
-      "replaced_slot": "neck",
-      "replaced": "Voidbreaker's Choker",
-      "replaced_ilevel": 220,
-      "st": {
-        "dps": {
-          "mean": 65804.73391105067,
-          "std_err": 16.73445198746385
-        },
-        "delta": {
-          "abs": 751.2802021018579,
-          "pct": 1.1548659744694094,
-          "err95": 46.103212995956156
-        }
-      },
-      "slot_attempts": {
-        "neck": 65804.7
-      },
-      "cleave": {
-        "dps": {
-          "mean": 130226.74726185508,
-          "std_err": 33.09966038895907
-        },
-        "delta": {
-          "abs": 1820.19572172247,
-          "pct": 1.417525585642396,
-          "err95": 91.14368915804368
-        }
-      },
-      "rank": 3
     },
     {
       "key": "278894",
@@ -169,29 +280,100 @@
       "replaced_slot": "feet",
       "replaced": "Voidstalker's Greaves",
       "replaced_ilevel": 246,
+      "gear": {
+        "name": "faithleapers_sabatons",
+        "ilevel": 272,
+        "stamina": 1414,
+        "crit_rating": 59,
+        "mastery_rating": 54,
+        "agiint": 79
+      },
+      "replaced_gear": {
+        "name": "voidstalkers_greaves",
+        "ilevel": 246,
+        "stamina": 1039,
+        "haste_rating": 66,
+        "mastery_rating": 32,
+        "agiint": 62,
+        "speed_rating": 42
+      },
       "st": {
         "dps": {
-          "mean": 65756.94232675349,
-          "std_err": 16.734318770151077
+          "mean": 65811.97107016161,
+          "std_err": 16.767016059160564
         },
         "delta": {
-          "abs": 703.4886178046727,
-          "pct": 1.0814008752742057,
-          "err95": 46.10302723593162
+          "abs": 759.2957601402231,
+          "pct": 1.1672014356391172,
+          "err95": 46.22094819510019
         }
       },
       "slot_attempts": {
-        "feet": 65756.9
+        "feet": 65812.0
       },
       "cleave": {
         "dps": {
-          "mean": 130299.72612556856,
-          "std_err": 33.0909432843205
+          "mean": 130385.69482166225,
+          "std_err": 33.180256562296286
         },
         "delta": {
-          "abs": 1893.174585435947,
-          "pct": 1.4743598069793564,
-          "err95": 91.1315286108332
+          "abs": 2045.460012826603,
+          "pct": 1.5937792352284073,
+          "err95": 91.24654465433618
+        }
+      },
+      "rank": 3
+    },
+    {
+      "key": "279195",
+      "slot": "neck",
+      "name": "Choker of Anger",
+      "item_id": 279195,
+      "ilevel": 272,
+      "stats": "Crit 140, Vers 125",
+      "source": "quest",
+      "note": "",
+      "simulable": true,
+      "replaced_slot": "neck",
+      "replaced": "Voidbreaker's Choker",
+      "replaced_ilevel": 220,
+      "gear": {
+        "name": "choker_of_anger",
+        "ilevel": 272,
+        "stamina": 1061,
+        "crit_rating": 140,
+        "versatility_rating": 125
+      },
+      "replaced_gear": {
+        "name": "voidbreakers_choker",
+        "ilevel": 220,
+        "stamina": 573,
+        "haste_rating": 77,
+        "mastery_rating": 82
+      },
+      "st": {
+        "dps": {
+          "mean": 65775.01735361095,
+          "std_err": 16.714085727874945
+        },
+        "delta": {
+          "abs": 722.3420435895605,
+          "pct": 1.1103955988698337,
+          "err95": 46.147243686711796
+        }
+      },
+      "slot_attempts": {
+        "neck": 65775.0
+      },
+      "cleave": {
+        "dps": {
+          "mean": 130179.53657511319,
+          "std_err": 33.13876232682111
+        },
+        "delta": {
+          "abs": 1839.3017662775383,
+          "pct": 1.4331450842498463,
+          "err95": 91.18859784840053
         }
       },
       "rank": 4
@@ -209,29 +391,45 @@
       "replaced_slot": "head",
       "replaced": "Elder Mosshorns",
       "replaced_ilevel": 250,
+      "gear": {
+        "name": "ophidian_generals_barbute",
+        "ilevel": 272,
+        "stamina": 1885,
+        "haste_rating": 72,
+        "versatility_rating": 79,
+        "agiint": 106
+      },
+      "replaced_gear": {
+        "name": "elder_mosshorns",
+        "ilevel": 250,
+        "stamina": 1451,
+        "haste_rating": 84,
+        "mastery_rating": 49,
+        "agiint": 86
+      },
       "st": {
         "dps": {
-          "mean": 65723.61133058998,
-          "std_err": 16.747663267156085
+          "mean": 65734.59262206893,
+          "std_err": 16.735921089481298
         },
         "delta": {
-          "abs": 670.1576216411631,
-          "pct": 1.0301645545822506,
-          "err95": 46.1216386092257
+          "abs": 681.9173120475389,
+          "pct": 1.0482540630308086,
+          "err95": 46.17763503698285
         }
       },
       "slot_attempts": {
-        "head": 65723.6
+        "head": 65734.6
       },
       "cleave": {
         "dps": {
-          "mean": 129573.54528353566,
-          "std_err": 33.032209525579106
+          "mean": 129554.82484439616,
+          "std_err": 32.905790340780555
         },
         "delta": {
-          "abs": 1166.9937434030435,
-          "pct": 0.9088272595174456,
-          "err95": 91.04963500025846
+          "abs": 1214.5900355605118,
+          "pct": 0.9463828996180804,
+          "err95": 90.86391737976176
         }
       },
       "rank": 5
@@ -249,29 +447,45 @@
       "replaced_slot": "hands",
       "replaced": "Elder Mossfeelers",
       "replaced_ilevel": 250,
+      "gear": {
+        "name": "fangsmasher_gauntlets",
+        "ilevel": 272,
+        "stamina": 1414,
+        "crit_rating": 59,
+        "haste_rating": 54,
+        "agiint": 79
+      },
+      "replaced_gear": {
+        "name": "elder_mossfeelers",
+        "ilevel": 250,
+        "stamina": 1089,
+        "crit_rating": 63,
+        "haste_rating": 37,
+        "agiint": 65
+      },
       "st": {
         "dps": {
-          "mean": 65693.50134382136,
-          "std_err": 16.73496932982706
+          "mean": 65677.61910560334,
+          "std_err": 16.70705782252453
         },
         "delta": {
-          "abs": 640.0476348725497,
-          "pct": 0.9838795611623371,
-          "err95": 46.1039343920765
+          "abs": 624.9437955819521,
+          "pct": 0.9606734736175859,
+          "err95": 46.1374661467101
         }
       },
       "slot_attempts": {
-        "hands": 65693.5
+        "hands": 65677.6
       },
       "cleave": {
         "dps": {
-          "mean": 129655.32096626984,
-          "std_err": 32.93421836080085
+          "mean": 129622.5958098663,
+          "std_err": 33.02515497000668
         },
         "delta": {
-          "abs": 1248.7694261372235,
-          "pct": 0.9725122364546399,
-          "err95": 90.91316429975535
+          "abs": 1282.3610010306438,
+          "pct": 0.9991886043692659,
+          "err95": 91.03012794138142
         }
       },
       "rank": 6
@@ -289,29 +503,45 @@
       "replaced_slot": "back",
       "replaced": "Voidbreaker's Wrap",
       "replaced_ilevel": 246,
+      "gear": {
+        "name": "elder_mossveil",
+        "ilevel": 250,
+        "stamina": 816,
+        "haste_rating": 47,
+        "versatility_rating": 28,
+        "stragiint": 48
+      },
+      "replaced_gear": {
+        "name": "voidbreakers_wrap",
+        "ilevel": 246,
+        "stamina": 779,
+        "haste_rating": 40,
+        "mastery_rating": 33,
+        "stragiint": 47
+      },
       "st": {
         "dps": {
-          "mean": 64994.195998873256,
-          "std_err": 16.535263484847537
+          "mean": 64969.37567800813,
+          "std_err": 16.552398619925363
         },
         "delta": {
-          "abs": -59.25771007555886,
-          "pct": -0.0910907979469925,
-          "err95": 45.826282604837054
+          "abs": -83.29963201325882,
+          "pct": -0.1280495100567009,
+          "err95": 45.9228162152767
         }
       },
       "slot_attempts": {
-        "back": 64994.2
+        "back": 64969.4
       },
       "cleave": {
         "dps": {
-          "mean": 128135.14801670276,
-          "std_err": 32.61549577472538
+          "mean": 128103.13640006662,
+          "std_err": 32.554891383651785
         },
         "delta": {
-          "abs": -271.4035234298499,
-          "pct": -0.21136267594961813,
-          "err95": 90.4706806971024
+          "abs": -237.09840876903036,
+          "pct": -0.18474207182353322,
+          "err95": 90.377041350401
         }
       },
       "rank": 7
@@ -329,29 +559,43 @@
       "replaced_slot": "neck",
       "replaced": "Voidbreaker's Choker",
       "replaced_ilevel": 220,
+      "gear": {
+        "name": "loablessed_beads",
+        "ilevel": 233,
+        "stamina": 665,
+        "crit_rating": 75,
+        "haste_rating": 100
+      },
+      "replaced_gear": {
+        "name": "voidbreakers_choker",
+        "ilevel": 220,
+        "stamina": 573,
+        "haste_rating": 77,
+        "mastery_rating": 82
+      },
       "st": {
         "dps": {
-          "mean": 64930.5686142364,
-          "std_err": 16.56130302476951
+          "mean": 64915.41595374005,
+          "std_err": 16.552424143921737
         },
         "delta": {
-          "abs": -122.8850947124156,
-          "pct": -0.18889864827501296,
-          "err95": 45.862391375184735
+          "abs": -137.25935628134175,
+          "pct": -0.21099725050077517,
+          "err95": 45.922851557462685
         }
       },
       "slot_attempts": {
-        "neck": 64930.6
+        "neck": 64915.4
       },
       "cleave": {
         "dps": {
-          "mean": 127951.99040697137,
-          "std_err": 32.49351228652871
+          "mean": 127905.97571164486,
+          "std_err": 32.53071940931849
         },
         "delta": {
-          "abs": -454.5611331612454,
-          "pct": -0.35400151137862723,
-          "err95": 90.3019004141112
+          "abs": -434.2590971907921,
+          "pct": -0.338365515566982,
+          "err95": 90.34359863784319
         }
       },
       "rank": 8
@@ -369,29 +613,43 @@
       "replaced_slot": "neck",
       "replaced": "Voidbreaker's Choker",
       "replaced_ilevel": 220,
+      "gear": {
+        "name": "tarnished_dawnlit_pendant",
+        "ilevel": 192,
+        "stamina": 387,
+        "versatility_rating": 74,
+        "mastery_rating": 79
+      },
+      "replaced_gear": {
+        "name": "voidbreakers_choker",
+        "ilevel": 220,
+        "stamina": 573,
+        "haste_rating": 77,
+        "mastery_rating": 82
+      },
       "st": {
         "dps": {
-          "mean": 64807.66264815349,
-          "std_err": 16.50190448329288
+          "mean": 64787.255085333185,
+          "std_err": 16.514284494191052
         },
         "delta": {
-          "abs": -245.79106079532357,
-          "pct": -0.37782937996651256,
-          "err95": 45.780065532924546
+          "abs": -265.42022468820505,
+          "pct": -0.408008161729387,
+          "err95": 45.87007140841697
         }
       },
       "slot_attempts": {
-        "neck": 64807.7
+        "neck": 64787.3
       },
       "cleave": {
         "dps": {
-          "mean": 128547.28893895057,
-          "std_err": 32.69715125684605
+          "mean": 128515.42196196187,
+          "std_err": 32.732295271353394
         },
         "delta": {
-          "abs": 140.73739881796064,
-          "pct": 0.1096029736255117,
-          "err95": 90.58383873425103
+          "abs": 175.18715312621498,
+          "pct": 0.136502129193669,
+          "err95": 90.6228656883863
         }
       },
       "rank": 9
@@ -409,73 +667,48 @@
       "replaced_slot": "legs",
       "replaced": "Gear-Linked Leggings",
       "replaced_ilevel": 246,
+      "gear": {
+        "name": "rootspeakers_leggings",
+        "ilevel": 233,
+        "stamina": 1183,
+        "haste_rating": 65,
+        "mastery_rating": 55,
+        "agiint": 74
+      },
+      "replaced_gear": {
+        "name": "gearlinked_leggings",
+        "ilevel": 246,
+        "stamina": 1385,
+        "haste_rating": 79,
+        "mastery_rating": 51,
+        "agiint": 83
+      },
       "st": {
         "dps": {
-          "mean": 64686.10615970623,
-          "std_err": 16.47409316966195
+          "mean": 64697.63663665329,
+          "std_err": 16.480168926057143
         },
         "delta": {
-          "abs": -367.34754924258596,
-          "pct": -0.5646856981431153,
-          "err95": 45.741570223458346
+          "abs": -355.0386733681007,
+          "pct": -0.5457710565723757,
+          "err95": 45.82291186560527
         }
       },
       "slot_attempts": {
-        "legs": 64686.1
+        "legs": 64697.6
       },
       "cleave": {
         "dps": {
-          "mean": 127612.73719348907,
-          "std_err": 32.46453344062144
+          "mean": 127600.54138738374,
+          "std_err": 32.51576810032604
         },
         "delta": {
-          "abs": -793.8143466435431,
-          "pct": -0.6182039289447328,
-          "err95": 90.2618510514087
+          "abs": -739.6934214519133,
+          "pct": -0.5763534892652298,
+          "err95": 90.32291925682178
         }
       },
       "rank": 10
-    },
-    {
-      "key": "bag08-257169",
-      "slot": "finger",
-      "name": "Voidbreaker's Signet",
-      "item_id": 257169,
-      "ilevel": 220,
-      "stats": "Crit 84, Vers 75",
-      "source": "bags",
-      "note": "",
-      "simulable": true,
-      "replaced_slot": "finger2",
-      "replaced": "Omission of Light",
-      "replaced_ilevel": 189,
-      "st": {
-        "dps": {
-          "mean": 64323.570615220044,
-          "std_err": 16.343583612173934
-        },
-        "delta": {
-          "abs": -729.8830937287712,
-          "pct": -1.1219743950786856,
-          "err95": 45.56136076822571
-        }
-      },
-      "slot_attempts": {
-        "finger1": 63921.0,
-        "finger2": 64323.6
-      },
-      "cleave": {
-        "dps": {
-          "mean": 127266.47562847554,
-          "std_err": 32.27680646016354
-        },
-        "delta": {
-          "abs": -1140.0759116570698,
-          "pct": -0.8878642857259091,
-          "err95": 90.00284504231664
-        }
-      },
-      "rank": 11
     },
     {
       "key": "bag07-264287",
@@ -490,30 +723,99 @@
       "replaced_slot": "finger2",
       "replaced": "Omission of Light",
       "replaced_ilevel": 189,
+      "gear": {
+        "name": "voidbreakers_circle",
+        "ilevel": 220,
+        "stamina": 573,
+        "crit_rating": 86,
+        "versatility_rating": 72
+      },
+      "replaced_gear": {
+        "name": "omission_of_light",
+        "ilevel": 189,
+        "stamina": 371,
+        "haste_rating": 89,
+        "mastery_rating": 63
+      },
       "st": {
         "dps": {
-          "mean": 64301.06721664421,
-          "std_err": 16.384594086804682
+          "mean": 64328.62625504178,
+          "std_err": 16.396752258153573
         },
         "delta": {
-          "abs": -752.3864923046058,
-          "pct": -1.1565665608943785,
-          "err95": 45.61791077283263
+          "abs": -724.0490549796086,
+          "pct": -1.1130196437410294,
+          "err95": 45.70780817672185
         }
       },
       "slot_attempts": {
-        "finger1": 63876.4,
-        "finger2": 64301.1
+        "finger1": 63906.9,
+        "finger2": 64328.6
       },
       "cleave": {
         "dps": {
-          "mean": 127307.14208999382,
-          "std_err": 32.333651566151495
+          "mean": 127266.3355547069,
+          "std_err": 32.3718447884824
         },
         "delta": {
-          "abs": -1099.409450138788,
-          "pct": -0.8561942026728869,
-          "err95": 90.08119392734994
+          "abs": -1073.899254128759,
+          "pct": -0.8367596145732046,
+          "err95": 90.12410140897332
+        }
+      },
+      "rank": 11
+    },
+    {
+      "key": "bag08-257169",
+      "slot": "finger",
+      "name": "Voidbreaker's Signet",
+      "item_id": 257169,
+      "ilevel": 220,
+      "stats": "Crit 84, Vers 75",
+      "source": "bags",
+      "note": "",
+      "simulable": true,
+      "replaced_slot": "finger2",
+      "replaced": "Omission of Light",
+      "replaced_ilevel": 189,
+      "gear": {
+        "name": "voidbreakers_signet",
+        "ilevel": 220,
+        "stamina": 573,
+        "crit_rating": 84,
+        "versatility_rating": 75
+      },
+      "replaced_gear": {
+        "name": "omission_of_light",
+        "ilevel": 189,
+        "stamina": 371,
+        "haste_rating": 89,
+        "mastery_rating": 63
+      },
+      "st": {
+        "dps": {
+          "mean": 64310.06005934342,
+          "std_err": 16.368487612536338
+        },
+        "delta": {
+          "abs": -742.615250677969,
+          "pct": -1.1415598930234447,
+          "err95": 45.66887376159278
+        }
+      },
+      "slot_attempts": {
+        "finger1": 63897.2,
+        "finger2": 64310.1
+      },
+      "cleave": {
+        "dps": {
+          "mean": 127288.58894434567,
+          "std_err": 32.40576562781094
+        },
+        "delta": {
+          "abs": -1051.645864489983,
+          "pct": -0.8194202434306143,
+          "err95": 90.17092017045208
         }
       },
       "rank": 12
@@ -531,29 +833,45 @@
       "replaced_slot": "waist",
       "replaced": "Elder Mosscinch",
       "replaced_ilevel": 250,
+      "gear": {
+        "name": "voidbreakers_sash",
+        "ilevel": 214,
+        "stamina": 703,
+        "crit_rating": 35,
+        "mastery_rating": 42,
+        "agiint": 46
+      },
+      "replaced_gear": {
+        "name": "elder_mosscinch",
+        "ilevel": 250,
+        "stamina": 1089,
+        "crit_rating": 58,
+        "mastery_rating": 41,
+        "agiint": 65
+      },
       "st": {
         "dps": {
-          "mean": 64191.423616059976,
-          "std_err": 16.355949647123193
+          "mean": 64213.42283289815,
+          "std_err": 16.317359745667137
         },
         "delta": {
-          "abs": -862.0300928888391,
-          "pct": -1.3251104188035714,
-          "err95": 45.57840495396026
+          "abs": -839.252477123242,
+          "pct": -1.2901121639096598,
+          "err95": 45.59853189978228
         }
       },
       "slot_attempts": {
-        "waist": 64191.4
+        "waist": 64213.4
       },
       "cleave": {
         "dps": {
-          "mean": 126658.8266203605,
-          "std_err": 32.22195990689202
+          "mean": 126656.09105214254,
+          "std_err": 32.217297672001706
         },
         "delta": {
-          "abs": -1747.7249197721103,
-          "pct": -1.3610870308481655,
-          "err95": 89.92731687956284
+          "abs": -1684.1437566931127,
+          "pct": -1.3122492406233053,
+          "err95": 89.91110360290631
         }
       },
       "rank": 13
@@ -571,29 +889,45 @@
       "replaced_slot": "chest",
       "replaced": "Elder Mossmail",
       "replaced_ilevel": 246,
+      "gear": {
+        "name": "tarnished_dawnlit_corsairs_tunic",
+        "ilevel": 198,
+        "stamina": 749,
+        "crit_rating": 47,
+        "versatility_rating": 43,
+        "agiint": 53
+      },
+      "replaced_gear": {
+        "name": "elder_mossmail",
+        "ilevel": 246,
+        "stamina": 1385,
+        "haste_rating": 45,
+        "mastery_rating": 84,
+        "agiint": 83
+      },
       "st": {
         "dps": {
-          "mean": 60678.19424153299,
-          "std_err": 15.447342082588461
+          "mean": 60666.77724449328,
+          "std_err": 15.467061814956098
         },
         "delta": {
-          "abs": -4375.2594674158245,
-          "pct": -6.725637484200105,
-          "err95": 44.34389914597985
+          "abs": -4385.898065528112,
+          "pct": -6.742071782023179,
+          "err95": 44.44549644659811
         }
       },
       "slot_attempts": {
-        "chest": 60678.2
+        "chest": 60666.8
       },
       "cleave": {
         "dps": {
-          "mean": 119984.59274745561,
-          "std_err": 30.55134518241135
+          "mean": 119998.26372945549,
+          "std_err": 30.555672733751784
         },
         "delta": {
-          "abs": -8421.958792677004,
-          "pct": -6.558823277833122,
-          "err95": 87.65873430095063
+          "abs": -8341.971079380164,
+          "pct": -6.499887655500734,
+          "err95": 87.6544805008541
         }
       },
       "rank": 14
@@ -611,29 +945,45 @@
       "replaced_slot": "main_hand",
       "replaced": "Void-Touched Smasher",
       "replaced_ilevel": 263,
+      "gear": {
+        "name": "dawnforged_ritual_knife",
+        "ilevel": 214,
+        "intellect": 149,
+        "stamina": 468,
+        "crit_rating": 26,
+        "haste_rating": 26
+      },
+      "replaced_gear": {
+        "name": "voidtouched_smasher",
+        "ilevel": 263,
+        "agility": 49,
+        "stamina": 847,
+        "crit_rating": 34,
+        "mastery_rating": 38
+      },
       "st": {
         "dps": {
-          "mean": 42126.498760615614,
-          "std_err": 10.725888742208198
+          "mean": 42133.56311320824,
+          "std_err": 10.744402912607093
         },
         "delta": {
-          "abs": -22926.9549483332,
-          "pct": -35.24325557088654,
-          "err95": 38.62192418872664
+          "abs": -22919.11219681315,
+          "pct": -35.23162127858322,
+          "err95": 38.72801200803273
         }
       },
       "slot_attempts": {
-        "main_hand": 42126.5
+        "main_hand": 42133.6
       },
       "cleave": {
         "dps": {
-          "mean": 88082.28469503867,
-          "std_err": 22.458328195205528
+          "mean": 88100.13036568223,
+          "std_err": 22.432120813510622
         },
         "delta": {
-          "abs": -40324.26684509394,
-          "pct": -31.403589895871363,
-          "err95": 77.69154296035774
+          "abs": -40240.104443153425,
+          "pct": -31.354239380262587,
+          "err95": 77.65110894230544
         }
       },
       "rank": 15
@@ -651,29 +1001,46 @@
       "replaced_slot": "off_hand",
       "replaced": "Void-Touched Smasher",
       "replaced_ilevel": 246,
+      "gear": {
+        "name": "bloodtempered_bulwark",
+        "ilevel": 214,
+        "strength": 31,
+        "intellect": 95,
+        "stamina": 468,
+        "versatility_rating": 26,
+        "crit_rating": 26
+      },
+      "replaced_gear": {
+        "name": "voidtouched_smasher",
+        "ilevel": 246,
+        "agility": 42,
+        "stamina": 692,
+        "crit_rating": 31,
+        "mastery_rating": 34
+      },
       "st": {
         "dps": {
-          "mean": 37520.94757675208,
-          "std_err": 9.566878278316771
+          "mean": 37533.159780829876,
+          "std_err": 9.566133976616687
         },
         "delta": {
-          "abs": -27532.506132196737,
-          "pct": -42.32289688319705,
-          "err95": 37.433947216548475
+          "abs": -27519.515529191514,
+          "pct": -42.303433944940494,
+          "err95": 37.52232041393179
         }
       },
       "slot_attempts": {
-        "off_hand": 37520.9
+        "off_hand": 37533.2
       },
       "cleave": {
         "dps": {
-          "mean": 72204.22663674688,
-          "std_err": 18.383641754696008
+          "mean": 72223.54043341527,
+          "std_err": 18.378585904133853
         },
         "delta": {
-          "abs": -56202.32490338573,
-          "pct": -43.76904778555639,
-          "err95": 73.4619875116266
+          "abs": -56116.69437542038,
+          "pct": -43.724942890284474,
+          "err95": 73.44513570170997
         }
       },
       "rank": 16
@@ -691,29 +1058,45 @@
       "replaced_slot": "main_hand",
       "replaced": "Void-Touched Smasher",
       "replaced_ilevel": 263,
+      "gear": {
+        "name": "merteis_command_baton",
+        "ilevel": 253,
+        "intellect": 214,
+        "stamina": 758,
+        "haste_rating": 44,
+        "mastery_rating": 24
+      },
+      "replaced_gear": {
+        "name": "voidtouched_smasher",
+        "ilevel": 263,
+        "agility": 49,
+        "stamina": 847,
+        "crit_rating": 34,
+        "mastery_rating": 38
+      },
       "st": {
         "dps": {
-          "mean": 28067.91618457173,
-          "std_err": 7.438999115750267
+          "mean": 28063.666935908677,
+          "std_err": 7.395503194895932
         },
         "delta": {
-          "abs": -36985.53752437708,
-          "pct": -56.854072175555096,
-          "err95": 35.52867193745913
+          "abs": -36989.00837411272,
+          "pct": -56.86008791772864,
+          "err95": 35.58773112453166
         }
       },
       "slot_attempts": {
-        "main_hand": 28067.9
+        "main_hand": 28063.7
       },
       "cleave": {
         "dps": {
-          "mean": 52266.52293185615,
-          "std_err": 15.426546591215004
+          "mean": 52304.644267831856,
+          "std_err": 15.443484492089558
         },
         "delta": {
-          "abs": -76140.02860827647,
-          "pct": -59.29606215184387,
-          "err95": 70.79958089297168
+          "abs": -76035.5905410038,
+          "pct": -59.24532603065573,
+          "err95": 70.80132548937002
         }
       },
       "rank": 17
@@ -731,30 +1114,41 @@
       "replaced_slot": "trinket1",
       "replaced": "Withered Saptor's Paw",
       "replaced_ilevel": 237,
+      "gear": {
+        "name": "breath_of_janalai",
+        "ilevel": 272,
+        "stragiint": 101
+      },
+      "replaced_gear": {
+        "name": "withered_saptors_paw",
+        "ilevel": 237,
+        "haste_rating": 87,
+        "speed_rating": 39
+      },
       "st": {
         "dps": {
-          "mean": 65221.62938045596,
-          "std_err": 16.589293862541552
+          "mean": 65237.45760600458,
+          "std_err": 16.61661163803605
         },
         "delta": {
-          "abs": 168.17567150714603,
-          "pct": 0.2585192052363111,
-          "err95": 45.901237599358254
+          "abs": 184.78229598319012,
+          "pct": 0.28405026403998535,
+          "err95": 46.01181592611074
         }
       },
       "slot_attempts": {
-        "trinket1": 65221.6,
-        "trinket2": 65108.3
+        "trinket1": 65237.5,
+        "trinket2": 65092.9
       },
       "cleave": {
         "dps": {
-          "mean": 129570.11153124063,
-          "std_err": 32.8984978352587
+          "mean": 129564.28547769802,
+          "std_err": 33.032454256896244
         },
         "delta": {
-          "abs": 1163.5599911080208,
-          "pct": 0.9061531340512309,
-          "err95": 90.86346689545397
+          "abs": 1224.0506688623718,
+          "pct": 0.953754425247554,
+          "err95": 91.04030157306796
         }
       },
       "rank": null
