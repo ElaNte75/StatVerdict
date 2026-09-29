@@ -1,0 +1,61 @@
+{
+  "sim": {
+    "options": {
+      "iterations": 10000,
+      "target_error": 0.1,
+      "max_time": 300,
+      "scaling": {
+        "calculate_scale_factors": true,
+        "normalize_scale_factors": false,
+        "scale_only": "crit_rating,haste_rating,mastery_rating,versatility_rating"
+      }
+    },
+    "players": [
+      {
+        "name": "sv_0001",
+        "race": "human",
+        "level": 90,
+        "role": "attack",
+        "specialization": "Frost Death Knight",
+        "scale_factors": {
+          "Str": 0.0,
+          "Crit": 0.653,
+          "Haste": 0.492,
+          "Mastery": 0.455,
+          "Vers": 0.345
+        },
+        "scale_factors_all": {
+          "dps": {
+            "Str": 0.0,
+            "Crit": 0.653,
+            "Haste": 0.492,
+            "Mastery": 0.455,
+            "Vers": 0.345
+          },
+          "hps": {
+            "Str": 0.0,
+            "Crit": 0.0,
+            "Haste": 0.0,
+            "Mastery": 0.0,
+            "Vers": 0.0
+          },
+          "dtps": {
+            "Str": 0.0,
+            "Crit": 0.0,
+            "Haste": 0.0,
+            "Mastery": 0.0,
+            "Vers": -0.021
+          }
+        },
+        "scale_deltas": {
+          "Str": 0.0,
+          "Crit": 594.0,
+          "Haste": 594.0,
+          "Mastery": 594.0,
+          "Vers": 594.0
+        },
+        "collected_data": {}
+      }
+    ]
+  }
+}

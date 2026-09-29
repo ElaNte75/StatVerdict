@@ -70,6 +70,26 @@ class ClassCodexBuildTests(unittest.TestCase):
         self.assertNotIn("statTargets", spec)
         self.assertNotIn("tierRank", spec)
 
+    def test_talents_are_extracted_alongside_the_other_fields(self) -> None:
+        # Without `talents`, tools/classcodex_targets.py and
+        # tools/classcodex_weights.py cannot build a single SimC profile.
+        sources = {
+            "db_ugg": _plain_global_source(
+                "ugg",
+                "DEATHKNIGHT",
+                "frost",
+                {
+                    "talents": 'deathbringer = {mplus = {{export = "CsPAAA", pickrate = 21.8}}}',
+                    "gear": 'all = {mplus = {{itemId = 1, slot = "Head"}}}',
+                },
+            ),
+            "db_icyveins": "ClassCodexSource = ClassCodexSource or {}\n",
+        }
+        spec = build(sources)["DEATHKNIGHT_frost"]
+        self.assertEqual("ugg", spec["talents"]["source"])
+        self.assertEqual("CsPAAA", spec["talents"]["value"]["deathbringer"]["mplus"][0]["export"])
+        self.assertIn("gear", spec)
+
     def test_missing_source_does_not_crash_the_build(self) -> None:
         sources = {
             "db_ugg": _plain_global_source("ugg", "DEATHKNIGHT", "frost", {"gear": 'from = "ugg"'}),

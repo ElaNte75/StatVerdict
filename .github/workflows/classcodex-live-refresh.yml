@@ -28,21 +28,81 @@ jobs:
       - name: Install dependencies
         run: pip install lupa
 
+      # Tests first: fail fast before spending CI minutes on a SimC build.
       - name: Run existing tests
         run: python -m unittest discover -s tools/tests
 
       - name: Fetch and build the live ClassCodex data
         run: python tools/classcodex_cli.py
 
-      - name: Commit generated data
+      # Everything from here to "Build ClassCodex stat targets" is isolated
+      # with continue-on-error: the SimC-based targets pipeline is newer and
+      # heavier than the plain LiveData/StatDR refresh above, and a failure in
+      # it must never block that already-working refresh from being committed.
+      - name: Check out SimulationCraft Midnight
+        id: simc-checkout
+        continue-on-error: true
+        uses: actions/checkout@v5
+        with:
+          repository: simulationcraft/simc
+          ref: midnight
+          path: .simc-source
+          fetch-depth: 1
+
+      - name: Identify SimulationCraft revision
+        id: simc-ref
+        if: steps.simc-checkout.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: echo "sha=$(git -C .simc-source rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore SimulationCraft build
+        id: simc-cache
+        if: steps.simc-ref.outcome == 'success'
+        continue-on-error: true
+        uses: actions/cache@v5
+        with:
+          path: .simc-build
+          key: ${{ runner.os }}-simc-midnight-${{ steps.simc-ref.outputs.sha }}
+
+      - name: Build SimulationCraft CLI
+        id: simc-build
+        if: steps.simc-ref.outcome == 'success' && steps.simc-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
         run: |
-          if [ -z "$(git status --porcelain -- StatVerdict/Data/Generated/SV_ClassCodexLiveData.lua)" ]; then
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++
+          cmake -S .simc-source -B .simc-build -G Ninja \
+            -DBUILD_GUI=OFF -DSC_NO_NETWORKING=ON -DCMAKE_BUILD_TYPE=Release
+          cmake --build .simc-build --target simc --parallel 2
+
+      - name: Build ClassCodex stat targets
+        id: targets
+        continue-on-error: true
+        run: python tools/classcodex_targets_cli.py --simc-bin .simc-build/simc
+
+      - name: Commit generated data
+        shell: bash
+        run: |
+          files=(
+            StatVerdict/Data/Generated/SV_ClassCodexLiveData.lua
+            StatVerdict/Data/Generated/SV_StatDR.lua
+          )
+          # Only include the targets file when its own step succeeded (a
+          # failed run writes nothing, and on a first run the file may not
+          # exist at all -- `git add` on a missing path would abort the
+          # whole commit). A normal, fully successful run still commits all
+          # three files together as one commit.
+          if [ "${{ steps.targets.outcome }}" = "success" ] && [ -f StatVerdict/Data/Generated/SV_ClassCodexTargets.lua ]; then
+            files+=(StatVerdict/Data/Generated/SV_ClassCodexTargets.lua)
+          fi
+          if [ -z "$(git status --porcelain -- "${files[@]}")" ]; then
             echo "No changes to commit."
             exit 0
           fi
           git config user.name "StatVerdict Benchmark Bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add StatVerdict/Data/Generated/SV_ClassCodexLiveData.lua
+          git add -- "${files[@]}"
           git commit -m "data: refresh live ClassCodex data"
           for attempt in 1 2 3 4 5; do
             if git push; then
@@ -53,4 +113,12 @@ jobs:
             git rebase origin/main
           done
           echo "Push failed after 5 attempts."
+          exit 1
+
+      # The LiveData/StatDR commit above has already happened by now; this
+      # only turns the run red so a targets-pipeline failure is not silent.
+      - name: Report stat-target pipeline failure
+        if: steps.targets.outcome != 'success'
+        run: |
+          echo "::error::ClassCodex stat targets were not rebuilt this run (outcome: ${{ steps.targets.outcome }}). LiveData/StatDR were still committed; see the 'Build ClassCodex stat targets' step log."
           exit 1
