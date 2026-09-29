@@ -3,7 +3,7 @@ local addonName, ns = ...
 local Panel = {}
 ns.StatVerdictWeightsDrawerPanel = Panel
 
-local DRAWER_PREFERRED_WIDTH = 280
+local DRAWER_PREFERRED_WIDTH = 300
 local MARGIN = 14
 local ROW_HEIGHT = 50
 local ROW_STEP = 56

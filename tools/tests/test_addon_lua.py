@@ -1799,7 +1799,7 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
     # well (33), the well padding (6) and a gutter above and below (2 x 10).
     CARD_HEIGHT = 440 - 33 - 6 - 2 * 10
     BOTTOM_BORDER = 6
-    DRAWER_TEXT_WIDTH = 280 - 2 * 14
+    DRAWER_TEXT_WIDTH = 300 - 2 * 14
     # Conservative pixel sizes of the WoW fonts used (font size, average character width).
     FONTS = {"GameFontNormal": (12, 6.5), "GameFontNormalSmall": (10, 5.5), "GameFontHighlightSmall": (10, 5.5)}
 
@@ -1854,6 +1854,8 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
                         chip = card.binRows[i]
                         label_width = len(chip.label.text) * self.FONTS["GameFontHighlightSmall"][1]
                         self.assertLessEqual(4 + 20 + 1 + label_width + 4, chip._width, chip.label.text)
+                        # ...with room to spare: "Champion" must not just barely fit.
+                        self.assertGreaterEqual(chip._width - (4 + 20 + 1 + label_width + 4), 10, chip.label.text)
         # Every explanation (tiers and gear levels) fits its reserved space (two lines).
         abouts = [bin.about for bin in self.ns.GetStatTargetBins().values()]
         abouts += [level.about for level in self.ns.GetGearLevels().values()]
@@ -3051,7 +3053,7 @@ class FeaturesDrawerGeometryTests(unittest.TestCase):
         self.assertLessEqual(self.frame._width, 1120)  # no wider than the dashboard's base window width
 
     def test_other_drawers_keep_their_width(self) -> None:
-        widths = {"SV_WeightsDrawerPanel.lua": 280, "SV_ManualDrawerPanel.lua": 300}
+        widths = {"SV_WeightsDrawerPanel.lua": 300, "SV_ManualDrawerPanel.lua": 300}
         for name, width in widths.items():
             source = (ADDON / "UI" / name).read_text(encoding="utf-8-sig")
             self.assertIn(f"local DRAWER_PREFERRED_WIDTH = {width}\n", source, name)
