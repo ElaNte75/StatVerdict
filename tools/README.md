@@ -57,7 +57,9 @@ source and the real installed addon both have it correctly.
   role, primary stat); `tools/lua_render.py` -- renders data as Lua.
 
 Inside the addon, `StatVerdict/Core/SV_ProfileRepository.lua` is the only
-reader of these files. It picks the player's hero tree by name, fails closed
+reader of these files. It picks the player's hero tree by its subtree ID (a
+fixed table in `SV_SpecMeta.lua`, from Blizzard's TraitSubTree data, since hero
+tree names are translated on non-English clients), then by name, fails closed
 on data older than 30 days (from the `buildId` time prefix), and never falls
 back to another hero tree's data.
 

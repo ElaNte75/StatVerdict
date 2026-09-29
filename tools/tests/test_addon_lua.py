@@ -202,13 +202,42 @@ class RepositoryTests(unittest.TestCase):
         self.assertIsNone(resolve("MAGE_FIRE", "MYTHIC_PLUS", "Sunfury", None))
         self.assertIsNone(resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "Not A Hero Tree", None))
 
+    def test_hero_subtree_id_resolves_before_the_name(self) -> None:
+        # Non-English clients get translated hero tree names; the subtree ID does not change.
+        lua, ns = self.build_runtime()
+        resolve = ns.ProfileRepository.ResolveHeroKey
+        self.assertEqual("deathbringer", resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "Todesbringer", 33))
+        self.assertEqual("sanlayn", resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "산레인", 31))
+        # A known ID wins over a name that points elsewhere, and is not a guess.
+        self.assertEqual("sanlayn", resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "Deathbringer", 31))
+        self.assertEqual("sanlayn", resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", None, 31))  # not ("sanlayn", True)
+        # A known ID whose tree has no data for this goal never falls back to a name or guess.
+        self.assertIsNone(resolve("DEATHKNIGHT_BLOOD", "RAID", "San'layn", 33))
+        self.assertIsNone(resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "San'layn", 32))
+        # An unknown ID falls back to the name.
+        self.assertEqual("deathbringer", resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "Deathbringer", 9999))
+
+    def test_profile_and_boosts_use_the_hero_subtree_id(self) -> None:
+        lua, ns = self.build_runtime()
+        profile = ns.ProfileRepository.BuildRuntimeProfile(
+            self.context(lua, heroTalentName="Todesbringer", heroSubTreeID=33))
+        self.assertEqual("deathbringer", profile.heroKey)
+        self.assertFalse(profile.heroKeyGuessed)
+        ns.GetSnapshotHeroTalentName = lambda profile: "Todesbringer"
+        ns.GetSnapshotHeroSubTreeID = lambda profile: 33
+        bare = lua.table(specKey="DEATHKNIGHT_BLOOD", goal="MYTHIC_PLUS")
+        self.assertEqual(8, ns.GetItemReferenceInfo("item:1500", bare).bonus)
+        named = lua.table(specKey="DEATHKNIGHT_BLOOD", goal="MYTHIC_PLUS", heroTalentName="San'layn", heroSubTreeID=31)
+        self.assertEqual(8, ns.GetItemReferenceInfo("item:1000", named).bonus)
+
     def test_missing_hero_tree_name_guesses_the_first_key_in_sorted_order(self) -> None:
         lua, ns = self.build_runtime()
         resolve = ns.ProfileRepository.ResolveHeroKey
         # No hero tree yet (below hero-talent level, or a snapshot without it):
         # the first key in sorted order, flagged as a guess.
         self.assertEqual(("deathbringer", True), resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", None, None))
-        self.assertEqual(("deathbringer", True), resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "", 31))
+        self.assertEqual(("deathbringer", True), resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "", None))
+        self.assertEqual(("deathbringer", True), resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "", 9999))
         self.assertEqual(("sanlayn", True), resolve("DEATHKNIGHT_BLOOD", "RAID", None, None))
         self.assertIsNone(resolve("MAGE_FIRE", "MYTHIC_PLUS", None, None))
         context = self.context(lua)

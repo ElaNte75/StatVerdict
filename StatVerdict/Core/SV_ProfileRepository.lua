@@ -112,17 +112,26 @@ local function GetContext(specKey, goal, heroKey)
     return context, profile
 end
 
--- Player hero tree name ("San'layn", "Master of Harmony") -> ClassCodex key
--- ("sanlayn", "master-of-harmony"). Only a name that matches one of this
--- spec/goal's keys counts: an unknown hero tree gives nil (no data), never
--- another tree's data. A MISSING name (below hero-talent level, or a snapshot
--- without hero info) gives the first key in sorted order plus a second return
--- value true, so callers can flag the profile as a guess. heroSubTreeID is
--- accepted for callers, but the ClassCodex data carries no subtree IDs to match.
+-- Player hero tree -> ClassCodex key ("sanlayn", "master-of-harmony").
+-- 1. The hero subtree ID (SV_SpecMeta table): language-independent, so it is
+--    tried first. A known ID decides on its own: if this spec/goal has no data
+--    for that tree the answer is nil, never a name match or a guess.
+-- 2. The hero tree name ("San'layn"): only English names match, since the game
+--    gives names in the client language. Only a name that matches one of this
+--    spec/goal's keys counts: an unknown hero tree gives nil (no data), never
+--    another tree's data.
+-- 3. A MISSING name (below hero-talent level, or a snapshot without hero info)
+--    gives the first key in sorted order plus a second return value true, so
+--    callers can flag the profile as a guess.
 local function ResolveHeroKey(specKey, goal, heroTalentName, heroSubTreeID)
     local wanted = NormalizeToken(heroTalentName)
     local heroTalents = GetHeroTalents(specKey, goal)
     if not heroTalents then return nil end
+    local idKey = ns.GetStatVerdictHeroKeyBySubTreeID and ns.GetStatVerdictHeroKeyBySubTreeID(heroSubTreeID)
+    if idKey then
+        if type(heroTalents[idKey]) == "table" then return idKey end
+        return nil
+    end
     if wanted == "" then
         local first
         for heroKey in pairs(heroTalents) do

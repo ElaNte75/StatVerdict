@@ -31,12 +31,14 @@ local function ResolveHeroDocument(profile)
     if not specKey then return nil, goal end
     -- BiS and trinket lists are per hero tree: use the profile's own tree
     -- (set by ProfileRepository.BuildRuntimeProfile), else resolve it from the
-    -- hero tree name the profile or its spec snapshot carries.
+    -- hero subtree ID / hero tree name the profile or its spec snapshot carries.
     local heroKey = type(profile) == "table" and profile.heroKey or nil
     if not heroKey and ns.ProfileRepository.ResolveHeroKey then
         local heroTalentName = type(profile) == "table" and profile.heroTalentName or nil
         heroTalentName = heroTalentName or (ns.GetSnapshotHeroTalentName and ns.GetSnapshotHeroTalentName(profile))
-        heroKey = ns.ProfileRepository.ResolveHeroKey(specKey, goal, heroTalentName)
+        local heroSubTreeID = type(profile) == "table" and profile.heroSubTreeID or nil
+        heroSubTreeID = heroSubTreeID or (ns.GetSnapshotHeroSubTreeID and ns.GetSnapshotHeroSubTreeID(profile))
+        heroKey = ns.ProfileRepository.ResolveHeroKey(specKey, goal, heroTalentName, heroSubTreeID)
     end
     local context = heroKey and ns.ProfileRepository.GetContext(specKey, goal, heroKey) or nil
     return context, goal

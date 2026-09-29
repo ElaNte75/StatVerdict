@@ -107,6 +107,25 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
         if problems:
             self.fail("\n  ".join(["SpecMeta out of date:"] + problems))
 
+    def test_hero_subtree_ids_cover_every_hero_key_in_the_data_exactly_once(self) -> None:
+        ns, lua = self.ns, self.lua
+        targets = ns.ClassCodexTargets.profiles
+        data_keys = {hero for spec_key in targets.keys() for goal in targets[spec_key].goals.keys()
+                     for hero in targets[spec_key].goals[goal].heroTalents.keys()}
+        table = ns.GetStatVerdictHeroSubTreeIDs()
+        mapped = [table[subtree_id] for subtree_id in table.keys()]
+        self.assertEqual(len(mapped), len(set(mapped)), "a hero key is listed under two subtree IDs")
+        self.assertEqual(sorted(data_keys), sorted(mapped))
+        # Every spec/goal/hero cell resolves by ID alone, even with a translated name.
+        for subtree_id in table.keys():
+            hero = table[subtree_id]
+            for spec_key in targets.keys():
+                for goal in targets[spec_key].goals.keys():
+                    if targets[spec_key].goals[goal].heroTalents[hero] is None:
+                        continue
+                    self.assertEqual(hero, ns.ProfileRepository.ResolveHeroKey(
+                        spec_key, goal, "Nom traduit", subtree_id), f"{spec_key} {goal} {subtree_id}")
+
     def test_missing_hero_tree_name_uses_the_first_sorted_hero_key(self) -> None:
         ns, lua = self.ns, self.lua
         targets = ns.ClassCodexTargets.profiles
