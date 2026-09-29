@@ -408,7 +408,7 @@ def loadout_item_level(
     levels = (reconstructed or {}).get("item_levels")
     values = [float(v) for v in (levels or {}).values() if isinstance(v, (int, float)) and not isinstance(v, bool)]
     if values:
-        return sum(values) / len(values), len(values), "simc"
+        return sum(values) / len(values), len(values), (reconstructed or {}).get("item_level_source") or "simc"
     return None, 0, "none"
 
 
@@ -674,10 +674,11 @@ def canonical_secondaries(raw_stats: dict[str, Any]) -> dict[str, float]:
 
 def wowhead_gear_stats(
     spec: Any, items: dict[str, dict[str, Any]], wowhead_reconstruct: Callable[..., dict[str, Any]]
-) -> dict[str, float]:
+) -> tuple[dict[str, float], dict[str, float]]:
     """Gear-only secondary totals from Wowhead tooltips (no base stats,
     racials or talents). Any lookup failure -- including one unresolved
-    slot -- skips the combo rather than shipping a partial sum."""
+    slot -- skips the combo rather than shipping a partial sum. Returns
+    (secondary totals, {slot: item level Wowhead's tooltip shows})."""
     try:
         loadout = wowhead_reconstruct(items, primary=spec.primary)
     except Exception as exc:  # noqa: BLE001 - fail closed (network, parsing, ...)
@@ -687,7 +688,12 @@ def wowhead_gear_stats(
         failures = loadout.get("failures") if isinstance(loadout, dict) else None
         print(f"Wowhead fallback error for {spec.spec_name}: {failures or 'unusable result'}", file=sys.stderr)
         raise ComboSkipped("wowhead fallback failed")
-    return canonical_secondaries(loadout["totals"])
+    levels: dict[str, float] = {}
+    for slot, row in (loadout.get("slots") or {}).items():
+        level = row.get("wowheadItemLevel") if isinstance(row, dict) else None
+        if isinstance(level, (int, float)) and not isinstance(level, bool):
+            levels[slot] = float(level)
+    return canonical_secondaries(loadout["totals"]), levels
 
 
 def reconstruct_target_context(
@@ -736,7 +742,8 @@ def reconstruct_target_context(
         print(f"SimC error for {spec.spec_name}: {format_simc_error(exc)}", file=sys.stderr)
         if wowhead_reconstruct is None:
             raise ComboSkipped(f"SimC run failed ({type(exc).__name__})") from exc
-        stats = wowhead_gear_stats(spec, items, wowhead_reconstruct)
+        stats, wowhead_levels = wowhead_gear_stats(spec, items, wowhead_reconstruct)
+        reconstructed = {"item_levels": wowhead_levels, "item_level_source": "wowhead"}
         source = WOWHEAD_TARGET_SOURCE
         recovery = ["wowhead fallback"]
     else:
@@ -746,7 +753,8 @@ def reconstruct_target_context(
         # the spec is not really modelled, use the gear-only fallback.
         if sum(1 for value in stats.values() if value > 0) < 2 and wowhead_reconstruct is not None:
             print(f"SimC produced no usable stats for {spec.spec_name}; using Wowhead fallback", file=sys.stderr)
-            stats = wowhead_gear_stats(spec, items, wowhead_reconstruct)
+            stats, wowhead_levels = wowhead_gear_stats(spec, items, wowhead_reconstruct)
+            reconstructed = {"item_levels": wowhead_levels, "item_level_source": "wowhead"}
             source = WOWHEAD_TARGET_SOURCE
             recovery = ["wowhead fallback"]
         elif not reconstructed:

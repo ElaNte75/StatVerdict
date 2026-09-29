@@ -965,6 +965,22 @@ class NoAlternativesTests(unittest.TestCase):
             self.assertNotIn("enchant_alt", slot["item"])
 
 
+class WowheadItemLevelTests(unittest.TestCase):
+    def test_the_fallback_reports_the_item_level_wowhead_shows(self) -> None:
+        from tools.classcodex_targets import wowhead_gear_stats
+
+        def fake(items, *, primary):
+            return {
+                "totals": {"crit": 900, "haste": 1200},
+                "slots": {"HEAD": {"wowheadItemLevel": 334}, "NECK": {"wowheadItemLevel": 344}, "BACK": {"error": "x"}},
+                "failures": [],
+            }
+
+        stats, levels = wowhead_gear_stats(SPEC_BY_KEY["DEATHKNIGHT_FROST"], {"HEAD": {"itemId": 1}}, fake)
+        self.assertEqual({"critical_strike": 900.0, "haste": 1200.0}, stats)
+        self.assertEqual({"HEAD": 334.0, "NECK": 344.0}, levels)
+
+
 if __name__ == "__main__":
     unittest.main()
 
