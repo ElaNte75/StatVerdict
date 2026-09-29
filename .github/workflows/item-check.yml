@@ -81,6 +81,10 @@ jobs:
           python tools/item_check.py --simc-bin .simc-build/simc --threads 4 \
             --iterations "$ITERATIONS" --target-error "$TARGET_ERROR"
 
+      # The addon's own verdict on the same items, lined up against SimC's answer.
+      - name: Replay the addon verdict
+        run: PYTHONPATH=.:tools python tools/item_check_verdict.py docs/item-check/enhancement_shaman.json
+
       # Uploaded even when the run fails or times out: the tool rewrites
       # the files after every simulation, so a partial table is kept.
       - name: Upload results
@@ -94,7 +98,7 @@ jobs:
       - name: Commit results
         shell: bash
         run: |
-          files=(docs/item-check/enhancement_shaman.md docs/item-check/enhancement_shaman.json)
+          files=(docs/item-check/enhancement_shaman.md docs/item-check/enhancement_shaman.json docs/item-check/enhancement_shaman_verdict.md)
           if [ -z "$(git status --porcelain -- "${files[@]}")" ]; then
             echo "No changes to commit."
             exit 0
