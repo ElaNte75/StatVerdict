@@ -22,6 +22,7 @@ from tools.classcodex_targets import (
     build_priority_row,
     build_target_context,
     build_all,
+    guide_targets_for,
 )
 from tools.spec_catalog import SPEC_BY_KEY
 
@@ -519,6 +520,57 @@ class BuildAllTests(unittest.TestCase):
         self.assertEqual([{"item_id": 9, "bonus_ids": [], "tier": "S"}], mplus_context["trinkets"])
         self.assertEqual(1, len(mplus_context["priorityProfiles"]))
         self.assertNotIn("PVP", profile["goals"])  # no PVP data anywhere in this fixture
+
+    def test_guide_targets_follow_goal_and_hero_with_all_hero_fallback(self) -> None:
+        stat_targets = {
+            "deathbringer": {"mplus": {"top50": {"crit": 1358, "haste": 682}}},
+            "all": {
+                "mplus": {"top50": {"crit": 1}},
+                "raid": {
+                    "top20": {"haste": 788, "mastery": 1180, "versatility": 181, "crit": 1413},
+                    "top50": {"crit": 1300},
+                    "top80": {"crit": 1200, "leech": 5},
+                },
+            },
+        }
+        self.assertEqual(
+            {"top50": {"critical_strike": 1358.0, "haste": 682.0}},
+            guide_targets_for(stat_targets, "deathbringer", "MYTHIC_PLUS"),
+        )
+        raid = guide_targets_for(stat_targets, "deathbringer", "RAID")
+        self.assertEqual(
+            {"critical_strike": 1413.0, "haste": 788.0, "mastery": 1180.0, "versatility": 181.0}, raid["top20"]
+        )
+        self.assertEqual({"critical_strike": 1200.0}, raid["top80"])
+        self.assertIsNone(guide_targets_for(stat_targets, "deathbringer", "PVP"))
+        self.assertIsNone(guide_targets_for(None, "deathbringer", "RAID"))
+
+    def test_build_all_adds_guide_targets_even_after_a_recovered_run(self) -> None:
+        specs = {
+            "DEATHKNIGHT_frost": {
+                "gear": {"value": {"all": {"raid": TargetRecoveryTests.gear}}},
+                "talents": {"value": {"deathbringer": {"raid": [{"export": "X"}]}}},
+                "statTargets": {"value": {"all": {"raid": {"top50": {"crit": 1300, "mastery": 900}}}}},
+            }
+        }
+        error = RuntimeError("Player sv_0001 has an Off-Hand weapon equipped with a 2h weapon")
+        with patch("tools.classcodex_targets.run_simc", side_effect=[error, GOOD]):
+            data = build_all(specs, Path("simc"), goals=("RAID", "PVP"))
+        targets = data["profiles"]["DEATHKNIGHT_FROST"]["goals"]["RAID"]["heroTalents"]["deathbringer"]["targets"]
+        self.assertEqual(["dropped OFF_HAND"], targets["targetMetadata"]["recovery"])
+        self.assertEqual({"top50": {"critical_strike": 1300.0, "mastery": 900.0}}, targets["guideTargets"])
+
+    def test_guide_targets_are_omitted_when_ugg_has_none(self) -> None:
+        specs = {
+            "DEATHKNIGHT_frost": {
+                "gear": {"value": {"all": {"raid": TargetRecoveryTests.gear}}},
+                "talents": {"value": {"deathbringer": {"raid": [{"export": "X"}]}}},
+            }
+        }
+        with patch("tools.classcodex_targets.run_simc", return_value=GOOD):
+            data = build_all(specs, Path("simc"), goals=("RAID",))
+        targets = data["profiles"]["DEATHKNIGHT_FROST"]["goals"]["RAID"]["heroTalents"]["deathbringer"]["targets"]
+        self.assertNotIn("guideTargets", targets)
 
     def test_skips_a_spec_key_not_in_the_catalog(self) -> None:
         specs = {"NOTASPEC_madeup": {"gear": {"value": {}, "source": "ugg"}}}
