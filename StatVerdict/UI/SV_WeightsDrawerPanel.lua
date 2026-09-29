@@ -135,6 +135,60 @@ local function EnsureModeRow(card, index, mode)
     return row
 end
 
+-- "Stat targets" group: title + note on one line, then the three levels as
+-- check options side by side (a radio group: exactly one is ticked).
+local BIN_GROUP_HEIGHT = 38
+local BIN_OPTION_TOP = -16
+local BIN_OPTION_WIDTH = 80
+local BIN_OPTION_STEP = 82
+local BIN_OPTION_HEIGHT = 22
+
+local function EnsureBinGroup(card, y)
+    local group = CreateFrame("Frame", nil, card)
+    group:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, y)
+    group:SetPoint("TOPRIGHT", card, "TOPRIGHT", -MARGIN, y)
+    group:SetHeight(BIN_GROUP_HEIGHT)
+    card.binGroup = group
+
+    card.binTitle = group:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    card.binTitle:SetPoint("TOPLEFT", group, "TOPLEFT", 0, 0)
+    card.binTitle:SetJustifyH("LEFT")
+    card.binTitle:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+    card.binTitle:SetText("Stat targets")
+
+    card.binNote = group:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    card.binNote:SetPoint("TOPRIGHT", group, "TOPRIGHT", 0, 0)
+    card.binNote:SetJustifyH("RIGHT")
+    card.binNote:SetTextColor(GREY[1], GREY[2], GREY[3])
+    card.binNote:SetText("Applies to Guide and Blend.")
+
+    card.binRows = {}
+    for index, bin in ipairs(ns.GetStatTargetBins()) do
+        local option = CreateFrame("Button", nil, group)
+        option.key = bin.key
+        option:SetSize(BIN_OPTION_WIDTH, BIN_OPTION_HEIGHT)
+        option:SetPoint("TOPLEFT", group, "TOPLEFT", (index - 1) * BIN_OPTION_STEP, BIN_OPTION_TOP)
+
+        -- Same tick as the mode rows; the whole option is the click target.
+        option.check = CreateFrame("CheckButton", nil, option, "UICheckButtonTemplate")
+        option.check:SetSize(BIN_OPTION_HEIGHT, BIN_OPTION_HEIGHT)
+        option.check:SetPoint("LEFT", option, "LEFT", -3, 0)
+        option.check:EnableMouse(false)
+        if option.check.Text then option.check.Text:Hide() end
+
+        option.label = option:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        option.label:SetPoint("LEFT", option.check, "RIGHT", 1, 0)
+        option.label:SetText(bin.label)
+
+        option:SetScript("OnClick", function()
+            ns.SetStatTargetBin(bin.key)
+            Panel.Sync(card)
+        end)
+        card.binRows[index] = option
+    end
+    return group
+end
+
 local function EnsureCard(frame)
     if frame.weightsDrawerCard then return frame.weightsDrawerCard end
 
@@ -160,7 +214,7 @@ local function EnsureCard(frame)
 
     card.intro = AddText(card, "GameFontHighlightSmall", -46)
     card.intro:SetTextColor(GREY[1], GREY[2], GREY[3])
-    card.intro:SetText("Choose how stat priorities are decided.")
+    card.intro:SetText("Choose how stat priorities and targets are decided.")
 
     for index, mode in ipairs(ns.GetWeightModes()) do
         local row = EnsureModeRow(card, index, mode)
@@ -170,9 +224,15 @@ local function EnsureCard(frame)
     end
 
     -- Everything below hangs from the element above it, so nothing depends on a guessed
-    -- card height: status line (empty when all is well) > separator > title > description.
+    -- card height: stat target group > status line (empty when all is well) > separator
+    -- > title > description.
     local rowsBottom = ROWS_TOP - ((#ns.GetWeightModes() - 1) * ROW_STEP) - ROW_HEIGHT
-    card.status = AddText(card, "GameFontHighlightSmall", rowsBottom - 8)
+    local group = EnsureBinGroup(card, rowsBottom - 10)
+    card.status = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    card.status:SetPoint("TOPLEFT", group, "BOTTOMLEFT", 0, -2)
+    card.status:SetPoint("TOPRIGHT", group, "BOTTOMRIGHT", 0, -2)
+    card.status:SetJustifyH("LEFT")
+    card.status:SetWordWrap(true)
 
     card.separator = card:CreateTexture(nil, "ARTWORK")
     card.separator:SetColorTexture(LINE[1], LINE[2], LINE[3], LINE[4])
@@ -205,6 +265,17 @@ function Panel.Sync(card)
     for _, row in ipairs(card.modeRows or {}) do
         row.check:SetChecked(row.key == selected)
         PaintRow(row, row.key == selected, row.hovered == true)
+    end
+
+    local bin = ns.GetStatTargetBin()
+    for _, option in ipairs(card.binRows or {}) do
+        local checked = option.key == bin
+        option.check:SetChecked(checked)
+        if checked then
+            option.label:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+        else
+            option.label:SetTextColor(WHITE[1], WHITE[2], WHITE[3])
+        end
     end
 
     local info = ns.GetWeightModeInfo(selected)
