@@ -50,9 +50,7 @@ CLASS_FOLDERS = (
 # deliberately left out (statTargets, tierRank). `talents` is required by
 # tools/classcodex_targets.py and tools/classcodex_weights.py: every SimC run
 # needs a real talent export string, so without it neither pipeline can
-# produce a single profile. Measured against the live build
-# 20260928064230-9b041a5-43564495: adding it grows SV_ClassCodexLiveData.lua
-# from ~2.08MB to ~3.10MB, inside classcodex_cli.MAX_FILE_BYTES (5MB).
+# produce a single profile.
 EXTRACTED_FIELDS = ("statPriority", "trinkets", "gear", "talents")
 
 SOURCE_PRIORITY = ("ugg", "icyveins")

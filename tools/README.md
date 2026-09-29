@@ -36,9 +36,11 @@ source and the real installed addon both have it correctly.
   IcyVeins fills gaps). Deliberately excludes u.gg's flat `statTargets`
   (a generic number not derived from real gear) and `tierRank`
   (spec popularity/parse-rank, a different concern).
-- `tools/classcodex_cli.py` -- ties the above together and writes
-  `StatVerdict/Data/Generated/SV_ClassCodexLiveData.lua` and `SV_StatDR.lua`;
-  `--report` prints a per-spec source summary instead of writing.
+- `tools/classcodex_cli.py` -- fetches the live build and writes
+  `StatVerdict/Data/Generated/SV_StatDR.lua` (the stat diminishing-returns
+  module the addon loads); `--report` prints a per-spec source summary of the
+  built data instead of writing. The per-spec data itself is not written as a
+  file: the targets and weights pipelines below build it in memory.
 
 ## Stat targets and stat weights (what the addon reads)
 
@@ -66,7 +68,7 @@ back to another hero tree's data.
 ## Automation
 
 - `.github/workflows/classcodex-live-refresh.yml` runs weekly and on manual
-  dispatch: tests, live data + StatDR, then the SimC stat targets. It commits
+  dispatch: tests, StatDR, then the SimC stat targets. It commits
   only files that actually changed.
 - `.github/workflows/classcodex-stat-weights.yml` runs on the 1st and 16th
   of each month (and on manual dispatch), sharded by role, and merges the
