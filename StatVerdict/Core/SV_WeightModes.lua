@@ -5,26 +5,27 @@ local addonName, ns = ...
 -- holds the wording shown to the player and refreshes the views after a change.
 local MODES = {
     {
-        key = "GUIDE", label = "Guide", meaning = "ClassCodex: Icy Veins / u.gg", hint = "Recommended",
-        about = "Priority and stat targets exactly as in ClassCodex (Icy Veins / u.gg); weights follow that priority. Recommended.",
+        key = "GUIDE", label = "Guide", meaning = "From guides", hint = "Recommended",
+        about = "Stat priority and stat targets taken straight from the guides. Recommended.",
     },
     {
-        key = "MEASURED", label = "Measured", meaning = "Our BiS targets and simulations", hint = "",
-        about = "Our own: priority and weights from simulations, stat targets from best-in-slot gear with recommended gems and enchants.",
+        key = "MEASURED", label = "Measured", meaning = "Our own measurement", hint = "",
+        about = "Our own simulation: stat targets from best-in-slot gear with recommended gems and enchants, and stat values measured by our simulations.",
     },
     {
-        key = "BLEND", label = "Blend", meaning = "Average of guide and ours", hint = "",
-        about = "Guide priority; weights and stat targets are the average of the guide's and ours.",
+        key = "BLEND", label = "Blend", meaning = "Guides + our measurement", hint = "",
+        about = "A mix of both: the guide's order, with targets and stat values averaged with our own measurement.",
     },
 }
 local DEFAULT_MODE = "GUIDE"
 
--- Which ClassCodex (u.gg) stat target level Guide and Blend use, as the
--- ClassCodex addon offers it. Kept by the repository (StatVerdictDB.statTargetBin).
+-- Which guide stat target level Guide and Blend use. Kept by the repository
+-- (StatVerdictDB.statTargetBin). The saved keys stay top20/top50/top80; the player
+-- sees tiers: Tier 1 (top20) has the most demanding targets, Tier 3 the easiest.
 local STAT_TARGET_BINS = {
-    { key = "top20", label = "Top 20%" },
-    { key = "top50", label = "Top 50%" },
-    { key = "top80", label = "Top 80%" },
+    { key = "top20", label = "Tier 1" },
+    { key = "top50", label = "Tier 2" },
+    { key = "top80", label = "Tier 3" },
 }
 local DEFAULT_STAT_TARGET_BIN = "top20"
 

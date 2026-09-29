@@ -38,7 +38,7 @@ local MANUAL_LINES = {
     { text = "Weights start from your profile priorities, then adjust automatically: stats you are still missing get more weight; stats you have already met (or pushed past a soft cap) get less." },
     { text = "Upgrade scoring still treats item level and your primary stat (Strength / Agility / Intellect) as fixed top anchors. Secondaries then redistribute inside a capped budget with live pressure — when a top secondary needs a boost, weight is taken from the lowest priority first (#4, then #3), without zeroing lower stats." },
     { text = "Tiny primary gaps (a few points) can still lose to clearly better top-two secondaries on a near-equal item level piece. Large primary or item-level drops never get that exception." },
-    { text = "Trinkets are scored differently: a goal-specific reference tier/rank can add reference value (from the ClassCodex tier list). StatVerdict does not calculate proc or on-use performance itself." },
+    { text = "Trinkets are scored differently: a goal-specific reference tier/rank can add reference value (from the guides' tier list). StatVerdict does not calculate proc or on-use performance itself." },
     { text = "Rings and necks often have no primary — their top secondary gets an extra boost to stand in for that missing Strength / Agility / Intellect." },
     { gap = true },
     { title = true, text = "How the virtual loadout works" },

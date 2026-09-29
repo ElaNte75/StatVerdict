@@ -263,7 +263,7 @@ function Repository.GetDataProvenance(goal)
         available = GetTargetsRoot() ~= nil,
         buildId = buildId,
         scrape = year and (year .. "-" .. month .. "-" .. day) or nil,
-        sourceName = "StatVerdict ClassCodex data",
+        sourceName = "StatVerdict data",
     }
 end
 
@@ -479,7 +479,7 @@ function Repository.SetWeightMode(mode)
     return true
 end
 
--- Saves the guide target bin (Weights drawer: Top 20/50/80%) and drops the
+-- Saves the guide target bin (Weights drawer: Tier 1/2/3) and drops the
 -- cached provider views. false (nothing saved) for an unknown bin.
 function Repository.SetStatTargetBin(bin)
     if type(bin) ~= "string" or not VALID_STAT_TARGET_BINS[bin] then return false end

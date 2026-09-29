@@ -177,7 +177,7 @@ local function HandleSlash(msg)
         if ns.STATVERDICT_DEV_TOOLS then
             print("  /svdev - Advanced Development tools")
             print("  /svmove - Layout editor")
-            print("  /svbis - ClassCodex BIS resolver")
+            print("  /svbis - Best in Slot resolver")
         end
     else
         PrintSV("Unknown command: " .. cmd)
