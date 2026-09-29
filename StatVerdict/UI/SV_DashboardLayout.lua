@@ -150,7 +150,7 @@ function Layout.GetRightPanelWidth(frame)
         if ns.StatVerdictOptionsDrawerPanel and ns.StatVerdictOptionsDrawerPanel.GetPreferredWidth then
             return ns.StatVerdictOptionsDrawerPanel.GetPreferredWidth(frame)
         end
-        return Clamp(280 + SizeDelta("options.width"), 200, 520)
+        return Clamp(320 + SizeDelta("options.width"), 200, 520)
     end
     if mode == "manual" then
         local preferred = nil

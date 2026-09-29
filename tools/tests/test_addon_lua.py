@@ -2543,6 +2543,95 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
         self.assertNotIn("untick one to pick the other", source)
 
 
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class FeaturesDrawerGeometryTests(unittest.TestCase):
+    """Features drawer: wider than before, equal left/right margins for every title,
+    checkbox group and label, and the window grows with it (like the other drawers)."""
+
+    WIDTH = 320
+    MARGIN = 14
+    CHECK = 22
+    GAP = 5
+    INDENT = 18
+    CHAR_W = 6.5  # generous per-character width of the 11pt checkbox label font
+    LABELS = {
+        "showUpgradeArrow": "Upgrade Arrow",
+        "showMsOsLabels": "MS / OS Labels",
+        "showBisTooltip": "Best in Slot tooltip",
+        "showBisGemsEnchants": "Gems and enchants",
+        "bisUseGameTooltip": "Use the game tooltip instead",
+    }
+
+    def setUp(self) -> None:
+        self.lua = new_runtime()
+        self.lua.execute(FRAME_STUB)
+        self.ns = self.lua.table()
+        self.ns.GetRightPanelMode = lambda: "options"
+        load_addon_file(self.lua, self.ns, "UI/SV_DashboardLayout.lua")
+        load_addon_file(self.lua, self.ns, "UI/SV_OptionsDrawerPanel.lua")
+        self.frame = self.lua.eval("CreateFrame")()
+        self.lua.globals().StatVerdictDB = self.lua.table()
+        self.panel = self.ns.StatVerdictOptionsDrawerPanel
+        self.layout = self.ns.StatVerdictDashboardLayout
+        self.panel.Apply(self.frame)
+        self.card = self.frame.optionsDrawerCard
+        # Real frames report the width they were given; re-apply so the window syncs to it.
+        self.card.GetWidth = self.lua.eval("function(self) return rawget(self, '_width') end")
+        self.panel.Apply(self.frame)
+
+    @staticmethod
+    def last_point(region):
+        return region.points[len(region.points)]
+
+    def test_drawer_is_wider_than_before(self) -> None:
+        self.assertEqual(self.WIDTH, self.panel.GetPreferredWidth(self.frame))
+        self.assertEqual(self.WIDTH, self.layout.GetRightPanelWidth(self.frame))
+        self.assertEqual(self.WIDTH, self.card._width)
+
+    def test_titles_and_groups_share_the_left_margin(self) -> None:
+        for region in (self.card.title, self.card.bagMarkersTitle, self.card.bisTooltipTitle,
+                       self.card.bagChecksBlock, self.card.bisTooltipChecksBlock):
+            self.assertEqual(self.MARGIN, self.last_point(region)[4])
+
+    def test_groups_keep_the_same_margin_on_the_right(self) -> None:
+        for block in (self.card.bagChecksBlock, self.card.bisTooltipChecksBlock):
+            left = self.last_point(block)[4]
+            self.assertEqual(self.MARGIN, self.card._width - (left + block._width))
+
+    def test_every_label_fits_with_the_right_margin(self) -> None:
+        checks = self.card.bagIndicatorChecks
+        for key, label in self.LABELS.items():
+            check = checks[key]
+            block = self.card.bisTooltipChecksBlock if key.startswith(("showBis", "bisUse")) \
+                else self.card.bagChecksBlock
+            indent = self.last_point(check)[4]
+            self.assertEqual(self.INDENT if key == "showBisGemsEnchants" else 0, indent, key)
+            label_left = self.last_point(block)[4] + indent + self.CHECK + self.GAP
+            label_right = label_left + check.Text._width
+            self.assertEqual(self.MARGIN, self.card._width - label_right, key)  # right padding
+            self.assertGreaterEqual(check.Text._width, len(label) * self.CHAR_W, key)  # not cut off
+
+    def test_longest_label_has_room_on_both_sides(self) -> None:
+        longest = max(self.LABELS.values(), key=len)
+        self.assertEqual("Use the game tooltip instead", longest)
+        text_right = self.MARGIN + self.CHECK + self.GAP + len(longest) * self.CHAR_W
+        self.assertGreaterEqual(self.card._width - text_right, 3 * self.MARGIN)
+
+    def test_window_grows_with_the_drawer_and_keeps_its_edge(self) -> None:
+        right_x = self.layout.GetRightPanelX(self.frame)
+        edge = self.layout.GetRightEdgeInset()
+        self.assertEqual(right_x, self.last_point(self.card)[4])
+        self.assertEqual(right_x + self.WIDTH + edge, self.frame._width)
+        self.assertGreaterEqual(self.frame._width - (right_x + self.card._width), 6)
+        self.assertLessEqual(self.frame._width, 1120)  # no wider than the dashboard's base window width
+
+    def test_other_drawers_keep_their_width(self) -> None:
+        widths = {"SV_WeightsDrawerPanel.lua": 280, "SV_ManualDrawerPanel.lua": 300}
+        for name, width in widths.items():
+            source = (ADDON / "UI" / name).read_text(encoding="utf-8-sig")
+            self.assertIn(f"local DRAWER_PREFERRED_WIDTH = {width}\n", source, name)
+
+
 if __name__ == "__main__":
     unittest.main()
 

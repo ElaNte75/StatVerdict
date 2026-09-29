@@ -9,7 +9,10 @@ local DROPDOWN_SCALE = 0.92
 local CHECKBOX_LABEL_FONT_SIZE = 11
 local BAG_CHECK_LABEL_GAP = 5
 local BAG_CHECK_STEP = 24
-local DRAWER_PREFERRED_WIDTH = 280
+local DRAWER_PREFERRED_WIDTH = 320
+-- Left/right inner margin for titles, checkbox groups and labels (same as the Mode drawer MARGIN).
+local CONTENT_MARGIN = 14
+local CHECK_BOX_SIZE = 22
 local TITLE_FONT_SIZE_DEFAULT = 15
 local TITLE_FONT_SIZE_MIN = 11
 local TITLE_FONT_SIZE_MAX = 24
@@ -167,6 +170,7 @@ local function PlaceBagChecksBlock(card, block, layoutKey, label, defaultX, defa
         exactHit = true,
         alwaysCapture = true,
     })
+    return visW
 end
 
 -- Quiet reader for saved title size (no Features UI). Both titles share this value.
@@ -211,6 +215,15 @@ local function ApplyBagCheckLabelGap(control)
     text:ClearAllPoints()
     text:SetPoint("LEFT", control, "RIGHT", BAG_CHECK_LABEL_GAP, 1)
     text:SetJustifyH("LEFT")
+end
+
+-- Keep a label inside its group so it stops CONTENT_MARGIN short of the card's right border.
+local function FitCheckLabel(control, blockWidth, indent)
+    local text = control and control.Text
+    if not (text and text.SetWidth) then return end
+    local width = (tonumber(blockWidth) or 0) - (indent or 0) - CHECK_BOX_SIZE - BAG_CHECK_LABEL_GAP
+    text:SetWidth(math.max(40, width))
+    if text.SetWordWrap then text:SetWordWrap(false) end
 end
 
 local function ClearAccentWordLabel(control)
@@ -463,7 +476,8 @@ function Panel.Apply(frame)
         card:SetPoint("TOPLEFT", frame, "TOPLEFT", panelX, -34)
         card:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", panelX, 14)
     end
-    card:SetWidth(math.max(120, cardWidth - (cardPad.left or 0) - (cardPad.right or 0)))
+    local innerWidth = math.max(120, cardWidth - (cardPad.left or 0) - (cardPad.right or 0))
+    card:SetWidth(innerWidth)
     card:Show()
     -- Whole card is the AdvDev target: Move X (shared dock) + Size W + Padding.
     if ns.ApplyRightDrawerCardDev then
@@ -478,8 +492,8 @@ function Panel.Apply(frame)
         ns.UnregisterDevLayoutRegion("options.width")
     end
 
-    PlaceFeaturesTitle(card, card.title, "options.title", "Features title", 12, -12)
-    PlaceFeaturesTitle(card, card.bagMarkersTitle, "options.bagMarkersTitle", "Bag Markers title", 12, -40)
+    PlaceFeaturesTitle(card, card.title, "options.title", "Features title", CONTENT_MARGIN, -12)
+    PlaceFeaturesTitle(card, card.bagMarkersTitle, "options.bagMarkersTitle", "Bag Markers title", CONTENT_MARGIN, -40)
 
     -- Hint about quest / Adventure Guide removed — bags-only is already the behavior.
     if card.hint then
@@ -489,7 +503,8 @@ function Panel.Apply(frame)
 
     local block = EnsureBagChecksBlock(card)
     local count = #BAG_INDICATOR_OPTIONS
-    local blockBaseW = math.max(160, math.min(220, cardWidth - 24))
+    -- Groups span the card's inner width minus CONTENT_MARGIN on both sides.
+    local blockBaseW = math.max(160, innerWidth - 2 * CONTENT_MARGIN)
     local blockBaseH = math.max(BAG_CHECK_STEP, count * BAG_CHECK_STEP)
     -- Migrate older per-checkbox XY into the group once, if the group was never nudged.
     do
@@ -504,7 +519,8 @@ function Panel.Apply(frame)
             end
         end
     end
-    PlaceBagChecksBlock(card, block, "options.bagChecks", "Bag marker checkboxes", 12, -70, blockBaseW, blockBaseH)
+    local blockW = PlaceBagChecksBlock(card, block, "options.bagChecks", "Bag marker checkboxes", CONTENT_MARGIN, -70,
+        blockBaseW, blockBaseH) or blockBaseW
 
     -- Per-checkbox AdvDev keys retired — the group owns Move / Size / Padding.
     if ns.UnregisterDevLayoutRegion then
@@ -518,6 +534,7 @@ function Panel.Apply(frame)
         local check = EnsureOptionCheckbox(card, option, block)
         check:ClearAllPoints()
         check:SetPoint("TOPLEFT", block, "TOPLEFT", 0, -((index - 1) * BAG_CHECK_STEP))
+        FitCheckLabel(check, blockW, 0)
         check:SetFrameLevel((block:GetFrameLevel() or 1) + 6)
         check:Show()
         check:SetScript("OnClick", function(self)
@@ -535,16 +552,18 @@ function Panel.Apply(frame)
         card.bisTooltipTitle:SetTextColor(1.0, 0.82, 0.0)
     end
     local bisTitleY = -70 - blockBaseH - 16
-    PlaceFeaturesTitle(card, card.bisTooltipTitle, "options.bisTooltipTitle", "Best in Slot title", 12, bisTitleY)
+    PlaceFeaturesTitle(card, card.bisTooltipTitle, "options.bisTooltipTitle", "Best in Slot title", CONTENT_MARGIN,
+        bisTitleY)
     local bisBlock = EnsureBagChecksBlock(card, "bisTooltipChecksBlock")
     local bisBlockH = math.max(BAG_CHECK_STEP, #BIS_TOOLTIP_OPTIONS * BAG_CHECK_STEP)
-    PlaceBagChecksBlock(card, bisBlock, "options.bisTooltipChecks", "Best in Slot checkboxes", 12, bisTitleY - 30,
-        blockBaseW, bisBlockH)
+    local bisBlockW = PlaceBagChecksBlock(card, bisBlock, "options.bisTooltipChecks", "Best in Slot checkboxes",
+        CONTENT_MARGIN, bisTitleY - 30, blockBaseW, bisBlockH) or blockBaseW
     for index, option in ipairs(BIS_TOOLTIP_OPTIONS) do
         local check = EnsureOptionCheckbox(card, option, bisBlock)
         check:ClearAllPoints()
         local indent = option.indent and BIS_CHILD_INDENT or 0
         check:SetPoint("TOPLEFT", bisBlock, "TOPLEFT", indent, -((index - 1) * BAG_CHECK_STEP))
+        FitCheckLabel(check, bisBlockW, indent)
         check:SetFrameLevel((bisBlock:GetFrameLevel() or 1) + 6)
         check:Show()
         check:SetScript("OnClick", function(self)
