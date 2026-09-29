@@ -539,24 +539,48 @@ class ScoringWeightTests(unittest.TestCase):
         self.assertEqual(1.851851851851852, grouped[SECONDARY["haste"]])
         self.assertEqual(1.851851851851852, grouped[SECONDARY["mastery"]])
 
-    def test_measured_weights_scale_from_the_top_rank_weight(self) -> None:
-        # Raw: primary 4, crit 1.0*4 = 4, haste 0.5*4 = 2, mastery 0.4*4 = 1.6, vers 0.25*4 = 1,
-        # item level 1.2 -> 13.8 raw points in the same 10 point budget.
+    def test_measured_weights_split_the_same_secondary_share(self) -> None:
+        # The secondaries keep their rank-weight total (4+3+2+1 = 10), split by the
+        # measured weights: 10 * w / (1.0+0.5+0.4+0.25). Primary 4 and item level 1.2
+        # keep the same share of the 10 point budget as without weights (15.2 raw).
         result = self.weights(self.profile({"crit": 1.0, "haste": 0.5, "mastery": 0.4, "vers": 0.25}))
-        scale = 10 / 13.8
-        self.assertAlmostEqual(4 * scale, result[SECONDARY["crit"]])
-        self.assertAlmostEqual(2 * scale, result[SECONDARY["haste"]])
-        self.assertAlmostEqual(1.6 * scale, result[SECONDARY["mastery"]])
-        self.assertAlmostEqual(1 * scale, result[SECONDARY["vers"]])
-        self.assertAlmostEqual(result[STRENGTH], result[SECONDARY["crit"]])
+        scale = 10 / 15.2
+        share = 10 / 2.15
+        self.assertAlmostEqual(1.0 * share * scale, result[SECONDARY["crit"]])
+        self.assertAlmostEqual(0.5 * share * scale, result[SECONDARY["haste"]])
+        self.assertAlmostEqual(0.4 * share * scale, result[SECONDARY["mastery"]])
+        self.assertAlmostEqual(0.25 * share * scale, result[SECONDARY["vers"]])
+        self.assertAlmostEqual(4 * scale, result[STRENGTH])
+        self.assertAlmostEqual(1.2 * scale, result["STATVERDICT_ITEM_LEVEL"])
+        self.assertAlmostEqual(10 * scale, sum(result[key] for key in SECONDARY.values()))
 
     def test_a_stat_without_a_usable_weight_uses_its_rank_weight(self) -> None:
         result = self.weights(self.profile({"crit": 1.0, "haste": 0.5, "mastery": 0, "vers": None}))
-        # mastery rank 3 -> 2.00, vers rank 4 -> 1.00; total 4+4+2+2+1+1.2 = 14.2
-        scale = 10 / 14.2
+        # crit/haste share ranks 1-2 (4+3 = 7) by weight: 4.667 / 2.333; mastery rank 3 -> 2.00,
+        # vers rank 4 -> 1.00. Total stays 4 + 10 + 1.2 = 15.2.
+        scale = 10 / 15.2
+        self.assertAlmostEqual(7 * 1.0 / 1.5 * scale, result[SECONDARY["crit"]])
+        self.assertAlmostEqual(7 * 0.5 / 1.5 * scale, result[SECONDARY["haste"]])
         self.assertAlmostEqual(2 * scale, result[SECONDARY["mastery"]])
         self.assertAlmostEqual(1 * scale, result[SECONDARY["vers"]])
-        self.assertAlmostEqual(2 * scale, result[SECONDARY["haste"]])
+
+    def delta_multiplier(self, profile, stat_key: str, delta: float) -> float:
+        self.ns.GetDynamicStatWeight = lambda profile, key, weight: weight
+        return self.ns.GetDeltaAdjustedStatWeight(profile, stat_key, delta, 1.0)
+
+    def test_measured_weights_turn_off_the_rank_gain_and_loss_multipliers(self) -> None:
+        weighted = self.profile({"crit": 1.0, "haste": 0.5, "mastery": 0.4, "vers": 0.25})
+        for key in SECONDARY.values():
+            self.assertEqual(1.0, self.delta_multiplier(weighted, key, 10), key)
+            self.assertEqual(1.0, self.delta_multiplier(weighted, key, -10), key)
+        self.assertEqual(1.05, self.delta_multiplier(weighted, STRENGTH, -10))  # primary unchanged
+
+    def test_without_measured_weights_the_rank_multipliers_stay(self) -> None:
+        plain = self.profile()
+        self.assertEqual([1.0, 0.9, 0.8, 0.7],
+                         [self.delta_multiplier(plain, SECONDARY[k], 10) for k in ("crit", "haste", "mastery", "vers")])
+        self.assertEqual([1.5, 1.3, 1.15, 1.0],
+                         [self.delta_multiplier(plain, SECONDARY[k], -10) for k in ("crit", "haste", "mastery", "vers")])
 
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
