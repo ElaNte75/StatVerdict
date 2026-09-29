@@ -1,13 +1,13 @@
 local addonName, ns = ...
 
 -- Single source of truth for the right-side drawer.
--- Modes: "bis" | "trinkets" | "benchmark" | "options" | "manual" | nil (all closed).
+-- Modes: "bis" | "trinkets" | "weights" | "options" | "manual" | nil (all closed).
 -- Exactly one may be open at a time.
 
 local VALID = {
     bis = true,
     trinkets = true,
-    benchmark = true,
+    weights = true,
     options = true,
     manual = true,
 }
@@ -23,13 +23,8 @@ function ns.GetRightPanelMode()
     if db.showOptionsPanel == true then
         return "options"
     end
-    if db.showBenchmarkPanel == true then
-        if ns.IsBenchmarkRelevant and not ns.IsBenchmarkRelevant() then
-            -- Mythic+ is no longer selected anywhere: the drawer closes itself.
-            db.showBenchmarkPanel = false
-        else
-            return "benchmark"
-        end
+    if db.showWeightsPanel == true then
+        return "weights"
     end
     if db.showTrinketPanel == true then
         return "trinkets"
@@ -47,12 +42,9 @@ function ns.SetRightPanelMode(mode)
     if not VALID[mode] then
         mode = nil
     end
-    if mode == "benchmark" and ns.IsBenchmarkRelevant and not ns.IsBenchmarkRelevant() then
-        return
-    end
     db.showBisPanel = (mode == "bis")
     db.showTrinketPanel = (mode == "trinkets")
-    db.showBenchmarkPanel = (mode == "benchmark")
+    db.showWeightsPanel = (mode == "weights")
     db.showOptionsPanel = (mode == "options")
     db.showManualPanel = (mode == "manual")
     if ns.RequestStatAuditRefresh then

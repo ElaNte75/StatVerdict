@@ -1528,7 +1528,7 @@ end
 
 function Panel.RefreshSummary(frame, profile, target)
     -- Bottom Character Summary card is retired; the Summary drawer that
-    -- replaced it was itself replaced by the Benchmark drawer and removed.
+    -- replaced it was itself replaced by the Weights drawer (formerly Benchmark) and removed.
     if frame and frame.statSummaryCard then frame.statSummaryCard:Hide() end
     if frame and frame.summaryTitle then frame.summaryTitle:Hide() end
 end

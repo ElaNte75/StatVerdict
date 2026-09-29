@@ -415,11 +415,12 @@ local PANEL_TOGGLE_BUTTONS = {
         defaultY = -346,
     },
     {
-        mode = "benchmark",
-        field = "benchmarkDrawerButton",
-        label = "Benchmark",
-        -- Layout key kept from the Summary button this replaced, so saved
-        -- button positions carry over (the button appears where Summary was).
+        mode = "weights",
+        field = "weightsDrawerButton",
+        label = "Weights",
+        tooltip = "Choose how stat priorities are decided: Guide, Measured or Blend.",
+        -- Layout key kept from the Summary button (later Benchmark) this replaced,
+        -- so saved button positions carry over.
         layoutKey = "setup.summaryButton",
         defaultY = -374,
     },
@@ -449,32 +450,23 @@ local function PositionPanelToggleButtons(frame, card)
             label = ns.GetReferenceWording().button
         end
         button.label:SetText(label)
-        -- Benchmark only applies to Mythic+ builds; otherwise the button is locked.
-        local locked = spec.mode == "benchmark" and ns.IsBenchmarkRelevant and not ns.IsBenchmarkRelevant()
-        if locked then
-            button.label:SetTextColor(0.45, 0.45, 0.45)
-        elseif active then
+        if active then
             button.label:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
         else
             button.label:SetTextColor(WHITE[1], WHITE[2], WHITE[3])
         end
-        button:SetAlpha(locked and 0.6 or 1)
+        button:SetAlpha(1)
         button:SetScript("OnClick", function()
-            if spec.mode == "benchmark" and ns.IsBenchmarkRelevant and not ns.IsBenchmarkRelevant() then
-                return
-            end
             if ns.ToggleRightPanelMode then
                 ns.ToggleRightPanelMode(spec.mode)
             end
         end)
-        -- Same hover/pressed look as the other buttons, except a locked one stays flat.
         button:SetScript("OnEnter", function(self)
-            if not locked then
-                PaintDrawerToggleButton(self, "hover")
-            elseif GameTooltip then
+            PaintDrawerToggleButton(self, "hover")
+            if spec.tooltip and GameTooltip then
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                GameTooltip:SetText("Benchmark", 1.0, 0.82, 0.0)
-                GameTooltip:AddLine("Available when your Main Spec or Off Spec build uses Mythic+.", 0.85, 0.85, 0.85, true)
+                GameTooltip:SetText(label, 1.0, 0.82, 0.0)
+                GameTooltip:AddLine(spec.tooltip, 0.85, 0.85, 0.85, true)
                 GameTooltip:Show()
             end
         end)
@@ -483,10 +475,10 @@ local function PositionPanelToggleButtons(frame, card)
             if GameTooltip then GameTooltip:Hide() end
         end)
         button:SetScript("OnMouseDown", function(self)
-            if not locked then PaintDrawerToggleButton(self, "pushed") end
+            PaintDrawerToggleButton(self, "pushed")
         end)
         button:SetScript("OnMouseUp", function(self)
-            if not locked and self:IsMouseOver() then
+            if self:IsMouseOver() then
                 PaintDrawerToggleButton(self, "hover")
             else
                 PaintDrawerToggleButton(self, "normal")
