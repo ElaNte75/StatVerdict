@@ -155,6 +155,13 @@ local BIN_NOTE_HEIGHT = 2 * 10 + DESCRIPTION_SPACING + 2
 local BIN_BOTTOM_MARGIN = 4
 local BIN_NOTE_TOP = BIN_CHIP_TOP - BIN_CHIP_HEIGHT - BIN_NOTE_GAP
 local BIN_GROUP_HEIGHT = -BIN_NOTE_TOP + BIN_NOTE_HEIGHT + BIN_BOTTOM_MARGIN
+-- Nothing may move when the mode, the card or the status changes, so the mode
+-- explanation and the status line get the room of their longest text for good
+-- (Measured's explanation: four lines; a status: two lines); a shorter or empty
+-- text just leaves space under it.
+local STATUS_SPACING = 2
+local ABOUT_HEIGHT = 4 * 10 + 3 * DESCRIPTION_SPACING
+local STATUS_HEIGHT = 2 * 10 + 1 * STATUS_SPACING
 
 -- The key of the card ticked for the mode shown now.
 local function SelectedChoice()
@@ -262,13 +269,15 @@ local function EnsureCard(frame)
         lastRow = row
     end
 
-    -- Everything below hangs from the element above it, so nothing depends on a guessed
-    -- card height: selected mode's description > status line (empty when all is well)
-    -- > separator > stat target group (with the difficulty's explanation).
+    -- Everything below hangs from the element above it: selected mode's description >
+    -- status line (empty when all is well) > separator > stat target group (with the
+    -- card's explanation). Each block has a fixed height, so nothing moves on a click.
     card.about = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     card.about:SetPoint("TOPLEFT", lastRow, "BOTTOMLEFT", 0, -8)
     card.about:SetPoint("TOPRIGHT", lastRow, "BOTTOMRIGHT", 0, -8)
+    card.about:SetHeight(ABOUT_HEIGHT)
     card.about:SetJustifyH("LEFT")
+    card.about:SetJustifyV("TOP")
     card.about:SetWordWrap(true)
     card.about:SetSpacing(DESCRIPTION_SPACING)
     card.about:SetTextColor(0.85, 0.85, 0.85)
@@ -276,8 +285,11 @@ local function EnsureCard(frame)
     card.status = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     card.status:SetPoint("TOPLEFT", card.about, "BOTTOMLEFT", 0, -4)
     card.status:SetPoint("TOPRIGHT", card.about, "BOTTOMRIGHT", 0, -4)
+    card.status:SetHeight(STATUS_HEIGHT)
     card.status:SetJustifyH("LEFT")
+    card.status:SetJustifyV("TOP")
     card.status:SetWordWrap(true)
+    card.status:SetSpacing(STATUS_SPACING)
 
     card.separator = card:CreateTexture(nil, "ARTWORK")
     card.separator:SetColorTexture(LINE[1], LINE[2], LINE[3], LINE[4])
