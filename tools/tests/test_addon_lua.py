@@ -329,6 +329,63 @@ class RepositoryTests(unittest.TestCase):
         pvp = ns.ProfileRepository.RefreshProviderView("PVP")
         self.assertIsNotNone(pvp["DEATHKNIGHT"][250].default)
 
+    def count_profile_builds(self, lua, ns):
+        counter = {"n": 0}
+        original = ns.ProfileRepository.BuildRuntimeProfile
+
+        def counting(context):
+            counter["n"] += 1
+            return original(context)
+
+        ns.ProfileRepository.BuildRuntimeProfile = counting
+        return counter
+
+    def test_provider_view_is_cached_until_its_inputs_change(self) -> None:
+        lua, ns = self.build_runtime()
+        load_addon_file(lua, ns, "Core/SV_ProfileLoader.lua")
+        hero = {"name": "San'layn", "id": 31}
+        ns.GetSnapshotHeroTalentName = lambda context: hero["name"]
+        ns.GetSnapshotHeroSubTreeID = lambda context: hero["id"]
+        ns.GetStatAuditGoalMode = lambda: "MYTHIC_PLUS"
+        builds = self.count_profile_builds(lua, ns)
+        repo = ns.ProfileRepository
+        first = repo.RefreshProviderView("MYTHIC_PLUS")
+        per_view = builds["n"]
+        self.assertGreater(per_view, 0)
+        # Tooltips and bag items call this path over and over: no rebuild.
+        for _ in range(5):
+            self.assertTrue(lua.eval("rawequal")(first, repo.RefreshProviderView("MYTHIC_PLUS")))
+            self.assertTrue(lua.eval("rawequal")(first, repo.GetProviderView("MYTHIC_PLUS")))
+        self.assertEqual(per_view, builds["n"])
+        for _ in range(5):
+            ns.LoadEvaluationProfile(self.context(lua))
+        self.assertEqual(per_view + 5, builds["n"])  # only the player's own profile each time
+        self.assertTrue(lua.eval("rawequal")(first, ns.ProfileProviders.Generated))
+        # Another goal has its own view; switching back reuses the cached one.
+        repo.RefreshProviderView("RAID")
+        after_raid = builds["n"]
+        self.assertTrue(lua.eval("rawequal")(first, repo.RefreshProviderView("MYTHIC_PLUS")))
+        self.assertTrue(lua.eval("rawequal")(first, ns.ProfileProviders.Generated))
+        self.assertEqual(after_raid, builds["n"])
+        # A new hero tree in the spec snapshot changes the input: rebuilt once.
+        hero.update(name="Deathbringer", id=33)
+        rebuilt = repo.RefreshProviderView("MYTHIC_PLUS")
+        self.assertEqual("deathbringer", rebuilt["DEATHKNIGHT"][250].default.heroKey)
+        self.assertEqual(after_raid + per_view, builds["n"])
+        repo.RefreshProviderView("MYTHIC_PLUS")
+        self.assertEqual(after_raid + per_view, builds["n"])
+        # Explicit invalidation forces a rebuild.
+        repo.InvalidateProviderViews()
+        repo.GetProviderView("MYTHIC_PLUS")
+        self.assertEqual(after_raid + 2 * per_view, builds["n"])
+
+    def test_provider_view_empties_when_the_data_goes_stale(self) -> None:
+        lua, ns = self.build_runtime()
+        view = ns.ProfileRepository.RefreshProviderView("MYTHIC_PLUS")
+        self.assertIsNotNone(view["DEATHKNIGHT"])
+        ns.ClassCodexTargets.buildId = now_build_id(days_ago=40)
+        self.assertIsNone(ns.ProfileRepository.RefreshProviderView("MYTHIC_PLUS")["DEATHKNIGHT"])
+
     def test_provenance_uses_the_classcodex_build_date(self) -> None:
         lua, ns = self.build_runtime()
         for goal in ("MYTHIC_PLUS", "RAID", "PVP"):

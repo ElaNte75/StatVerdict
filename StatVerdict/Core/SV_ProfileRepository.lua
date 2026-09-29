@@ -503,21 +503,60 @@ function Repository.BuildProviderView(goal)
     return provider
 end
 
+-- The provider view builds a profile for every spec (40), so it is cached per
+-- goal and rebuilt only when something it is built from changes: the loaded
+-- data files, their freshness, the scoring model, or the hero tree a spec
+-- snapshot records (each spec's default profile follows it). Nothing else
+-- feeds BuildRuntimeProfile here: the goal is fixed per view and spec
+-- ID/name/role come from the static SV_SpecMeta tables.
+local providerViewSignature = {}
+local signatureContext = {}
+
+local function BuildProviderViewSignature(goal)
+    local root = VALID_GOALS[goal] and GetTargetsRoot() or nil
+    local parts = {
+        goal,
+        tostring(ns.ClassCodexTargets),
+        tostring(type(ns.ClassCodexTargets) == "table" and ns.ClassCodexTargets.buildId or nil),
+        tostring(root ~= nil),
+        tostring(ns.ClassCodexWeights),
+        tostring(ns.GlobalStatVerdictModifiers),
+    }
+    if root then
+        for specKey in pairs(root.profiles or {}) do
+            local specID = ns.GetStatVerdictSpecIDByKey and ns.GetStatVerdictSpecIDByKey(specKey)
+            signatureContext.specKey = specKey
+            signatureContext.specID = specID
+            local heroName = ns.GetSnapshotHeroTalentName and ns.GetSnapshotHeroTalentName(signatureContext)
+            local heroID = ns.GetSnapshotHeroSubTreeID and ns.GetSnapshotHeroSubTreeID(signatureContext)
+            parts[#parts + 1] = tostring(specKey) .. "=" .. tostring(heroID) .. ":" .. tostring(heroName)
+        end
+    end
+    return table.concat(parts, "|")
+end
+
+function Repository.InvalidateProviderViews()
+    for goal in pairs(providerViewSignature) do
+        providerViewSignature[goal] = nil
+    end
+end
+
 function Repository.GetProviderView(goal)
     goal = VALID_GOALS[goal] and goal or DEFAULT_GOAL
     ns.ProfileProviders = ns.ProfileProviders or {}
     ns.ProfileProviders.GeneratedByGoal = ns.ProfileProviders.GeneratedByGoal or {}
-    if type(ns.ProfileProviders.GeneratedByGoal[goal]) ~= "table" then
+    local signature = BuildProviderViewSignature(goal)
+    if type(ns.ProfileProviders.GeneratedByGoal[goal]) ~= "table" or providerViewSignature[goal] ~= signature then
         ns.ProfileProviders.GeneratedByGoal[goal] = Repository.BuildProviderView(goal)
+        providerViewSignature[goal] = signature
     end
     return ns.ProfileProviders.GeneratedByGoal[goal]
 end
 
+-- Makes the goal's view the active one (ns.ProfileProviders.Generated);
+-- rebuilds it only when its inputs changed (see above).
 function Repository.RefreshProviderView(goal)
-    goal = VALID_GOALS[goal] and goal or DEFAULT_GOAL
-    ns.ProfileProviders = ns.ProfileProviders or {}
-    ns.ProfileProviders.GeneratedByGoal = ns.ProfileProviders.GeneratedByGoal or {}
-    ns.ProfileProviders.GeneratedByGoal[goal] = Repository.BuildProviderView(goal)
-    ns.ProfileProviders.Generated = ns.ProfileProviders.GeneratedByGoal[goal]
-    return ns.ProfileProviders.GeneratedByGoal[goal]
+    local view = Repository.GetProviderView(goal)
+    ns.ProfileProviders.Generated = view
+    return view
 end
