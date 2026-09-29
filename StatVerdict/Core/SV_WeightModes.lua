@@ -5,16 +5,16 @@ local addonName, ns = ...
 -- holds the wording shown to the player and refreshes the views after a change.
 local MODES = {
     {
-        key = "GUIDE", label = "Guide", meaning = "From Icy Veins / u.gg", hint = "Recommended",
-        about = "Stat priority from the guides (Icy Veins / u.gg). Recommended.",
+        key = "GUIDE", label = "Guide", meaning = "ClassCodex: Icy Veins / u.gg", hint = "Recommended",
+        about = "Priority and stat targets exactly as in ClassCodex (Icy Veins / u.gg). Recommended.",
     },
     {
-        key = "MEASURED", label = "Measured", meaning = "From our own simulations", hint = "",
-        about = "Stat values measured by our own simulations. May differ from the guides.",
+        key = "MEASURED", label = "Measured", meaning = "Our BiS targets and simulations", hint = "",
+        about = "Our own: targets from best-in-slot gear with recommended gems and enchants, weights from simulations.",
     },
     {
-        key = "BLEND", label = "Blend", meaning = "Guide order, simulated gaps", hint = "",
-        about = "Guide order, with the size of the gaps adjusted by our simulations.",
+        key = "BLEND", label = "Blend", meaning = "Average of guide and ours", hint = "",
+        about = "Average of both.",
     },
 }
 local DEFAULT_MODE = "GUIDE"

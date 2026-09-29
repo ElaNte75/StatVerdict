@@ -25,7 +25,8 @@ def make_hero_context(
 ) -> dict[str, Any]:
     """One ClassCodex spec/goal/hero-talent context. Items: helm = helm_id,
     other slots 1001.., trinkets 5001 (Trinket 1) and 5003 (Trinket 2); the
-    trinket tier list ranks 5001 S, 5003 S, 5002 A."""
+    trinket tier list ranks 5001 S, 5003 S, 5002 A. No targets.guideTargets:
+    tests add them with add_guide_targets."""
     crit, haste, mastery, versatility = stats
     slots = []
     for index, slot in enumerate(CLASSCODEX_SLOTS):
@@ -56,6 +57,25 @@ def make_hero_context(
             {"context": PRIORITY_CONTEXT[goal], "heroTalent": hero, "order": list(order), "tiers": tiers or []},
         ],
     }
+
+
+def make_guide_targets(**bins: tuple[float | None, float | None, float | None, float | None]) -> dict[str, Any]:
+    """targets.guideTargets: the u.gg stat targets the ClassCodex addon shows, per
+    bin ("top20", "top50", "top80") as (crit, haste, mastery, versatility)
+    ratings. A None value leaves that stat out of the bin."""
+    names = ("critical_strike", "haste", "mastery", "versatility")
+    return {
+        bin_key: {name: value for name, value in zip(names, values) if value is not None}
+        for bin_key, values in bins.items()
+    }
+
+
+def add_guide_targets(targets: dict[str, Any], spec_key: str, goal: str, hero: str,
+                      guide_targets: dict[str, Any]) -> dict[str, Any]:
+    """Puts guide_targets on one spec/goal/hero context of a make_classcodex_targets result."""
+    context = targets["profiles"][spec_key]["goals"][goal]["heroTalents"][hero]
+    context["targets"]["guideTargets"] = guide_targets
+    return targets
 
 
 def make_classcodex_targets(build_id: str, profiles: dict[str, Any] | None = None) -> dict[str, Any]:

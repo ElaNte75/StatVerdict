@@ -39,6 +39,14 @@ local function MissingMeasuredData(mode)
     return type(profile) == "table" and profile.secondaryWeights == nil
 end
 
+-- GUIDE shows the ClassCodex (u.gg) stat targets; a build without them shows
+-- our own, which the status line says.
+local function MissingGuideTargets(mode)
+    if mode ~= "GUIDE" then return false end
+    local profile = ActiveProfile()
+    return type(profile) == "table" and profile.guideTargetsMissing == true
+end
+
 local function PaintRow(row, selected, hovered)
     row:SetBackdropColor(selected and 0.16 or 0.05, selected and 0.13 or 0.06, selected and 0.03 or 0.08, 0.92)
     if selected then
@@ -203,7 +211,12 @@ function Panel.Sync(card)
     card.aboutTitle:SetText(info.label .. " weights")
     card.about:SetText(info.about or "")
 
-    local status = MissingMeasuredData(selected) and "No measured data for this build: the guide is used." or ""
+    local status = ""
+    if MissingMeasuredData(selected) then
+        status = "No measured data for this build: the guide is used."
+    elseif MissingGuideTargets(selected) then
+        status = "No ClassCodex targets for this build: our own are used."
+    end
     card.status:SetTextColor(ORANGE[1], ORANGE[2], ORANGE[3])
     card.status:SetText(status)
 end
