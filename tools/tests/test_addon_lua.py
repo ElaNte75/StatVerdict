@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -99,14 +100,14 @@ class WeightModeCoreTests(unittest.TestCase):
         self.assertEqual(["GUIDE", "MEASURED", "BLEND"], [modes[i].key for i in (1, 2, 3)])
         self.assertEqual(["Guide", "Measured", "Blend"], [modes[i].label for i in (1, 2, 3)])
         self.assertEqual("Recommended", modes[1].hint)
-        self.assertEqual("Priority and stat targets exactly as in ClassCodex (Icy Veins / u.gg); "
-                         "weights follow that priority. Recommended.", modes[1].about)
-        self.assertEqual("Our own: priority and weights from simulations, stat targets from best-in-slot "
-                         "gear with recommended gems and enchants.", modes[2].about)
-        self.assertEqual("Guide priority; weights and stat targets are the average of the guide's and ours.",
-                         modes[3].about)
-        for i in (1, 2, 3):
-            self.assertTrue(modes[i].meaning)
+        self.assertEqual(["From guides", "Our own measurement", "Guides + our measurement"],
+                         [modes[i].meaning for i in (1, 2, 3)])
+        self.assertEqual("Stat priority and stat targets taken straight from the guides. Recommended.",
+                         modes[1].about)
+        self.assertEqual("Our own simulation: stat targets from best-in-slot gear with recommended gems "
+                         "and enchants, and stat values measured by our simulations.", modes[2].about)
+        self.assertEqual("A mix of both: the guide's order, with targets and stat values averaged with "
+                         "our own measurement.", modes[3].about)
         self.assertEqual("Measured", self.ns.GetWeightModeInfo("MEASURED").label)
         self.assertEqual("Guide", self.ns.GetWeightModeInfo("junk").label)
 
@@ -123,10 +124,11 @@ class WeightModeCoreTests(unittest.TestCase):
         self.assertEqual("MEASURED", self.ns.GetWeightMode())
         self.assertEqual({"audit": 1, "indicators": 1}, self.calls)
 
-    def test_three_stat_target_levels_like_classcodex(self) -> None:
+    def test_three_stat_target_tiers(self) -> None:
         bins = self.ns.GetStatTargetBins()
+        # Saved keys stay top20/50/80; Tier 1 (top20) is the most demanding.
         self.assertEqual(["top20", "top50", "top80"], [bins[i].key for i in (1, 2, 3)])
-        self.assertEqual(["Top 20%", "Top 50%", "Top 80%"], [bins[i].label for i in (1, 2, 3)])
+        self.assertEqual(["Tier 1", "Tier 2", "Tier 3"], [bins[i].label for i in (1, 2, 3)])
         self.assertEqual("top20", self.ns.GetStatTargetBin())
 
     def test_set_stat_target_bin_saves_it_and_refreshes(self) -> None:
@@ -463,7 +465,7 @@ class CoreProfileTests(unittest.TestCase):
         for goal in ("MYTHIC_PLUS", "RAID", "PVP"):
             info = ns.ProfileRepository.GetDataProvenance(goal)
             self.assertTrue(info.available, goal)
-            self.assertEqual("StatVerdict ClassCodex data", info.sourceName)
+            self.assertEqual("StatVerdict data", info.sourceName)
             self.assertEqual(datetime.now(timezone.utc).strftime("%Y-%m-%d"), info.scrape)
         self.assertFalse(ns.ProfileRepository.GetDataProvenance(None).available)
 
@@ -1129,7 +1131,7 @@ CreateFrame = function() return Stub() end
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
 class WeightsDrawerSmokeTests(unittest.TestCase):
     NO_DATA = "No measured data for this build: the guide is used."
-    NO_GUIDE_TARGETS = "No ClassCodex targets for this build: our own are used."
+    NO_GUIDE_TARGETS = "No guide targets for this build: our own are used."
 
     def setUp(self) -> None:
         self.lua = new_runtime()
@@ -1175,7 +1177,7 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         card = self.card()
         self.assertEqual([True, False, False], [card.modeRows[i].check.checked for i in (1, 2, 3)])
         self.assertEqual("Guide weights", card.aboutTitle.text)
-        self.assertIn("Icy Veins", card.about.text)
+        self.assertIn("guides", card.about.text)
 
     def test_clicking_a_row_sets_the_weight_mode_and_marks_it(self) -> None:
         card = self.card()
@@ -1232,7 +1234,7 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
             self.lua.globals().StatVerdictDB.weightMode = mode
             self.assertEqual("", self.card().status.text, mode)
 
-    def test_status_says_our_targets_are_used_without_classcodex_targets(self) -> None:
+    def test_status_says_our_targets_are_used_without_guide_targets(self) -> None:
         self.guide_targets = False
         self.assertEqual(self.NO_GUIDE_TARGETS, self.card().status.text)
         # Only in Guide mode: Measured shows our own targets anyway, Blend keeps its own message.
@@ -1244,7 +1246,7 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
 
     def test_mode_rows_describe_targets_too(self) -> None:
         card = self.card()
-        self.assertIn("ClassCodex", card.about.text)
+        self.assertIn("guides", card.about.text)
         self.assertIn("stat targets", card.about.text)
         for i in (1, 2, 3):
             self.assertLessEqual(len(card.modeRows[i].meaning.text), 31, i)  # one line in the row
@@ -1260,9 +1262,9 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
     def test_stat_target_group_below_the_mode_rows(self) -> None:
         card = self.card()
         self.assertEqual("Stat targets", card.binTitle.text)
-        self.assertEqual("Applies to Guide and Blend.", card.binNote.text)
+        self.assertEqual("Tier 1 is the most demanding. Applies to Guide and Blend.", card.binNote.text)
         self.assertEqual(["top20", "top50", "top80"], [card.binRows[i].key for i in (1, 2, 3)])
-        self.assertEqual(["Top 20%", "Top 50%", "Top 80%"], [card.binRows[i].label.text for i in (1, 2, 3)])
+        self.assertEqual(["Tier 1", "Tier 2", "Tier 3"], [card.binRows[i].label.text for i in (1, 2, 3)])
         self.assertEqual([True, False, False], self.bin_checks(card))
         # The status line (and the description under it) hangs below the group.
         self.assertTrue(self.lua.eval("rawequal")(card.binGroup, card.status.points[1][2]))
@@ -1438,3 +1440,41 @@ class BisPanelRecommendationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NoDataSourceNamesShownTests(unittest.TestCase):
+    """The addon never names where stat data comes from: no player-visible string
+    literal may mention ClassCodex, Icy Veins or u.gg. Comments and snake_case saved
+    keys (such as "generated_classcodex") are skipped."""
+
+    FORBIDDEN = ("classcodex", "icy", "u.gg")
+    # A string literal, or the start of a comment (the rest of the line is skipped).
+    TOKEN = re.compile(r'"((?:[^"\\]|\\.)*)"|' + r"'((?:[^'\\]|\\.)*)'|(--)")
+    SAVED_KEY = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)+$")
+
+    def scanned_files(self):
+        files = sorted((ADDON / "UI").glob("*.lua"))
+        files += [ADDON / "Core" / "SV_WeightModes.lua", ADDON / "Core" / "SV_ProfileRepository.lua",
+                  ADDON / "StatVerdict.lua"]
+        return files
+
+    def shown_strings_of(self, source):
+        for number, line in enumerate(source.splitlines(), 1):
+            for match in self.TOKEN.finditer(line):
+                if match.group(3):
+                    break
+                text = match.group(1) if match.group(1) is not None else match.group(2)
+                if not self.SAVED_KEY.match(text):
+                    yield number, text
+
+    def test_scan_skips_comments_and_saved_keys_only(self) -> None:
+        source = 'x = "ClassCodex" -- "u.gg"\n-- "Icy Veins"\ny = { source = "generated_classcodex", t = \'Icy\' }\n'
+        self.assertEqual([(1, "ClassCodex"), (3, "Icy")], list(self.shown_strings_of(source)))
+
+    def test_no_player_visible_string_names_a_data_source(self) -> None:
+        offenders = []
+        for path in self.scanned_files():
+            for number, text in self.shown_strings_of(path.read_text(encoding="utf-8-sig")):
+                if any(word in text.lower() for word in self.FORBIDDEN):
+                    offenders.append(f"{path.name}:{number}: {text}")
+        self.assertEqual([], offenders)

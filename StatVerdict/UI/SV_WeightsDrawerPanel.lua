@@ -39,7 +39,7 @@ local function MissingMeasuredData(mode)
     return type(profile) == "table" and profile.secondaryWeights == nil
 end
 
--- GUIDE shows the ClassCodex (u.gg) stat targets; a build without them shows
+-- GUIDE shows the guide stat targets; a build without them shows
 -- our own, which the status line says.
 local function MissingGuideTargets(mode)
     if mode ~= "GUIDE" then return false end
@@ -135,9 +135,10 @@ local function EnsureModeRow(card, index, mode)
     return row
 end
 
--- "Stat targets" group: title + note on one line, then the three levels as
--- check options side by side (a radio group: exactly one is ticked).
-local BIN_GROUP_HEIGHT = 38
+-- "Stat targets" group: title, the three levels as check options side by side
+-- (a radio group: exactly one is ticked), then the note under them (two lines).
+local BIN_NOTE_HEIGHT = 26
+local BIN_GROUP_HEIGHT = 38 + 2 + BIN_NOTE_HEIGHT
 local BIN_OPTION_TOP = -16
 local BIN_OPTION_WIDTH = 80
 local BIN_OPTION_STEP = 82
@@ -157,10 +158,14 @@ local function EnsureBinGroup(card, y)
     card.binTitle:SetText("Stat targets")
 
     card.binNote = group:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    card.binNote:SetPoint("TOPRIGHT", group, "TOPRIGHT", 0, 0)
-    card.binNote:SetJustifyH("RIGHT")
+    card.binNote:SetPoint("TOPLEFT", group, "TOPLEFT", 0, BIN_OPTION_TOP - BIN_OPTION_HEIGHT - 2)
+    card.binNote:SetPoint("TOPRIGHT", group, "TOPRIGHT", 0, BIN_OPTION_TOP - BIN_OPTION_HEIGHT - 2)
+    card.binNote:SetHeight(BIN_NOTE_HEIGHT)
+    card.binNote:SetJustifyH("LEFT")
+    card.binNote:SetJustifyV("TOP")
+    card.binNote:SetWordWrap(true)
     card.binNote:SetTextColor(GREY[1], GREY[2], GREY[3])
-    card.binNote:SetText("Applies to Guide and Blend.")
+    card.binNote:SetText("Tier 1 is the most demanding. Applies to Guide and Blend.")
 
     card.binRows = {}
     for index, bin in ipairs(ns.GetStatTargetBins()) do
@@ -286,7 +291,7 @@ function Panel.Sync(card)
     if MissingMeasuredData(selected) then
         status = "No measured data for this build: the guide is used."
     elseif MissingGuideTargets(selected) then
-        status = "No ClassCodex targets for this build: our own are used."
+        status = "No guide targets for this build: our own are used."
     end
     card.status:SetTextColor(ORANGE[1], ORANGE[2], ORANGE[3])
     card.status:SetText(status)

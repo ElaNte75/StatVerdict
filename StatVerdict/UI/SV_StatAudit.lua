@@ -1629,13 +1629,13 @@ local function EnsureFrame()
     frame.profileLine:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
         GameTooltip:SetText("Data Source", 1, 0.82, 0.0)
-        GameTooltip:AddLine("Generated from ClassCodex profile data.", 0.92, 0.82, 0.45, true)
+        GameTooltip:AddLine("Generated profile data.", 0.92, 0.82, 0.45, true)
         GameTooltip:Show()
     end)
     frame.profileLine:SetScript("OnLeave", function() GameTooltip:Hide() end)
     frame.profileLine:SetScript("OnMouseUp", function(_, button)
         if button ~= "LeftButton" then return end
-        local url = "ClassCodex"
+        local url = "StatVerdict"
         if type(ChatEdit_ChooseBoxForSend) == "function" and type(ChatEdit_ActivateChat) == "function" then
             local eb = ChatEdit_ChooseBoxForSend()
             ChatEdit_ActivateChat(eb)
