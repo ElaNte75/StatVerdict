@@ -22,7 +22,7 @@ accidental globals at file level (only bindings, slash commands and the addon-co
 
 ## B. Open items (not changed, need a decision)
 
-### B1. A "dev build" layer that is not in the repo (biggest one)
+### B1. [DONE, see section C] A "dev build" layer that is not in the repo (biggest one)
 - `ns.STATVERDICT_DEV_TOOLS` is read in 4 places (`StatVerdict.lua:177`, `SV_UpgradeIndicatorView.lua:79`,
   `SV_StatAudit.lua:1260,3836`) but **never set anywhere in the repo**; `ns.IS_DEV_BUILD` is true only for an addon
   folder called `StatVerdict_Dev` (`SV_Constants.lua:6`).
@@ -37,7 +37,7 @@ accidental globals at file level (only bindings, slash commands and the addon-co
   `IS_DEV_BUILD` / `STATVERDICT_DEV_TOOLS` branches in one careful pass (big diff, needs the UI geometry tests).
 - Why I stopped: removing it may break something only visible outside the repo, and it touches most UI files.
 
-### B2. Exported functions nothing calls (34 found, 0 removed)
+### B2. [DONE, see section C] Exported functions nothing calls (34 found)
 `ns.*` is private to the addon (not published as a global), so these are unreachable from other addons. Left in place
 because several look like hooks for the missing dev files (B1) or small public-style APIs:
 - Dev layout: `EnsureDevLayoutGripRegion`, `EnsureDevLayoutRimRegions`, `EnsureDevLayoutStripRegion`, `IsDevLayoutHidden`,
@@ -109,3 +109,43 @@ to say which are done, then either update or delete the file (also re-save it as
   whether a guess is acceptable there.
 - Measured-mode stat targets are 0 for a stat the best gear does not carry (Versatility on 18 specs); the row now shows
   with target 0. Decide whether such a row should look different in the UI (unchanged for now: UI is not mine to change).
+
+## C. Development tooling removed (owner decision, later the same night)
+
+The owner confirmed the in-game layout editor, debug pickers and their commands were only scaffolding used to
+build the UI, and asked to delete everything not needed by the finished addon, as long as the UI does not change.
+Removed (about 900 lines in all, nothing added; 481 of 481 tests pass):
+- All calls to the empty dev-layout stubs (`RegisterDevLayoutRegion`, `UnregisterDevLayoutRegion*`,
+  `RegisterDevLayoutOuterSpec`, `EnsureDevLayoutLockButton`, ...) plus the empty wrappers and `if ... end` shells they
+  left, and the stubs themselves in `SV_LayoutOffsets.lua`.
+- The debug class/spec override chain in `SV_StatAudit.lua` (override state, `BuildDebugBaseContext`, the
+  `Debug*` helpers, `RefreshDebugOverrideFrame`, the debug interaction blocker), the always-hidden "profile key" debug
+  texts (and their placement in `SV_StatProgressPanel.lua`), and the layout-controller panel code.
+- Disabled indicator debug logging (`debugLines`, `DebugLine`, `DebugIndicatorState`, ~20 blocks) and the `/svdebug`
+  and `/svlayout` slash commands; the `/sv help` lines for `/svdev`, `/svmove`, `/svbis`.
+- `ns.IS_DEV_BUILD`, `ns.STATVERDICT_DEV_TOOLS`, `IsPublicStatVerdictLoaded`, the `StatVerdictDev_OnAddonCompartment*`
+  callbacks, `ns.ADDON_NAME` / `ADDON_FOLDER` / `ACTIVE_PROVIDER`.
+- The 34 exported functions nothing called (drawer/minimap Set/Is/Toggle helpers, unused layout getters, unused stat
+  helpers), and every local function that became unused after the above.
+Frame names are unchanged (`ns.UIName` still returns the same names).
+
+**Kept on purpose (they place the finished UI or protect saved data):**
+- The read side of `SV_LayoutOffsets.lua`: the seeded default offsets (about 250 lines of tuned positions) and
+  `GetDevLayoutOffset / SizeDelta / HeightDelta / Padding`, plus `WriteDevLayoutOffset`, the `_abs` flag and the saved-layout
+  fixes in `EnsureDevLayoutDB`. Removing them would move the UI.
+- `RegisterDevLayoutEditOnly`, `RegisterDevLayoutBorderEditOnly` / `Unregister...`: not no-ops (they hide edit-only badges
+  and set border colours).
+- `EnsureDevLayoutTextHitRegion`, `EnsureDevLayoutWidthHandle`, `EnsureDevLayoutHeightHandle`, `IsDevLayoutEditActive`,
+  `IsDevLayoutScreenLocked`: still called; they return nil/false/true so the code that uses their result is dead, but it
+  needs a careful pass per call site (for example the "unlocked" branch of `PlaceSetupChild` in `SV_SettingsPanel.lua`).
+- Edit-only badges ("Panel 1", "screen 1", ...) that are created and immediately hidden.
+
+**Suggested follow-up (next session, low risk, needs an in-game check afterwards):**
+1. Dead branches behind the constants above (unlocked placement, the text-hit/width/height handles, the edit-only badges).
+2. Rename `DevLayout*` to `Layout*` and the `benchmark.*` keys (with a one-time key migration) so the names match what they do.
+3. Retire the one-time SavedVariables migrations if no old `StatVerdictDB` is in use (B4).
+
+**Not verified in the running game.** The UI was checked only through the geometry/smoke tests, a static scan for
+calls to names that no longer exist, and the fact that every removed function was a no-op or unreachable.
+If anything looks different in-game, `git log` shows the commit "Remove the development tooling ..." and
+"Remove unused exported functions ..." to restore from.

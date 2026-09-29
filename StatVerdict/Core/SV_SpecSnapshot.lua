@@ -389,31 +389,6 @@ function ns.GetActiveSnapshotStatValue(statKey)
     return ns.GetSnapshotStatValue(activeProfile, statKey)
 end
 
-function ns.GetSnapshotDisplayStatValue(profile, statKey)
-    if not ns.ShouldUseEquipmentSnapshot(profile) then
-        return nil
-    end
-    local snapshot = GetSnapshot(profile)
-    local stats = snapshot and (snapshot.displayStats or snapshot.stats)
-    return stats and SafeNumber(stats[statKey]) or nil
-end
-
--- Raw snapshot display stats for panels (MS/OS Summary), even when that spec is currently worn.
-function ns.GetProfileSnapshotDisplayStats(profile)
-    local snapshot = GetSnapshot(profile)
-    if type(snapshot) ~= "table" then
-        return nil, nil
-    end
-    local stats = snapshot.displayStats
-    if type(stats) ~= "table" or not next(stats) then
-        stats = snapshot.stats
-    end
-    if type(stats) ~= "table" then
-        return nil, snapshot
-    end
-    return stats, snapshot
-end
-
 function ns.GetSnapshotHeroTalentName(profile)
     local snapshot = GetSnapshot(profile)
     local name = snapshot and snapshot.heroTalentName
@@ -428,10 +403,6 @@ function ns.GetSnapshotHeroSubTreeID(profile)
     local id = snapshot and tonumber(snapshot.heroSubTreeID)
     if id and id > 0 then return id end
     return nil
-end
-
-function ns.GetActiveSnapshotDisplayStatValue(statKey)
-    return ns.GetSnapshotDisplayStatValue(activeProfile, statKey)
 end
 
 function ns.IsSnapshotMissingForProfile(profile)

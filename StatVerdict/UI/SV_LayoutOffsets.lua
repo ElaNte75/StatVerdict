@@ -405,20 +405,11 @@ function ns.IsDevLayoutEditActive()
     return false
 end
 
-function ns.IsDevLayoutHidden(key)
-    return false
-end
-
 function ns.IsDevLayoutScreenLocked(key)
     return true
 end
 
-function ns.RegisterDevLayoutRegion() end
 function ns.UnregisterDevLayoutRegion() end
-function ns.UnregisterDevLayoutRegionsByPrefix() end
-function ns.UnregisterDevLayoutRegionsMatching() end
-function ns.RegisterDevLayoutOuterSpec() end
-
 function ns.RegisterDevLayoutEditOnly(region)
     if region and region.Hide then
         region:Hide()
@@ -437,13 +428,6 @@ function ns.UnregisterDevLayoutBorderEditOnly(region, r, g, b, a)
     end
 end
 
-function ns.EnsureDevLayoutStripRegion() return nil end
-function ns.EnsureDevLayoutRimRegions() return nil end
-function ns.EnsureDevLayoutGripRegion() return nil end
 function ns.EnsureDevLayoutWidthHandle() return nil end
 function ns.EnsureDevLayoutHeightHandle() return nil end
 function ns.EnsureDevLayoutTextHitRegion() return nil end
-function ns.EnsureDevLayoutLockButton() return nil end
-function ns.ToggleDevLayoutScreenLock() end
-function ns.RequestAdvancedDevelopmentModeLayoutRefresh() end
-

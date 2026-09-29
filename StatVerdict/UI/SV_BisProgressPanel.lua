@@ -1398,10 +1398,6 @@ local function CacheBisProgress(profile)
     }
 end
 
-function Panel.UpdateProgressCache(profile)
-    CacheBisProgress(profile)
-end
-
 function Panel.Refresh(frame, profile)
     local card = EnsurePanel(frame)
     lastRefreshFrame = frame

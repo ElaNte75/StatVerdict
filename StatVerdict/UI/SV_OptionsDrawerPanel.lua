@@ -509,15 +509,3 @@ function Panel.Apply(frame)
         ns.StatVerdictDashboardLayout.SyncFrameWidthToRightPanel(frame)
     end
 end
-
-function ns.IsOptionsDrawerOpen()
-    return Panel.IsOpen()
-end
-
-function ns.SetOptionsDrawerOpen(open)
-    Panel.SetOpen(open)
-end
-
-function ns.ToggleOptionsDrawer()
-    Panel.Toggle()
-end

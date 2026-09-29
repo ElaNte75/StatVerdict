@@ -71,50 +71,6 @@ local function StatTableHeight(rowCount)
     return height
 end
 
-function Layout.GetFixedSlotRows(screenHeight)
-    local h = tonumber(screenHeight)
-    if not h or h < 40 then
-        h = Layout.GetStatScreenHeight()
-    end
-    local rows = math.floor((h - TABLE_HEADER_BAND) / ROW_HEIGHT)
-    if rows < 1 then rows = 1 end
-    if rows > 12 then rows = 12 end
-    return rows
-end
-
--- Equal Main/Off screen height that fits inside the Stat Progress card (never spills out).
-function Layout.GetStatScreenHeight(card)
-    local heightDelta = 0
-    if ns.GetDevLayoutHeightDelta then
-        heightDelta = ns.GetDevLayoutHeightDelta("stats.table.height") or 0
-    end
-    local cardH = 0
-    if card and card.GetHeight then
-        cardH = tonumber(card:GetHeight()) or 0
-    end
-    if cardH < 120 then
-        local gutter = Layout.GetPanelGutter and Layout.GetPanelGutter() or PANEL_GUTTER_DEFAULT
-        cardH = FRAME_HEIGHT - WELL_TOP - WELL_PAD - (2 * gutter)
-        if ns.GetDevLayoutHeightDelta then
-            cardH = cardH + (ns.GetDevLayoutHeightDelta("setup.height") or 0)
-        end
-    end
-    local topReserve = math.abs(TABLE_TOP_FROM_CARD)
-    local between = OFF_TABLE_GAP + OFF_TITLE_BAND
-    local available = cardH - topReserve - SCREEN_BOTTOM_RESERVE - between
-    local each = math.floor(available / 2) + heightDelta
-    if each < 40 then each = 40 end
-    if each > 360 then each = 360 end
-    return each
-end
-
-function Layout.GetStatScreenWidth()
-    local width = GRID_WIDTH + SizeDelta("stats.table.width") + 12
-    if width < 220 then width = 220 end
-    if width > 720 then width = 720 end
-    return width
-end
-
 local function IsEditableStatColumn(column)
     if not column or not column.key then return false end
     if column.key == "current" or column.key == "target" then return false end
@@ -200,11 +156,6 @@ function Layout.GetPanelGutter()
     if gutter < PANEL_GUTTER_MIN then gutter = PANEL_GUTTER_MIN end
     if gutter > PANEL_GUTTER_MAX then gutter = PANEL_GUTTER_MAX end
     return gutter
-end
-
--- Frame X of the content well's left edge.
-function Layout.GetWellLeft()
-    return WELL_PAD
 end
 
 -- Frame offsets so every outer card shares the same top / bottom band.
@@ -578,9 +529,6 @@ function Layout.Apply(frame, usedRows, controls)
     end
     if frame.offSpecEmptyHint then
         frame.offSpecEmptyHint:Hide()
-    end
-    if _G[ns.UIName and ns.UIName("StatVerdictLayoutControllerFrame") or "StatVerdictLayoutControllerFrame"] then
-        _G[ns.UIName("StatVerdictLayoutControllerFrame")]:Hide()
     end
 
     -- Screen 1 → MS stats; Screen 2 → OS stats. Headers/columns/bars live inside those boxes.

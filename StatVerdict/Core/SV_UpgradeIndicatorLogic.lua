@@ -72,10 +72,6 @@ local function FlagOn(key)
     return db == nil or db[key] ~= false
 end
 
-function ns.IsBagIndicatorOptionEnabled(key)
-    return FlagOn(key)
-end
-
 -- Bag Markers settings (Arrow / MS-OS) apply ONLY to bags.
 -- No master Enable All — each toggle is independent.
 local function FilterBagIndicatorState(state)

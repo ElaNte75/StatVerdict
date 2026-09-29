@@ -182,7 +182,3 @@ function ns.ApplyStatVerdictWindowChrome(frame, options)
     frame.svChromeTitleBarHeight = TITLE_BAR_H
     return titleBar
 end
-
-function ns.GetStatVerdictWindowTitleBarHeight()
-    return TITLE_BAR_H
-end

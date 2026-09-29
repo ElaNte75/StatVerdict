@@ -54,15 +54,6 @@ local function SetButtonShown(shown)
     end
 end
 
-function ns.SetStatVerdictMinimapButtonShown(shown)
-    SetButtonShown(shown and true or false)
-end
-
-function ns.IsStatVerdictMinimapButtonShown()
-    local db = EnsureMinimapDB()
-    return db.hide ~= true
-end
-
 local function ToggleFromClick()
     if ns.ToggleStatAudit then
         ns.ToggleStatAudit()

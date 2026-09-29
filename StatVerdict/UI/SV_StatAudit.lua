@@ -264,34 +264,6 @@ function ns.GetStatVerdictItemLevelWeightScale(profile)
     return 0.45
 end
 
-function ns.GetStatAuditTargetPointTotal(context, profile)
-    local target = GetAuditTarget(context, profile)
-    local rows = PrepareAuditRows(target and target.rows, target)
-    local profileID = ResolveAuditProfileID(context, profile)
-    local customBucket = GetCustomBucket(profileID)
-    local total = 0
-    for _, row in ipairs(rows or {}) do
-        local targetValue = SafeNumber(row.target)
-        if customBucket and customBucket.targets and customBucket.targets[row.key] then
-            targetValue = SafeNumber(customBucket.targets[row.key]) or targetValue
-        end
-        if row.unboundedTarget then targetValue = nil end
-        local baseModifier = SafeNumber(row.baseModifier)
-        if baseModifier == nil then
-            baseModifier = GetBaseModifier(profile, row.key)
-        end
-        if customBucket and customBucket.baseModifiers then
-            local customBase = SafeNumber(customBucket.baseModifiers[row.key])
-            if customBase then baseModifier = customBase end
-        end
-        if targetValue and targetValue > 0 and baseModifier and baseModifier > 0 then
-            total = total + (targetValue * baseModifier)
-        end
-    end
-    if total > 0 then return total end
-    return nil
-end
-
 local function CreateText(parent, x, y, width, justify, fontObject)
     local text = parent:CreateFontString(nil, "OVERLAY", fontObject or "GameFontNormalSmall")
     text:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
@@ -315,59 +287,6 @@ function ns.GetCachedStatAuditLiveModifier(profileID, statKey)
     value = SafeNumber(value)
     if value then return value end
     return nil
-end
-
--- Warm the live-Weight cache for a profile (Stat Progress Weight column).
--- Generated-profile upgrade scoring uses target-driven anchors instead; this cache
--- remains available for UI and non-generated profile paths.
-function ns.EnsureCachedStatAuditLiveModifiers(profile)
-    if type(profile) ~= "table" then return false end
-    local profileID = ResolveAuditProfileID(nil, profile)
-    if not profileID then return false end
-
-    local target = GetAuditTarget(nil, profile)
-    local rows = PrepareAuditRows(target and target.rows, target)
-    if type(rows) ~= "table" or #rows == 0 then return false end
-    if not ns.NormalizeStatAuditLiveWeights then return false end
-
-    local customBucket = GetCustomBucket and GetCustomBucket(profileID) or nil
-
-    local function getCurrentValue(statKey)
-        if ns.GetSnapshotStatValue then
-            local snap = ns.GetSnapshotStatValue(profile, statKey)
-            if snap ~= nil then return snap end
-        end
-        return ns.GetCurrentAuditStatValue and ns.GetCurrentAuditStatValue(statKey) or nil
-    end
-
-    local function getRatingValue(statKey)
-        if ns.GetSnapshotStatValue then
-            local snap = ns.GetSnapshotStatValue(profile, statKey)
-            if snap ~= nil then return snap end
-        end
-        return ns.GetCurrentAuditRatingValue and ns.GetCurrentAuditRatingValue(statKey) or nil
-    end
-
-    local normalized = ns.NormalizeStatAuditLiveWeights({
-        rows = rows,
-        maxDataRows = #rows,
-        profile = profile,
-        target = target,
-        customBucket = customBucket,
-        getCurrentValue = getCurrentValue,
-        getRatingValue = getRatingValue,
-        isSecondaryKey = ns.IsAuditSecondaryStatKey,
-    }) or {}
-
-    local wrote = false
-    for statKey, liveModifier in pairs(normalized) do
-        local value = SafeNumber(liveModifier)
-        if value then
-            LastLiveModifiersByKey[GetLiveCacheKey(profileID, statKey)] = value
-            wrote = true
-        end
-    end
-    return wrote
 end
 
 local function EnsureAuditInteractionBlocker()
@@ -403,7 +322,6 @@ HideAuditInteractionBlocker = function()
 end
 
 local UpdateFrame
-local LayoutControllerFrame
 local PrimaryAspectDropdown
 local SecondaryAspectDropdown
 local OffGoalDropdown
@@ -1182,15 +1100,6 @@ local function LoadSavedLayout()
         end
     end
     return NormalizeLayoutFields(saved, {})
-end
-
-local function SaveLayout(layout)
-    local db = EnsureSavedDB()
-    db.statAuditLayout = db.statAuditLayout or {}
-    local normalized = NormalizeLayoutFields(layout or {}, db.statAuditLayout)
-    for _, rule in ipairs(LAYOUT_FIELD_RULES) do
-        db.statAuditLayout[rule.key] = normalized[rule.key]
-    end
 end
 
 local function LayoutTitleAndSelectors(frame, layout)
@@ -3359,176 +3268,6 @@ end
 
 BINDING_HEADER_STATVERDICT = "StatVerdict"
 BINDING_NAME_STATVERDICT_TOGGLE = "Toggle StatVerdict window"
-
-local function ApplyLayoutController()
-    if not LayoutControllerFrame or not AuditFrame then return end
-    AuditFrame.gridLayout = AuditFrame.gridLayout or {}
-    NormalizeLayoutFields(LayoutControllerFrame.layout or AuditFrame.gridLayout, AuditFrame.gridLayout)
-    SaveLayout(AuditFrame.gridLayout)
-    if UpdateFrame and AuditFrame:IsShown() then
-        UpdateFrame()
-    elseif AuditFrame then
-        ApplyDynamicLayout(AuditFrame, 1)
-    end
-end
-
-local function CreateStepControl(parent, opts)
-    local row = CreateFrame("Frame", nil, parent)
-    row:SetSize(270, 24)
-    row:SetPoint("TOPLEFT", parent, "TOPLEFT", opts.x or 10, opts.y)
-
-    if opts.section then
-        row.label = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        row.label:SetPoint("LEFT", row, "LEFT", 0, 0)
-        row.label:SetText(opts.section)
-        row.label:SetTextColor(1.0, 0.82, 0.0)
-        row.Refresh = function() end
-        return row
-    end
-
-    row.label = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    row.label:SetPoint("LEFT", row, "LEFT", 0, 0)
-    row.label:SetText(opts.label)
-
-    row.value = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.value:SetPoint("LEFT", row, "LEFT", 146, 0)
-    row.value:SetWidth(64)
-    row.value:SetJustifyH("RIGHT")
-
-    local btnMinus = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
-    btnMinus:SetSize(24, 20)
-    btnMinus:SetPoint("RIGHT", row, "RIGHT", -30, 0)
-    btnMinus:SetText("-")
-
-    local btnPlus = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
-    btnPlus:SetSize(24, 20)
-    btnPlus:SetPoint("RIGHT", row, "RIGHT", 0, 0)
-    btnPlus:SetText("+")
-
-    local function refreshValueText()
-        local v = parent.layout[opts.key]
-        if opts.decimals and opts.decimals > 0 then
-            row.value:SetText(string.format("%." .. opts.decimals .. "f", v))
-        else
-            row.value:SetText(tostring(math.floor(v + 0.5)))
-        end
-    end
-
-    local function step(delta)
-        local curr = tonumber(parent.layout[opts.key]) or opts.default
-        local nextValue = Clamp(curr + (delta * opts.step), opts.min, opts.max)
-        parent.layout[opts.key] = nextValue
-        refreshValueText()
-        ApplyLayoutController()
-    end
-
-    btnMinus:SetScript("OnClick", function() step(-1) end)
-    btnPlus:SetScript("OnClick", function() step(1) end)
-
-    row.Refresh = refreshValueText
-    refreshValueText()
-    return row
-end
-
-local function RefreshLayoutController()
-    if not LayoutControllerFrame or not AuditFrame then return end
-    local live = AuditFrame.gridLayout or LoadSavedLayout()
-    LayoutControllerFrame.layout = {
-        x = live.x or LAYOUT_CONST.GRID_LEFT_X,
-        y = live.y or LAYOUT_CONST.GRID_TOP_Y,
-        width = live.width or LAYOUT_CONST.GRID_WIDTH,
-        extraHeight = live.extraHeight or LAYOUT_CONST.GRID_CARD_EXTRA_BOTTOM_DEFAULT,
-        frameWidth = live.frameWidth or LAYOUT_CONST.FRAME_WIDTH_DEFAULT,
-        frameExtraHeight = live.frameExtraHeight or LAYOUT_CONST.FRAME_EXTRA_HEIGHT_DEFAULT,
-        titleX = live.titleX or LAYOUT_CONST.TITLE_X_DEFAULT,
-        titleY = live.titleY or LAYOUT_CONST.TITLE_Y_DEFAULT,
-        titleWidth = live.titleWidth or LAYOUT_CONST.TITLE_WIDTH_DEFAULT,
-        titleFontSize = live.titleFontSize or LAYOUT_CONST.TITLE_FONT_SIZE_DEFAULT,
-        aspectLabelFontSize = live.aspectLabelFontSize or LAYOUT_CONST.ASPECT_LABEL_FONT_SIZE_DEFAULT,
-        dropdownWidth = live.dropdownWidth or live.primaryDropdownWidth or live.goalDropdownWidth or live.secondaryDropdownWidth or LAYOUT_CONST.DROPDOWN_WIDTH_DEFAULT,
-        dropdownScale = live.dropdownScale or live.primaryDropdownScale or live.goalDropdownScale or live.secondaryDropdownScale or LAYOUT_CONST.DROPDOWN_SCALE_DEFAULT,
-        goalLabelX = live.goalLabelX or LAYOUT_CONST.GOAL_LABEL_X_DEFAULT,
-        goalLabelY = live.goalLabelY or LAYOUT_CONST.GOAL_LABEL_Y_DEFAULT,
-        goalDropdownX = live.goalDropdownX or LAYOUT_CONST.GOAL_DROPDOWN_X_DEFAULT,
-        goalDropdownY = live.goalDropdownY or LAYOUT_CONST.GOAL_DROPDOWN_Y_DEFAULT,
-        primaryLabelX = live.primaryLabelX or LAYOUT_CONST.PRIMARY_LABEL_X_DEFAULT,
-        primaryLabelY = live.primaryLabelY or LAYOUT_CONST.PRIMARY_LABEL_Y_DEFAULT,
-        primaryDropdownX = live.primaryDropdownX or LAYOUT_CONST.PRIMARY_DROPDOWN_X_DEFAULT,
-        primaryDropdownY = live.primaryDropdownY or LAYOUT_CONST.PRIMARY_DROPDOWN_Y_DEFAULT,
-        secondaryLabelX = live.secondaryLabelX or LAYOUT_CONST.SECONDARY_LABEL_X_DEFAULT,
-        secondaryLabelY = live.secondaryLabelY or LAYOUT_CONST.SECONDARY_LABEL_Y_DEFAULT,
-        secondaryDropdownX = live.secondaryDropdownX or LAYOUT_CONST.SECONDARY_DROPDOWN_X_DEFAULT,
-        secondaryDropdownY = live.secondaryDropdownY or LAYOUT_CONST.SECONDARY_DROPDOWN_Y_DEFAULT,
-        secondaryTitleX = live.secondaryTitleX or LAYOUT_CONST.SECONDARY_TITLE_X_DEFAULT,
-        secondaryTitleY = live.secondaryTitleY or LAYOUT_CONST.SECONDARY_TITLE_Y_DEFAULT,
-        offspecToggleX = live.offspecToggleX or LAYOUT_CONST.OFFSPEC_TOGGLE_X_DEFAULT,
-        offspecToggleY = live.offspecToggleY or LAYOUT_CONST.OFFSPEC_TOGGLE_Y_DEFAULT,
-        autoHeroToggleX = live.autoHeroToggleX or LAYOUT_CONST.AUTO_HERO_TOGGLE_X_DEFAULT,
-        autoHeroToggleY = live.autoHeroToggleY or LAYOUT_CONST.AUTO_HERO_TOGGLE_Y_DEFAULT,
-        offspecToggleFontSize = live.offspecToggleFontSize or LAYOUT_CONST.OFFSPEC_TOGGLE_FONT_SIZE_DEFAULT,
-        borderAlpha = live.borderAlpha or LAYOUT_CONST.BORDER_ALPHA_DEFAULT,
-        avgProgressX = live.avgProgressX or LAYOUT_CONST.AVG_PROGRESS_X_DEFAULT,
-        avgProgressY = live.avgProgressY or LAYOUT_CONST.AVG_PROGRESS_Y_DEFAULT,
-        avgProgressFontSize = live.avgProgressFontSize or 12,
-        sampleLineX = live.sampleLineX or LAYOUT_CONST.SAMPLE_LINE_X_DEFAULT,
-        sampleLineY = live.sampleLineY or LAYOUT_CONST.SAMPLE_LINE_Y_DEFAULT,
-        sampleLineFontSize = live.sampleLineFontSize or LAYOUT_CONST.SAMPLE_LINE_FONT_SIZE_DEFAULT,
-        editBtnX = live.editBtnX or LAYOUT_CONST.BUTTON_EDIT_X_DEFAULT,
-        editBtnY = live.editBtnY or LAYOUT_CONST.BUTTON_EDIT_Y_DEFAULT,
-        defaultBtnX = live.defaultBtnX or LAYOUT_CONST.BUTTON_DEFAULT_X_DEFAULT,
-        defaultBtnY = live.defaultBtnY or LAYOUT_CONST.BUTTON_DEFAULT_Y_DEFAULT,
-        buttonWidth = live.buttonWidth or LAYOUT_CONST.BUTTON_WIDTH_DEFAULT,
-        buttonHeight = live.buttonHeight or LAYOUT_CONST.BUTTON_HEIGHT_DEFAULT,
-    }
-    for _, control in ipairs(LayoutControllerFrame.controls or {}) do
-        if control.Refresh then control:Refresh() end
-    end
-end
-
-local function EnsureLayoutController()
-    if LayoutControllerFrame then return LayoutControllerFrame end
-    local panel = CreateFrame("Frame", ns.UIName and ns.UIName("StatVerdictLayoutControllerFrame") or "StatVerdictLayoutControllerFrame", UIParent, "BasicFrameTemplateWithInset")
-    panel:SetSize(590, 1000)
-    panel:SetPoint("CENTER", UIParent, "CENTER", 390, 0)
-    panel:SetMovable(true)
-    panel:EnableMouse(true)
-    panel:RegisterForDrag("LeftButton")
-    panel:SetScript("OnDragStart", panel.StartMoving)
-    panel:SetScript("OnDragStop", panel.StopMovingOrSizing)
-    panel:Hide()
-
-    panel.title = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    panel.title:SetPoint("TOP", panel, "TOP", 0, -8)
-    panel.title:SetText("SV Layout Controller")
-    panel.layout = LoadSavedLayout()
-    panel.controls = {}
-
-    for _, def in ipairs(LAYOUT_CONTROL_DEFS) do
-        panel.controls[#panel.controls + 1] = CreateStepControl(panel, def)
-    end
-
-    panel.note = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    panel.note:SetPoint("TOPLEFT", panel, "TOPLEFT", 12, -966)
-    panel.note:SetWidth(560)
-    panel.note:SetJustifyH("LEFT")
-    panel.note:SetText("/sva preview\n/svlayout toggle")
-
-    LayoutControllerFrame = panel
-    return panel
-end
-
-function ns.ToggleStatAuditLayoutController()
-    local panel = EnsureLayoutController()
-    EnsureFrame()
-    if panel:IsShown() then
-        panel:Hide()
-        if UpdateFrame then UpdateFrame() end
-        return
-    end
-    RefreshLayoutController()
-    panel:Show()
-    if UpdateFrame then UpdateFrame() end
-end
 
 ns.EventFrame = ns.EventFrame or CreateFrame("Frame")
 ns.EventFrame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")

@@ -286,11 +286,3 @@ function ns.CreateChipDropdown(parent, name)
 
     return root
 end
-
-function ns.IsChipDropdown(frame)
-    return type(frame) == "table" and frame.svIsChipDropdown == true
-end
-
-function ns.CloseAllChipDropdowns()
-    CloseOpenChipDropdown()
-end

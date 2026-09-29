@@ -75,12 +75,6 @@ function ns.GetLiveCharacterSheetStatValue(statKey)
     return nil
 end
 
-function ns.GetCurrentCharacterSheetStatValue(statKey)
-    local snapshotValue = ns.GetActiveSnapshotDisplayStatValue and ns.GetActiveSnapshotDisplayStatValue(statKey) or nil
-    if snapshotValue ~= nil then return snapshotValue end
-    return ns.GetLiveCharacterSheetStatValue(statKey)
-end
-
 local function GetEquippedGearStatValue(statKey)
     if not statKey or type(GetInventoryItemLink) ~= "function" then return nil end
     if type(C_Item) ~= "table" or type(C_Item.GetItemStats) ~= "function" then return nil end
