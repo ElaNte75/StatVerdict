@@ -17,8 +17,8 @@ concurrency:
 jobs:
   # Real scale-factor sims (10k-iteration cap, target_error 0.1, 5 sims per
   # combo -- see tools/classcodex_weights.py) for ~235 spec/goal/hero-talent
-  # combos do not fit one GitHub-hosted job, so the spec list is sharded the
-  # same way weekly-benchmarks.yml shards it. Each shard is ~6-7 specs, i.e.
+  # combos do not fit one GitHub-hosted job, so the spec list is sharded by
+  # role. Each shard is ~6-7 specs, i.e.
   # ~36-42 combos, well inside its timeout. tools/tests/test_classcodex_weights_cli.py
   # checks these groups cover every spec exactly once.
   collect:

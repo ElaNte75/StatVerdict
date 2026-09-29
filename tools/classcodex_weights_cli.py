@@ -25,7 +25,8 @@ try:
         gate_and_write,
     )
     from tools.classcodex_weights import build_all_weights
-    from tools.live_benchmark_engine import SPEC_BY_KEY, to_lua
+    from tools.lua_render import to_lua
+    from tools.spec_catalog import SPEC_BY_KEY
 except ModuleNotFoundError:
     from classcodex_build import build
     from classcodex_fetch import FetchFailure, fetch_all
@@ -37,7 +38,8 @@ except ModuleNotFoundError:
         gate_and_write,
     )
     from classcodex_weights import build_all_weights
-    from live_benchmark_engine import SPEC_BY_KEY, to_lua
+    from lua_render import to_lua
+    from spec_catalog import SPEC_BY_KEY
 
 MAX_FILE_BYTES = 2 * 1024 * 1024
 NAMESPACE_KEY = "ClassCodexWeights"

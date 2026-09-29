@@ -20,7 +20,7 @@ try:
         format_skip_summary,
         gate_and_write,
     )
-    from tools.live_benchmark_engine import to_lua
+    from tools.lua_render import to_lua
     from tools.wowhead_stat_engine import TooltipCache, reconstruct_loadout
 except ModuleNotFoundError:
     from classcodex_build import build
@@ -32,7 +32,7 @@ except ModuleNotFoundError:
         format_skip_summary,
         gate_and_write,
     )
-    from live_benchmark_engine import to_lua
+    from lua_render import to_lua
     from wowhead_stat_engine import TooltipCache, reconstruct_loadout
 
 # Real data (build 20260928064230-9b041a5-43564495, 40 specs / 235

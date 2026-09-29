@@ -15,10 +15,10 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from tools.live_benchmark_engine import to_lua
+    from tools.lua_render import to_lua
 except ModuleNotFoundError:
     # Run as "python tools/classcodex_cli.py": sys.path[0] is tools/, not the repo root.
-    from live_benchmark_engine import to_lua
+    from lua_render import to_lua
 
 try:
     from tools.classcodex_build import build, build_stat_dr

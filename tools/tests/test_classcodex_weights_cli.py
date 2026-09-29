@@ -19,7 +19,7 @@ from tools.classcodex_weights_cli import (
     write_addon_file,
     write_partial,
 )
-from tools.live_benchmark_engine import SPEC_BY_KEY
+from tools.spec_catalog import SPEC_BY_KEY
 
 
 class RenderLuaTests(unittest.TestCase):

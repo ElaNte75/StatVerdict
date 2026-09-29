@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from tools.live_benchmark_engine import SPEC_BY_KEY
+from tools.spec_catalog import SPEC_BY_KEY
 from tools.simc_stat_engine import (
     parse_report,
     render_item,

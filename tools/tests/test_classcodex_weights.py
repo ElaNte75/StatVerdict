@@ -14,7 +14,7 @@ from tools.classcodex_weights import (
     scale_metric_for_role,
 )
 from tools.classcodex_targets import ComboSkipped
-from tools.live_benchmark_engine import SPEC_BY_KEY
+from tools.spec_catalog import SPEC_BY_KEY
 from tools.tests.test_simc_stat_engine import sim_option_lines
 
 FIXTURE = Path(__file__).parent / "fixtures" / "simc_scale_factor_report.json"

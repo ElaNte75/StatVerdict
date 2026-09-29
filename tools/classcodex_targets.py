@@ -1,7 +1,6 @@
 """Builds per-goal, per-spec, per-hero-talent BiS stat targets from the
 already-merged ClassCodex data (tools/classcodex_build.py) by reconstructing
-paper-doll stats through SimulationCraft (tools/simc_stat_engine.py) — the
-same engine already proven on Raider.IO run gear.
+paper-doll stats through SimulationCraft (tools/simc_stat_engine.py).
 
 See docs/superpowers/plans/2026-09-28-classcodex-target-weight-pipeline-spec.md
 for the full design and the real data shapes this module relies on.
@@ -16,11 +15,11 @@ from typing import Any, Callable, NamedTuple
 try:
     from tools.classcodex_lua_sandbox import run_addon_namespace
     from tools.simc_stat_engine import run_simc, run_simc_with_recovery
-    from tools.live_benchmark_engine import SPEC_BY_KEY
+    from tools.spec_catalog import SPEC_BY_KEY
 except ModuleNotFoundError:
     from classcodex_lua_sandbox import run_addon_namespace
     from simc_stat_engine import run_simc, run_simc_with_recovery
-    from live_benchmark_engine import SPEC_BY_KEY
+    from spec_catalog import SPEC_BY_KEY
 
 CLASSCODEX_SLOT_TO_SIMC: dict[str, str] = {
     "Head": "HEAD",

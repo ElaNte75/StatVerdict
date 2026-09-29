@@ -4,9 +4,9 @@ into StatVerdict's own clean, class-agnostic JSON shape.
 Deliberately excludes two things that were reviewed and rejected on
 2026-09-27/28:
   - `statTargets` (u.gg's flat per-spec stat-rating numbers): a single
-    generic recommendation, not derived from real players' gear, and
-    strictly lower-quality than StatVerdict's own Raider.IO-based live
-    benchmark pipeline, which stays the target-stats source of record.
+    generic recommendation, not derived from real gear; StatVerdict's
+    own targets are reconstructed from the BiS gear through SimC
+    (tools/classcodex_targets.py).
   - `tierRank` (u.gg's spec popularity/parse-rank numbers): a different
     concern (spec viability) from what this pipeline was asked to build
     (stat priority, best-in-slot gear, ranked trinkets, PvP).

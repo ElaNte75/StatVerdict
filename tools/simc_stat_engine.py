@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reconstruct paper-doll stats from exact Raider.IO run loadouts using SimC."""
+"""Reconstruct paper-doll stats (and scale factors) from exact gear loadouts using SimC."""
 
 from __future__ import annotations
 

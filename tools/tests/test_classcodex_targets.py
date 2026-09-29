@@ -23,7 +23,7 @@ from tools.classcodex_targets import (
     build_target_context,
     build_all,
 )
-from tools.live_benchmark_engine import SPEC_BY_KEY
+from tools.spec_catalog import SPEC_BY_KEY
 
 
 class SelectContextTests(unittest.TestCase):
