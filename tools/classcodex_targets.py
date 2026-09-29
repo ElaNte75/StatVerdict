@@ -15,13 +15,15 @@ from typing import Any, Callable, NamedTuple
 try:
     from tools.classcodex_build import ENCHANT_LOOKUP_FIELD, collect_real_enchants
     from tools.classcodex_lua_sandbox import run_addon_namespace
-    from tools.simc_stat_engine import run_simc, run_simc_with_recovery
+    from tools.simc_stat_engine import render_profiles, run_simc, run_simc_with_recovery
     from tools.spec_catalog import SPEC_BY_KEY
+    from tools.upgrade_tracks import SWAP_TARGETS, TrackSwap, swap_bonus_ids
 except ModuleNotFoundError:
     from classcodex_build import ENCHANT_LOOKUP_FIELD, collect_real_enchants
     from classcodex_lua_sandbox import run_addon_namespace
-    from simc_stat_engine import run_simc, run_simc_with_recovery
+    from simc_stat_engine import render_profiles, run_simc, run_simc_with_recovery
     from spec_catalog import SPEC_BY_KEY
+    from upgrade_tracks import SWAP_TARGETS, TrackSwap, swap_bonus_ids
 
 CLASSCODEX_SLOT_TO_SIMC: dict[str, str] = {
     "Head": "HEAD",
@@ -718,6 +720,155 @@ def wowhead_gear_stats(
     return canonical_secondaries(loadout["totals"]), levels
 
 
+def swap_loadout(
+    items: dict[str, dict[str, Any]], target: str, track_swap: TrackSwap
+) -> tuple[dict[str, dict[str, Any]], bool, set[str]]:
+    """The simulated items moved to `target` track's 6/6 (see
+    tools/upgrade_tracks.swap_bonus_ids): (items, whether any item changed,
+    slots whose higher-track id had no mapping and stayed as they were). A
+    swapped item loses its fixed itemLevel (u.gg's ilvl describes the
+    original rank), so SimC takes the level from the new bonus id."""
+    swapped_items: dict[str, dict[str, Any]] = {}
+    changed = False
+    missed: set[str] = set()
+    for slot, item in items.items():
+        bonus_ids = item.get("bonusIds")
+        if bonus_ids:
+            new_ids, swapped, miss = swap_bonus_ids(list(bonus_ids), target, track_swap)
+            if swapped:
+                item = {key: value for key, value in item.items() if key != "itemLevel"}
+                item["bonusIds"] = new_ids
+                changed = True
+            if miss:
+                missed.add(slot)
+        swapped_items[slot] = item
+    return swapped_items, changed, missed
+
+
+def _apply_recovery(items: dict[str, dict[str, Any]], recovery: list[str]) -> dict[str, dict[str, Any]]:
+    """Repeats a finished run's recovery steps (dropped weapons, dropped
+    gems/enchants) on another copy of the loadout."""
+    result = {slot: dict(item) for slot, item in items.items()}
+    for label in recovery:
+        if label.startswith("dropped "):
+            result.pop(label[len("dropped "):], None)
+        elif label == "gems dropped":
+            result = {slot: {k: v for k, v in item.items() if k != "gemIds"} for slot, item in result.items()}
+        elif label == "enchants dropped":
+            result = {slot: {k: v for k, v in item.items() if k != "enchantIds"} for slot, item in result.items()}
+    return result
+
+
+def _talent_export_used(talent_exports: list[str], recovery: list[str]) -> str | None:
+    """The export run_with_talent_fallback ended up simulating (None when it
+    ran without talents)."""
+    if "talents ignored" in recovery:
+        return None
+    for label in recovery:
+        if label.startswith("talent export "):
+            return talent_exports[int(label.rsplit(" ", 1)[1]) - 1]
+    return talent_exports[0]
+
+
+def _level_entry(stats: dict[str, float], average: float | None) -> dict[str, Any] | None:
+    if sum(1 for value in stats.values() if value > 0) < 2:
+        return None
+    entry: dict[str, Any] = {"statTargets": {"stats": stats}}
+    if average is not None:
+        entry["averageItemLevel"] = average
+    return entry
+
+
+def _simulate_levels(
+    simc_binary: Path, spec: Any, loadouts: dict[str, dict[str, dict[str, Any]]], talent_export: str | None
+) -> dict[str, dict[str, Any]]:
+    """{track: SimC actor result} for the swapped loadouts, all tracks as
+    actors of one paper-doll run; if that run fails, each track is retried
+    alone and a track that still fails is left out."""
+    render_kwargs = {"stat_sheet_only": True, "talents_optional": talent_export is None}
+
+    def run(targets: list[str]) -> dict[str, dict[str, Any]]:
+        records = [
+            {"race": "human", "runTalentLoadout": talent_export or "", "items": loadouts[target], "level": 90}
+            for target in targets
+        ]
+        profile_text, actor_map = render_profiles(spec, records, **render_kwargs)
+        stats_by_actor, _report = run_simc(simc_binary, profile_text)
+        return {
+            target: stats_by_actor[actor]
+            for target, actor in zip(targets, actor_map)
+            if isinstance(stats_by_actor.get(actor), dict)
+        }
+
+    targets = list(loadouts)
+    try:
+        return run(targets)
+    except RuntimeError as exc:
+        if len(targets) == 1:
+            print(f"SimC level run failed for {spec.spec_name} ({targets[0]}): {format_simc_error(exc)}", file=sys.stderr)
+            return {}
+    results: dict[str, dict[str, Any]] = {}
+    for target in targets:
+        try:
+            results.update(run([target]))
+        except RuntimeError as exc:
+            print(f"SimC level run failed for {spec.spec_name} ({target}): {format_simc_error(exc)}", file=sys.stderr)
+    return results
+
+
+def build_track_levels(
+    spec: Any,
+    items: dict[str, dict[str, Any]],
+    track_swap: TrackSwap,
+    *,
+    source: str,
+    myth_stats: dict[str, float],
+    myth_average: float | None,
+    recovery: list[str],
+    talent_exports: list[str],
+    simc_binary: Path,
+    wowhead_reconstruct: Callable[..., dict[str, Any]] | None,
+) -> tuple[dict[str, dict[str, Any]], int]:
+    """(targets.levels, swapMisses) for one context: our Measured targets
+    for the same BiS loadout at Hero and Champion 6/6, re-simulated the way
+    the Myth targets were (same gems/enchants, same recovery steps, same
+    talent export; the Wowhead fallback for specs SimC cannot model). A
+    track whose loadout does not change reuses the Myth result; a track
+    whose run fails or gives fewer than 2 usable stats is left out."""
+    levels: dict[str, dict[str, Any]] = {}
+    missed_slots: set[str] = set()
+    changed_loadouts: dict[str, dict[str, dict[str, Any]]] = {}
+    for target in SWAP_TARGETS:
+        swapped, changed, missed = swap_loadout(items, target, track_swap)
+        missed_slots |= missed
+        if changed:
+            changed_loadouts[target] = swapped
+        else:
+            entry = _level_entry(dict(myth_stats), myth_average)
+            if entry:
+                levels[target] = entry
+
+    if changed_loadouts and source == WOWHEAD_TARGET_SOURCE:
+        for target, loadout in changed_loadouts.items():
+            try:
+                stats, wowhead_levels = wowhead_gear_stats(spec, loadout, wowhead_reconstruct)
+            except ComboSkipped:
+                continue
+            average = sum(wowhead_levels.values()) / len(wowhead_levels) if wowhead_levels else None
+            entry = _level_entry(stats, average)
+            if entry:
+                levels[target] = entry
+    elif changed_loadouts:
+        loadouts = {target: _apply_recovery(loadout, recovery) for target, loadout in changed_loadouts.items()}
+        results = _simulate_levels(simc_binary, spec, loadouts, _talent_export_used(talent_exports, recovery))
+        for target, reconstructed in results.items():
+            stats = canonical_secondaries(reconstructed.get("ratings") or {})
+            entry = _level_entry(stats, loadout_item_level([], reconstructed)[0])
+            if entry:
+                levels[target] = entry
+    return {target: levels[target] for target in SWAP_TARGETS if target in levels}, len(missed_slots)
+
+
 def reconstruct_target_context(
     spec: Any,
     goal: str,
@@ -727,6 +878,7 @@ def reconstruct_target_context(
     wowhead_reconstruct: Callable[..., dict[str, Any]] | None = None,
     extra_recovery: list[str] | None = None,
     upgrades: LoadoutUpgrades | None = None,
+    track_swap: TrackSwap | None = None,
 ) -> dict[str, Any]:
     """build_target_context's core, taking an already-selected talent export
     (or the ordered list of exports to fall back through, see
@@ -741,7 +893,12 @@ def reconstruct_target_context(
     `upgrades` (select_loadout_upgrades) adds the recommended enchants and
     gems to the simulated items; whatever was really applied (not dropped
     by a recovery step) is counted in targetMetadata; the enchants are
-    shown on the BiS slots and the guide's gems once as bis.gems."""
+    shown on the BiS slots and the guide's gems once as bis.gems.
+
+    `track_swap` (tools/upgrade_tracks.load_track_swap) adds
+    targets.levels = {hero|champion: {statTargets = {stats}, averageItemLevel?}}
+    (build_track_levels) and targetMetadata.swapMisses when some slot's
+    upgrade-track id could not be swapped; None adds neither."""
     items = build_simc_items(gear_list, upgrades)
     if not items:
         raise ComboSkipped("no usable gear for this goal")
@@ -832,6 +989,23 @@ def reconstruct_target_context(
         "gemCount": gem_count,
         "enchantCount": enchant_count,
     }
+    levels: dict[str, dict[str, Any]] = {}
+    if track_swap is not None:
+        levels, swap_misses = build_track_levels(
+            spec,
+            items,
+            track_swap,
+            source=source,
+            myth_stats=stats,
+            myth_average=average_ilvl,
+            recovery=list(recovery),
+            talent_exports=talent_exports,
+            simc_binary=simc_binary,
+            wowhead_reconstruct=wowhead_reconstruct,
+        )
+        if swap_misses:
+            # Slots left at their Myth rank in the Hero/Champion levels.
+            target_metadata["swapMisses"] = swap_misses
     recovery = list(extra_recovery or []) + list(recovery)
     if recovery:
         # Auditable: this combo only succeeded after a SimC recovery step.
@@ -844,17 +1018,17 @@ def reconstruct_target_context(
         # Shown even if a recovery step dropped gems from the simulation.
         bis["gems"] = dict(upgrades.gems)
     bis["slots"] = bis_slots
-    return {
-        "targets": {
-            "averageItemLevel": average_ilvl,
-            "itemCount": len(items),
-            "itemLevelSlots": item_level_slots,
-            "statTargets": {"context": goal, "source": source, "stats": stats},
-            "targetMetadata": target_metadata,
-            "sourceGoal": goal,
-        },
-        "bis": bis,
+    targets: dict[str, Any] = {
+        "averageItemLevel": average_ilvl,
+        "itemCount": len(items),
+        "itemLevelSlots": item_level_slots,
+        "statTargets": {"context": goal, "source": source, "stats": stats},
+        "targetMetadata": target_metadata,
+        "sourceGoal": goal,
     }
+    if levels:
+        targets["levels"] = levels
+    return {"targets": targets, "bis": bis}
 
 
 def _classcodex_key_to_catalog_key(spec_key: str) -> str:
@@ -935,22 +1109,45 @@ def format_rating_sanity(data: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def format_coverage_report(data: dict[str, Any]) -> str:
+def format_coverage_report(data: dict[str, Any], track_swap: TrackSwap | None = None) -> str:
     """CI-log coverage check of a build_all document, per goal: contexts by
     gear source (targetMetadata.gearSource), trinket-list lengths, BiS-slot
     enchants (total / with a real enchant id / untranslated, shown only),
-    contexts with gems, and averageItemLevel present vs None (with where
-    the item level came from)."""
+    contexts with gems, averageItemLevel present vs None (with where the
+    item level came from) and contexts with Hero/Champion levels; plus, up
+    front, the upgrade-track swap coverage (ids mapped / unmapped per
+    target track) and the 6/6 item level of each track."""
+    lines = ["Coverage report (per goal):"]
+    if track_swap is None:
+        lines.append("  track swap: not available (no Hero/Champion levels)")
+    else:
+        for target in SWAP_TARGETS:
+            unmapped = track_swap.unmapped.get(target) or []
+            detail = f" ({', '.join(str(bonus_id) for bonus_id in unmapped)})" if unmapped else ""
+            lines.append(
+                f"  track swap {target}: {len(track_swap.swap.get(target) or {})} id(s) mapped, "
+                f"{len(unmapped)} unmapped{detail}"
+            )
+        levels_text = ", ".join(f"{track} {level}" for track, level in track_swap.item_levels.items())
+        lines.append(f"  6/6 item levels: {levels_text or 'unknown'}")
     per_goal: dict[str, dict[str, Counter]] = {}
     for profile in (data.get("profiles") or {}).values():
         for goal, goal_data in ((profile or {}).get("goals") or {}).items():
             stats = per_goal.setdefault(
                 goal,
-                {key: Counter() for key in ("gear", "trinkets", "enchants", "gems", "ilvl", "ilvl_source")},
+                {
+                    key: Counter()
+                    for key in ("gear", "trinkets", "enchants", "gems", "ilvl", "ilvl_source", "levels", "contexts")
+                },
             )
             for context in ((goal_data or {}).get("heroTalents") or {}).values():
                 targets = (context or {}).get("targets") or {}
                 metadata = targets.get("targetMetadata") or {}
+                stats["contexts"]["total"] += 1
+                for track in targets.get("levels") or {}:
+                    stats["levels"][track] += 1
+                if metadata.get("swapMisses"):
+                    stats["levels"]["contexts with swap misses"] += 1
                 stats["gear"][metadata.get("gearSource") or "unknown"] += 1
                 stats["trinkets"][len((context or {}).get("trinkets") or [])] += 1
                 for slot in ((context or {}).get("bis") or {}).get("slots") or []:
@@ -965,7 +1162,6 @@ def format_coverage_report(data: dict[str, Any]) -> str:
     def fmt(counter: Counter) -> str:
         return ", ".join(f"{key}: {count}" for key, count in sorted(counter.items(), key=lambda kv: str(kv[0])))
 
-    lines = ["Coverage report (per goal):"]
     if not per_goal:
         lines.append("  no contexts")
     for goal in sorted(per_goal):
@@ -980,6 +1176,9 @@ def format_coverage_report(data: dict[str, Any]) -> str:
         )
         lines.append(f"    gems: {fmt(stats['gems'])}")
         lines.append(f"    averageItemLevel: {fmt(stats['ilvl'])} (source {fmt(stats['ilvl_source'])})")
+        lines.append(
+            f"    contexts with levels: {fmt(stats['levels']) or 'none'} (of {stats['contexts']['total']})"
+        )
     return "\n".join(lines)
 
 
@@ -1064,6 +1263,7 @@ def build_all(
     goals: tuple[str, ...] = ("MYTHIC_PLUS", "RAID", "PVP"),
     skips: list[SkipRecord] | None = None,
     wowhead_reconstruct: Callable[..., dict[str, Any]] | None = None,
+    track_swap: TrackSwap | None = None,
 ) -> dict[str, Any]:
     """Loops over every ClassCodex spec/goal/hero-talent combo, reconstructing
     stat targets via SimC for each, and assembles the full per-spec document.
@@ -1071,7 +1271,9 @@ def build_all(
     data or a failed SimC run; when `skips` is given, one SkipRecord per
     skipped spec/combo is appended to it. `wowhead_reconstruct` enables the
     gear-only fallback for specs SimC cannot initialise (see
-    reconstruct_target_context)."""
+    reconstruct_target_context). `track_swap` adds each context's per-track
+    levels (see reconstruct_target_context); the caller writes
+    trackSwap/trackItemLevels at the document root."""
     skipped: list[SkipRecord] = skips if skips is not None else []
     profiles: dict[str, Any] = {}
     for spec_key, fields in specs.items():
@@ -1119,6 +1321,7 @@ def build_all(
                         wowhead_reconstruct=wowhead_reconstruct,
                         extra_recovery=extra_recovery,
                         upgrades=loadout_upgrades_for(fields, hero_talent_key, goal),
+                        track_swap=track_swap,
                     )
                 except ComboSkipped as skip:
                     skipped.append(SkipRecord(catalog_key, goal, hero_talent_key, skip.reason))
