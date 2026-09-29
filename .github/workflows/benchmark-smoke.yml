@@ -33,6 +33,8 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install test dependency
+        run: pip install lupa
       - name: Run deterministic tests
         run: python -m unittest discover -s tools/tests -v
 

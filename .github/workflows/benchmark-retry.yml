@@ -80,6 +80,8 @@ jobs:
             -DBUILD_GUI=OFF -DSC_NO_NETWORKING=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build .simc-build --target simc --parallel 2
 
+      - name: Install test dependency
+        run: pip install lupa
       - name: Run engine tests
         if: steps.queue.outputs.pending == 'true'
         run: python -m unittest discover -s tools/tests -v

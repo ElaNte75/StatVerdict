@@ -92,6 +92,8 @@ jobs:
             -DBUILD_GUI=OFF -DSC_NO_NETWORKING=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build .simc-build --target simc --parallel 2
 
+      - name: Install test dependency
+        run: pip install lupa
       - name: Run engine tests
         run: python -m unittest discover -s tools/tests -v
 
@@ -151,6 +153,8 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install test dependency
+        run: pip install lupa
       - name: Run engine tests
         run: python -m unittest discover -s tools/tests -v
 
