@@ -544,6 +544,8 @@ function Layout.Apply(frame, usedRows, controls)
                 ns.UnregisterDevLayoutRegion("options.title")
                 ns.UnregisterDevLayoutRegion("options.bagMarkersTitle")
                 ns.UnregisterDevLayoutRegion("options.bagChecks")
+                ns.UnregisterDevLayoutRegion("options.bisTooltipTitle")
+                ns.UnregisterDevLayoutRegion("options.bisTooltipChecks")
             end
             if not showManual then
                 ns.UnregisterDevLayoutRegion("manual.card")
