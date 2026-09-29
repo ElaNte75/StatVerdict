@@ -12,20 +12,16 @@ local MODES = {
         key = "MEASURED", label = "Measured", meaning = "Our own measurement", hint = "",
         about = "Our own simulation: stat targets from best-in-slot gear with recommended gems and enchants, and stat values measured by our simulations.",
     },
-    {
-        key = "BLEND", label = "Blend", meaning = "Guides + our measurement", hint = "",
-        about = "A mix of both: the guide's order, with targets and stat values averaged with our own measurement.",
-    },
 }
 local DEFAULT_MODE = "GUIDE"
 
--- Which guide stat target level Guide and Blend use. Kept by the repository
--- (StatVerdictDB.statTargetBin). The saved keys stay top20/top50/top80; the player
--- sees tiers: Tier 1 (top20) has the most demanding targets, Tier 3 the easiest.
+-- Which guide stat target level Guide uses (Measured has its own single target).
+-- Kept by the repository (StatVerdictDB.statTargetBin). The saved keys stay
+-- top20/top50/top80; the player sees a difficulty, listed easy to hard.
 local STAT_TARGET_BINS = {
-    { key = "top20", label = "Tier 1" },
-    { key = "top50", label = "Tier 2" },
-    { key = "top80", label = "Tier 3" },
+    { key = "top80", label = "Easy", about = "Stat targets that most players reach. A comfortable goal." },
+    { key = "top50", label = "Normal", about = "The stats of a typical player. A solid, realistic goal." },
+    { key = "top20", label = "Hard", about = "The stats the best-equipped players reach. The most demanding goal." },
 }
 local DEFAULT_STAT_TARGET_BIN = "top20"
 

@@ -16,7 +16,9 @@ percentages.
   lists, tiered trinkets) are hints from goal-specific profile data. They may only
   affect a verdict when that data passes the profile quality and freshness checks.
 - **Stat weights** follow the guides' priority (Icy Veins / u.gg) by default; the
-  Weights drawer can switch to our own simulated values or a blend of both.
+  Weights drawer can switch to our own simulated values. The guide stat targets
+  come in three difficulties (Easy / Normal / Hard, default Hard); our own
+  measurement uses a single target from best-in-slot gear.
 - **Main Spec baseline** is currently equipped gear.
 - **Off Spec baseline** is the saved virtual loadout. Dynamic off-spec weights
   require stats captured while that specialization was active.

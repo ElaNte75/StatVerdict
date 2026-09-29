@@ -19,18 +19,15 @@ local DEFAULT_GOAL = "MYTHIC_PLUS"
 --   MEASURED the measured SimC weights order and weight the secondaries; the
 --            targets are our own (targets.statTargets, from best-in-slot gear
 --            with recommended gems and enchants).
---   BLEND    guide order; weights are a 50/50 mix of guide rank and measured;
---            each target is the average of the guide's and ours.
 -- A stat the guide has no target for uses ours (and the other way round).
--- StatVerdictDB.weightMode overrides the default.
+-- StatVerdictDB.weightMode overrides the default; any other saved value
+-- (such as the removed "BLEND") means the default.
 local WEIGHT_MODE_GUIDE = "GUIDE"
 local WEIGHT_MODE_MEASURED = "MEASURED"
-local WEIGHT_MODE_BLEND = "BLEND"
 local DEFAULT_WEIGHT_MODE = WEIGHT_MODE_GUIDE
 local VALID_WEIGHT_MODES = {
     [WEIGHT_MODE_GUIDE] = true,
     [WEIGHT_MODE_MEASURED] = true,
-    [WEIGHT_MODE_BLEND] = true,
 }
 Repository.DEFAULT_WEIGHT_MODE = DEFAULT_WEIGHT_MODE
 
@@ -383,40 +380,6 @@ local function SortByWeights(order, secondaryWeights)
     return sorted
 end
 
--- BLEND: per stat, half the guide rank weight (relative to the top rank, stats
--- tied in a guide tier share the tier's top rank) and half the measured weight,
--- rescaled so the best stat is 1.0. Stats without a measured weight are left
--- out (they keep their plain rank weight); nil when nothing is measured or the
--- scoring model is not loaded (pure guide then).
-local function BuildBlendedWeights(guideOrder, equalGroups, measuredWeights)
-    local model = ns.GlobalStatVerdictModifiers
-    local rankWeights = type(model) == "table" and type(model.secondary) == "table" and model.secondary or nil
-    local topRankWeight = rankWeights and tonumber(rankWeights[1])
-    if not measuredWeights or not topRankWeight or topRankWeight <= 0 then return nil end
-
-    local topRankOf = {}
-    for _, group in ipairs(equalGroups) do
-        local top = math.huge
-        for _, rank in ipairs(group) do top = math.min(top, rank) end
-        for _, rank in ipairs(group) do topRankOf[rank] = top end
-    end
-
-    local blended, best = {}, 0
-    for index, statKey in ipairs(guideOrder) do
-        local measured = measuredWeights[statKey]
-        if measured then
-            local rank = topRankOf[index] or index
-            local rankWeight = tonumber(rankWeights[rank]) or tonumber(model.fallbackSecondary) or 1
-            local value = 0.5 * (rankWeight / topRankWeight) + 0.5 * measured
-            blended[statKey] = value
-            if value > best then best = value end
-        end
-    end
-    if best <= 0 then return nil end
-    for statKey, value in pairs(blended) do blended[statKey] = value / best end
-    return blended
-end
-
 function Repository.GetWeightMode()
     local db = _G.StatVerdictDB
     local mode = type(db) == "table" and db.weightMode or nil
@@ -459,13 +422,7 @@ local function SelectTargetValues(targets, weightMode, bin)
 
     local selected = {}
     for statKey, value in pairs(own) do selected[statKey] = value end
-    for statKey, value in pairs(guide) do
-        if weightMode == WEIGHT_MODE_BLEND and own[statKey] then
-            selected[statKey] = (value + own[statKey]) / 2
-        else
-            selected[statKey] = value
-        end
-    end
+    for statKey, value in pairs(guide) do selected[statKey] = value end
     return selected, guideMissing
 end
 
@@ -479,7 +436,7 @@ function Repository.SetWeightMode(mode)
     return true
 end
 
--- Saves the guide target bin (Weights drawer: Tier 1/2/3) and drops the
+-- Saves the guide target bin (Weights drawer: Easy/Normal/Hard) and drops the
 -- cached provider views. false (nothing saved) for an unknown bin.
 function Repository.SetStatTargetBin(bin)
     if type(bin) ~= "string" or not VALID_STAT_TARGET_BINS[bin] then return false end
@@ -489,7 +446,7 @@ function Repository.SetStatTargetBin(bin)
     return true
 end
 
--- Hidden /svweights [guide|measured|blend]: no argument prints the mode.
+-- Hidden /svweights [guide|measured]: no argument prints the mode.
 function ns.HandleWeightModeSlash(msg)
     local arg = string.upper((tostring(msg or ""):gsub("^%s+", ""):gsub("%s+$", "")))
     if arg == "" then
@@ -497,7 +454,7 @@ function ns.HandleWeightModeSlash(msg)
         return
     end
     if not Repository.SetWeightMode(arg) then
-        print("|cffff8000StatVerdict:|r usage: /svweights guide | measured | blend")
+        print("|cffff8000StatVerdict:|r usage: /svweights guide | measured")
         return
     end
     if ns.RequestStatAuditRefresh then ns.RequestStatAuditRefresh() end
@@ -592,9 +549,6 @@ function Repository.BuildRuntimeProfile(context)
     if weightMode == WEIGHT_MODE_MEASURED then
         secondaryWeights = BuildSecondaryWeights(Repository.GetWeights(specKey, goal, heroKey))
         secondaryOrder = SortByWeights(guideOrder, secondaryWeights)
-    elseif weightMode == WEIGHT_MODE_BLEND then
-        secondaryWeights = BuildBlendedWeights(guideOrder, BuildEqualGroups(priority, guideOrder),
-            BuildSecondaryWeights(Repository.GetWeights(specKey, goal, heroKey)))
     end
     local statTargetBin = Repository.GetStatTargetBin()
     local targetValues, guideTargetsMissing = SelectTargetValues(generatedContext.targets, weightMode, statTargetBin)
