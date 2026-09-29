@@ -203,6 +203,10 @@ class CheckItemsTests(unittest.TestCase):
         self.assertAlmostEqual(beads["cleave"]["delta"]["abs"], 800.0)
         self.assertEqual(beads["stats"], "Agi 101, Haste 72")
         self.assertEqual(beads["ilevel"], 272)
+        # The raw item numbers are kept so the addon's verdict can be replayed on the same items.
+        self.assertEqual(beads["gear"]["haste_rating"], 72)
+        self.assertEqual(beads["replaced_gear"]["ilevel"], 250)
+        self.assertIn("finger1", result["baseline"]["gear"])
 
         band = rows["2011"]
         self.assertEqual(band["replaced_slot"], "finger2")  # finger1 loses 300 more

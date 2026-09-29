@@ -323,6 +323,21 @@ def format_item_stats(gear_item: dict[str, Any] | None) -> str:
     return ", ".join(parts)
 
 
+def raw_gear(gear_item: dict[str, Any] | None) -> dict[str, Any] | None:
+    """The numbers SimC reports for one item (item level, primary and secondary stats,
+    armor, weapon values), kept in the JSON so the addon's verdict can be replayed on
+    exactly the same items (tools/item_check_verdict.py)."""
+    if not isinstance(gear_item, dict):
+        return None
+    out: dict[str, Any] = {}
+    for key, value in gear_item.items():
+        if isinstance(value, bool):
+            continue
+        if isinstance(value, (int, float)) or key in ("name", "slot"):
+            out[key] = value
+    return out
+
+
 def delta(candidate: dict[str, float], baseline: dict[str, float]) -> dict[str, float]:
     diff = candidate["mean"] - baseline["mean"]
     err = CONFIDENCE_Z * math.hypot(candidate["std_err"], baseline["std_err"])
@@ -397,11 +412,17 @@ def check_items(
         "rows": [],
         "partial": True,
     }
+    baseline_report: dict[str, Any] = {}
     for scenario in SCENARIOS:
         log(f"baseline {scenario} ...")
         report = runner(render_sim_input(profile, scenario, **sim_kwargs))
         result["baseline"][scenario] = dps_result(report)
         if scenario == "st":
+            baseline_report = report
+            result["baseline"]["gear"] = {
+                slot: raw_gear(item) for slot, item in (first_player(report).get("gear") or {}).items()
+                if raw_gear(item) is not None
+            }
             stats = parse_report(report)
             player_stats = next(iter(stats.values()), {})
             result["baseline"]["stats"] = {
@@ -445,6 +466,8 @@ def check_items(
         if isinstance(gear.get("ilevel"), (int, float)):
             row["ilevel"] = round(gear["ilevel"])
         row["stats"] = format_item_stats(gear) or candidate.stats_hint
+        row["gear"] = raw_gear(gear)
+        row["replaced_gear"] = raw_gear(equipped_item(baseline_report, slot)) if baseline_report else None
         row["st"] = {"dps": best["dps"], "delta": delta(best["dps"], result["baseline"]["st"])}
         row["slot_attempts"] = {
             attempt["slot"]: (round(attempt["dps"]["mean"], 1) if "dps" in attempt else attempt["error"])
