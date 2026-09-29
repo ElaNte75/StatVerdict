@@ -540,8 +540,9 @@ class LoadoutUpgradeTests(unittest.TestCase):
 
     def test_the_goal_context_wins_over_all(self) -> None:
         upgrades = select_loadout_upgrades(ENCHANTS, GEMS, "deathbringer", "PVP")
-        # The PvP list's bare id is a scroll item id with no known real enchant here: dropped, not guessed.
-        self.assertEqual({}, upgrades.enchants)
+        # The PvP list's bare id is the scroll's item id: it is translated to the real enchant
+        # the PvE list knows for that scroll.
+        self.assertEqual({"HEAD": {"id": 8017, "item_id": 243981, "spell_id": 1236001}}, upgrades.enchants)
         self.assertEqual([240900], upgrades.gems)
 
     def test_missing_data_gives_no_upgrades(self) -> None:
