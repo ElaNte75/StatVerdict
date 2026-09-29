@@ -135,16 +135,6 @@ local function TitleForPanel(panelKind, view, _osReady)
     return titles.MAIN
 end
 
-local function HideLegacyDualTabs(parent)
-    if not parent then return end
-    if parent.svMsTab then parent.svMsTab:Hide() end
-    if parent.svOsTab then parent.svOsTab:Hide() end
-    if parent.svViewToggleHint then
-        parent.svViewToggleHint:Hide()
-        parent.svViewToggleHint:SetText("")
-    end
-end
-
 local function HideLegacyPanelTitle(parent)
     if not parent then return end
     if parent.title and parent.title.Hide then
@@ -322,7 +312,6 @@ end
 -- Unified title chip (replaces gold FontString + separate Main/Off Spec toggle).
 function ns.EnsureMsOsViewTabs(parent)
     if not parent then return nil end
-    HideLegacyDualTabs(parent)
 
     local button = parent.svViewToggle
     if button and button.svDrawerStyle ~= 3 then
@@ -539,7 +528,6 @@ end
 
 function ns.HideMsOsViewTabs(parent)
     if not parent then return end
-    HideLegacyDualTabs(parent)
     if parent.svViewToggle then parent.svViewToggle:Hide() end
     if parent.svViewToggleHint then parent.svViewToggleHint:Hide() end
     if parent._svDevWidthHandles then

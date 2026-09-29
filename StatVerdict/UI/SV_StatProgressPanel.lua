@@ -43,14 +43,6 @@ local function RegisterPanel2Outer(key, label, baseW, baseH)
     })
 end
 
-local function ClearLegacyLockButton(owner)
-    if owner and owner.lockButton then
-        owner.lockButton:Hide()
-        if owner.lockButton.SetParent then owner.lockButton:SetParent(nil) end
-        owner.lockButton = nil
-    end
-end
-
 local function EnsureScreenBadge(screen, text)
     if not screen then return end
     if not screen.screenIndexBadge then
@@ -368,14 +360,6 @@ local function EnsureOffSpecEmptyHint(frame)
     return nil
 end
 
-local function HideLegacyTitleFontSteppers(frame)
-    -- Removed from main UI; hide any leftover frames from older builds.
-    if not (frame and frame._svTitleFontSteppers) then return end
-    for _, row in pairs(frame._svTitleFontSteppers) do
-        if row and row.Hide then row:Hide() end
-    end
-end
-
 local function GetProgressBarWidth()
     return Clamp(220 + SizeDelta("stats.column.progress.width"), 60, 900)
 end
@@ -646,7 +630,6 @@ function Panel.EnsureOffProgressBars(frame, count)
 end
 
 function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
-    HideLegacyTitleFontSteppers(frame)
     local card = EnsureCard(frame)
     if card and card.SetClipsChildren then
         card:SetClipsChildren(false)
@@ -732,7 +715,6 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
     if frame._svTitleBoxes and frame._svTitleBoxes["stats.cardTitle"] then
         frame._svTitleBoxes["stats.cardTitle"]:Hide()
     end
-    ClearLegacyLockButton(card)
     if ns.UnregisterDevLayoutRegion then
         ns.UnregisterDevLayoutRegion("stats.cardTitle")
     end
@@ -939,8 +921,6 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
 
     -- Edit-only: "screen 1" badge (Lock/Unlock is on the AdvDev pad only).
     EnsureScreenBadge(mainScreen, "screen 1")
-    ClearLegacyLockButton(mainScreen)
-    ClearLegacyLockButton(mainHost)
 
     Register("screen.1", "Screen 1", mainScreen, {
         axis = "xy",
@@ -1218,7 +1198,6 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
     offScreen:Show()
 
     EnsureScreenBadge(offScreen, "screen 2")
-    ClearLegacyLockButton(offScreen)
     Register("screen.2", "Screen 2", offScreen, {
         axis = "xy",
         padding = 0,
@@ -1253,7 +1232,6 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
         -4 + (tonumber(osY) or 0) - (osPad.top or 0)
     )
     offHost:SetSize(offHostVisW, offHostVisH)
-    ClearLegacyLockButton(offHost)
 
     -- When empty-hint box 1 fills Screen 2, hide OS stats so it does not float beside it.
     if showEmptyHint then
@@ -1443,7 +1421,6 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
         )
         osBox:SetSize(boxW, boxH)
         osBox:Show()
-        ClearLegacyLockButton(osBox)
         EnsureOffSpecEmptyHintContent(osBox)
         LayoutOffSpecEmptyHintContent(osBox)
         if ns.RegisterDevLayoutOuterSpec then
