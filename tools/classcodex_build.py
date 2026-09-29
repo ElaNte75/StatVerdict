@@ -102,12 +102,11 @@ def _merge_field(per_source: dict[str, Any]) -> tuple[Any, str] | None:
 
 
 def _merge_stat_priority(per_source: dict[str, Any]) -> tuple[Any, str] | None:
-    """The stat priority follows the Icy Veins guide (the project owner's
-    reference, and what the official ClassCodex addon shows on its Icy Veins
-    tab). Icy Veins only publishes one PvE list per hero tree (context "all"),
-    so per hero tree: Icy Veins' list is kept as-is; u.gg's PvP list (the only
-    PvP-specific one) is added under "pvp"; hero trees Icy Veins does not
-    cover fall back to u.gg's full entry. u.gg's single-target/aoe lists are
+    """Owner rule: everything PvE (Mythic+, Raid) follows the Icy Veins guide;
+    everything PvP follows u.gg. Per hero tree: Icy Veins' lists are kept as-is
+    for PvE; u.gg's PvP list replaces any Icy Veins PvP list (Icy Veins' is
+    only used when u.gg has none); hero trees Icy Veins does not cover fall
+    back to u.gg's full entry. u.gg's single-target/aoe lists are
     dropped whenever Icy Veins covers the hero tree, so they cannot outrank
     the guide."""
     icy = per_source.get("icyveins")
@@ -120,19 +119,14 @@ def _merge_stat_priority(per_source: dict[str, Any]) -> tuple[Any, str] | None:
             merged[hero_key] = dict(contexts)
     spec_wide = icy.get(ALL_HERO_KEY) if isinstance(icy.get(ALL_HERO_KEY), dict) else {}
 
-    def icy_has_pvp(hero_key: str) -> bool:
-        own = icy.get(hero_key)
-        return bool((isinstance(own, dict) and own.get("pvp")) or spec_wide.get("pvp"))
-
     if isinstance(ugg, dict):
         for hero_key, contexts in ugg.items():
             if not isinstance(contexts, dict):
                 continue
             if hero_key in merged or spec_wide:
                 # Icy Veins covers this hero tree (by name or through its
-                # spec-wide list): u.gg contributes only its PvP list, and
-                # only when Icy Veins has no PvP list of its own.
-                if contexts.get("pvp") and not icy_has_pvp(hero_key):
+                # spec-wide list): u.gg contributes only its PvP list.
+                if contexts.get("pvp"):
                     merged.setdefault(hero_key, {})["pvp"] = contexts["pvp"]
             else:
                 merged[hero_key] = dict(contexts)

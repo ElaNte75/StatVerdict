@@ -72,7 +72,7 @@ class ClassCodexBuildTests(unittest.TestCase):
         self.assertEqual([["mastery"], ["crit"]][0], _lists(merged["druidclaw"]["pvp"]["secondary"])[0])
         self.assertEqual(["pvp"], list(merged["druidclaw"]))
 
-    def test_icy_veins_own_pvp_list_wins_over_ugg_pvp(self) -> None:
+    def test_ugg_pvp_list_wins_over_icy_veins_pvp(self) -> None:
         ugg = 'hero = {pvp = {secondary = {{"crit"}}}}'
         icy = 'hero = {all = {secondary = {{"haste"}}}, pvp = {secondary = {{"mastery"}}}}'
         sources = {
@@ -80,7 +80,7 @@ class ClassCodexBuildTests(unittest.TestCase):
             "db_icyveins": _plain_global_source("icyveins", "HUNTER", "marksmanship", {"statPriority": icy}),
         }
         merged = build(sources)["HUNTER_marksmanship"]["statPriority"]["value"]
-        self.assertEqual([["mastery"]], _lists(merged["hero"]["pvp"]["secondary"]))
+        self.assertEqual([["crit"]], _lists(merged["hero"]["pvp"]["secondary"]))
 
     def test_stat_priority_falls_back_to_ugg_when_icy_veins_has_none(self) -> None:
         sources = {
