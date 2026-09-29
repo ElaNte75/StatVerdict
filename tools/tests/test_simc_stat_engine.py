@@ -245,5 +245,54 @@ class RunSimcWithRecoveryTests(unittest.TestCase):
         self.assertIn("OFF_HAND", record["items"])
 
 
+UPGRADED_ITEMS = {
+    "HEAD": {"itemId": 1, "gemIds": [240983, 240908], "enchantIds": [8017]},
+    "NECK": {"itemId": 4, "gemIds": [240983, 240908]},
+}
+GEM_ERROR = "Player sv_0001 item neck: invalid gem_id 240983"
+ENCHANT_ERROR = "Player sv_0001 item head: Unable to find enchant id 8017"
+
+
+class GemEnchantRecoveryTests(unittest.TestCase):
+    spec = SPEC_BY_KEY["DEATHKNIGHT_FROST"]
+
+    def run_with(self, fake: FakeSimc, items=None):
+        record = {"race": "human", "runTalentLoadout": "X", "items": dict(items or UPGRADED_ITEMS), "level": 90}
+        return run_simc_with_recovery(Path("simc"), self.spec, record, run_simc_fn=fake)
+
+    def test_gems_and_enchants_are_rendered(self) -> None:
+        fake = FakeSimc((GOOD_STATS, {}))
+        self.run_with(fake)
+        self.assertIn("head=,id=1,gem_id=240983/240908,enchant_id=8017", fake.profiles[0])
+
+    def test_drops_gems_then_enchants_on_gem_or_enchant_errors(self) -> None:
+        fake = FakeSimc(RuntimeError(GEM_ERROR), RuntimeError(ENCHANT_ERROR), (GOOD_STATS, {}))
+        _stats, _report, recovery, _actor = self.run_with(fake)
+        self.assertEqual(["gems dropped", "enchants dropped"], recovery)
+        self.assertIn("gem_id=", fake.profiles[0])
+        self.assertNotIn("gem_id=", fake.profiles[1])
+        self.assertIn("enchant_id=", fake.profiles[1])
+        self.assertNotIn("enchant_id=", fake.profiles[2])
+        self.assertIn("head=,id=1", fake.profiles[2])
+
+    def test_a_socket_error_without_gems_drops_the_enchants(self) -> None:
+        items = {"HEAD": {"itemId": 1, "enchantIds": [8017]}}
+        fake = FakeSimc(RuntimeError("item head has no Socket"), (GOOD_STATS, {}))
+        _stats, _report, recovery, _actor = self.run_with(fake, items)
+        self.assertEqual(["enchants dropped"], recovery)
+
+    def test_the_error_is_raised_once_nothing_is_left_to_drop(self) -> None:
+        fake = FakeSimc(RuntimeError(GEM_ERROR), RuntimeError(GEM_ERROR), RuntimeError(GEM_ERROR))
+        with self.assertRaisesRegex(RuntimeError, "invalid gem_id"):
+            self.run_with(fake)
+        self.assertEqual(3, len(fake.profiles))
+
+    def test_an_unrelated_error_keeps_gems_and_enchants(self) -> None:
+        fake = FakeSimc(RuntimeError("could not find spell data"))
+        with self.assertRaises(RuntimeError):
+            self.run_with(fake)
+        self.assertEqual(1, len(fake.profiles))
+
+
 if __name__ == "__main__":
     unittest.main()

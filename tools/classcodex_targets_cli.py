@@ -17,6 +17,7 @@ try:
         DEFAULT_MIN_COVERAGE_RATIO,
         SkipRecord,
         build_all,
+        format_rating_sanity,
         format_skip_summary,
         gate_and_write,
     )
@@ -29,6 +30,7 @@ except ModuleNotFoundError:
         DEFAULT_MIN_COVERAGE_RATIO,
         SkipRecord,
         build_all,
+        format_rating_sanity,
         format_skip_summary,
         gate_and_write,
     )
@@ -87,6 +89,7 @@ def main(argv: list[str] | None = None) -> int:
     wowhead_reconstruct = functools.partial(reconstruct_loadout, cache=TooltipCache())
     result = build_all(specs, args.simc_bin, skips=skips, wowhead_reconstruct=wowhead_reconstruct)
     print(format_skip_summary(skips), file=sys.stderr)
+    print(format_rating_sanity(result), file=sys.stderr)
     data = {"schemaVersion": 1, "buildId": fetched.build_id, "publishedAt": fetched.published_at, **result}
     return gate_and_write(data, args.out, NAMESPACE_KEY, write_addon_file, args.min_coverage_ratio)
 

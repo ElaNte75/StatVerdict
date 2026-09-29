@@ -88,25 +88,61 @@ class ClassCodexBuildTests(unittest.TestCase):
         self.assertIn("PALADIN_holy", specs)
         self.assertEqual("icyveins", specs["PALADIN_holy"]["gear"]["source"])
 
-    def test_statTargets_and_tierRank_are_never_extracted(self) -> None:
+    def test_tierRank_is_never_extracted(self) -> None:
+        sources = {
+            "db_ugg": _plain_global_source(
+                "ugg",
+                "DEATHKNIGHT",
+                "frost",
+                {"statPriority": 'from = "ugg"', "tierRank": 'tier = "A"'},
+            ),
+            "db_icyveins": "ClassCodexSource = ClassCodexSource or {}\n",
+        }
+        spec = build(sources)["DEATHKNIGHT_frost"]
+        self.assertIn("statPriority", spec)
+        self.assertNotIn("tierRank", spec)
+
+    def test_stat_targets_gems_and_enchants_come_from_ugg(self) -> None:
         sources = {
             "db_ugg": _plain_global_source(
                 "ugg",
                 "DEATHKNIGHT",
                 "frost",
                 {
-                    "statPriority": 'from = "ugg"',
-                    "statTargets": 'crit = 699',
-                    "tierRank": 'tier = "A"',
+                    "statTargets": "all = {mplus = {top50 = {crit = 699}}}",
+                    "gems": "all = {all = {{pop = 12.6, primary = 240983, secondary = {240908}}}}",
+                    "enchants": 'all = {all = {Head = {{id = 8017, pop = 46.7}}}}',
                 },
             ),
-            "db_icyveins": "ClassCodexSource = ClassCodexSource or {}\n",
+            "db_icyveins": _plain_global_source(
+                "icyveins", "DEATHKNIGHT", "frost", {"enchants": "all = {all = {Head = {{id = 99}}}}"}
+            ),
         }
-        specs = build(sources)
-        spec = specs["DEATHKNIGHT_frost"]
-        self.assertIn("statPriority", spec)
-        self.assertNotIn("statTargets", spec)
-        self.assertNotIn("tierRank", spec)
+        spec = build(sources)["DEATHKNIGHT_frost"]
+        self.assertEqual({"value": {"all": {"mplus": {"top50": {"crit": 699}}}}, "source": "ugg"}, spec["statTargets"])
+        self.assertEqual(240983, spec["gems"]["value"]["all"]["all"][0]["primary"])
+        self.assertEqual("ugg", spec["enchants"]["source"])
+        self.assertEqual(8017, spec["enchants"]["value"]["all"]["all"]["Head"][0]["id"])
+
+    def test_gems_enchants_and_stat_targets_never_fall_back_to_icy_veins(self) -> None:
+        # Icy Veins' enchant `id` is an item id, not a SimC enchant id, and
+        # its other shapes differ too: those fields are u.gg-only.
+        sources = {
+            "db_ugg": _plain_global_source("ugg", "DEATHKNIGHT", "frost", {"gear": 'from = "ugg"'}),
+            "db_icyveins": _plain_global_source(
+                "icyveins",
+                "DEATHKNIGHT",
+                "frost",
+                {
+                    "enchants": "all = {all = {Head = {{id = 99}}}}",
+                    "gems": "all = {all = {{pop = 1, secondary = {1}}}}",
+                    "statTargets": "all = {mplus = {top50 = {crit = 1}}}",
+                },
+            ),
+        }
+        spec = build(sources)["DEATHKNIGHT_frost"]
+        for field_name in ("enchants", "gems", "statTargets"):
+            self.assertNotIn(field_name, spec)
 
     def test_talents_are_extracted_alongside_the_other_fields(self) -> None:
         # Without `talents`, tools/classcodex_targets.py and

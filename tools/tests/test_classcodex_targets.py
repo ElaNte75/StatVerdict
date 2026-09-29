@@ -22,6 +22,9 @@ from tools.classcodex_targets import (
     build_priority_row,
     build_target_context,
     build_all,
+    guide_targets_for,
+    format_rating_sanity,
+    select_loadout_upgrades,
 )
 from tools.spec_catalog import SPEC_BY_KEY
 
@@ -495,6 +498,166 @@ class BuildTargetContextTests(unittest.TestCase):
             self.assertIsNone(build_target_context(spec, "RAID", gear, talents, "all", "raid"))
 
 
+ENCHANTS = {
+    "all": {
+        "all": {
+            "Head": [{"id": 7991, "pop": 36.8}, {"id": 8017, "itemId": 243981, "spellId": 1236001, "pop": 46.7}],
+            "Main Hand": [{"id": 3368, "pop": 63.2}],
+            "Relic": [{"id": 1, "pop": 99}],
+        },
+        "pvp": {"Head": [{"id": 243981, "pop": 33.3}]},
+    }
+}
+GEMS = {
+    "all": {
+        "all": [
+            {"primary": 240983, "pop": 9.5, "secondary": [240892]},
+            {"primary": 240983, "pop": 12.6, "secondary": [240908, 240910]},
+        ],
+        "pvp": [{"pop": 50, "secondary": [240900]}],
+    }
+}
+UPGRADE_GEAR = [
+    {"itemId": 1, "slot": "Head", "ilvl": 300, "bonusIDs": [7]},
+    {"itemId": 2, "slot": "Neck", "ilvl": 300},
+    {"itemId": 3, "slot": "Trinket 1", "ilvl": 300},
+    {"itemId": 4, "slot": "Main Hand", "ilvl": 300},
+]
+
+
+class LoadoutUpgradeTests(unittest.TestCase):
+    def test_picks_the_most_popular_enchant_per_slot_and_gem_set(self) -> None:
+        upgrades = select_loadout_upgrades(ENCHANTS, GEMS, "deathbringer", "RAID")
+        self.assertEqual(
+            {
+                "HEAD": {"id": 8017, "item_id": 243981, "spell_id": 1236001},
+                "MAIN_HAND": {"id": 3368},
+            },
+            upgrades.enchants,
+        )
+        # Primary gem first, then the secondary ones.
+        self.assertEqual([240983, 240908, 240910], upgrades.gems)
+
+    def test_the_goal_context_wins_over_all(self) -> None:
+        upgrades = select_loadout_upgrades(ENCHANTS, GEMS, "deathbringer", "PVP")
+        self.assertEqual({"HEAD": {"id": 243981}}, upgrades.enchants)
+        self.assertEqual([240900], upgrades.gems)
+
+    def test_missing_data_gives_no_upgrades(self) -> None:
+        upgrades = select_loadout_upgrades(None, None, "all", "RAID")
+        self.assertEqual({}, upgrades.enchants)
+        self.assertEqual([], upgrades.gems)
+
+    def test_build_simc_items_adds_enchants_and_gems_except_on_trinkets(self) -> None:
+        items = build_simc_items(UPGRADE_GEAR, select_loadout_upgrades(ENCHANTS, GEMS, "all", "RAID"))
+        self.assertEqual([8017], items["HEAD"]["enchantIds"])
+        self.assertEqual([240983, 240908, 240910], items["HEAD"]["gemIds"])
+        self.assertEqual([240983, 240908, 240910], items["NECK"]["gemIds"])
+        self.assertNotIn("enchantIds", items["NECK"])
+        self.assertNotIn("gemIds", items["TRINKET_1"])
+        self.assertEqual([3368], items["MAIN_HAND"]["enchantIds"])
+
+
+class TargetUpgradeTests(unittest.TestCase):
+    spec = SPEC_BY_KEY["DEATHKNIGHT_FROST"]
+
+    def run_targets(self, side_effect):
+        upgrades = select_loadout_upgrades(ENCHANTS, GEMS, "all", "RAID")
+        with patch("tools.classcodex_targets.run_simc", side_effect=side_effect) as mock_run, \
+                redirect_stderr(io.StringIO()):
+            context = reconstruct_target_context(self.spec, "RAID", UPGRADE_GEAR, "X", upgrades=upgrades)
+        return context, [call.args[1] for call in mock_run.call_args_list]
+
+    def test_the_simulated_loadout_and_bis_slots_carry_the_same_gems_and_enchants(self) -> None:
+        context, profiles = self.run_targets([GOOD])
+        self.assertIn("head=,id=1,ilevel=300,bonus_id=7,gem_id=240983/240908/240910,enchant_id=8017", profiles[0])
+        metadata = context["targets"]["targetMetadata"]
+        self.assertEqual(2, metadata["enchantCount"])
+        self.assertEqual(3, metadata["gemCount"])
+        self.assertNotIn("recovery", metadata)
+        self.assertEqual(
+            [
+                {
+                    "slot": "Head",
+                    "item": {
+                        "item_id": 1,
+                        "bonus_ids": [7],
+                        "gem_ids": [240983, 240908, 240910],
+                        "enchant": {"id": 8017, "item_id": 243981, "spell_id": 1236001},
+                    },
+                },
+                {"slot": "Neck", "item": {"item_id": 2, "gem_ids": [240983, 240908, 240910]}},
+                {"slot": "Trinket 1", "item": {"item_id": 3}},
+                {"slot": "Main Hand", "item": {"item_id": 4, "gem_ids": [240983, 240908, 240910], "enchant": {"id": 3368}}},
+            ],
+            context["bis"]["slots"],
+        )
+
+    def test_dropped_gems_are_left_out_of_the_metadata_and_bis_slots(self) -> None:
+        context, profiles = self.run_targets([RuntimeError("invalid gem_id 240983"), GOOD])
+        self.assertNotIn("gem_id=", profiles[1])
+        metadata = context["targets"]["targetMetadata"]
+        self.assertEqual(["gems dropped"], metadata["recovery"])
+        self.assertEqual(0, metadata["gemCount"])
+        self.assertEqual(2, metadata["enchantCount"])
+        for slot in context["bis"]["slots"]:
+            self.assertNotIn("gem_ids", slot["item"])
+        self.assertEqual({"id": 8017, "item_id": 243981, "spell_id": 1236001}, context["bis"]["slots"][0]["item"]["enchant"])
+
+    def test_dropped_enchants_are_left_out_too(self) -> None:
+        errors = [RuntimeError("invalid gem_id"), RuntimeError("unknown enchant_id"), GOOD]
+        context, _profiles = self.run_targets(errors)
+        metadata = context["targets"]["targetMetadata"]
+        self.assertEqual(["gems dropped", "enchants dropped"], metadata["recovery"])
+        self.assertEqual(0, metadata["enchantCount"])
+        for slot in context["bis"]["slots"]:
+            self.assertNotIn("enchant", slot["item"])
+
+    def test_build_all_uses_the_specs_enchants_and_gems(self) -> None:
+        specs = {
+            "DEATHKNIGHT_frost": {
+                "gear": {"value": {"all": {"raid": UPGRADE_GEAR}}},
+                "talents": {"value": {"deathbringer": {"raid": [{"export": "X"}]}}},
+                "enchants": {"value": ENCHANTS, "source": "ugg"},
+                "gems": {"value": GEMS, "source": "ugg"},
+            }
+        }
+        with patch("tools.classcodex_targets.run_simc", return_value=GOOD) as mock_run:
+            data = build_all(specs, Path("simc"), goals=("RAID",))
+        self.assertIn("enchant_id=8017", mock_run.call_args.args[1])
+        metadata = data["profiles"]["DEATHKNIGHT_FROST"]["goals"]["RAID"]["heroTalents"]["deathbringer"]["targets"][
+            "targetMetadata"
+        ]
+        self.assertEqual(2, metadata["enchantCount"])
+
+
+class RatingSanityReportTests(unittest.TestCase):
+    def test_reports_our_summed_rating_against_ugg_top50(self) -> None:
+        data = {
+            "profiles": {
+                "DEATHKNIGHT_FROST": {
+                    "goals": {
+                        "RAID": {
+                            "heroTalents": {
+                                "deathbringer": {
+                                    "targets": {
+                                        "statTargets": {"stats": {"critical_strike": 1500.0, "haste": 1500.0}},
+                                        "guideTargets": {"top50": {"critical_strike": 2000.0, "haste": 2000.0}},
+                                    }
+                                },
+                                "rider": {"targets": {"statTargets": {"stats": {"haste": 100.0}}}},
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        report = format_rating_sanity(data)
+        self.assertIn("DEATHKNIGHT_FROST/RAID/deathbringer: ours 3000 vs u.gg top50 4000 (ratio 0.75)", report)
+        self.assertIn("DEATHKNIGHT_FROST/RAID/rider: ours 100 vs u.gg top50 n/a", report)
+        self.assertIn("median ratio 0.75 over 1 context(s)", report)
+
+
 class BuildAllTests(unittest.TestCase):
     def test_builds_one_profile_per_spec_with_a_context_per_goal_and_hero_talent(self) -> None:
         specs = {
@@ -519,6 +682,57 @@ class BuildAllTests(unittest.TestCase):
         self.assertEqual([{"item_id": 9, "bonus_ids": [], "tier": "S"}], mplus_context["trinkets"])
         self.assertEqual(1, len(mplus_context["priorityProfiles"]))
         self.assertNotIn("PVP", profile["goals"])  # no PVP data anywhere in this fixture
+
+    def test_guide_targets_follow_goal_and_hero_with_all_hero_fallback(self) -> None:
+        stat_targets = {
+            "deathbringer": {"mplus": {"top50": {"crit": 1358, "haste": 682}}},
+            "all": {
+                "mplus": {"top50": {"crit": 1}},
+                "raid": {
+                    "top20": {"haste": 788, "mastery": 1180, "versatility": 181, "crit": 1413},
+                    "top50": {"crit": 1300},
+                    "top80": {"crit": 1200, "leech": 5},
+                },
+            },
+        }
+        self.assertEqual(
+            {"top50": {"critical_strike": 1358.0, "haste": 682.0}},
+            guide_targets_for(stat_targets, "deathbringer", "MYTHIC_PLUS"),
+        )
+        raid = guide_targets_for(stat_targets, "deathbringer", "RAID")
+        self.assertEqual(
+            {"critical_strike": 1413.0, "haste": 788.0, "mastery": 1180.0, "versatility": 181.0}, raid["top20"]
+        )
+        self.assertEqual({"critical_strike": 1200.0}, raid["top80"])
+        self.assertIsNone(guide_targets_for(stat_targets, "deathbringer", "PVP"))
+        self.assertIsNone(guide_targets_for(None, "deathbringer", "RAID"))
+
+    def test_build_all_adds_guide_targets_even_after_a_recovered_run(self) -> None:
+        specs = {
+            "DEATHKNIGHT_frost": {
+                "gear": {"value": {"all": {"raid": TargetRecoveryTests.gear}}},
+                "talents": {"value": {"deathbringer": {"raid": [{"export": "X"}]}}},
+                "statTargets": {"value": {"all": {"raid": {"top50": {"crit": 1300, "mastery": 900}}}}},
+            }
+        }
+        error = RuntimeError("Player sv_0001 has an Off-Hand weapon equipped with a 2h weapon")
+        with patch("tools.classcodex_targets.run_simc", side_effect=[error, GOOD]):
+            data = build_all(specs, Path("simc"), goals=("RAID", "PVP"))
+        targets = data["profiles"]["DEATHKNIGHT_FROST"]["goals"]["RAID"]["heroTalents"]["deathbringer"]["targets"]
+        self.assertEqual(["dropped OFF_HAND"], targets["targetMetadata"]["recovery"])
+        self.assertEqual({"top50": {"critical_strike": 1300.0, "mastery": 900.0}}, targets["guideTargets"])
+
+    def test_guide_targets_are_omitted_when_ugg_has_none(self) -> None:
+        specs = {
+            "DEATHKNIGHT_frost": {
+                "gear": {"value": {"all": {"raid": TargetRecoveryTests.gear}}},
+                "talents": {"value": {"deathbringer": {"raid": [{"export": "X"}]}}},
+            }
+        }
+        with patch("tools.classcodex_targets.run_simc", return_value=GOOD):
+            data = build_all(specs, Path("simc"), goals=("RAID",))
+        targets = data["profiles"]["DEATHKNIGHT_FROST"]["goals"]["RAID"]["heroTalents"]["deathbringer"]["targets"]
+        self.assertNotIn("guideTargets", targets)
 
     def test_skips_a_spec_key_not_in_the_catalog(self) -> None:
         specs = {"NOTASPEC_madeup": {"gear": {"value": {}, "source": "ugg"}}}
