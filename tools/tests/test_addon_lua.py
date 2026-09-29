@@ -1459,6 +1459,9 @@ C_Spell = { GetSpellName = function(id) return SPELL_NAMES[id] end }
 -- The game's tooltip data per hyperlink (nil = not loaded yet).
 TOOLTIP_DATA = {}
 C_TooltipInfo = { GetHyperlink = function(link) return TOOLTIP_DATA[link] end }
+-- The game's line type for a gem socket (filled or empty) in tooltip data.
+Enum = Enum or {}
+Enum.TooltipDataLineType = { None = 0, GemSocket = 3 }
 -- Records what the panel asks the game tooltip to show, in order.
 TOOLTIP_CALLS = {}
 GameTooltip = {}
@@ -1535,6 +1538,23 @@ GUARDIAN_HEAD_KEPT = [
     ("+189 Intellect", None),
     ("Bark of the Enigmatic Dreamwatcher (0/5)", None),
 ]
+GEM_SOCKET = 3  # Enum.TooltipDataLineType.GemSocket
+# The same head as the game shows it with two sockets: the first filled by the
+# recommended gem (its stat and icon), the second still empty.
+GUARDIAN_HEAD_SOCKETED_TOOLTIP = GUARDIAN_HEAD_TOOLTIP[:13] + [
+    ("+147 Haste", None, (1, 1, 1), {"type": GEM_SOCKET, "gemIcon": 4643916}),
+    ("Prismatic Socket", None, (0.5, 0.5, 0.5), {"type": GEM_SOCKET, "socketType": "Prismatic"}),
+    ("Socket Bonus: +15 Haste", None, (0.5, 0.5, 0.5)),
+] + GUARDIAN_HEAD_TOOLTIP[13:]
+# A ring with a single empty socket.
+ONE_SOCKET_RING_TOOLTIP = [
+    ("Band of Tests", None, EPIC),
+    ("Item Level 334", None, (1, 0.82, 0)),
+    ("Finger", None, (1, 1, 1)),
+    ("+3,000 Stamina", None, (1, 1, 1)),
+    ("+400 Mastery", None, (1, 1, 1)),
+    ("Prismatic Socket", None, (0.5, 0.5, 0.5), {"type": GEM_SOCKET, "socketType": "Prismatic"}),
+]
 BIS_SLOTS = ("Head", "Neck", "Shoulders", "Back", "Chest", "Wrist", "Hands", "Waist", "Legs", "Feet",
              "Finger 1", "Finger 2", "Trinket 1", "Trinket 2", "Main Hand", "Off Hand")
 
@@ -1592,10 +1612,12 @@ class BisPanelTests(unittest.TestCase):
 
     def tooltip_lines(self, rows):
         lines = self.lua.table()
-        for index, (left, right, color) in enumerate(rows, start=1):
+        for index, (left, right, color, *extra) in enumerate(rows, start=1):
             line = self.lua.table(leftText=left, leftColor=self.lua.table(r=color[0], g=color[1], b=color[2]))
             if right is not None:
                 line.rightText = right
+            for key, value in (extra[0] if extra else {}).items():
+                line[key] = value
             lines[index] = line
         return lines
 
@@ -1682,6 +1704,26 @@ class BisPanelTests(unittest.TestCase):
             ("+70 Critical Strike", None),
         ], kept)
 
+    def test_filter_drops_the_socket_lines_of_the_socketed_head(self) -> None:
+        kept = self.panel.FilterItemTooltipLines(self.tooltip_lines(GUARDIAN_HEAD_SOCKETED_TOOLTIP))
+        self.assertEqual(GUARDIAN_HEAD_KEPT, self.pairs_of(kept))
+
+    # --- gems per socket -------------------------------------------------------------
+
+    def gems_for(self, gem_ids, rows):
+        lines = None if rows is None else self.tooltip_lines(rows)
+        kept = self.panel.GemsForSockets(self.lua.table(*gem_ids), lines)
+        return [kept[i] for i in range(1, len(kept) + 1)]
+
+    def test_gems_follow_the_sockets_of_the_recommended_item(self) -> None:
+        gems = [240983, 240894]
+        self.assertEqual(gems, self.gems_for(gems, GUARDIAN_HEAD_SOCKETED_TOOLTIP))  # 2 sockets
+        self.assertEqual([240983], self.gems_for(gems, ONE_SOCKET_RING_TOOLTIP))  # 1 socket
+        self.assertEqual([], self.gems_for(gems, GUARDIAN_HEAD_TOOLTIP))  # no sockets
+        self.assertEqual([240983], self.gems_for([240983], GUARDIAN_HEAD_SOCKETED_TOOLTIP))  # fewer gems
+        self.assertEqual([], self.gems_for(gems, None))  # socket count unknown: none, never a guess
+        self.assertEqual([], self.gems_for(gems, []))
+
     def test_filter_stops_at_equip_text_when_an_item_has_no_stats(self) -> None:
         kept = self.pairs_of(self.panel.FilterItemTooltipLines(self.tooltip_lines([
             ("Trinket of Tests", None, EPIC),
@@ -1695,7 +1737,7 @@ class BisPanelTests(unittest.TestCase):
     # --- our tooltip -----------------------------------------------------------------
 
     def test_hover_shows_the_item_then_the_recommended_block(self) -> None:
-        self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_TOOLTIP)
+        self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_SOCKETED_TOOLTIP)
         card = self.refresh(self.guardian_head(), spec_id=104)
         self.assertEqual(GUARDIAN_HEAD_KEPT + [
             ("Recommended", None),
@@ -1703,6 +1745,22 @@ class BisPanelTests(unittest.TestCase):
             ("Enchant: Enchant Helm - Scroll", None),
         ], self.hover(card.rows[1]))
         self.assertEqual([], [None for _ in self.lua.globals().TOOLTIP_CALLS])  # never the game tooltip
+
+    def test_item_without_sockets_shows_no_gems(self) -> None:
+        self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_TOOLTIP)
+        card = self.refresh(self.guardian_head(), spec_id=104)
+        self.assertEqual(GUARDIAN_HEAD_KEPT + [
+            ("Recommended", None),
+            ("Enchant: Enchant Helm - Scroll", None),
+        ], self.hover(card.rows[1]))
+
+    def test_one_socket_shows_only_the_first_gem(self) -> None:
+        entry = self.entry(slot="Finger 1", item_id=1001, gems=[240983, 240894])
+        self.game_knows(self.panel.BuildRecommendedItemLink(entry, 0), ONE_SOCKET_RING_TOOLTIP)
+        card = self.refresh(entry)
+        lines = self.hover(card.rows[1])
+        self.assertIn(("Gems: Flawless Gem", None), lines)
+        self.assertEqual(1, sum(1 for left, _ in lines if left.startswith("Gems:")))
 
     def test_tooltip_frame_sits_next_to_the_row_and_ignores_the_mouse(self) -> None:
         card = self.refresh(self.guardian_head())
@@ -1748,17 +1806,23 @@ class BisPanelTests(unittest.TestCase):
         g = self.lua.globals()
         card = self.refresh(self.guardian_head(), spec_id=104)
         lines = self.hover(card.rows[1])
-        self.assertEqual(3 + 1, len(lines))  # name + Recommended block
+        # Name, then Recommended with the enchant only: sockets unknown, so no gems yet.
+        self.assertEqual(3, len(lines))
         self.assertIn("item:271528", lines[0][0])
+        self.assertEqual([("Recommended", None), ("Enchant: Enchant Helm - Scroll", None)], lines[1:])
         self.assertTrue(g.REQUESTED[271528])
-        self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_TOOLTIP)
+        self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_SOCKETED_TOOLTIP)
         self.item_events.scripts.OnEvent(self.item_events, "GET_ITEM_INFO_RECEIVED", 271528, True)
         tip = self.panel.GetRecommendedTooltip()
-        self.assertEqual(GUARDIAN_HEAD_KEPT, self.pairs_of(tip.shownLines)[:len(GUARDIAN_HEAD_KEPT)])
+        shown = self.pairs_of(tip.shownLines)
+        self.assertEqual(GUARDIAN_HEAD_KEPT, shown[:len(GUARDIAN_HEAD_KEPT)])
+        self.assertIn(("Gems: Flawless Gem, Quick Gem", None), shown)
 
     def test_gem_and_enchant_names_fill_in_when_they_arrive(self) -> None:
         g = self.lua.globals()
-        card = self.refresh(self.entry(item_id=1001, gems=[777001], enchant={"id": 8017, "item_id": 777002}))
+        entry = self.entry(item_id=1001, gems=[777001], enchant={"id": 8017, "item_id": 777002})
+        self.game_knows(self.panel.BuildRecommendedItemLink(entry, 0), ONE_SOCKET_RING_TOOLTIP)
+        card = self.refresh(entry)
         lines = self.hover(card.rows[1])
         self.assertIn(("Gems: Gem #777001", None), lines)
         self.assertIn(("Enchant: Enchant #8017", None), lines)
@@ -1779,6 +1843,24 @@ class BisPanelTests(unittest.TestCase):
         )
         self.assertIn(("Enchant: Radiant Mastery", None), self.hover(card.rows[1]))
         self.assertIn(("Enchant: Enchant #3368", None), self.hover(card.rows[2]))
+
+    def test_pvp_enchant_id_is_the_scroll_item(self) -> None:
+        # PvP data: {id = <enchant scroll item id>} with no item_id / spell_id.
+        g = self.lua.globals()
+        card = self.refresh(self.entry(slot="Chest", item_id=1001, enchant={"id": 243981}))
+        self.assertIn(("Enchant: Enchant #243981", None), self.hover(card.rows[1]))  # not loaded yet
+        self.assertTrue(g.REQUESTED[243981])
+        g.ITEM_NAMES[243981] = "Enchant Chest - Crystalline Radiance"
+        self.item_events.scripts.OnEvent(self.item_events, "GET_ITEM_INFO_RECEIVED", 243981, True)
+        self.assertIn(("Enchant: Enchant Chest - Crystalline Radiance", None),
+                      self.pairs_of(self.panel.GetRecommendedTooltip().shownLines))
+
+    def test_real_enchant_id_is_never_read_as_an_item(self) -> None:
+        # 7961 is an enchant id here; an unrelated item with that number must not show.
+        g = self.lua.globals()
+        g.ITEM_NAMES[7961] = "Phantom Blade"
+        card = self.refresh(self.entry(item_id=1001, enchant={"id": 7961, "item_id": 777002}))
+        self.assertIn(("Enchant: Enchant #7961", None), self.hover(card.rows[1]))
 
     def test_ranked_trinkets_keep_the_game_tooltip(self) -> None:
         self.refresh(self.guardian_head())
@@ -1842,15 +1924,29 @@ class BisPanelTests(unittest.TestCase):
         self.assertEqual([50 + 21 * i for i in range(16)], [top for top, _ in rows])
         self.assertEqual({20}, {bottom - top for top, bottom in rows})
 
-    def test_ranked_trinkets_rows_keep_the_old_spacing(self) -> None:
+    def trinkets_at(self, card_height, count):
+        self.mode = "bis"
         self.refresh(self.entry(item_id=1001))
-        self.frame.bisProgressCard.GetHeight = self.lua.eval("function() return 360 end")
-        card = self.refresh_trinkets(count=14)
-        rows = self.row_geometry(card)
-        self.assertEqual([50 + 21 * i for i in range(16)], [top for top, _ in rows])
-        self.assertEqual({20}, {bottom - top for top, bottom in rows})
-        self.assertEqual("|cffff8000#1 S|r", card.rows[1].slot.text)
-        self.assertEqual("Trinkets: 14 ranked · Owned 0/14", card.summary.text)
+        self.frame.bisProgressCard.GetHeight = self.lua.eval(f"function() return {card_height} end")
+        return self.refresh_trinkets(count=count)
+
+    def test_ranked_trinkets_rows_keep_the_old_spacing_when_they_fit(self) -> None:
+        for height, count in ((360, 10), (500, 14)):
+            card = self.trinkets_at(height, count)
+            rows = self.row_geometry(card)
+            self.assertEqual([50 + 21 * i for i in range(16)], [top for top, _ in rows], (height, count))
+            self.assertEqual({20}, {bottom - top for top, bottom in rows})
+            self.assertEqual("|cffff8000#1 S|r", card.rows[1].slot.text)
+
+    def test_fourteen_ranked_trinkets_never_overlap_the_footer(self) -> None:
+        for height in (300, 360, 420):
+            card = self.trinkets_at(height, 14)
+            self.assertEqual("Trinkets: 14 ranked · Owned 0/14", card.summary.text)
+            footer_top = height - 12 - 12
+            rows = self.row_geometry(card)[:14]
+            self.assertLessEqual(rows[-1][1], footer_top, height)
+            for upper, lower in zip(rows, rows[1:]):
+                self.assertLessEqual(upper[1], lower[0], height)
 
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")

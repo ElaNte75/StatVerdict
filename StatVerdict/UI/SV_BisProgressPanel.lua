@@ -224,11 +224,43 @@ local function GetSpellNameByID(spellID)
     return nil
 end
 
+local function IsSocketLine(line)
+    if line.gemIcon or line.socketType then return true end
+    local lineTypes = Enum and Enum.TooltipDataLineType
+    return lineTypes ~= nil and lineTypes.GemSocket ~= nil and line.type == lineTypes.GemSocket
+end
+
+-- Pure: the recommended gems the item can really hold -- the first N gem ids for
+-- the N socket lines in its tooltip data. Unknown data (nil) means no gems, never a guess.
+function Panel.GemsForSockets(gemIDs, tooltipLines)
+    local out = {}
+    if type(gemIDs) ~= "table" or type(tooltipLines) ~= "table" then return out end
+    local sockets = 0
+    for _, line in ipairs(tooltipLines) do
+        if type(line) == "table" and IsSocketLine(line) then sockets = sockets + 1 end
+    end
+    for index = 1, math.min(sockets, #gemIDs) do
+        out[index] = gemIDs[index]
+    end
+    return out
+end
+
+-- Name of the recommended enchant: its scroll item, its spell, then -- only when the
+-- data carries nothing else (PvP lists) -- the id itself read as the scroll item.
+local function GetEnchantName(enchant)
+    local name = GetPlainItemName(enchant.itemID) or GetSpellNameByID(enchant.spellID)
+    if not name and not enchant.itemID and not enchant.spellID then
+        name = GetPlainItemName(enchant.id)
+    end
+    return name
+end
+
 -- "Gems: A, B" and "Enchant: X" for a best-in-slot entry (nil when it has none).
-local function BuildRecommendationTexts(entry)
+-- itemLines: the recommended item's raw tooltip lines, nil while not loaded.
+local function BuildRecommendationTexts(entry, itemLines)
     local gemsText, enchantText = nil, nil
     local gems = {}
-    for _, gemID in ipairs(GetEntryGemIDs(entry)) do
+    for _, gemID in ipairs(Panel.GemsForSockets(GetEntryGemIDs(entry), itemLines)) do
         gems[#gems + 1] = GetPlainItemName(gemID) or ("Gem #" .. tostring(gemID))
     end
     if #gems > 0 then
@@ -236,7 +268,7 @@ local function BuildRecommendationTexts(entry)
     end
     local enchant = GetEntryEnchant(entry)
     if enchant then
-        local name = GetPlainItemName(enchant.itemID) or GetSpellNameByID(enchant.spellID)
+        local name = GetEnchantName(enchant)
         if not name then
             name = "Enchant #" .. tostring(enchant.id or enchant.itemID or enchant.spellID)
         end
@@ -320,12 +352,6 @@ local function LineColor(line)
     return { 1, 1, 1 }
 end
 
-local function IsSocketLine(line)
-    if line.gemIcon or line.socketType then return true end
-    local lineTypes = Enum and Enum.TooltipDataLineType
-    return lineTypes ~= nil and lineTypes.GemSocket ~= nil and line.type == lineTypes.GemSocket
-end
-
 -- Pure filter over tooltip data lines ({leftText, rightText, leftColor, ...}).
 -- Keeps: the item name, item level, upgrade level, binding, slot / armor type,
 -- armor (or weapon damage), the "+N Stat" block and the set name "(x/y)".
@@ -385,8 +411,8 @@ local function IsRetrievingText(text)
     return text == "Retrieving item information"
 end
 
--- Filtered lines for an item link, or nil when the game has no data for it yet.
-local function ReadRecommendedItemLines(link)
+-- The game's raw tooltip lines for an item link, or nil when it has no data yet.
+local function ReadRawItemLines(link)
     if not link then return nil end
     if not (type(C_TooltipInfo) == "table" and type(C_TooltipInfo.GetHyperlink) == "function") then
         return nil
@@ -396,8 +422,7 @@ local function ReadRecommendedItemLines(link)
         return nil
     end
     if IsRetrievingText(CleanTooltipText(data.lines[1].leftText)) then return nil end
-    local filtered = Panel.FilterItemTooltipLines(data.lines)
-    return #filtered > 0 and filtered or nil
+    return data.lines
 end
 
 local function GetLinkItemLevel(itemLink)
@@ -515,7 +540,9 @@ local function BuildRecommendedTooltipLines(row)
     local entry = row and row.recommendedEntry
     if not entry then return {} end
     local link = BuildRecommendedItemLink(entry, row.specID)
-    local lines = ReadRecommendedItemLines(link)
+    local rawLines = ReadRawItemLines(link)
+    local lines = rawLines and Panel.FilterItemTooltipLines(rawLines) or nil
+    if lines and #lines == 0 then lines = nil end
     if lines then
         lines[1].font = "title"
     else
@@ -532,7 +559,7 @@ local function BuildRecommendedTooltipLines(row)
     end
 
     if RecommendedBlockOn() then
-        local gemsText, enchantText = BuildRecommendationTexts(entry)
+        local gemsText, enchantText = BuildRecommendationTexts(entry, rawLines)
         if gemsText or enchantText then
             lines[#lines + 1] = { left = "Recommended", color = GOLD, font = "header", gapBefore = true }
             if gemsText then lines[#lines + 1] = { left = gemsText, color = TEXT_COLOR } end
@@ -753,8 +780,8 @@ local ROW_PITCH_MIN = 14
 local SUMMARY_BOTTOM = 12
 local FOOTER_GAP = 4
 
--- Row spacing for the Best in Slot list: the usual 21 px, tightened only as much
--- as needed so every row ends above the progress footer. Ranked Trinkets keep 21.
+-- Row spacing for the Best in Slot and Ranked Trinkets lists: the usual 21 px,
+-- tightened only as much as needed so every row ends above the footer line.
 local function RowPitchFor(card, fitToCard)
     local count = SafeNumber(card and card.shownRowCount) or 0
     if not fitToCard or count <= 1 or not card.GetHeight then
@@ -1233,7 +1260,8 @@ function Panel.Refresh(frame, profile)
                 row:Hide()
             end
         end
-        card.fitRowsToCard = false
+        -- Same fit as Best in Slot: 21 px rows unless a long list would reach the footer.
+        card.fitRowsToCard = true
         card.shownRowCount = shown
         PlaceRows(card, card.contentHost)
         card.summary:SetText(string.format("Trinkets: %d ranked · Owned %d/%d", shown, owned, shown))
