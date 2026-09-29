@@ -15,6 +15,12 @@ from tools.tests.test_addon_lua import FRAME_STUB, LuaRuntime, compile_lua_file,
 
 GOALS = ("MYTHIC_PLUS", "RAID", "PVP")
 WEIGHT_MODES = ("GUIDE", "MEASURED", "BLEND")
+CANONICAL_STAT = {
+    "ITEM_MOD_CRIT_RATING_SHORT": "critical_strike",
+    "ITEM_MOD_HASTE_RATING_SHORT": "haste",
+    "ITEM_MOD_MASTERY_RATING_SHORT": "mastery",
+    "ITEM_MOD_VERSATILITY": "versatility",
+}
 
 # Every other WoW global the addon touches while loading is a stub object:
 # calling it (or any method on it) returns another stub. Removed again once
@@ -180,6 +186,9 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
         problems: list[str] = []
         rows: list[tuple[str, str, str, str, str]] = []
         no_weights: list[str] = []
+        # guideTargets (ClassCodex / u.gg) may not be in the committed data yet:
+        # absent means GUIDE shows our own targets; present is checked per row.
+        self.cells_with_guide_targets: set[str] = set()
 
         for spec in SPECS:
             spec_profile = targets[spec.key]
@@ -212,8 +221,36 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
         if problems:
             table = "\n".join(f"  {s:<24} {g:<12} {h:<28} targets={t:<8} weights={w}" for s, g, h, t, w in rows)
             self.fail(f"{len(problems)} problem(s):\n  " + "\n  ".join(problems) + "\n\nCoverage:\n" + table)
-        print(f"\n[classcodex coverage] {len(rows)} cells with targets; {len(no_weights)} use rank weights: "
-              + ", ".join(no_weights))
+        print(f"\n[classcodex coverage] {len(rows)} cells with targets "
+              f"({len(self.cells_with_guide_targets)} with ClassCodex top20 targets); "
+              f"{len(no_weights)} use rank weights: " + ", ".join(no_weights))
+
+    def test_guide_targets_check_catches_a_wrong_target(self) -> None:
+        """Proves check_targets works on real data before the pipeline ships
+        guideTargets: a fake top20 on one real cell passes for every mode, and a
+        GUIDE profile showing our own targets instead is reported."""
+        ns, lua = self.ns, self.lua
+        spec = SPECS[0]
+        hero = sorted(ns.ClassCodexTargets.profiles[spec.key].goals["MYTHIC_PLUS"].heroTalents.keys())[0]
+        context = ns.ProfileRepository.GetContext(spec.key, "MYTHIC_PLUS", hero)
+        own = context.targets.statTargets.stats
+        saved = context.targets.guideTargets
+        top20 = lua.table()
+        for key in own.keys():
+            top20[key] = own[key] * 1.1 + 50
+        context.targets.guideTargets = lua.table(top20=top20)
+        self.cells_with_guide_targets = set()
+        try:
+            for mode in WEIGHT_MODES:
+                problems: list[str] = []
+                self.check_targets(mode, context, self.build_profile(spec, "MYTHIC_PLUS", hero, mode), mode, problems)
+                self.assertEqual([], problems, mode)
+            wrong: list[str] = []
+            self.check_targets("GUIDE", context, self.build_profile(spec, "MYTHIC_PLUS", hero, "MEASURED"),
+                               "GUIDE", wrong)
+            self.assertTrue(wrong)
+        finally:
+            context.targets.guideTargets = saved
 
     def build_profile(self, spec, goal, hero, mode: str):
         ns, lua = self.ns, self.lua
@@ -282,7 +319,40 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
             weight = ns.GetDefaultStatWeight(profile, stat_key)
             if not isinstance(weight, (int, float)) or weight <= 0:
                 problems.append(f"{cell}: no scoring weight for {stat_key}")
+        self.check_targets(cell, context, profile, mode, problems)
         return "ok", weight_status
+
+    def check_targets(self, cell: str, context, profile, mode: str, problems: list[str]) -> None:
+        """The audit rows show the mode's targets: GUIDE the ClassCodex (u.gg) top20
+        targets when the data has them, MEASURED our own, BLEND between the two.
+        A stat missing on one side uses the other side's target."""
+        def positive(table, key):
+            value = table[key] if table is not None else None
+            return float(value) if isinstance(value, (int, float)) and value > 0 else None
+
+        own = context.targets.statTargets.stats
+        guide_root = context.targets.guideTargets
+        guide = guide_root.top20 if guide_root is not None else None
+        if guide is not None:
+            self.cells_with_guide_targets.add(cell.rsplit(" [", 1)[0])
+        for row in lua_list(profile.auditTargets.rows):
+            canonical = CANONICAL_STAT.get(row.key)
+            if canonical is None:
+                continue
+            own_value, guide_value = positive(own, canonical), positive(guide, canonical)
+            target = float(row.target)
+            if mode == "MEASURED" or guide_value is None:
+                expected = own_value
+            elif mode == "GUIDE" or own_value is None:
+                expected = guide_value
+            else:
+                low, high = min(own_value, guide_value), max(own_value, guide_value)
+                if not low - 1e-6 <= target <= high + 1e-6:
+                    problems.append(f"{cell}: {canonical} target {target} not between guide {guide_value} "
+                                    f"and ours {own_value}")
+                expected = (own_value + guide_value) / 2
+            if expected is None or abs(target - expected) > 1e-6:
+                problems.append(f"{cell}: {canonical} target {target}, expected {expected}")
 
 
 if __name__ == "__main__":
