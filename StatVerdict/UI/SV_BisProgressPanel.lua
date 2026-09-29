@@ -125,11 +125,13 @@ end
 -- recommended item level / upgrade track with the recommended gems and enchant.
 -- Retail field order: itemID, enchantID, gemID1-4, suffixID, uniqueID, linkLevel,
 -- specializationID, modifiersMask, itemContext, numBonusIDs, bonusIDs...
-local function BuildRecommendedItemLink(entry, specID)
+-- withoutGems: leave the gem fields empty (the guide's gems are chosen per list,
+-- not per slot, so old per-slot gem ids are ignored).
+local function BuildRecommendedItemLink(entry, specID, withoutGems)
     local itemID = GetEntryItemID(entry)
     if not itemID then return nil end
     local enchant = GetEntryEnchant(entry)
-    local gems = GetEntryGemIDs(entry)
+    local gems = withoutGems and {} or GetEntryGemIDs(entry)
     local gemFields = {}
     for index = 1, 4 do
         gemFields[index] = gems[index] and tostring(gems[index]) or ""
@@ -256,15 +258,59 @@ end
 
 -- Pure: the recommended gems the item can really hold -- the first N gem ids for
 -- the N socket lines in its tooltip data. Unknown data (nil) means no gems, never a guess.
-function Panel.GemsForSockets(gemIDs, tooltipLines)
-    local out = {}
-    if type(gemIDs) ~= "table" or type(tooltipLines) ~= "table" then return out end
+local function CountSocketLines(tooltipLines)
     local sockets = 0
     for _, line in ipairs(tooltipLines) do
         if type(line) == "table" and IsSocketLine(line) then sockets = sockets + 1 end
     end
+    return sockets
+end
+
+function Panel.GemsForSockets(gemIDs, tooltipLines)
+    local out = {}
+    if type(gemIDs) ~= "table" or type(tooltipLines) ~= "table" then return out end
+    local sockets = CountSocketLines(tooltipLines)
     for index = 1, math.min(sockets, #gemIDs) do
         out[index] = gemIDs[index]
+    end
+    return out
+end
+
+-- The guide's gems for a whole Best in Slot list ({primary, secondary}), or nil for
+-- old data that still lists gems per slot.
+local function GetGuideGems(bis)
+    local gems = type(bis) == "table" and bis.gems or nil
+    if type(gems) ~= "table" then return nil end
+    return gems
+end
+
+-- Pure: the guide's gems for slot `slotIndex` as { {id, count}, ... }.
+-- The primary gem is unique-equipped: it goes only on the FIRST slot (list order)
+-- whose item has a socket; every other socket gets the secondary gem.
+-- socketCount(entry) gives a slot's socket count, nil while unknown. Unknown counts
+-- on earlier slots mean no primary yet (never a possibly wrong one); an unknown
+-- count on this slot means no gems at all.
+function Panel.SlotGemPlan(gems, slots, slotIndex, socketCount)
+    local out = {}
+    if type(gems) ~= "table" or type(slots) ~= "table" or type(socketCount) ~= "function" then return out end
+    local sockets = SafeNumber(socketCount(slots[slotIndex]))
+    if not sockets or sockets < 1 then return out end
+    local primary, secondary = SafeNumber(gems.primary), SafeNumber(gems.secondary)
+    local isPrimarySlot = primary ~= nil
+    if isPrimarySlot then
+        -- Ask for every earlier slot (so all their data loads at once), then decide.
+        for index = 1, slotIndex - 1 do
+            local earlier = SafeNumber(socketCount(slots[index]))
+            if earlier == nil or earlier >= 1 then isPrimarySlot = false end
+        end
+    end
+    local secondaryCount = sockets
+    if isPrimarySlot then
+        out[#out + 1] = { id = primary, count = 1 }
+        secondaryCount = sockets - 1
+    end
+    if secondary and secondaryCount > 0 then
+        out[#out + 1] = { id = secondary, count = secondaryCount }
     end
     return out
 end
@@ -446,6 +492,40 @@ local function ReadRawItemLines(link)
     return data.lines
 end
 
+-- Socket counts per recommended item (item id + bonus ids), read from the game's
+-- tooltip data. Only known counts are kept; sockets never change for an item.
+local socketCountCache = {}
+
+local function SocketCacheKey(entry)
+    local itemID = GetEntryItemID(entry)
+    if not itemID then return nil end
+    local bonusIDs = GetBonusIDs(entry)
+    return tostring(itemID) .. ":" .. (bonusIDs and table.concat(bonusIDs, ":") or "")
+end
+
+local function RememberSocketCount(entry, rawLines)
+    local key = SocketCacheKey(entry)
+    if key and type(rawLines) == "table" then
+        socketCountCache[key] = CountSocketLines(rawLines)
+    end
+end
+
+-- A Best in Slot slot's socket count, or nil while the game has no data for it
+-- (the load is then requested; the open tooltip redraws when it arrives).
+-- A slot without an item has no sockets.
+local function EntrySocketCount(entry, specID)
+    local key = SocketCacheKey(entry)
+    if not key then return 0 end
+    if socketCountCache[key] then return socketCountCache[key] end
+    local rawLines = ReadRawItemLines(BuildRecommendedItemLink(entry, specID, true))
+    if not rawLines then
+        RequestItemLoad(GetEntryItemID(entry))
+        return nil
+    end
+    RememberSocketCount(entry, rawLines)
+    return socketCountCache[key]
+end
+
 local function GetLinkItemLevel(itemLink)
     if not itemLink then return nil end
     if ns.GetItemLevel then
@@ -568,17 +648,45 @@ local function RecommendationNameLine(name, quality)
     }
 end
 
--- The Recommended block's lines under its heading, stacked, only the single best
--- choice: Gems / one gem per real socket, then Enchant / the enchant.
--- itemLines: the recommended item's raw tooltip lines, nil while not loaded.
-local function BuildRecommendationLines(entry, itemLines)
+-- One gem name with how many of it ("Name x3"; no count for a single gem).
+local function GemNameLine(gemID, count)
+    local name, quality = GetGemDisplay(gemID)
+    if count and count > 1 then name = name .. " x" .. tostring(count) end
+    return RecommendationNameLine(name, quality)
+end
+
+-- The gem lines for a row: the guide's primary/secondary gems when the list has
+-- them, otherwise (old data) one per-slot gem per real socket.
+local function BuildGemLines(row, entry, itemLines)
     local out = {}
-    local gems = Panel.GemsForSockets(GetEntryGemIDs(entry), itemLines)
+    local guideGems = row and row.bisGems
+    if type(guideGems) == "table" then
+        local slots = type(row.bisSlots) == "table" and row.bisSlots or { entry }
+        local slotIndex = SafeNumber(row.bisSlotIndex) or 1
+        RememberSocketCount(entry, itemLines)
+        local plan = Panel.SlotGemPlan(guideGems, slots, slotIndex, function(slotEntry)
+            return EntrySocketCount(slotEntry, row.specID)
+        end)
+        for _, gem in ipairs(plan) do
+            out[#out + 1] = GemNameLine(gem.id, gem.count)
+        end
+        return out
+    end
+    for _, gemID in ipairs(Panel.GemsForSockets(GetEntryGemIDs(entry), itemLines)) do
+        out[#out + 1] = GemNameLine(gemID)
+    end
+    return out
+end
+
+-- The Recommended block's lines under its heading, stacked, only the single best
+-- choice: Gems / the gems for the real sockets, then Enchant / the enchant.
+-- itemLines: the recommended item's raw tooltip lines, nil while not loaded.
+local function BuildRecommendationLines(row, entry, itemLines)
+    local out = {}
+    local gems = BuildGemLines(row, entry, itemLines)
     if #gems > 0 then
         out[#out + 1] = { left = "Gems", color = DIM_COLOR }
-        for _, gemID in ipairs(gems) do
-            out[#out + 1] = RecommendationNameLine(GetGemDisplay(gemID))
-        end
+        for _, line in ipairs(gems) do out[#out + 1] = line end
     end
     local enchant = GetEntryEnchant(entry)
     if enchant then
@@ -598,7 +706,7 @@ end
 local function BuildRecommendedTooltipLines(row)
     local entry = row and row.recommendedEntry
     if not entry then return {} end
-    local link = BuildRecommendedItemLink(entry, row.specID)
+    local link = BuildRecommendedItemLink(entry, row.specID, type(row.bisGems) == "table")
     local rawLines = ReadRawItemLines(link)
     local lines = rawLines and Panel.FilterItemTooltipLines(rawLines) or nil
     if lines and #lines == 0 then lines = nil end
@@ -618,7 +726,7 @@ local function BuildRecommendedTooltipLines(row)
     end
 
     if RecommendedBlockOn() then
-        local block = BuildRecommendationLines(entry, rawLines)
+        local block = BuildRecommendationLines(row, entry, rawLines)
         if #block > 0 then
             lines[#lines + 1] = { left = "Recommended", color = GOLD, font = "header", gapBefore = true }
             for _, line in ipairs(block) do lines[#lines + 1] = line end
@@ -1387,6 +1495,11 @@ function Panel.Refresh(frame, profile)
             SetRowItemVisual(row, display)
             -- Hover shows the complete recommended item (own tooltip).
             row.recommendedEntry = entry
+            -- The whole list and this row's place in it: the unique primary gem goes
+            -- on the first socketed slot only.
+            row.bisSlots = slots
+            row.bisSlotIndex = index
+            row.bisGems = GetGuideGems(bis)
             row.specID = type(profile) == "table" and SafeNumber(profile.specID) or nil
             row.ownedState = state
             row:Show()
