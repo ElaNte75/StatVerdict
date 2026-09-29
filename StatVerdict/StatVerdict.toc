@@ -8,7 +8,9 @@
 ## AddonCompartmentFunc: StatVerdict_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: StatVerdict_OnAddonCompartmentEnter
 ## AddonCompartmentFuncOnLeave: StatVerdict_OnAddonCompartmentLeave
-Data/Generated/SV_MythicPlusBenchmarks.lua
+Data/Generated/SV_ClassCodexTargets.lua
+Data/Generated/SV_ClassCodexWeights.lua
+Data/Generated/SV_StatDR.lua
 Core/SV_Constants.lua
 Core/SV_Benchmark.lua
 Core/SV_CurrentStats.lua
