@@ -14,6 +14,7 @@ from tools.spec_catalog import SPECS
 from tools.tests.test_addon_lua import FRAME_STUB, LuaRuntime, compile_lua_file, new_runtime, toc_lua_files
 
 GOALS = ("MYTHIC_PLUS", "RAID", "PVP")
+WEIGHT_MODES = ("GUIDE", "MEASURED", "BLEND")
 
 # Every other WoW global the addon touches while loading is a stub object:
 # calling it (or any method on it) returns another stub. Removed again once
@@ -193,7 +194,8 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
             for goal in GOALS:
                 for hero in hero_keys:
                     cell = f"{spec.key} {goal} {hero}"
-                    status = self.check_cell(spec, goal, hero, weights_root, problems)
+                    for mode in WEIGHT_MODES:
+                        status = self.check_cell(spec, goal, hero, weights_root, problems, mode)
                     rows.append((spec.key, goal, hero, status[0], status[1]))
                     if status[0] == "ok" and status[1] == "-":
                         no_weights.append(cell)
@@ -213,10 +215,24 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
         print(f"\n[classcodex coverage] {len(rows)} cells with targets; {len(no_weights)} use rank weights: "
               + ", ".join(no_weights))
 
-    def check_cell(self, spec, goal, hero, weights_root, problems: list[str]) -> tuple[str, str]:
+    def build_profile(self, spec, goal, hero, mode: str):
+        ns, lua = self.ns, self.lua
+        db = lua.globals().StatVerdictDB
+        saved = db.weightMode
+        db.weightMode = mode
+        try:
+            return ns.ProfileRepository.BuildRuntimeProfile(lua.table(
+                specKey=spec.key, goal=goal, heroTalentName=hero,
+                specID=ns.GetStatVerdictSpecIDByKey(spec.key),
+                role={"tank": "TANK", "healer": "HEALER"}.get(spec.role, "DAMAGER"),
+            ))
+        finally:
+            db.weightMode = saved
+
+    def check_cell(self, spec, goal, hero, weights_root, problems: list[str], mode: str) -> tuple[str, str]:
         ns, lua = self.ns, self.lua
         repo = ns.ProfileRepository
-        cell = f"{spec.key} {goal} {hero}"
+        cell = f"{spec.key} {goal} {hero} [{mode}]"
         context = repo.GetContext(spec.key, goal, hero)
         if context is None:
             problems.append(f"{cell}: no targets")
@@ -238,11 +254,7 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
             else:
                 weight_status = "ok"
 
-        profile = repo.BuildRuntimeProfile(lua.table(
-            specKey=spec.key, goal=goal, heroTalentName=hero,
-            specID=ns.GetStatVerdictSpecIDByKey(spec.key),
-            role={"tank": "TANK", "healer": "HEALER"}.get(spec.role, "DAMAGER"),
-        ))
+        profile = self.build_profile(spec, goal, hero, mode)
         if profile is None:
             problems.append(f"{cell}: BuildRuntimeProfile returned nothing")
             return "NOPROFILE", weight_status
@@ -254,8 +266,18 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
             problems.append(f"{cell}: empty secondaryOrder")
         if not lua_list(profile.auditTargets.rows):
             problems.append(f"{cell}: no audit target rows")
-        if weight_status == "ok" and profile.secondaryWeights is None:
+        if mode == "GUIDE":
+            if profile.secondaryWeights is not None:
+                problems.append(f"{cell}: guide mode must not use measured weights")
+        elif weight_status == "ok" and profile.secondaryWeights is None:
             problems.append(f"{cell}: measured weights not applied")
+        if mode == "BLEND":
+            guide = self.build_profile(spec, goal, hero, "GUIDE")
+            if lua_list(profile.secondaryOrder) != lua_list(guide.secondaryOrder):
+                problems.append(f"{cell}: blend order differs from the guide order")
+            weights = profile.secondaryWeights
+            if weights is not None and abs(max(weights[k] for k in weights.keys()) - 1.0) > 1e-9:
+                problems.append(f"{cell}: blended weights not normalised to 1.0")
         for stat_key in lua_list(profile.secondaryOrder):
             weight = ns.GetDefaultStatWeight(profile, stat_key)
             if not isinstance(weight, (int, float)) or weight <= 0:
