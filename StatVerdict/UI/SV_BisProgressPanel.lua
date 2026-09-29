@@ -152,6 +152,25 @@ local function BuildRecommendedItemLink(entry, specID, withoutGems)
 end
 Panel.BuildRecommendedItemLink = BuildRecommendedItemLink
 
+-- The recommended item alone (item + bonus IDs, no gems or enchant), for the
+-- game's own item tooltip.
+local function BuildPlainRecommendedItemLink(entry, specID)
+    local itemID = GetEntryItemID(entry)
+    if not itemID then return nil end
+    local bonusIDs = GetBonusIDs(entry) or {}
+    local link = ("item:%d::::::::%d:%d::0:%d"):format(
+        itemID,
+        PlayerLinkLevel(),
+        SafeNumber(specID) or 0,
+        #bonusIDs
+    )
+    if #bonusIDs > 0 then
+        link = link .. ":" .. table.concat(bonusIDs, ":")
+    end
+    return link
+end
+Panel.BuildPlainRecommendedItemLink = BuildPlainRecommendedItemLink
+
 local function GetEntryStaticName(entry)
     if type(entry) ~= "table" then return nil end
     local item = entry.item
@@ -619,10 +638,15 @@ local function ScanOwnedItemLevels()
     return equippedCounts, bagCounts, equippedLevels, bagLevels
 end
 
--- Features toggle: the Recommended (gems / enchant) block. Unset counts as on.
-local function RecommendedBlockOn()
+-- Features → Best in Slot toggles. Unset counts as on.
+local function BisOptionOn(key)
     local db = _G and _G.StatVerdictDB
-    return type(db) ~= "table" or db.showBisGemsEnchants ~= false
+    return type(db) ~= "table" or db[key] ~= false
+end
+
+-- The Recommended (gems / enchant) block inside our tooltip.
+local function RecommendedBlockOn()
+    return BisOptionOn("showBisGemsEnchants")
 end
 
 local TOOLTIP_PAD = 10
@@ -890,8 +914,22 @@ end
 local function ShowItemTooltip(row)
     if not row then return end
     if row.recommendedEntry then
-        tooltipRow = row
-        RenderRecommendedTooltip(row, BuildRecommendedTooltipLines(row))
+        if BisOptionOn("showBisTooltip") then
+            tooltipRow = row
+            RenderRecommendedTooltip(row, BuildRecommendedTooltipLines(row))
+            return
+        end
+        -- Our tooltip is off: the game's item tooltip (only when chosen; unset
+        -- counts as off), or nothing at all.
+        if tooltipRow == row then tooltipRow = nil end
+        if recommendedTooltip then recommendedTooltip:Hide() end
+        local db = _G and _G.StatVerdictDB
+        if not (type(db) == "table" and db.bisUseGameTooltip == true) then return end
+        local link = BuildPlainRecommendedItemLink(row.recommendedEntry, row.specID)
+        if not (link and GameTooltip) then return end
+        GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
+        GameTooltip:SetHyperlink(link)
+        GameTooltip:Show()
         return
     end
     -- Ranked Trinkets: the game's item tooltip, as before.

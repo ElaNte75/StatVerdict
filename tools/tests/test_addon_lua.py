@@ -1167,6 +1167,8 @@ local function Stub()
         if key == "SetSize" then return function(self, w, h) rawset(self, "_width", w) rawset(self, "_height", h) end end
         if key == "SetAlpha" then return function(self, value) rawset(self, "_alpha", value) end end
         if key == "EnableMouse" then return function(self, value) rawset(self, "_mouse", value) end end
+        if key == "Enable" then return function(self) rawset(self, "_enabled", true) end end
+        if key == "Disable" then return function(self) rawset(self, "_enabled", false) end end
         if key == "SetPoint" then
             return function(self, ...)
                 local points = rawget(self, "points") or {}
@@ -2021,6 +2023,87 @@ class BisPanelTests(unittest.TestCase):
         card = self.refresh(self.guardian_head(), spec_id=104)
         self.assertIn(("Recommended", None), self.hover(card.rows[1]))
 
+    # --- Features: our tooltip / game tooltip / nothing ------------------------------
+
+    def game_tooltip_calls(self):
+        calls = self.lua.globals().TOOLTIP_CALLS
+        return [tuple(calls[i][j] for j in range(1, len(calls[i]) + 1)) for i in range(1, len(calls) + 1)]
+
+    def our_tooltip_hidden(self):
+        tip = self.panel.GetRecommendedTooltip()
+        return tip is None or not tip._visible
+
+    def rich_entry(self):
+        return self.entry(item_id=1001, bonus_ids=[10, 11], gems=[240983], enchant={"id": 7961})
+
+    def test_plain_link_is_only_the_item_and_its_bonuses(self) -> None:
+        self.assertEqual("item:1001::::::::90:104::0:2:10:11",
+                         self.panel.BuildPlainRecommendedItemLink(self.rich_entry(), 104))
+        self.assertEqual("item:1002::::::::90:0::0:0",
+                         self.panel.BuildPlainRecommendedItemLink(self.lua.table(slot="Neck", item_id=1002), None))
+
+    def use_game_tooltip(self):
+        g = self.lua.globals()
+        g.StatVerdictDB.showBisTooltip = False
+        g.StatVerdictDB.bisUseGameTooltip = True
+
+    def test_game_tooltip_chosen_shows_the_plain_recommended_item(self) -> None:
+        self.use_game_tooltip()
+        row = self.refresh(self.rich_entry(), spec_id=104).rows[1]
+        row.scripts.OnEnter(row)
+        self.assertEqual([
+            ("SetOwner", "ANCHOR_RIGHT"),
+            ("SetHyperlink", "item:1001::::::::90:104::0:2:10:11"),
+            ("Show",),
+        ], self.game_tooltip_calls())
+        self.assertTrue(self.our_tooltip_hidden())
+        row.scripts.OnLeave(row)
+        self.assertEqual(("Hide",), self.game_tooltip_calls()[-1])
+
+    def test_game_tooltip_is_not_replaced_when_item_data_arrives(self) -> None:
+        self.use_game_tooltip()
+        row = self.refresh(self.rich_entry(), spec_id=104).rows[1]
+        row.scripts.OnEnter(row)
+        self.item_events.scripts.OnEvent(self.item_events, "GET_ITEM_INFO_RECEIVED", 1001, True)
+        self.assertTrue(self.our_tooltip_hidden())
+
+    def test_both_off_shows_nothing(self) -> None:
+        for game_value in (None, False):  # unset counts as off
+            self.lua.globals().TOOLTIP_CALLS = self.lua.table()
+            g = self.lua.globals()
+            g.StatVerdictDB.showBisTooltip = False
+            g.StatVerdictDB.bisUseGameTooltip = game_value
+            row = self.refresh(self.rich_entry(), spec_id=104).rows[1]
+            row.scripts.OnEnter(row)
+            self.assertEqual([], self.game_tooltip_calls(), game_value)
+            self.assertTrue(self.our_tooltip_hidden(), game_value)
+
+    def test_our_tooltip_wins_if_both_are_saved_on(self) -> None:
+        self.lua.globals().StatVerdictDB.bisUseGameTooltip = True
+        self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_TOOLTIP)
+        card = self.refresh(self.guardian_head(), spec_id=104)
+        self.assertIn(("Recommended", None), self.hover(card.rows[1]))
+        self.assertEqual([], self.game_tooltip_calls())
+
+    def test_old_gems_choice_still_works_with_our_tooltip_explicitly_on(self) -> None:
+        g = self.lua.globals()
+        g.StatVerdictDB.showBisTooltip = True
+        g.StatVerdictDB.showBisGemsEnchants = False
+        self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_TOOLTIP)
+        card = self.refresh(self.guardian_head(), spec_id=104)
+        self.assertEqual(GUARDIAN_HEAD_KEPT, self.hover(card.rows[1]))
+
+    def test_ranked_trinkets_ignore_the_best_in_slot_options(self) -> None:
+        g = self.lua.globals()
+        g.StatVerdictDB.showBisTooltip = False
+        card = self.refresh_trinkets()
+        card.rows[1].scripts.OnEnter(card.rows[1])
+        self.assertEqual([
+            ("SetOwner", "ANCHOR_RIGHT"),
+            ("SetHyperlink", "item:1003::::::::90::::1:6652"),
+            ("Show",),
+        ], self.game_tooltip_calls())
+
     def test_owned_item_adds_a_dim_line(self) -> None:
         g = self.lua.globals()
         g.GetInventoryItemLink = self.lua.eval(
@@ -2315,7 +2398,14 @@ class BisPanelTests(unittest.TestCase):
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
 class BisTooltipFeatureToggleTests(unittest.TestCase):
-    LABEL = "Best in Slot tooltip"
+    """Features → Best in Slot: our tooltip, its gems/enchants block (a child of
+    it), and the game tooltip fallback. Unset saved values count as on."""
+
+    OPTIONS = [
+        ("showBisTooltip", "Best in Slot tooltip"),
+        ("showBisGemsEnchants", "Gems and enchants"),
+        ("bisUseGameTooltip", "Use the game tooltip instead"),
+    ]
 
     def setUp(self) -> None:
         self.lua = new_runtime()
@@ -2324,45 +2414,116 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
         self.ns.GetRightPanelMode = lambda: "options"
         load_addon_file(self.lua, self.ns, "UI/SV_OptionsDrawerPanel.lua")
         self.frame = self.lua.eval("CreateFrame")()
+        self.lua.globals().StatVerdictDB = self.lua.table()
 
-    def check(self):
+    def check(self, key="showBisGemsEnchants"):
         self.ns.StatVerdictOptionsDrawerPanel.Apply(self.frame)
-        return self.frame.optionsDrawerCard.bagIndicatorChecks["showBisGemsEnchants"]
+        return self.frame.optionsDrawerCard.bagIndicatorChecks[key]
 
-    def test_toggle_is_shown_and_on_by_default(self) -> None:
-        self.lua.globals().StatVerdictDB = self.lua.table()
-        check = self.check()
-        self.assertEqual(self.LABEL, check.Text.text)
-        self.assertTrue(check.checked)
+    def click(self, key, checked):
+        check = self.check(key)
+        check.GetChecked = lambda self: checked
+        check.scripts.OnClick(check)
+        return self.check(key)
+
+    def db(self):
+        return self.lua.globals().StatVerdictDB
+
+    def active(self, check):
+        return check._enabled is not False and check._alpha == 1
+
+    def test_three_options_in_order_under_the_best_in_slot_title(self) -> None:
+        checks = [self.check(key) for key, _ in self.OPTIONS]
+        self.assertEqual([label for _, label in self.OPTIONS], [c.Text.text for c in checks])
         self.assertEqual("Best in Slot", self.frame.optionsDrawerCard.bisTooltipTitle.text)
+        points = [c.points[len(c.points)] for c in checks]
+        xs, ys = [p[4] for p in points], [p[5] for p in points]
+        self.assertEqual([0, -24, -48], ys)  # same step as the Bag Markers rows
+        self.assertGreater(xs[1], xs[0])  # gems and enchants sits under the tooltip option
+        self.assertEqual(xs[0], xs[2])
 
-    def test_toggle_is_on_without_saved_settings(self) -> None:
+    def test_block_fits_all_three_rows(self) -> None:
+        self.check()
+        card = self.frame.optionsDrawerCard
+        self.assertEqual(72, card.bisTooltipChecksBlock._height)
+        self.assertEqual(24 * 2, card.bagChecksBlock._height)
+
+    def states(self):
+        """(checked, active) for options 1, 2, 3."""
+        return [(bool(c.checked), self.active(c)) for c in (self.check(k) for k, _ in self.OPTIONS)]
+
+    def test_defaults_ours_on_gems_on_game_tooltip_off(self) -> None:
+        self.assertEqual([(True, True), (True, True), (False, False)], self.states())
+
+    def test_defaults_without_saved_settings(self) -> None:
         self.lua.globals().StatVerdictDB = None
-        self.assertTrue(self.check().checked)
+        self.assertEqual([(True, True), (True, True), (False, False)], self.states())
 
-    def test_clicking_saves_the_choice(self) -> None:
-        self.lua.globals().StatVerdictDB = self.lua.table()
-        check = self.check()
-        check.GetChecked = lambda self: False
-        check.scripts.OnClick(check)
-        self.assertIs(False, self.lua.globals().StatVerdictDB.showBisGemsEnchants)
-        self.assertFalse(self.check().checked)
-        check.GetChecked = lambda self: True
-        check.scripts.OnClick(check)
-        self.assertIs(True, self.lua.globals().StatVerdictDB.showBisGemsEnchants)
+    def test_our_tooltip_and_gems_save_their_choice(self) -> None:
+        for key in ("showBisGemsEnchants", "showBisTooltip"):
+            self.assertFalse(self.click(key, False).checked, key)
+            self.assertIs(False, self.db()[key], key)
+            self.assertTrue(self.click(key, True).checked, key)
+            self.assertIs(True, self.db()[key], key)
+
+    def test_game_tooltip_saves_its_choice(self) -> None:
+        self.click("showBisTooltip", False)
+        self.assertTrue(self.click("bisUseGameTooltip", True).checked)
+        self.assertIs(True, self.db().bisUseGameTooltip)
+        self.assertFalse(self.click("bisUseGameTooltip", False).checked)
+        self.assertIs(False, self.db().bisUseGameTooltip)
+
+    def test_old_gems_and_enchants_choice_is_kept(self) -> None:
+        self.db().showBisGemsEnchants = False
+        self.assertEqual([(True, True), (False, True), (False, False)], self.states())
+
+    def test_our_tooltip_on_locks_the_game_tooltip(self) -> None:
+        self.assertFalse(self.click("bisUseGameTooltip", True).checked)
+        self.assertIsNone(self.db().bisUseGameTooltip)
+        self.assertLess(self.check("bisUseGameTooltip")._alpha, 1)
+
+    def test_both_off_locks_gems_and_keeps_its_value(self) -> None:
+        self.db().showBisGemsEnchants = False
+        self.click("showBisTooltip", False)
+        self.assertEqual([(False, True), (False, False), (False, True)], self.states())
+        self.assertFalse(self.click("showBisGemsEnchants", True).checked)
+        self.assertIs(False, self.db().showBisGemsEnchants)
+
+    def test_game_tooltip_on_locks_our_tooltip_and_gems(self) -> None:
+        self.click("showBisTooltip", False)
+        self.click("bisUseGameTooltip", True)
+        self.assertEqual([(False, False), (True, False), (True, True)], self.states())
+        self.assertFalse(self.click("showBisTooltip", True).checked)
+        self.assertIs(False, self.db().showBisTooltip)
+        self.assertTrue(self.click("showBisGemsEnchants", False).checked)
+        self.assertIsNone(self.db().showBisGemsEnchants)
+        self.assertLess(self.check("showBisTooltip")._alpha, 1)
+
+    def test_untick_game_tooltip_then_pick_ours_again(self) -> None:
+        self.click("showBisTooltip", False)
+        self.click("bisUseGameTooltip", True)
+        self.click("bisUseGameTooltip", False)
+        self.assertEqual([(False, True), (True, False), (False, True)], self.states())
+        self.click("showBisTooltip", True)
+        self.assertEqual([(True, True), (True, True), (False, False)], self.states())
+
+    def test_both_saved_on_our_tooltip_wins(self) -> None:
+        self.db().bisUseGameTooltip = True
+        self.assertEqual([(True, True), (True, True), (False, False)], self.states())
 
     def test_bag_marker_toggles_are_unchanged(self) -> None:
-        self.lua.globals().StatVerdictDB = self.lua.table()
-        self.check()
+        self.click("showBisTooltip", False)
         card = self.frame.optionsDrawerCard
         self.assertEqual("Upgrade Arrow", card.bagIndicatorChecks["showUpgradeArrow"].Text.text)
         self.assertEqual("|cff00ff00MS|r / |cff00ff00OS|r Labels", card.bagIndicatorChecks["showMsOsLabels"].Text.text)
         self.assertEqual("Bag Markers", card.bagMarkersTitle.text)
+        for key in ("showUpgradeArrow", "showMsOsLabels"):
+            self.assertTrue(self.active(card.bagIndicatorChecks[key]), key)
 
-    def test_manual_mentions_the_toggle(self) -> None:
+    def test_manual_describes_the_three_options(self) -> None:
         source = (ADDON / "UI" / "SV_ManualDrawerPanel.lua").read_text(encoding="utf-8-sig")
-        self.assertIn("(Features → Best in Slot tooltip)", source)
-        self.assertNotIn("gems and enchants)", source)
+        for _, label in self.OPTIONS:
+            self.assertIn(label, source)
 
 
 if __name__ == "__main__":
