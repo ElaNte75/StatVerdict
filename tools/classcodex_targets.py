@@ -13,10 +13,12 @@ from pathlib import Path
 from typing import Any, Callable, NamedTuple
 
 try:
+    from tools.classcodex_build import ENCHANT_LOOKUP_FIELD, collect_real_enchants
     from tools.classcodex_lua_sandbox import run_addon_namespace
     from tools.simc_stat_engine import run_simc, run_simc_with_recovery
     from tools.spec_catalog import SPEC_BY_KEY
 except ModuleNotFoundError:
+    from classcodex_build import ENCHANT_LOOKUP_FIELD, collect_real_enchants
     from classcodex_lua_sandbox import run_addon_namespace
     from simc_stat_engine import run_simc, run_simc_with_recovery
     from spec_catalog import SPEC_BY_KEY
@@ -121,8 +123,16 @@ def select_goal_context(nested: dict[str, Any] | None, hero_talent_key: str, goa
     under hero "all", while talents and aoe/single-target stat priorities
     live only under the specific hero keys. Empty values are treated as
     absent so the chain keeps looking. Returns None if nothing matches."""
+    return select_goal_context_keyed(nested, hero_talent_key, goal)[0]
+
+
+def select_goal_context_keyed(
+    nested: dict[str, Any] | None, hero_talent_key: str, goal: str
+) -> tuple[Any | None, str | None, str | None]:
+    """select_goal_context, also returning the (hero key, context key) the
+    value was found under ((None, None, None) when nothing matched)."""
     if not isinstance(nested, dict):
-        return None
+        return None, None, None
     context_keys = GOAL_CONTEXT_KEYS[goal] + (FALLBACK_CONTEXT_KEY,)
     hero_keys = [hero_talent_key]
     if hero_talent_key != ALL_HERO_TALENTS_KEY:
@@ -134,8 +144,21 @@ def select_goal_context(nested: dict[str, Any] | None, hero_talent_key: str, goa
         for context_key in context_keys:
             value = by_context.get(context_key)
             if value:
-                return value
-    return None
+                return value, hero_key, context_key
+    return None, None, None
+
+
+def field_origin(field: dict[str, Any] | None, hero_talent_key: str, goal: str) -> str | None:
+    """Which source (classcodex_build `origins`, else the field's `source`)
+    the goal/hero-talent value of one build() field came from."""
+    if not isinstance(field, dict):
+        return None
+    _value, hero_key, context_key = select_goal_context_keyed(field.get("value"), hero_talent_key, goal)
+    if hero_key is None:
+        return None
+    origins = field.get("origins")
+    origin = ((origins or {}).get(hero_key) or {}).get(context_key) if isinstance(origins, dict) else None
+    return origin or field.get("source")
 
 
 def gear_by_simc_slot(gear_list: list[dict[str, Any]] | None) -> dict[str, dict[str, Any]]:
@@ -148,6 +171,15 @@ def gear_by_simc_slot(gear_list: list[dict[str, Any]] | None) -> dict[str, dict[
     for entry in gear_list or []:
         if not isinstance(entry, dict):
             continue
+        catalyst = entry.get("catalyst")
+        if isinstance(catalyst, dict) and isinstance(catalyst.get("itemId"), (int, float)):
+            # Icy Veins: {itemId = <drop>, catalyst = {itemId = <tier piece>,
+            # bonusIDs = {...}}} -- the BiS item is the Catalyst result, and
+            # only it carries the bonus ids that put it at max upgrade.
+            entry = {k: v for k, v in entry.items() if k not in ("catalyst", "bonusIDs")}
+            entry["itemId"] = catalyst["itemId"]
+            if isinstance(catalyst.get("bonusIDs"), list):
+                entry["bonusIDs"] = catalyst["bonusIDs"]
         simc_slot = CLASSCODEX_SLOT_TO_SIMC.get(str(entry.get("slot") or ""))
         if simc_slot is None or not isinstance(entry.get("itemId"), (int, float)):
             continue
@@ -165,18 +197,17 @@ def _bonus_ids(entry: dict[str, Any]) -> list[int] | None:
 class LoadoutUpgrades(NamedTuple):
     """The recommended enchants and gems added to a simulated BiS loadout.
 
-    enchants: {SimC slot: {"id": SpellItemEnchantment id (SimC enchant_id),
-    "item_id"?: enchant scroll item id, "spell_id"?: enchant spell id}}.
+    enchants: {SimC slot: {"id"?: SpellItemEnchantment id (SimC enchant_id),
+    "item_id"?: enchant scroll item id, "spell_id"?: enchant spell id}};
+    an enchant without "id" could not be translated (resolve_enchant) and
+    is shown but never simulated.
     gems: gem item ids (SimC gem_id), primary gem first.
 
-    enchant_alts / gem_alt: ONE alternative enchant per enchanted slot (same
-    shape as `enchants`) and one alternative secondary gem, shown next to the
-    recommended ones on the BiS slots. They are never simulated."""
+    Only the single best choice is kept (owner decision 2026-09-29: no
+    alternatives are shown)."""
 
     enchants: dict[str, dict[str, int]]
     gems: list[int]
-    enchant_alts: dict[str, dict[str, int]] = {}
-    gem_alt: int | None = None
 
 
 NO_UPGRADES = LoadoutUpgrades({}, [])
@@ -199,68 +230,94 @@ def _pop(entry: dict[str, Any]) -> float:
     return float(pop) if isinstance(pop, (int, float)) and not isinstance(pop, bool) else 0.0
 
 
-def _scroll_to_enchant(enchants_value: Any) -> dict[int, dict[str, int]]:
-    """u.gg's PvP enchant entries carry only the enchant SCROLL's item id in
-    `id`; the PvE entries carry both the real enchant id and the scroll's
-    itemId. This maps scroll item id -> {id, spell_id} from every entry that
-    has both, so a PvP scroll can be turned into its real enchant."""
-    mapping: dict[int, dict[str, int]] = {}
+class EnchantLookup(NamedTuple):
+    """Translation tables for enchant ids (see
+    tools/classcodex_build.build_enchant_lookup)."""
 
-    def walk(node: Any) -> None:
-        if isinstance(node, dict):
-            item_id = _int_or_none(node.get("itemId"))
-            enchant_id = _int_or_none(node.get("id"))
-            if item_id is not None and enchant_id is not None and item_id != enchant_id:
-                found = {"id": enchant_id}
-                spell_id = _int_or_none(node.get("spellId"))
-                if spell_id is not None:
-                    found["spell_id"] = spell_id
-                mapping.setdefault(item_id, found)
-            for value in node.values():
-                walk(value)
-        elif isinstance(node, list):
-            for value in node:
-                walk(value)
-
-    walk(enchants_value)
-    return mapping
+    by_item: dict[int, dict[str, int]]
+    by_spell: dict[int, dict[str, int]]
+    recipe_spell_by_item: dict[int, int]
 
 
-def select_loadout_upgrades(enchants_value: Any, gems_value: Any, hero_talent_key: str, goal: str) -> LoadoutUpgrades:
-    """u.gg's most popular enchant per slot and most popular gem set for one
-    goal/hero talent (goal context, then "all"; hero talent, then hero
-    "all" -- see select_goal_context). Unknown slots and entries without a
-    numeric id are skipped."""
+def _enchant_lookup(enchants_value: Any, lookup_value: Any) -> EnchantLookup:
+    """The build's shared lookup (lookup_value, may be None) plus every real
+    enchant entry found in enchants_value itself."""
+    lookup = lookup_value if isinstance(lookup_value, dict) else {}
+    by_item = dict(lookup.get("byItem") or {})
+    by_spell = dict(lookup.get("bySpell") or {})
+    collect_real_enchants(enchants_value, by_item, by_spell)
+    return EnchantLookup(by_item, by_spell, dict(lookup.get("recipeSpellByItem") or {}))
+
+
+def resolve_enchant(entry: dict[str, Any], lookup: EnchantLookup) -> dict[str, int] | None:
+    """One ClassCodex enchant entry as {"id"?, "item_id"?, "spell_id"?}.
+
+    `id` is present ONLY when it is a real SpellItemEnchantment id (SimC
+    enchant_id); an entry that cannot be translated keeps just the scroll
+    item id / spell id it carried, so it can still be shown by name but is
+    never simulated. Shapes:
+      - {id, itemId?, spellId?} with id differing from itemId/spellId
+        (u.gg PvE): already real.
+      - {id, spellId} with id == spellId (Icy Veins' weapon runes): a spell
+        id, translated through lookup.by_spell.
+      - bare {id} (Icy Veins, u.gg PvP): an enchant SCROLL item id,
+        translated through lookup.by_item, else the db_gamedata recipe's
+        spell id and lookup.by_spell.
+    Returns None for an entry with no usable number at all."""
+    raw_id = _int_or_none(entry.get("id"))
+    item_id = _int_or_none(entry.get("itemId"))
+    spell_id = _int_or_none(entry.get("spellId"))
+    if raw_id is not None and (
+        (item_id is not None and item_id != raw_id) or (spell_id is not None and spell_id != raw_id)
+    ):
+        enchant = {"id": raw_id}
+        if item_id is not None:
+            enchant["item_id"] = item_id
+        if spell_id is not None:
+            enchant["spell_id"] = spell_id
+        return enchant
+    if spell_id is not None:
+        real = lookup.by_spell.get(spell_id)
+        return dict(real) if real is not None else {"spell_id": spell_id}
+    scroll_id = item_id if item_id is not None else raw_id
+    if scroll_id is None:
+        return None
+    real = lookup.by_item.get(scroll_id)
+    if real is not None:
+        return {**real, "item_id": scroll_id}
+    recipe_spell = lookup.recipe_spell_by_item.get(scroll_id)
+    if recipe_spell is None:
+        return {"item_id": scroll_id}
+    real = lookup.by_spell.get(recipe_spell)
+    if real is not None:
+        return {**real, "item_id": scroll_id, "spell_id": recipe_spell}
+    return {"item_id": scroll_id, "spell_id": recipe_spell}
+
+
+def select_loadout_upgrades(
+    enchants_value: Any, gems_value: Any, hero_talent_key: str, goal: str, enchant_lookup: Any = None
+) -> LoadoutUpgrades:
+    """The single best enchant per slot and gem set for one goal/hero talent
+    (goal context, then "all"; hero talent, then hero "all" -- see
+    select_goal_context): Icy Veins' lists hold one entry, u.gg's (PvP)
+    are ranked by pop. Every enchant goes through resolve_enchant (with
+    `enchant_lookup`, the build's enchantLookup value); one without a real
+    `id` is kept for display only (build_simc_items skips it). Unknown slots
+    are skipped."""
     enchants: dict[str, dict[str, int]] = {}
-    enchant_alts: dict[str, dict[str, int]] = {}
-    scroll_map = _scroll_to_enchant(enchants_value)
+    lookup = _enchant_lookup(enchants_value, enchant_lookup)
     by_slot = select_goal_context(enchants_value, hero_talent_key, goal)
     if isinstance(by_slot, dict):
         for slot_name, entries in by_slot.items():
             simc_slot = CLASSCODEX_SLOT_TO_SIMC.get(str(slot_name))
-            candidates = [
-                e for e in (entries if isinstance(entries, list) else [])
-                if isinstance(e, dict) and _int_or_none(e.get("id")) is not None
-            ]
+            candidates = [e for e in (entries if isinstance(entries, list) else []) if isinstance(e, dict)]
             if simc_slot is None or not candidates:
                 continue
-            best = max(candidates, key=_pop)
-            enchant = _shape_enchant(best, scroll_map, goal)
-            if enchant is None:
-                continue
-            enchants[simc_slot] = enchant
-            # The alternative: the next most popular enchant with another
-            # (real) id; untranslatable PvP scrolls are skipped.
-            for entry in sorted(candidates, key=_pop, reverse=True):
-                if entry is best:
-                    continue
-                alt = _shape_enchant(entry, scroll_map, goal)
-                if alt is not None and alt["id"] != enchant["id"]:
-                    enchant_alts[simc_slot] = alt
-                    break
+            enchant = resolve_enchant(max(candidates, key=_pop), lookup)
+            if enchant:
+                enchants[simc_slot] = enchant
 
     gems: list[int] = []
-    gem_alt: int | None = None
     gem_sets = select_goal_context(gems_value, hero_talent_key, goal)
     candidates = [e for e in (gem_sets if isinstance(gem_sets, list) else []) if isinstance(e, dict)]
     if candidates:
@@ -268,18 +325,8 @@ def select_loadout_upgrades(enchants_value: Any, gems_value: Any, hero_talent_ke
         primary = _int_or_none(best.get("primary"))
         if primary is not None:
             gems.append(primary)
-        chosen_secondary = _secondary_gems(best)
-        gems.extend(chosen_secondary)
-        # The alternative: the first secondary gem of the next most popular
-        # set whose first secondary differs from the chosen set's.
-        for entry in sorted(candidates, key=_pop, reverse=True):
-            if entry is best:
-                continue
-            secondary = _secondary_gems(entry)
-            if secondary and secondary[0] not in chosen_secondary:
-                gem_alt = secondary[0]
-                break
-    return LoadoutUpgrades(enchants, gems, enchant_alts, gem_alt)
+        gems.extend(_secondary_gems(best))
+    return LoadoutUpgrades(enchants, gems)
 
 
 def _secondary_gems(gem_set: dict[str, Any]) -> list[int]:
@@ -288,32 +335,15 @@ def _secondary_gems(gem_set: dict[str, Any]) -> list[int]:
     return [gem_id for gem_id in ids if gem_id is not None]
 
 
-def _shape_enchant(entry: dict[str, Any], scroll_map: dict[int, dict[str, int]], goal: str) -> dict[str, int] | None:
-    """One u.gg enchant entry as {"id", "item_id"?, "spell_id"?}, or None
-    when it cannot be used."""
-    enchant = {"id": _int_or_none(entry["id"])}
-    for source_key, out_key in (("itemId", "item_id"), ("spellId", "spell_id")):
-        value = _int_or_none(entry.get(source_key))
-        if value is not None:
-            enchant[out_key] = value
-    if "item_id" not in enchant and "spell_id" not in enchant:
-        # In PvP lists a bare id is a scroll item id: translate it to
-        # the real enchant, or drop the enchant rather than ship a
-        # scroll id where an enchant id belongs (PvE bare ids are
-        # real enchant ids and stay as they are).
-        real = scroll_map.get(enchant["id"])
-        if real is not None:
-            enchant = {"item_id": enchant["id"], **real}
-        elif goal == "PVP":
-            return None
-    return enchant
-
-
 def loadout_upgrades_for(fields: dict[str, Any], hero_talent_key: str, goal: str) -> LoadoutUpgrades:
     """select_loadout_upgrades on one spec's build() fields (shared by the
     targets and weights pipelines so both simulate the same gear)."""
     return select_loadout_upgrades(
-        (fields.get("enchants") or {}).get("value"), (fields.get("gems") or {}).get("value"), hero_talent_key, goal
+        (fields.get("enchants") or {}).get("value"),
+        (fields.get("gems") or {}).get("value"),
+        hero_talent_key,
+        goal,
+        (fields.get(ENCHANT_LOOKUP_FIELD) or {}).get("value"),
     )
 
 
@@ -340,7 +370,8 @@ def build_simc_items(
         if upgrades.gems and simc_slot not in GEMLESS_SIMC_SLOTS:
             item["gemIds"] = list(upgrades.gems)
         enchant = upgrades.enchants.get(simc_slot)
-        if enchant:
+        if enchant and enchant.get("id") is not None:
+            # Never a scroll/spell id: untranslated enchants are display-only.
             item["enchantIds"] = [enchant["id"]]
         items[simc_slot] = item
     return items
@@ -357,6 +388,28 @@ def average_item_level(gear_list: list[dict[str, Any]] | None) -> float | None:
     if not levels:
         return None
     return sum(levels) / len(levels)
+
+
+def loadout_item_level(
+    loadout: list[dict[str, Any]], reconstructed: dict[str, Any] | None
+) -> tuple[float | None, int, str]:
+    """(averageItemLevel, itemLevelSlots, source) for one simulated loadout.
+
+    u.gg gear carries an `ilvl` per entry: those are averaged (source
+    "classcodex"). Icy Veins gear carries none (its bonusIDs put each item
+    at its max upgrade inside SimC), so the item levels SimC reports for
+    the items it really equipped are averaged instead (source "simc",
+    simc_stat_engine.parse_gear_item_levels). Neither -> (None, 0, "none");
+    nothing is invented. itemLevelSlots always counts the averaged items."""
+    average = average_item_level(loadout)
+    if average is not None:
+        slots = sum(1 for entry in loadout if isinstance(entry.get("ilvl"), (int, float)))
+        return average, slots, "classcodex"
+    levels = (reconstructed or {}).get("item_levels")
+    values = [float(v) for v in (levels or {}).values() if isinstance(v, (int, float)) and not isinstance(v, bool)]
+    if values:
+        return sum(values) / len(values), len(values), "simc"
+    return None, 0, "none"
 
 
 def select_talent_export(talents_value: dict[str, Any] | None, hero_talent_key: str, context_key: str) -> str | None:
@@ -670,6 +723,7 @@ def reconstruct_target_context(
         raise ComboSkipped("no talent export for this goal")
 
     source = SIMC_TARGET_SOURCE
+    reconstructed: dict[str, Any] | None = None
     try:
         stats_by_actor, _report, recovery, actor_name = run_with_talent_fallback(
             # Paper-doll run: only the stat sheet is read, so skip the
@@ -723,23 +777,25 @@ def reconstruct_target_context(
         if bonus_ids is not None:
             item["bonus_ids"] = bonus_ids
         simulated = items[simc_slot]
-        # The alternatives (never simulated) only sit next to a recommended
-        # gem/enchant that really was simulated.
         if gems_applied and simulated.get("gemIds"):
             item["gem_ids"] = list(simulated["gemIds"])
             gem_count += 1
-            if upgrades.gem_alt is not None:
-                item["gem_alt_id"] = upgrades.gem_alt
+        enchant = upgrade_enchants.get(simc_slot)
         if enchants_applied and simulated.get("enchantIds"):
-            item["enchant"] = dict(upgrade_enchants[simc_slot])
+            item["enchant"] = dict(enchant)
             enchant_count += 1
-            if simc_slot in upgrades.enchant_alts:
-                item["enchant_alt"] = dict(upgrades.enchant_alts[simc_slot])
+        elif enchant and enchant.get("id") is None:
+            # Untranslated guide enchant: shown by its scroll item / spell
+            # id only, never simulated.
+            item["enchant"] = dict(enchant)
         bis_slots.append({"slot": entry["slot"], "item": item})
-    # averageItemLevel only averages entries that carry an ilvl, so
-    # itemLevelSlots counts exactly those (0 for real PvP gear, which has none).
-    item_level_slots = sum(1 for entry in loadout if isinstance(entry.get("ilvl"), (int, float)))
+    # `reconstructed` is None when SimC itself failed (Wowhead fallback);
+    # when SimC ran but its stats were unusable, its item levels still are.
+    average_ilvl, item_level_slots, item_level_source = loadout_item_level(loadout, reconstructed)
     target_metadata: dict[str, Any] = {
+        # "classcodex" (the gear list's ilvl), "simc" (SimC's report of the
+        # simulated items) or "none" (neither was available).
+        "itemLevelSource": item_level_source,
         "lowItemReplacements": 0,
         "unresolvedLowItems": 0,
         # Items that carried the recommended gems / slots that carried an
@@ -754,7 +810,7 @@ def reconstruct_target_context(
 
     return {
         "targets": {
-            "averageItemLevel": average_item_level(loadout),
+            "averageItemLevel": average_ilvl,
             "itemCount": len(items),
             "itemLevelSlots": item_level_slots,
             "statTargets": {"context": goal, "source": source, "stats": stats},
@@ -840,6 +896,54 @@ def format_rating_sanity(data: dict[str, Any]) -> str:
         lines.append(f"  median ratio {median:.2f} over {len(ratios)} context(s)")
     else:
         lines.append("  no context has u.gg targets to compare")
+    return "\n".join(lines)
+
+
+def format_coverage_report(data: dict[str, Any]) -> str:
+    """CI-log coverage check of a build_all document, per goal: contexts by
+    gear source (targetMetadata.gearSource), trinket-list lengths, BiS-slot
+    enchants (total / with a real enchant id / untranslated, shown only),
+    contexts with gems, and averageItemLevel present vs None (with where
+    the item level came from)."""
+    per_goal: dict[str, dict[str, Counter]] = {}
+    for profile in (data.get("profiles") or {}).values():
+        for goal, goal_data in ((profile or {}).get("goals") or {}).items():
+            stats = per_goal.setdefault(
+                goal,
+                {key: Counter() for key in ("gear", "trinkets", "enchants", "gems", "ilvl", "ilvl_source")},
+            )
+            for context in ((goal_data or {}).get("heroTalents") or {}).values():
+                targets = (context or {}).get("targets") or {}
+                metadata = targets.get("targetMetadata") or {}
+                stats["gear"][metadata.get("gearSource") or "unknown"] += 1
+                stats["trinkets"][len((context or {}).get("trinkets") or [])] += 1
+                for slot in ((context or {}).get("bis") or {}).get("slots") or []:
+                    enchant = (slot.get("item") or {}).get("enchant") if isinstance(slot, dict) else None
+                    if isinstance(enchant, dict):
+                        stats["enchants"]["total"] += 1
+                        stats["enchants"]["translated" if enchant.get("id") is not None else "untranslated"] += 1
+                stats["gems"]["with gems" if metadata.get("gemCount") else "without gems"] += 1
+                stats["ilvl"]["present" if targets.get("averageItemLevel") is not None else "None"] += 1
+                stats["ilvl_source"][metadata.get("itemLevelSource") or "unknown"] += 1
+
+    def fmt(counter: Counter) -> str:
+        return ", ".join(f"{key}: {count}" for key, count in sorted(counter.items(), key=lambda kv: str(kv[0])))
+
+    lines = ["Coverage report (per goal):"]
+    if not per_goal:
+        lines.append("  no contexts")
+    for goal in sorted(per_goal):
+        stats = per_goal[goal]
+        lines.append(f"  {goal}:")
+        lines.append(f"    contexts by gear source: {fmt(stats['gear'])}")
+        lines.append(f"    trinket count distribution (length: contexts): {fmt(stats['trinkets'])}")
+        enchants = stats["enchants"]
+        lines.append(
+            f"    enchants on BiS slots: total {enchants['total']}, translated {enchants['translated']}, "
+            f"untranslated (shown, not simulated) {enchants['untranslated']}"
+        )
+        lines.append(f"    gems: {fmt(stats['gems'])}")
+        lines.append(f"    averageItemLevel: {fmt(stats['ilvl'])} (source {fmt(stats['ilvl_source'])})")
     return "\n".join(lines)
 
 
@@ -983,6 +1087,9 @@ def build_all(
                 except ComboSkipped as skip:
                     skipped.append(SkipRecord(catalog_key, goal, hero_talent_key, skip.reason))
                     continue
+                gear_source = field_origin(fields.get("gear"), hero_talent_key, goal)
+                if gear_source:
+                    target_context["targets"]["targetMetadata"]["gearSource"] = gear_source
                 # u.gg's own targets, independent of how the SimC run went.
                 guide_targets = guide_targets_for(stat_targets_value, hero_talent_key, goal)
                 if guide_targets:

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 import unittest
 from pathlib import Path
 
 from tools.spec_catalog import SPEC_BY_KEY
 from tools.simc_stat_engine import (
+    parse_gear_item_levels,
     parse_report,
     render_item,
     render_player,
@@ -126,6 +128,20 @@ class SimulationCraftStatEngineTests(unittest.TestCase):
         self.assertEqual(602, parsed["ratings"]["haste"])
         self.assertEqual(0.34, parsed["percentages"]["mastery"])
         self.assertEqual(1500000, parsed["health"])
+        self.assertEqual({}, parsed["item_levels"])  # no "gear" block in this report
+
+    def test_parse_json2_gear_item_levels(self) -> None:
+        # Fixture keys follow SimC's report_json.cpp gear_to_json (branch
+        # `midnight`): players[].gear.<slot_type_string>.ilevel.
+        fixture = Path(__file__).parent / "fixtures" / "simc_gear_report.json"
+        report = json.loads(fixture.read_text(encoding="utf-8"))
+        parsed = parse_report(report)["sv_0001"]
+        self.assertEqual({"head": 289.0, "neck": 289.0, "wrists": 285.0, "main_hand": 292.0}, parsed["item_levels"])
+        self.assertEqual(602, parsed["ratings"]["haste"])
+
+    def test_gear_slots_without_a_usable_ilevel_are_ignored(self) -> None:
+        actor = {"gear": {"head": {"ilevel": 0}, "neck": {"name": "x"}, "back": "bad", "feet": {"ilevel": 280}}}
+        self.assertEqual({"feet": 280.0}, parse_gear_item_levels(actor))
 
 
 class StatSheetOnlyTests(unittest.TestCase):

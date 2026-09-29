@@ -5,19 +5,24 @@ Deliberately excludes `tierRank` (u.gg's spec popularity/parse-rank
 numbers): a different concern (spec viability) from what this pipeline was
 asked to build (stat priority, best-in-slot gear, ranked trinkets, PvP).
 
-`statTargets` (u.gg's per-hero/context top20/top50/top80 stat ratings),
-`gems` and `enchants` are taken from u.gg ONLY (UGG_ONLY_FIELDS): Icy Veins'
-versions have different shapes (its enchant `id` is an item id, not a SimC
-enchant id), so they are never used as a fallback.
-
 Both sources share the same shape once you reach a spec: a dict keyed by
 hero talent (or "all" when the field doesn't vary by hero talent), then by
-content context ("all"/"single-target"/"aoe"/"pvp"/...). u.gg's version is
-consistently the more granular of the two (hero-talent-specific where
-IcyVeins only has "all"), so it is preferred whenever it has data for a
-given spec/field; IcyVeins fills in anything u.gg is missing. Every merged
-value records which source it actually came from, so a future audit does
-not have to re-derive this.
+content context ("all"/"mplus"/"raid"/"single-target"/"aoe"/"pvp"/...).
+
+Owner rule (2026-09-29): everything PvE (Mythic+, Raid) follows the Icy
+Veins guide; PvP follows u.gg. GUIDE_FIELDS are merged per hero tree by
+_merge_guide_field: Icy Veins' contexts are kept, u.gg's `pvp` context
+replaces Icy Veins' one, and u.gg fills hero trees (or whole specs) Icy
+Veins has no PvE data for. `statTargets` (u.gg's top20/top50/top80 stat
+ratings) comes from u.gg ONLY (UGG_ONLY_FIELDS).
+
+Every merged value records its base source (`source`) and, per hero tree
+and context, which source each piece came from (`origins`), so a future
+audit does not have to re-derive this.
+
+Icy Veins' enchant ids are enchant SCROLL item ids, not SimC enchant ids;
+`enchantLookup` (built from every u.gg enchant entry plus ClassCodex's
+db_gamedata recipes) lets tools/classcodex_targets.py translate them.
 """
 from __future__ import annotations
 
@@ -53,11 +58,19 @@ CLASS_FOLDERS = (
 EXTRACTED_FIELDS = ("statPriority", "trinkets", "gear", "talents", "statTargets", "gems", "enchants")
 
 # Fields read from u.gg alone (see module docstring): if u.gg lacks one, it is
-# omitted rather than filled from Icy Veins' differently shaped data.
-UGG_ONLY_FIELDS = frozenset({"statTargets", "gems", "enchants"})
+# omitted (Icy Veins has no such field).
+UGG_ONLY_FIELDS = frozenset({"statTargets"})
+
+# Fields merged by the PvE-from-Icy-Veins / PvP-from-u.gg rule.
+GUIDE_FIELDS = frozenset({"statPriority", "trinkets", "gear", "talents", "gems", "enchants"})
 
 SOURCE_PRIORITY = ("ugg", "icyveins")
 ALL_HERO_KEY = "all"
+PVP_CONTEXT_KEY = "pvp"
+
+# Extra per-spec field (not a ClassCodex field): the enchant translation
+# tables, see build_enchant_lookup.
+ENCHANT_LOOKUP_FIELD = "enchantLookup"
 
 
 @dataclass
@@ -101,43 +114,169 @@ def _merge_field(per_source: dict[str, Any]) -> tuple[Any, str] | None:
     return None
 
 
-def _merge_stat_priority(per_source: dict[str, Any]) -> tuple[Any, str] | None:
+def _has_pve_content(contexts: Any) -> bool:
+    """True when a hero tree's {context: value} dict holds any non-empty
+    context other than "pvp"."""
+    return isinstance(contexts, dict) and any(
+        value for key, value in contexts.items() if key != PVP_CONTEXT_KEY
+    )
+
+
+def _merge_guide_field(per_source: dict[str, Any]) -> tuple[Any, str, dict[str, dict[str, str]]] | None:
     """Owner rule: everything PvE (Mythic+, Raid) follows the Icy Veins guide;
-    everything PvP follows u.gg. Per hero tree: Icy Veins' lists are kept as-is
-    for PvE; u.gg's PvP list replaces any Icy Veins PvP list (Icy Veins' is
-    only used when u.gg has none); hero trees Icy Veins does not cover fall
-    back to u.gg's full entry. u.gg's single-target/aoe lists are
-    dropped whenever Icy Veins covers the hero tree, so they cannot outrank
-    the guide."""
+    everything PvP follows u.gg. Returns (merged value, base source,
+    origins) where origins is {hero: {context: "icyveins"|"ugg"}}.
+
+    Per hero tree, in the same {hero: {context: payload}} shape the
+    consumers read (tools/classcodex_targets.select_goal_context):
+      - Icy Veins' contexts are kept as-is. Its hero "all" entry applies to
+        every hero tree through select_goal_context's hero fallback.
+      - u.gg's "pvp" context replaces Icy Veins' one (Icy Veins' is used
+        only when u.gg has none).
+      - When Icy Veins covers a hero tree for PvE (a non-pvp context under
+        that hero or under hero "all"), u.gg's PvE contexts (mplus, raid,
+        single-target, aoe, ...) are dropped: they would otherwise come
+        first in select_goal_context's fallback chains and outrank the
+        guide.
+      - A hero tree Icy Veins has no PvE data for gets u.gg's contexts.
+    A spec/field Icy Veins lacks entirely is u.gg's value as-is."""
     icy = per_source.get("icyveins")
     ugg = per_source.get("ugg")
     if not (isinstance(icy, dict) and icy):
-        return _merge_field(per_source)
-    merged: dict[str, Any] = {}
+        return _with_flat_origins(_merge_field(per_source))
+    merged: dict[str, dict[str, Any]] = {}
+    origins: dict[str, dict[str, str]] = {}
     for hero_key, contexts in icy.items():
         if isinstance(contexts, dict) and contexts:
             merged[hero_key] = dict(contexts)
-    spec_wide = icy.get(ALL_HERO_KEY) if isinstance(icy.get(ALL_HERO_KEY), dict) else {}
+            origins[hero_key] = {context: "icyveins" for context in contexts}
+    spec_wide_pve = _has_pve_content(icy.get(ALL_HERO_KEY))
 
     if isinstance(ugg, dict):
         for hero_key, contexts in ugg.items():
             if not isinstance(contexts, dict):
                 continue
-            if hero_key in merged or spec_wide:
-                # Icy Veins covers this hero tree (by name or through its
-                # spec-wide list): u.gg contributes only its PvP list.
-                if contexts.get("pvp"):
-                    merged.setdefault(hero_key, {})["pvp"] = contexts["pvp"]
-            else:
-                merged[hero_key] = dict(contexts)
+            icy_covers = spec_wide_pve or _has_pve_content(icy.get(hero_key))
+            for context, value in contexts.items():
+                if context != PVP_CONTEXT_KEY and icy_covers:
+                    continue
+                if not value:
+                    continue
+                merged.setdefault(hero_key, {})[context] = value
+                origins.setdefault(hero_key, {})[context] = "ugg"
     if not merged:
-        return _merge_field(per_source)
-    return merged, "icyveins"
+        return _with_flat_origins(_merge_field(per_source))
+    return merged, "icyveins", origins
+
+
+def _with_flat_origins(merged: tuple[Any, str] | None) -> tuple[Any, str, dict[str, dict[str, str]]] | None:
+    """A single-source value: every hero/context came from that source."""
+    if merged is None:
+        return None
+    value, source = merged
+    origins: dict[str, dict[str, str]] = {}
+    if isinstance(value, dict):
+        for hero_key, contexts in value.items():
+            if isinstance(contexts, dict):
+                origins[hero_key] = {context: source for context in contexts}
+    return value, source, origins
+
+
+def _int_key(value: Any) -> int | None:
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return int(value)
+    return None
+
+
+# db_gamedata tables of the shape {[enchant spell id] = scroll item id}, in
+# priority order. Real data (build 20260929064954-6702fd4-878715d1):
+# `enchants` holds the current enchant scrolls Icy Veins names (e.g.
+# [1236076] = 243990, while u.gg lists spell 1236076 with the other-quality
+# scroll 243991); `recipes` holds older/other crafted items.
+GAME_DATA_SPELL_TO_ITEM_TABLES = ("enchants", "recipes")
+
+
+def build_enchant_lookup(ugg_root: dict | None, game_data: dict | None) -> dict[str, dict[int, Any]]:
+    """Translation tables for enchant ids, from every u.gg enchant entry
+    that carries the real enchant id (PvE entries: {id=<enchant id>,
+    itemId=<scroll item id>, spellId=<enchant spell id>}, weapon runes:
+    {id, spellId}) and from ClassCodex's db_gamedata `enchants` and
+    `recipes` tables ({[spellId] = scroll itemId}):
+      byItem:  scroll item id -> {"id", "spell_id"?, "item_id"}
+      bySpell: enchant spell id -> {"id", "spell_id", "item_id"?}
+      recipeSpellByItem: scroll item id -> enchant spell id (both tables
+      inverted, `enchants` first)
+    Enchants are shared across specs, so the tables span every spec."""
+    by_item: dict[int, dict[str, int]] = {}
+    by_spell: dict[int, dict[str, int]] = {}
+    if isinstance(ugg_root, dict):
+        for class_data in ugg_root.values():
+            if not isinstance(class_data, dict):
+                continue
+            for spec_data in class_data.values():
+                if isinstance(spec_data, dict):
+                    collect_real_enchants(spec_data.get("enchants"), by_item, by_spell)
+
+    recipe_spell_by_item: dict[int, int] = {}
+    for table_name in GAME_DATA_SPELL_TO_ITEM_TABLES:
+        table = game_data.get(table_name) if isinstance(game_data, dict) else None
+        if not isinstance(table, dict):
+            continue
+        for spell_id, item_id in table.items():
+            spell_key, item_key = _int_key(spell_id), _int_key(item_id)
+            if spell_key is not None and item_key is not None:
+                recipe_spell_by_item.setdefault(item_key, spell_key)
+    return {"byItem": by_item, "bySpell": by_spell, "recipeSpellByItem": recipe_spell_by_item}
+
+
+def collect_real_enchants(
+    enchants_value: Any, by_item: dict[int, dict[str, int]], by_spell: dict[int, dict[str, int]]
+) -> None:
+    """Adds every enchant entry of `enchants_value` (any nesting) whose `id`
+    is a real enchant id -- it differs from the entry's itemId or spellId --
+    to by_item (keyed by scroll item id) and by_spell (keyed by spell id).
+    The first entry seen for a key wins."""
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            enchant_id = _int_key(node.get("id"))
+            item_id = _int_key(node.get("itemId"))
+            spell_id = _int_key(node.get("spellId"))
+            is_real = enchant_id is not None and (
+                (item_id is not None and item_id != enchant_id) or (spell_id is not None and spell_id != enchant_id)
+            )
+            if is_real:
+                found = {"id": enchant_id}
+                if spell_id is not None:
+                    found["spell_id"] = spell_id
+                if item_id is not None:
+                    found["item_id"] = item_id
+                    by_item.setdefault(item_id, found)
+                if spell_id is not None:
+                    by_spell.setdefault(spell_id, found)
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(enchants_value)
+
+
+def _load_game_data(sources: dict[str, str]) -> dict | None:
+    raw = sources.get("db_gamedata")
+    if raw is None:
+        return None
+    parsed = run_plain_global(raw, "db_gamedata.lua", "ClassCodexGameData")
+    return parsed if isinstance(parsed, dict) else None
 
 
 def build(fetch_sources: dict[str, str]) -> dict[str, dict]:
-    """Returns {spec_key: {field: {"value": ..., "source": "ugg"|"icyveins"}}}
-    for every class/spec found in either source. spec_key is "<CLASS>_<spec>"
+    """Returns {spec_key: {field: {"value": ..., "source": "ugg"|"icyveins",
+    "origins": {hero: {context: source}}}}} for every class/spec found in
+    either source, plus the shared ENCHANT_LOOKUP_FIELD
+    ({"value": build_enchant_lookup(...), "source": "ugg+gamedata"}) on every
+    spec. spec_key is "<CLASS>_<spec>"
     using the spec token exactly as the upstream data uses it (lowercase,
     hyphenated where the source hyphenates it -- StatVerdict's own spec-key
     mapping happens on the addon side, not here)."""
@@ -145,6 +284,7 @@ def build(fetch_sources: dict[str, str]) -> dict[str, dict]:
         "ugg": _load_source_root(fetch_sources, "db_ugg", "ugg"),
         "icyveins": _load_source_root(fetch_sources, "db_icyveins", "icyveins"),
     }
+    enchant_lookup = build_enchant_lookup(roots["ugg"], _load_game_data(fetch_sources))
 
     specs: dict[str, dict] = {}
     for class_folder in CLASS_FOLDERS:
@@ -164,15 +304,16 @@ def build(fetch_sources: dict[str, str]) -> dict[str, dict]:
                     spec_data = class_data.get(spec_token) if isinstance(class_data, dict) else None
                     per_source[source_name] = spec_data.get(field_name) if isinstance(spec_data, dict) else None
                 if field_name in UGG_ONLY_FIELDS:
-                    merged = _merge_field({"ugg": per_source.get("ugg")})
-                elif field_name == "statPriority":
-                    merged = _merge_stat_priority(per_source)
+                    merged = _with_flat_origins(_merge_field({"ugg": per_source.get("ugg")}))
+                elif field_name in GUIDE_FIELDS:
+                    merged = _merge_guide_field(per_source)
                 else:
-                    merged = _merge_field(per_source)
+                    merged = _with_flat_origins(_merge_field(per_source))
                 if merged is not None:
-                    value, source_name = merged
-                    spec_out[field_name] = {"value": value, "source": source_name}
+                    value, source_name, origins = merged
+                    spec_out[field_name] = {"value": value, "source": source_name, "origins": origins}
             if spec_out:
+                spec_out[ENCHANT_LOOKUP_FIELD] = {"value": enchant_lookup, "source": "ugg+gamedata"}
                 specs[spec_key] = spec_out
 
     return specs

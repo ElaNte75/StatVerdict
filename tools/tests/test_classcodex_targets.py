@@ -10,6 +10,7 @@ from pathlib import Path
 from tools.classcodex_targets import (
     GOAL_CONTEXT_KEY,
     ComboSkipped,
+    LoadoutUpgrades,
     reconstruct_target_context,
     talent_export_from_entries,
     talent_exports_from_entries,
@@ -502,7 +503,7 @@ ENCHANTS = {
     "all": {
         "all": {
             "Head": [{"id": 7991, "pop": 36.8}, {"id": 8017, "itemId": 243981, "spellId": 1236001, "pop": 46.7}],
-            "Main Hand": [{"id": 3368, "pop": 63.2}],
+            "Main Hand": [{"id": 3368, "spellId": 53344, "pop": 63.2}],
             "Relic": [{"id": 1, "pop": 99}],
         },
         "pvp": {"Head": [{"id": 243981, "pop": 33.3}]},
@@ -531,7 +532,7 @@ class LoadoutUpgradeTests(unittest.TestCase):
         self.assertEqual(
             {
                 "HEAD": {"id": 8017, "item_id": 243981, "spell_id": 1236001},
-                "MAIN_HAND": {"id": 3368},
+                "MAIN_HAND": {"id": 3368, "spell_id": 53344},
             },
             upgrades.enchants,
         )
@@ -585,20 +586,17 @@ class TargetUpgradeTests(unittest.TestCase):
                         "item_id": 1,
                         "bonus_ids": [7],
                         "gem_ids": [240983, 240908, 240910],
-                        "gem_alt_id": 240892,
                         "enchant": {"id": 8017, "item_id": 243981, "spell_id": 1236001},
-                        "enchant_alt": {"id": 7991},
                     },
                 },
-                {"slot": "Neck", "item": {"item_id": 2, "gem_ids": [240983, 240908, 240910], "gem_alt_id": 240892}},
+                {"slot": "Neck", "item": {"item_id": 2, "gem_ids": [240983, 240908, 240910]}},
                 {"slot": "Trinket 1", "item": {"item_id": 3}},
                 {
                     "slot": "Main Hand",
                     "item": {
                         "item_id": 4,
                         "gem_ids": [240983, 240908, 240910],
-                        "gem_alt_id": 240892,
-                        "enchant": {"id": 3368},
+                        "enchant": {"id": 3368, "spell_id": 53344},
                     },
                 },
             ],
@@ -770,109 +768,195 @@ class PvpEnchantScrollTests(unittest.TestCase):
         head = upgrades.enchants["HEAD"]
         self.assertEqual({"id": 7961, "item_id": 243981, "spell_id": 1236100}, head)
 
-    def test_an_unknown_bare_scroll_id_is_dropped_not_guessed(self) -> None:
-        from tools.classcodex_targets import select_loadout_upgrades
-
+    def test_an_unknown_bare_scroll_id_is_kept_for_display_but_never_simulated(self) -> None:
         upgrades = select_loadout_upgrades(self.ENCHANTS, None, "hero", "PVP")
-        self.assertNotIn("CHEST", upgrades.enchants)
+        self.assertEqual({"item_id": 999999}, upgrades.enchants["CHEST"])
+        items = build_simc_items([{"itemId": 5, "slot": "Chest"}], upgrades)
+        self.assertNotIn("enchantIds", items["CHEST"])
 
 
-class LoadoutAlternativeTests(unittest.TestCase):
-    """One alternative gem and enchant per slot, shown next to the
-    recommended ones; never simulated."""
-
-    def test_gem_alt_is_the_next_set_with_a_different_secondary(self) -> None:
-        gems = {
-            "all": {
-                "all": [
-                    {"primary": 1, "pop": 30, "secondary": [240908, 240910]},
-                    {"primary": 2, "pop": 20, "secondary": [240910]},  # same secondary as chosen
-                    {"primary": 1, "pop": 10, "secondary": [240892, 240908]},
-                    {"primary": 1, "pop": 5, "secondary": [240999]},
-                ]
-            }
+# Real shapes (2026-09-29): Icy Veins' enchant ids are scroll item ids, its
+# weapon runes are {id = spellId, spellId}; u.gg's PvE entries carry the real
+# enchant id, the scroll's itemId and the spellId.
+ICY_ENCHANTS = {
+    "all": {
+        "all": {
+            "Head": [{"id": 244007}],
+            "Shoulders": [{"id": 243962}],
+            "Chest": [{"id": 777777}],
+            "Main Hand": [{"id": 53344, "spellId": 53344}],
+            "Off Hand": [{"id": 62158, "spellId": 62158}],
         }
-        upgrades = select_loadout_upgrades(None, gems, "all", "RAID")
-        self.assertEqual([1, 240908, 240910], upgrades.gems)
-        self.assertEqual(240892, upgrades.gem_alt)
+    }
+}
+LOOKUP = {
+    "byItem": {244007: {"id": 8017, "item_id": 244007, "spell_id": 1236084}},
+    "bySpell": {
+        1236084: {"id": 8017, "item_id": 244007, "spell_id": 1236084},
+        1236062: {"id": 7973, "item_id": 243963, "spell_id": 1236062},
+        53344: {"id": 3368, "spell_id": 53344},
+    },
+    # db_gamedata recipes inverted: scroll item -> enchant spell.
+    "recipeSpellByItem": {244007: 1236084, 243962: 1236062},
+}
 
-    def test_no_gem_alt_when_every_set_uses_the_same_secondaries(self) -> None:
-        gems = {"all": {"all": [{"pop": 30, "secondary": [240908]}, {"pop": 10, "secondary": [240908]}]}}
-        self.assertIsNone(select_loadout_upgrades(None, gems, "all", "RAID").gem_alt)
-        one = {"all": {"all": [{"pop": 30, "secondary": [240908]}]}}
-        self.assertIsNone(select_loadout_upgrades(None, one, "all", "RAID").gem_alt)
 
-    def test_enchant_alt_is_the_second_most_popular_different_enchant(self) -> None:
-        upgrades = select_loadout_upgrades(ENCHANTS, GEMS, "all", "RAID")
-        # Chosen Head enchant is 8017; 7991 is the runner-up. Main Hand has one entry only.
-        self.assertEqual({"HEAD": {"id": 7991}}, upgrades.enchant_alts)
+class CoverageReportTests(unittest.TestCase):
+    def test_build_all_records_the_gear_source_and_the_report_counts_it(self) -> None:
+        from tools.classcodex_targets import format_coverage_report
 
-    def test_enchant_alt_skips_entries_with_the_chosen_id(self) -> None:
-        enchants = {"all": {"all": {"Head": [{"id": 5, "pop": 50}, {"id": 5, "pop": 40}, {"id": 6, "pop": 30}]}}}
-        self.assertEqual({"HEAD": {"id": 6}}, select_loadout_upgrades(enchants, None, "all", "RAID").enchant_alts)
-
-    def test_pvp_enchant_alt_is_translated_or_dropped(self) -> None:
-        enchants = {
-            "all": {
-                "all": {
-                    "Head": [
-                        {"id": 7961, "itemId": 243981, "spellId": 1236100, "pop": 50},
-                        {"id": 7962, "itemId": 243982, "spellId": 1236200, "pop": 40},
-                    ]
+        specs = {
+            "DEATHKNIGHT_frost": {
+                "gear": {
+                    "value": {
+                        "all": {"raid": [{"itemId": 1, "slot": "Head", "bonusIDs": [13848]}]},
+                        "deathbringer": {"pvp": [{"itemId": 2, "slot": "Head"}]},
+                    },
+                    "source": "icyveins",
+                    "origins": {"all": {"raid": "icyveins"}, "deathbringer": {"pvp": "ugg"}},
                 },
-                "pvp": {
-                    "Head": [{"id": 243981, "pop": 60}, {"id": 243982, "pop": 30}],
-                    "Chest": [{"id": 243981, "pop": 60}, {"id": 999999, "pop": 30}],
-                },
+                "talents": {"value": {"deathbringer": {"raid": [{"export": "X"}], "pvp": [{"export": "P"}]}}},
+                "trinkets": {"value": {"all": {"all": [{"itemId": 9, "tier": "S"}, {"itemId": 8, "tier": "A"}]}}},
+                "enchants": {"value": ICY_ENCHANTS, "source": "icyveins"},
+                "enchantLookup": {"value": LOOKUP},
+                "gems": {"value": {"all": {"all": [{"primary": 1, "secondary": [2]}]}}},
             }
         }
-        upgrades = select_loadout_upgrades(enchants, None, "hero", "PVP")
-        self.assertEqual({"id": 7962, "item_id": 243982, "spell_id": 1236200}, upgrades.enchant_alts["HEAD"])
-        self.assertNotIn("CHEST", upgrades.enchant_alts)
-
-    def test_alternatives_are_shown_on_bis_slots_but_never_simulated(self) -> None:
-        gems = {
-            "all": {
-                "all": [
-                    {"primary": 240983, "pop": 12.6, "secondary": [240908, 240910]},
-                    {"primary": 240983, "pop": 9.5, "secondary": [240892]},
-                ]
-            }
-        }
-        upgrades = select_loadout_upgrades(ENCHANTS, gems, "all", "RAID")
-        items = build_simc_items(UPGRADE_GEAR, upgrades)
-        for item in items.values():
-            self.assertNotIn(240892, item.get("gemIds", []))
-            self.assertNotIn(7991, item.get("enchantIds", []))
-        with patch("tools.classcodex_targets.run_simc", return_value=GOOD) as mock_run, \
+        reconstructed = {"ratings": {"crit": 1.0, "haste": 2.0}, "item_levels": {"head": 289.0}}
+        with patch("tools.classcodex_targets.run_simc", return_value=({"sv_0001": reconstructed}, {})), \
                 redirect_stderr(io.StringIO()):
-            context = reconstruct_target_context(
-                SPEC_BY_KEY["DEATHKNIGHT_FROST"], "RAID", UPGRADE_GEAR, "X", upgrades=upgrades
-            )
-        profile = mock_run.call_args.args[1]
-        self.assertNotIn("240892", profile)
-        self.assertNotIn("7991", profile)
-        slots = {slot["slot"]: slot["item"] for slot in context["bis"]["slots"]}
-        self.assertEqual(
-            {
-                "item_id": 1,
-                "bonus_ids": [7],
-                "gem_ids": [240983, 240908, 240910],
-                "gem_alt_id": 240892,
-                "enchant": {"id": 8017, "item_id": 243981, "spell_id": 1236001},
-                "enchant_alt": {"id": 7991},
-            },
-            slots["Head"],
-        )
-        self.assertEqual({"item_id": 2, "gem_ids": [240983, 240908, 240910], "gem_alt_id": 240892}, slots["Neck"])
-        self.assertEqual({"item_id": 3}, slots["Trinket 1"])
-        self.assertNotIn("enchant_alt", slots["Main Hand"])
+            data = build_all(specs, Path("simc"), goals=("RAID", "PVP"))
+        goals = data["profiles"]["DEATHKNIGHT_FROST"]["goals"]
+        raid = goals["RAID"]["heroTalents"]["deathbringer"]["targets"]["targetMetadata"]
+        pvp = goals["PVP"]["heroTalents"]["deathbringer"]["targets"]["targetMetadata"]
+        self.assertEqual("icyveins", raid["gearSource"])
+        self.assertEqual("ugg", pvp["gearSource"])
 
-    def test_alternatives_are_hidden_when_the_recommended_ones_were_dropped(self) -> None:
-        gems = {"all": {"all": [{"pop": 12, "secondary": [1]}, {"pop": 9, "secondary": [2]}]}}
-        upgrades = select_loadout_upgrades(ENCHANTS, gems, "all", "RAID")
-        errors = [RuntimeError("invalid gem_id"), RuntimeError("unknown enchant_id"), GOOD]
-        with patch("tools.classcodex_targets.run_simc", side_effect=errors), redirect_stderr(io.StringIO()):
+        report = format_coverage_report(data)
+        self.assertIn("  RAID:", report)
+        self.assertIn("contexts by gear source: icyveins: 1", report)
+        self.assertIn("contexts by gear source: ugg: 1", report)
+        self.assertIn("trinket count distribution (length: contexts): 2: 1", report)
+        # Only the Head slot exists: its Icy Veins scroll translates.
+        self.assertIn("enchants on BiS slots: total 1, translated 1, untranslated (shown, not simulated) 0", report)
+        self.assertIn("gems: with gems: 1", report)
+        self.assertIn("averageItemLevel: present: 1 (source simc: 1)", report)
+
+    def test_empty_document(self) -> None:
+        from tools.classcodex_targets import format_coverage_report
+
+        self.assertIn("no contexts", format_coverage_report({"profiles": {}}))
+
+
+class IcyVeinsItemLevelTests(unittest.TestCase):
+    """Icy Veins gear has bonusIDs but no ilvl: averageItemLevel comes from
+    the item levels SimC reports for the simulated items."""
+
+    spec = SPEC_BY_KEY["DEATHKNIGHT_FROST"]
+    gear = [
+        {"itemId": 1, "slot": "Head", "bonusIDs": [13848]},
+        {"itemId": 2, "slot": "Neck", "bonusIDs": [13848]},
+    ]
+
+    def simulate(self, reconstructed, gear=None):
+        with patch(
+            "tools.classcodex_targets.run_simc", return_value=({"sv_0001": reconstructed}, {})
+        ) as mock_run, redirect_stderr(io.StringIO()):
+            context = reconstruct_target_context(self.spec, "RAID", gear or self.gear, "X")
+        return context, mock_run.call_args.args[1]
+
+    def test_average_item_level_comes_from_the_simc_report(self) -> None:
+        context, _ = self.simulate({"ratings": {"crit": 1.0, "haste": 2.0}, "item_levels": {"head": 289.0, "neck": 285.0}})
+        targets = context["targets"]
+        self.assertEqual(287.0, targets["averageItemLevel"])
+        self.assertEqual(2, targets["itemLevelSlots"])
+        self.assertEqual("simc", targets["targetMetadata"]["itemLevelSource"])
+
+    def test_without_report_item_levels_the_average_stays_none(self) -> None:
+        context, _ = self.simulate({"ratings": {"crit": 1.0, "haste": 2.0}})
+        self.assertIsNone(context["targets"]["averageItemLevel"])
+        self.assertEqual(0, context["targets"]["itemLevelSlots"])
+        self.assertEqual("none", context["targets"]["targetMetadata"]["itemLevelSource"])
+
+    def test_gear_ilvl_still_wins_when_present(self) -> None:
+        gear = [{"itemId": 1, "slot": "Head", "ilvl": 300}]
+        context, _ = self.simulate({"ratings": {"crit": 1.0, "haste": 2.0}, "item_levels": {"head": 250.0}}, gear)
+        self.assertEqual(300.0, context["targets"]["averageItemLevel"])
+        self.assertEqual("classcodex", context["targets"]["targetMetadata"]["itemLevelSource"])
+
+    def test_a_catalyst_entry_simulates_and_shows_the_catalyst_item(self) -> None:
+        gear = [
+            {
+                "slot": "Head",
+                "source": "Catalyst from Ula'tek",
+                "itemId": 271537,
+                "catalyst": {"itemId": 271875, "bonusIDs": [13848, 13847]},
+            }
+        ]
+        context, profile = self.simulate({"ratings": {"crit": 1.0, "haste": 2.0}}, gear)
+        self.assertIn("head=,id=271875,bonus_id=13848/13847", profile)
+        self.assertEqual({"item_id": 271875, "bonus_ids": [13848, 13847]}, context["bis"]["slots"][0]["item"])
+
+
+class IcyVeinsEnchantTranslationTests(unittest.TestCase):
+    def test_scroll_ids_and_rune_spells_become_real_enchants(self) -> None:
+        upgrades = select_loadout_upgrades(ICY_ENCHANTS, None, "deathbringer", "RAID", LOOKUP)
+        self.assertEqual({"id": 8017, "item_id": 244007, "spell_id": 1236084}, upgrades.enchants["HEAD"])
+        # Not a u.gg itemId, but the recipe names its spell, which u.gg knows.
+        self.assertEqual({"id": 7973, "item_id": 243962, "spell_id": 1236062}, upgrades.enchants["SHOULDER"])
+        self.assertEqual({"id": 3368, "spell_id": 53344}, upgrades.enchants["MAIN_HAND"])
+
+    def test_untranslatable_enchants_keep_only_their_item_or_spell_id(self) -> None:
+        upgrades = select_loadout_upgrades(ICY_ENCHANTS, None, "deathbringer", "RAID", LOOKUP)
+        self.assertEqual({"item_id": 777777}, upgrades.enchants["CHEST"])
+        self.assertEqual({"spell_id": 62158}, upgrades.enchants["OFF_HAND"])
+        gear = [
+            {"itemId": 1, "slot": "Chest", "bonusIDs": [13848]},
+            {"itemId": 2, "slot": "Off Hand", "bonusIDs": [13848]},
+            {"itemId": 3, "slot": "Head", "bonusIDs": [13848]},
+        ]
+        items = build_simc_items(gear, upgrades)
+        self.assertNotIn("enchantIds", items["CHEST"])
+        self.assertNotIn("enchantIds", items["OFF_HAND"])
+        self.assertEqual([8017], items["HEAD"]["enchantIds"])
+        with patch("tools.classcodex_targets.run_simc", return_value=GOOD) as mock_run, redirect_stderr(io.StringIO()):
+            context = reconstruct_target_context(SPEC_BY_KEY["DEATHKNIGHT_FROST"], "RAID", gear, "X", upgrades=upgrades)
+        profile = mock_run.call_args.args[1]
+        self.assertNotIn("777777", profile)
+        self.assertNotIn("62158", profile)
+        slots = {slot["slot"]: slot["item"] for slot in context["bis"]["slots"]}
+        self.assertEqual({"item_id": 777777}, slots["Chest"]["enchant"])
+        self.assertEqual({"spell_id": 62158}, slots["Off Hand"]["enchant"])
+        self.assertEqual(8017, slots["Head"]["enchant"]["id"])
+        self.assertEqual(1, context["targets"]["targetMetadata"]["enchantCount"])
+
+    def test_icy_veins_single_gem_set_primary_first(self) -> None:
+        gems = {"all": {"all": [{"primary": 240967, "secondary": [240908, 240898]}]}}
+        self.assertEqual([240967, 240908, 240898], select_loadout_upgrades(None, gems, "hero", "RAID").gems)
+
+    def test_build_all_passes_the_builds_enchant_lookup(self) -> None:
+        specs = {
+            "DEATHKNIGHT_frost": {
+                "gear": {"value": {"all": {"raid": [{"itemId": 1, "slot": "Head", "ilvl": 300}]}}},
+                "talents": {"value": {"deathbringer": {"raid": [{"export": "X"}]}}},
+                "enchants": {"value": ICY_ENCHANTS, "source": "icyveins"},
+                "enchantLookup": {"value": LOOKUP, "source": "ugg+gamedata"},
+            }
+        }
+        with patch("tools.classcodex_targets.run_simc", return_value=GOOD) as mock_run:
+            build_all(specs, Path("simc"), goals=("RAID",))
+        self.assertIn("enchant_id=8017", mock_run.call_args.args[1])
+
+
+class NoAlternativesTests(unittest.TestCase):
+    """Owner decision 2026-09-29: only the single best gem/enchant is kept."""
+
+    def test_upgrades_carry_only_the_best_choice(self) -> None:
+        self.assertEqual(("enchants", "gems"), LoadoutUpgrades._fields)
+
+    def test_bis_slots_never_carry_alternatives(self) -> None:
+        upgrades = select_loadout_upgrades(ENCHANTS, GEMS, "all", "RAID")
+        with patch("tools.classcodex_targets.run_simc", return_value=GOOD), redirect_stderr(io.StringIO()):
             context = reconstruct_target_context(
                 SPEC_BY_KEY["DEATHKNIGHT_FROST"], "RAID", UPGRADE_GEAR, "X", upgrades=upgrades
             )

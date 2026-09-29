@@ -215,7 +215,7 @@ class BuildAllWeightsTests(unittest.TestCase):
             "DEATHKNIGHT_frost": {
                 "gear": {"value": {"all": {"raid": [{"itemId": 1, "slot": "Head", "ilvl": 330}]}}},
                 "talents": {"value": {"all": {"raid": [{"export": "R"}]}}},
-                "enchants": {"value": {"all": {"all": {"Head": [{"id": 8017, "pop": 46.7}]}}}},
+                "enchants": {"value": {"all": {"all": {"Head": [{"id": 8017, "itemId": 244007, "spellId": 1236084, "pop": 46.7}]}}}},
                 "gems": {"value": {"all": {"all": [{"primary": 240983, "pop": 12.6, "secondary": [240908]}]}}},
             }
         }

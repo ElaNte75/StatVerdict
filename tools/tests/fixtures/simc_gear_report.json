@@ -1,0 +1,23 @@
+{
+  "version": "midnight",
+  "sim": {
+    "players": [
+      {
+        "name": "sv_0001",
+        "collected_data": {
+          "buffed_stats": {
+            "attribute": {"strength": 4200, "stamina": 22000},
+            "resources": {"health": 1500000},
+            "stats": {"crit_rating": 501, "haste_rating": 602, "mastery_rating": 703, "versatility_rating": 804}
+          }
+        },
+        "gear": {
+          "head": {"name": "tier_helm", "encoded_item": "tier_helm,id=271875,bonus_id=13848/13847", "ilevel": 289, "stamina": 3200, "crit_rating": 410},
+          "neck": {"name": "raid_neck", "encoded_item": "raid_neck,id=268265,bonus_id=13848/13987/10835", "ilevel": 289, "stamina": 1800, "haste_rating": 700},
+          "wrists": {"name": "crafted_bracers", "encoded_item": "crafted_bracers,id=244576,bonus_id=13751/12497", "ilevel": 285, "stamina": 1500, "mastery_rating": 300},
+          "main_hand": {"name": "raid_axe", "encoded_item": "raid_axe,id=268300,bonus_id=13848", "ilevel": 292, "stamina": 2600, "strength": 1200}
+        }
+      }
+    ]
+  }
+}
