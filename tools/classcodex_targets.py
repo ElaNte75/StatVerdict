@@ -193,12 +193,40 @@ def _pop(entry: dict[str, Any]) -> float:
     return float(pop) if isinstance(pop, (int, float)) and not isinstance(pop, bool) else 0.0
 
 
+def _scroll_to_enchant(enchants_value: Any) -> dict[int, dict[str, int]]:
+    """u.gg's PvP enchant entries carry only the enchant SCROLL's item id in
+    `id`; the PvE entries carry both the real enchant id and the scroll's
+    itemId. This maps scroll item id -> {id, spell_id} from every entry that
+    has both, so a PvP scroll can be turned into its real enchant."""
+    mapping: dict[int, dict[str, int]] = {}
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            item_id = _int_or_none(node.get("itemId"))
+            enchant_id = _int_or_none(node.get("id"))
+            if item_id is not None and enchant_id is not None and item_id != enchant_id:
+                found = {"id": enchant_id}
+                spell_id = _int_or_none(node.get("spellId"))
+                if spell_id is not None:
+                    found["spell_id"] = spell_id
+                mapping.setdefault(item_id, found)
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(enchants_value)
+    return mapping
+
+
 def select_loadout_upgrades(enchants_value: Any, gems_value: Any, hero_talent_key: str, goal: str) -> LoadoutUpgrades:
     """u.gg's most popular enchant per slot and most popular gem set for one
     goal/hero talent (goal context, then "all"; hero talent, then hero
     "all" -- see select_goal_context). Unknown slots and entries without a
     numeric id are skipped."""
     enchants: dict[str, dict[str, int]] = {}
+    scroll_map = _scroll_to_enchant(enchants_value)
     by_slot = select_goal_context(enchants_value, hero_talent_key, goal)
     if isinstance(by_slot, dict):
         for slot_name, entries in by_slot.items():
@@ -215,6 +243,16 @@ def select_loadout_upgrades(enchants_value: Any, gems_value: Any, hero_talent_ke
                 value = _int_or_none(best.get(source_key))
                 if value is not None:
                     enchant[out_key] = value
+            if "item_id" not in enchant and "spell_id" not in enchant:
+                # In PvP lists a bare id is a scroll item id: translate it to
+                # the real enchant, or drop the enchant rather than ship a
+                # scroll id where an enchant id belongs (PvE bare ids are
+                # real enchant ids and stay as they are).
+                real = scroll_map.get(enchant["id"])
+                if real is not None:
+                    enchant = {"item_id": enchant["id"], **real}
+                elif goal == "PVP":
+                    continue
             enchants[simc_slot] = enchant
 
     gems: list[int] = []

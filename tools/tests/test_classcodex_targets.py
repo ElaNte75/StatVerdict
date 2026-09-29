@@ -540,7 +540,8 @@ class LoadoutUpgradeTests(unittest.TestCase):
 
     def test_the_goal_context_wins_over_all(self) -> None:
         upgrades = select_loadout_upgrades(ENCHANTS, GEMS, "deathbringer", "PVP")
-        self.assertEqual({"HEAD": {"id": 243981}}, upgrades.enchants)
+        # The PvP list's bare id is a scroll item id with no known real enchant here: dropped, not guessed.
+        self.assertEqual({}, upgrades.enchants)
         self.assertEqual([240900], upgrades.gems)
 
     def test_missing_data_gives_no_upgrades(self) -> None:
@@ -738,6 +739,31 @@ class BuildAllTests(unittest.TestCase):
         specs = {"NOTASPEC_madeup": {"gear": {"value": {}, "source": "ugg"}}}
         data = build_all(specs, Path("simc"))
         self.assertEqual({}, data["profiles"])
+
+
+class PvpEnchantScrollTests(unittest.TestCase):
+    ENCHANTS = {
+        "all": {
+            "all": {"Head": [{"id": 7961, "itemId": 243981, "spellId": 1236100, "pop": 50}]},
+            "pvp": {
+                "Head": [{"id": 243981, "pop": 60}],
+                "Chest": [{"id": 999999, "pop": 60}],
+            },
+        }
+    }
+
+    def test_a_bare_pvp_scroll_id_becomes_the_real_enchant(self) -> None:
+        from tools.classcodex_targets import select_loadout_upgrades
+
+        upgrades = select_loadout_upgrades(self.ENCHANTS, None, "hero", "PVP")
+        head = upgrades.enchants["HEAD"]
+        self.assertEqual({"id": 7961, "item_id": 243981, "spell_id": 1236100}, head)
+
+    def test_an_unknown_bare_scroll_id_is_dropped_not_guessed(self) -> None:
+        from tools.classcodex_targets import select_loadout_upgrades
+
+        upgrades = select_loadout_upgrades(self.ENCHANTS, None, "hero", "PVP")
+        self.assertNotIn("CHEST", upgrades.enchants)
 
 
 if __name__ == "__main__":
