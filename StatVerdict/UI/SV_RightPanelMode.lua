@@ -109,7 +109,7 @@ local function ResolveActiveView()
     return view
 end
 
--- The Best in Slot panel reads "Popular Gear" for Mythic+ (see ns.GetReferenceWording).
+-- The Best in Slot panel wording comes from ns.GetReferenceWording.
 local function PanelTitles(panelKind)
     if panelKind == "bis" and ns.GetReferenceWording then
         local wording = ns.GetReferenceWording()
@@ -406,7 +406,7 @@ function ns.SyncMsOsViewTabs(parent)
             if GameTooltip then
                 GameTooltip:SetOwner(self, "ANCHOR_TOP")
                 GameTooltip:SetText("Spec view", TAB_YELLOW[1], TAB_YELLOW[2], TAB_YELLOW[3])
-                GameTooltip:AddLine("Click to switch Main Spec / Off Spec for Popular Gear / Best in Slot and Ranked Trinkets.", 0.85, 0.85, 0.85, true)
+                GameTooltip:AddLine("Click to switch Main Spec / Off Spec for Best in Slot and Ranked Trinkets.", 0.85, 0.85, 0.85, true)
                 GameTooltip:Show()
             end
         end)

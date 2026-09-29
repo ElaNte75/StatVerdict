@@ -50,13 +50,11 @@ function ns.SetBenchmarkLevel(key)
     return true
 end
 
--- The Benchmark level only matters while the Main Spec build or a configured Off Spec
--- build uses the Mythic+ goal. The button and the drawer are locked otherwise.
+-- The Benchmark levels (top 25/100/200 players) were built from Raider.IO, which is
+-- gone: Mythic+ now uses the same curated ClassCodex data as Raid and PvP, so there is
+-- nothing left to choose. The button and the drawer stay in the addon but are locked.
 function ns.IsBenchmarkRelevant()
-    local selection = ns.GetSavedStatAuditSelection and ns.GetSavedStatAuditSelection() or nil
-    if type(selection) ~= "table" then return true end
-    if selection.goalMode == "MYTHIC_PLUS" then return true end
-    return selection.secondaryEnabled == true and selection.secondaryGoalMode == "MYTHIC_PLUS"
+    return false
 end
 
 -- True when a benchmark's numbers should carry a "less stable" warning: the sample is
@@ -68,23 +66,8 @@ function ns.IsBenchmarkSampleSmall(bench)
     return tostring(bench.confidence) ~= "high" or sample < (2 * minimum)
 end
 
--- Mythic+ lists are "most popular among top players", not curated Best in Slot,
--- so they are labelled honestly. Raid/PvP keep the curated BiS wording.
+-- Every goal (Mythic+, Raid, PvP) reads the same curated Best in Slot lists.
 function ns.GetReferenceWording(goal)
-    goal = goal or (ns.GetStatAuditGoalMode and ns.GetStatAuditGoalMode()) or "MYTHIC_PLUS"
-    if goal == "MYTHIC_PLUS" then
-        local level = ns.GetBenchmarkLevelInfo(ns.GetBenchmarkLevel())
-        return {
-            popular = true,
-            button = "Popular Gear",
-            base = "Popular Gear",
-            main = "Main Spec Popular Gear",
-            off = "Off Spec Popular Gear",
-            progress = "Popular Progress",
-            progressSuffix = " · " .. level.label,
-            tag = "Popular",
-        }
-    end
     return {
         popular = false,
         button = "Best in Slot",

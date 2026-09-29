@@ -124,6 +124,38 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
                     self.assertEqual(hero, ns.ProfileRepository.ResolveHeroKey(
                         spec_key, goal, "Nom traduit", subtree_id), f"{spec_key} {goal} {subtree_id}")
 
+    def test_bis_items_and_ranked_trinkets_get_their_score_bonus_in_every_cell(self) -> None:
+        """The user-visible promise: a best-in-slot item or a tiered trinket beats an
+        otherwise equal item because the reference bonus is added to its score.
+        Checked against every real cell (spec x goal x hero tree), through the same
+        entry point the scoring uses (ns.GetItemReferenceInfo)."""
+        ns, lua = self.ns, self.lua
+        targets = ns.ClassCodexTargets.profiles
+        tier_floor = {"S": 95, "A": 65, "B": 35, "C": 14, "D": 0}
+        problems: list[str] = []
+        checked_bis = checked_trinkets = 0
+        for spec in SPECS:
+            for goal in GOALS:
+                heroes = targets[spec.key].goals[goal].heroTalents
+                for hero in heroes.keys():
+                    profile = lua.table(specKey=spec.key, goal=goal, heroKey=hero)
+                    context = heroes[hero]
+                    for entry in lua_list(context.bis.slots):
+                        info = ns.GetItemReferenceInfo(f"item:{int(entry.item.item_id)}", profile)
+                        checked_bis += 1
+                        if info is None or info.bis is None or info.bonus < 8:
+                            problems.append(f"{spec.key} {goal} {hero}: BiS {entry.slot} item {entry.item.item_id} has no bonus")
+                    for entry in lua_list(context.trinkets):
+                        info = ns.GetItemReferenceInfo(f"item:{int(entry.item_id)}", profile)
+                        checked_trinkets += 1
+                        floor = tier_floor[str(entry.tier).upper()]
+                        if info is None or info.trinket is None or info.bonus < floor:
+                            problems.append(f"{spec.key} {goal} {hero}: trinket {entry.item_id} tier {entry.tier} bonus too low")
+        self.assertGreater(checked_bis, 2000)
+        self.assertGreater(checked_trinkets, 500)
+        if problems:
+            self.fail("\n  ".join(problems[:20] + [f"({len(problems)} problems)"]))
+
     def test_missing_hero_tree_name_uses_the_first_sorted_hero_key(self) -> None:
         ns, lua = self.ns, self.lua
         targets = ns.ClassCodexTargets.profiles

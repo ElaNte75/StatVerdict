@@ -107,22 +107,14 @@ class BenchmarkCoreTests(unittest.TestCase):
         self.assertEqual(["Elite", "Standard", "Broad"], [levels[i].label for i in (1, 2, 3)])
         self.assertEqual("Gear of the top 25 players", levels[1].meaning)
 
-    def test_benchmark_is_relevant_only_when_a_build_uses_mythic_plus(self) -> None:
-        cases = [
-            ("MYTHIC_PLUS", None, False, True),
-            ("RAID", None, False, False),
-            ("PVP", None, False, False),
-            ("RAID", "MYTHIC_PLUS", True, True),
-            ("RAID", "MYTHIC_PLUS", False, False),  # an Off Spec goal without a configured Off Spec does not count
-            ("PVP", "RAID", True, False),
-        ]
-        for main, off, enabled, expected in cases:
+    def test_benchmark_is_locked_for_every_goal(self) -> None:
+        # The Benchmark levels were Raider.IO cohorts; nothing is left to choose,
+        # so the button and drawer stay in the addon but are always locked.
+        for main, off, enabled in (("MYTHIC_PLUS", None, False), ("RAID", "MYTHIC_PLUS", True), ("PVP", None, False)):
             selection = self.lua.table(goalMode=main, secondaryGoalMode=off, secondaryEnabled=enabled)
             self.ns.GetSavedStatAuditSelection = lambda selection=selection: selection
-            self.assertEqual(expected, self.ns.IsBenchmarkRelevant(), (main, off, enabled))
-
-    def test_benchmark_is_relevant_when_selection_is_unavailable(self) -> None:
-        self.assertTrue(self.ns.IsBenchmarkRelevant())
+            self.assertFalse(self.ns.IsBenchmarkRelevant(), (main, off, enabled))
+        self.assertFalse(self.ns.IsBenchmarkRelevant())
 
     def test_small_sample_warning(self) -> None:
         small = self.lua.table(sampleSize=25, minimumSample=25, confidence="high")
@@ -133,22 +125,16 @@ class BenchmarkCoreTests(unittest.TestCase):
         self.assertTrue(self.ns.IsBenchmarkSampleSmall(unsure))
         self.assertTrue(self.ns.IsBenchmarkSampleSmall(None))
 
-    def test_wording_is_popular_for_mythic_plus_and_bis_otherwise(self) -> None:
-        mplus = self.ns.GetReferenceWording("MYTHIC_PLUS")
-        self.assertEqual("Popular Gear", mplus.button)
-        self.assertEqual("Main Spec Popular Gear", mplus.main)
-        self.assertEqual("Popular Progress", mplus.progress)
-        self.assertEqual(" · Standard", mplus.progressSuffix)
-        self.assertEqual("Popular", mplus.tag)
-        raid = self.ns.GetReferenceWording("RAID")
-        self.assertEqual("Best in Slot", raid.button)
-        self.assertEqual("BiS Progress", raid.progress)
-        self.assertEqual("", raid.progressSuffix)
-        self.assertEqual("BIS", raid.tag)
+    def test_wording_is_best_in_slot_for_every_goal(self) -> None:
+        for goal in ("MYTHIC_PLUS", "RAID", "PVP"):
+            wording = self.ns.GetReferenceWording(goal)
+            self.assertEqual("Best in Slot", wording.button, goal)
+            self.assertEqual("Main Spec Best in Slot", wording.main, goal)
+            self.assertEqual("Off Spec Best in Slot", wording.off, goal)
+            self.assertEqual("BiS Progress", wording.progress, goal)
+            self.assertEqual("BIS", wording.tag, goal)
+            self.assertFalse(wording.popular, goal)
 
-
-@unittest.skipIf(LuaRuntime is None, "lupa not installed")
-class RepositoryTests(unittest.TestCase):
     def build_runtime(self, build_id: str | None = None, targets: dict | None = None, weights: dict | None = None):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
@@ -707,24 +693,16 @@ class PanelModeTests(unittest.TestCase):
         selection = self.lua.table(goalMode=goal)
         self.ns.GetSavedStatAuditSelection = lambda: selection
 
-    def test_benchmark_drawer_closes_itself_when_mythic_plus_is_no_longer_selected(self) -> None:
+    def test_benchmark_cannot_be_opened_and_other_panels_stay(self) -> None:
         self.use_goal("MYTHIC_PLUS")
-        self.ns.SetRightPanelMode("benchmark")
-        self.assertEqual("benchmark", self.ns.GetRightPanelMode())
-        self.use_goal("RAID")
-        self.assertIsNone(self.ns.GetRightPanelMode())
-        self.use_goal("MYTHIC_PLUS")
-        self.assertIsNone(self.ns.GetRightPanelMode())  # it stays closed until the player opens it again
-
-    def test_benchmark_cannot_be_opened_without_mythic_plus_and_other_panels_stay(self) -> None:
-        self.use_goal("RAID")
         self.ns.SetRightPanelMode("manual")
         self.ns.SetRightPanelMode("benchmark")
         self.assertEqual("manual", self.ns.GetRightPanelMode())
         self.ns.ToggleRightPanelMode("benchmark")
         self.assertEqual("manual", self.ns.GetRightPanelMode())
 
-    def test_benchmark_is_a_valid_mode_and_summary_is_not(self) -> None:
+    def test_benchmark_is_a_valid_mode_when_unlocked_and_summary_is_not(self) -> None:
+        self.ns.IsBenchmarkRelevant = lambda: True  # the dormant drawer code still works if it is ever re-enabled
         self.ns.SetRightPanelMode("benchmark")
         self.assertEqual("benchmark", self.ns.GetRightPanelMode())
         self.ns.SetRightPanelMode("summary")
@@ -794,6 +772,7 @@ class BenchmarkDrawerSmokeTests(unittest.TestCase):
         self.frame = self.lua.eval("CreateFrame")()
         self.ns.GetStatAuditGoalMode = lambda: "MYTHIC_PLUS"
         self.ns.GetSavedStatAuditSelection = lambda: self.lua.table(goalMode="MYTHIC_PLUS")
+        self.ns.IsBenchmarkRelevant = lambda: True  # the drawer is locked in the shipped addon; test its dormant code
         self.available = True
         self.levels = {
             "ELITE": dict(sampleSize=25, minimumSample=25, confidence="high"),
