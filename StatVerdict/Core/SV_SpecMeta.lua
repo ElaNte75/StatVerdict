@@ -3,7 +3,7 @@ ns = ns or {}
 
 local SPEC_KEY_BY_SPEC_ID = {
     [250] = "DEATHKNIGHT_BLOOD", [251] = "DEATHKNIGHT_FROST", [252] = "DEATHKNIGHT_UNHOLY",
-    [577] = "DEMONHUNTER_HAVOC", [581] = "DEMONHUNTER_VENGEANCE",
+    [577] = "DEMONHUNTER_HAVOC", [581] = "DEMONHUNTER_VENGEANCE", [1480] = "DEMONHUNTER_DEVOURER",
     [102] = "DRUID_BALANCE", [103] = "DRUID_FERAL", [104] = "DRUID_GUARDIAN", [105] = "DRUID_RESTORATION",
     [1467] = "EVOKER_DEVASTATION", [1468] = "EVOKER_PRESERVATION", [1473] = "EVOKER_AUGMENTATION",
     [253] = "HUNTER_BEAST_MASTERY", [254] = "HUNTER_MARKSMANSHIP", [255] = "HUNTER_SURVIVAL",
@@ -22,7 +22,7 @@ for specID, specKey in pairs(SPEC_KEY_BY_SPEC_ID) do
 end
 local ROLE_BY_SPEC_ID = {
     [250] = "TANK", [251] = "DAMAGER", [252] = "DAMAGER",
-    [577] = "DAMAGER", [581] = "TANK",
+    [577] = "DAMAGER", [581] = "TANK", [1480] = "DAMAGER",
     [102] = "DAMAGER", [103] = "DAMAGER", [104] = "TANK", [105] = "HEALER",
     [1467] = "DAMAGER", [1468] = "HEALER", [1473] = "DAMAGER",
     [253] = "DAMAGER", [254] = "DAMAGER", [255] = "DAMAGER",
@@ -56,7 +56,8 @@ local HERO_OPTIONS_BY_SPEC_ID = {
     [251] = { "Deathbringer", "Rider of the Apocalypse" },
     [252] = { "San'layn", "Rider of the Apocalypse" },
     [577] = { "Aldrachi Reaver", "Fel-Scarred" },
-    [581] = { "Aldrachi Reaver", "Fel-Scarred" },
+    [581] = { "Aldrachi Reaver", "Annihilator" },
+    [1480] = { "Annihilator", "Void-Scarred" },
     [102] = { "Keeper of the Grove", "Elune's Chosen" },
     [103] = { "Druid of the Claw", "Wildstalker" },
     [104] = { "Druid of the Claw", "Elune's Chosen" },
@@ -76,7 +77,7 @@ local HERO_OPTIONS_BY_SPEC_ID = {
     [65] = { "Herald of the Sun", "Lightsmith" },
     [66] = { "Lightsmith", "Templar" },
     [70] = { "Herald of the Sun", "Templar" },
-    [256] = { "Archon", "Oracle" },
+    [256] = { "Oracle", "Voidweaver" },
     [257] = { "Oracle", "Archon" },
     [258] = { "Archon", "Voidweaver" },
     [259] = { "Deathstalker", "Fatebound" },
@@ -85,9 +86,9 @@ local HERO_OPTIONS_BY_SPEC_ID = {
     [262] = { "Farseer", "Stormbringer" },
     [263] = { "Stormbringer", "Totemic" },
     [264] = { "Farseer", "Totemic" },
-    [265] = { "Diabolist", "Hellcaller" },
+    [265] = { "Hellcaller", "Soul Harvester" },
     [266] = { "Diabolist", "Soul Harvester" },
-    [267] = { "Hellcaller", "Soul Harvester" },
+    [267] = { "Diabolist", "Hellcaller" },
     [71] = { "Slayer", "Colossus" },
     [72] = { "Mountain Thane", "Slayer" },
     [73] = { "Colossus", "Mountain Thane" },

@@ -76,6 +76,38 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
                      "GetItemReferenceInfo", "LoadEvaluationProfile"):
             self.assertIsNotNone(self.ns[name], name)
 
+    def test_spec_meta_matches_the_generated_data(self) -> None:
+        """SV_SpecMeta must know every spec in the data, and each spec's hero-tree
+        options must be exactly the hero trees the data has for that spec."""
+        ns = self.ns
+        targets = ns.ClassCodexTargets.profiles
+
+        def normalize(name: str) -> str:
+            return "".join(ch for ch in name.lower() if ch.isalnum())
+
+        problems: list[str] = []
+        for spec_key in targets.keys():
+            if ns.GetStatVerdictSpecIDByKey(spec_key) is None:
+                problems.append(f"{spec_key}: in the data but has no spec ID")
+
+        spec_ids = [i for i in range(1, 5000) if ns.GetStatVerdictSpecKeyBySpecID(i) is not None]
+        self.assertTrue(spec_ids)
+        for spec_id in spec_ids:
+            spec_key = ns.GetStatVerdictSpecKeyBySpecID(spec_id)
+            if ns.GetStatVerdictRoleBySpecID(spec_id) is None:
+                problems.append(f"{spec_key} ({spec_id}): no role")
+            options = {normalize(name) for name in lua_list(ns.GetStatVerdictHeroOptionsBySpecID(spec_id))}
+            profile = targets[spec_key]
+            if profile is None:
+                problems.append(f"{spec_key} ({spec_id}): spec ID but no data")
+                continue
+            data_heroes = {normalize(hero) for goal in profile.goals.keys()
+                           for hero in profile.goals[goal].heroTalents.keys()}
+            if options != data_heroes:
+                problems.append(f"{spec_key} ({spec_id}): hero options {sorted(options)} != data {sorted(data_heroes)}")
+        if problems:
+            self.fail("\n  ".join(["SpecMeta out of date:"] + problems))
+
     def test_every_spec_goal_and_hero_talent_cell(self) -> None:
         ns, lua = self.ns, self.lua
         repo = ns.ProfileRepository
