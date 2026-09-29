@@ -114,14 +114,23 @@ end
 
 -- Player hero tree name ("San'layn", "Master of Harmony") -> ClassCodex key
 -- ("sanlayn", "master-of-harmony"). Only a name that matches one of this
--- spec/goal's keys counts: an unknown or missing hero tree gives nil (no data),
--- never another tree's data. heroSubTreeID is accepted for callers, but the
--- ClassCodex data carries no subtree IDs to match it against.
+-- spec/goal's keys counts: an unknown hero tree gives nil (no data), never
+-- another tree's data. A MISSING name (below hero-talent level, or a snapshot
+-- without hero info) gives the first key in sorted order plus a second return
+-- value true, so callers can flag the profile as a guess. heroSubTreeID is
+-- accepted for callers, but the ClassCodex data carries no subtree IDs to match.
 local function ResolveHeroKey(specKey, goal, heroTalentName, heroSubTreeID)
     local wanted = NormalizeToken(heroTalentName)
-    if wanted == "" then return nil end
     local heroTalents = GetHeroTalents(specKey, goal)
     if not heroTalents then return nil end
+    if wanted == "" then
+        local first
+        for heroKey in pairs(heroTalents) do
+            if type(heroKey) == "string" and (first == nil or heroKey < first) then first = heroKey end
+        end
+        if first then return first, true end
+        return nil
+    end
     for heroKey in pairs(heroTalents) do
         if NormalizeToken(heroKey) == wanted then return heroKey end
     end
@@ -388,7 +397,7 @@ function Repository.BuildRuntimeProfile(context)
         or (ns.GetSnapshotHeroTalentName and ns.GetSnapshotHeroTalentName(context))
     local heroSubTreeID = context.heroSubTreeID
         or (ns.GetSnapshotHeroSubTreeID and ns.GetSnapshotHeroSubTreeID(context))
-    local heroKey = ResolveHeroKey(specKey, goal, heroTalentName, heroSubTreeID)
+    local heroKey, heroKeyGuessed = ResolveHeroKey(specKey, goal, heroTalentName, heroSubTreeID)
     local generatedContext, generatedProfile = GetContext(specKey, goal, heroKey)
     if type(generatedContext) ~= "table" or type(generatedProfile) ~= "table" then
         return nil
@@ -429,6 +438,7 @@ function Repository.BuildRuntimeProfile(context)
         goal = goal,
         specKey = specKey,
         heroKey = heroKey,
+        heroKeyGuessed = heroKeyGuessed == true,
         class = generatedProfile.classToken or context.classFile,
         className = context.className,
         specID = context.specID,

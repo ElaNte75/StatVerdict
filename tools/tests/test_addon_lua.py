@@ -183,9 +183,26 @@ class RepositoryTests(unittest.TestCase):
         # A hero tree without data for this goal never borrows another tree's data.
         self.assertIsNone(resolve("DEATHKNIGHT_BLOOD", "RAID", "Deathbringer", 33))
         self.assertIsNone(resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "Rider of the Apocalypse", 32))
-        self.assertIsNone(resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", None, None))
-        self.assertIsNone(resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "", 31))
         self.assertIsNone(resolve("MAGE_FIRE", "MYTHIC_PLUS", "Sunfury", None))
+        self.assertIsNone(resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "Not A Hero Tree", None))
+
+    def test_missing_hero_tree_name_guesses_the_first_key_in_sorted_order(self) -> None:
+        lua, ns = self.build_runtime()
+        resolve = ns.ProfileRepository.ResolveHeroKey
+        # No hero tree yet (below hero-talent level, or a snapshot without it):
+        # the first key in sorted order, flagged as a guess.
+        self.assertEqual(("deathbringer", True), resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", None, None))
+        self.assertEqual(("deathbringer", True), resolve("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "", 31))
+        self.assertEqual(("sanlayn", True), resolve("DEATHKNIGHT_BLOOD", "RAID", None, None))
+        self.assertIsNone(resolve("MAGE_FIRE", "MYTHIC_PLUS", None, None))
+        context = self.context(lua)
+        context.heroTalentName = None
+        profile = ns.ProfileRepository.BuildRuntimeProfile(context)
+        self.assertEqual("deathbringer", profile.heroKey)
+        self.assertTrue(profile.heroKeyGuessed)
+        self.assertEqual(1300.0, self.targets(profile)["ITEM_MOD_CRIT_RATING_SHORT"])
+        named = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        self.assertFalse(named.heroKeyGuessed)
 
     def test_profile_is_built_from_the_players_hero_context(self) -> None:
         lua, ns = self.build_runtime()
@@ -212,9 +229,7 @@ class RepositoryTests(unittest.TestCase):
         lua, ns = self.build_runtime()
         build = ns.ProfileRepository.BuildRuntimeProfile
         self.assertIsNone(build(self.context(lua, heroTalentName="Rider of the Apocalypse")))
-        context = self.context(lua)
-        context.heroTalentName = None
-        self.assertIsNone(build(context))
+        self.assertIsNone(build(self.context(lua, heroTalentName="Not A Hero Tree")))
         self.assertIsNone(build(self.context(lua, goal="RAID", heroTalentName="Deathbringer")))
 
     def test_raid_and_pvp_are_read_from_the_classcodex_file(self) -> None:
