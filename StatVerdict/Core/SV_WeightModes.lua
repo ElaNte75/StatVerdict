@@ -15,7 +15,7 @@ local MODES = {
 }
 local DEFAULT_MODE = "GUIDE"
 
--- Which guide stat target level Guide uses (Measured has its own single target).
+-- Which guide stat target level Guide uses (Measured uses the gear level below).
 -- Kept by the repository (StatVerdictDB.statTargetBin). The saved keys stay
 -- top20/top50/top80; the player sees a tier, listed Tier 3 to Tier 1 (Tier 1 is
 -- the most demanding).
@@ -25,6 +25,16 @@ local STAT_TARGET_BINS = {
     { key = "top20", label = "Tier 1", about = "Tier 1: the stats the best-equipped players reach. The most demanding goal." },
 }
 local DEFAULT_STAT_TARGET_BIN = "top20"
+
+-- Which gear level Measured uses (Guide ignores it): our own stat targets, and the
+-- Best in Slot / trinket items shown at that upgrade track. Kept by the repository
+-- (StatVerdictDB.gearLevel), listed easy to hard; Myth is the default.
+local GEAR_LEVELS = {
+    { key = "champion", label = "Champion", about = "Best in Slot, trinkets and targets at Champion-track gear. A comfortable goal." },
+    { key = "hero", label = "Hero", about = "Best in Slot, trinkets and targets at Hero-track gear. A solid, realistic goal." },
+    { key = "myth", label = "Myth", about = "Best in Slot, trinkets and targets at Myth-track gear. The most demanding goal." },
+}
+local DEFAULT_GEAR_LEVEL = "myth"
 
 local BY_KEY = {}
 for _, mode in ipairs(MODES) do
@@ -78,6 +88,43 @@ function ns.SetStatTargetBin(key)
     if ns.RequestStatAuditRefresh then ns.RequestStatAuditRefresh() end
     if ns.RefreshUpgradeIndicators then ns.RefreshUpgradeIndicators() end
     return true
+end
+
+function ns.GetGearLevels()
+    return GEAR_LEVELS
+end
+
+function ns.GetGearLevel()
+    local repository = ns.ProfileRepository
+    if repository and repository.GetGearLevel then
+        return repository.GetGearLevel()
+    end
+    return DEFAULT_GEAR_LEVEL
+end
+
+-- Same as SetWeightMode, for Measured's gear level. false for an unknown level.
+function ns.SetGearLevel(key)
+    local repository = ns.ProfileRepository
+    if not (repository and repository.SetGearLevel) then return false end
+    if not repository.SetGearLevel(key) then return false end
+    if ns.RequestStatAuditRefresh then ns.RequestStatAuditRefresh() end
+    if ns.RefreshUpgradeIndicators then ns.RefreshUpgradeIndicators() end
+    return true
+end
+
+-- The three cards under the mode rows mean a different, separately saved choice
+-- per mode: Guide picks the guide's stat target tier, Measured our gear level.
+-- { title, options, selected, set(key) } for the given mode.
+function ns.GetTargetChoice(mode)
+    if mode == "MEASURED" then
+        return { title = "Gear level", options = GEAR_LEVELS, selected = ns.GetGearLevel(), set = ns.SetGearLevel }
+    end
+    return {
+        title = "Stat targets",
+        options = STAT_TARGET_BINS,
+        selected = ns.GetStatTargetBin(),
+        set = ns.SetStatTargetBin,
+    }
 end
 
 -- Every goal (Mythic+, Raid, PvP) reads the same curated Best in Slot lists.

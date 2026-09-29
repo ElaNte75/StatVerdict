@@ -78,6 +78,40 @@ def add_guide_targets(targets: dict[str, Any], spec_key: str, goal: str, hero: s
     return targets
 
 
+def add_gear_levels(targets: dict[str, Any], spec_key: str, goal: str, hero: str,
+                    levels: dict[str, Any]) -> dict[str, Any]:
+    """Puts targets.levels on one context: our own targets at the lower gear levels,
+    {"hero": ((crit, haste, mastery, vers), average_item_level or None), ...}.
+    Myth stays the context's own targets.statTargets / averageItemLevel."""
+    names = ("critical_strike", "haste", "mastery", "versatility")
+    out: dict[str, Any] = {}
+    for level, (stats, item_level) in levels.items():
+        entry: dict[str, Any] = {"statTargets": {"stats": dict(zip(names, stats))}}
+        if item_level is not None:
+            entry["averageItemLevel"] = item_level
+        out[level] = entry
+    context = targets["profiles"][spec_key]["goals"][goal]["heroTalents"][hero]
+    context["targets"]["levels"] = out
+    return targets
+
+
+# Myth-track bonus id -> the same item's Hero / Champion track bonus id.
+TRACK_SWAP = {
+    "hero": {6652: 7652, 13334: 14334},
+    "champion": {6652: 8652, 13334: 15334},
+}
+TRACK_ITEM_LEVELS = {"myth": 289, "hero": 276, "champion": 263}
+
+
+def add_track_data(targets: dict[str, Any], track_swap: dict[str, Any] | None = None,
+                   track_item_levels: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Puts the data root's trackSwap / trackItemLevels on a make_classcodex_targets
+    result (the renderer writes the numeric bonus id keys as strings, like real data)."""
+    targets["trackSwap"] = TRACK_SWAP if track_swap is None else track_swap
+    targets["trackItemLevels"] = TRACK_ITEM_LEVELS if track_item_levels is None else track_item_levels
+    return targets
+
+
 def make_classcodex_targets(build_id: str, profiles: dict[str, Any] | None = None) -> dict[str, Any]:
     """Blood DK: M+ sanlayn + deathbringer, Raid sanlayn, PvP sanlayn (no item level,
     like real PvP data). Brewmaster: M+ master-of-harmony only."""

@@ -180,7 +180,9 @@ local function GetSecondaryCacheToken(profile)
             else
                 current = ns.GetCurrentStatRating and ns.GetCurrentStatRating(statKey) or 0
             end
+            -- The target too: a new gear level or guide tier keeps the profile id.
             parts[#parts + 1] = tostring(statKey) .. "=" .. tostring(current)
+                .. "/" .. tostring(GetTargetForStat(profile, statKey))
         end
     end
     return table.concat(parts, "|")

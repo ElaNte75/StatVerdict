@@ -138,10 +138,11 @@ local function EnsureModeRow(card, index, mode)
     return row
 end
 
--- "Stat targets" group: title, the three difficulties as small cards in one row,
--- least to most demanding, styled like the mode rows (a radio group: exactly one is
--- ticked), then the selected difficulty's explanation under them (two lines). Only
--- Guide uses the difficulty: with Measured the cards are dimmed and locked.
+-- Choice group under the mode rows: title, three small cards in one row, least to
+-- most demanding, styled like the mode rows (a radio group: exactly one is ticked),
+-- then the selected card's explanation under them (two lines). The cards mean a
+-- different, separately saved choice per mode (ns.GetTargetChoice): Guide's stat
+-- target tier, Measured's gear level. Never dimmed.
 local DESCRIPTION_SPACING = 4
 local SEPARATOR_GAP = 8           -- status line > separator
 local BIN_GROUP_GAP = 16          -- separator > group
@@ -154,8 +155,11 @@ local BIN_NOTE_HEIGHT = 2 * 10 + DESCRIPTION_SPACING + 2
 local BIN_BOTTOM_MARGIN = 4
 local BIN_NOTE_TOP = BIN_CHIP_TOP - BIN_CHIP_HEIGHT - BIN_NOTE_GAP
 local BIN_GROUP_HEIGHT = -BIN_NOTE_TOP + BIN_NOTE_HEIGHT + BIN_BOTTOM_MARGIN
-local BIN_DIMMED_ALPHA = 0.45
-local BIN_NOT_USED = "Not used with our own measurement."
+
+-- The key of the card ticked for the mode shown now.
+local function SelectedChoice()
+    return ns.GetTargetChoice(ns.GetWeightMode()).selected
+end
 
 -- Three equal cards filling the given width, with even gaps between them.
 local function LayoutBinChips(card, width)
@@ -178,7 +182,6 @@ local function EnsureBinGroup(card, above)
     card.binTitle:SetPoint("TOPLEFT", group, "TOPLEFT", 0, 0)
     card.binTitle:SetJustifyH("LEFT")
     card.binTitle:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
-    card.binTitle:SetText("Stat targets")
 
     card.binNote = group:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     card.binNote:SetPoint("TOPLEFT", group, "TOPLEFT", 0, BIN_NOTE_TOP)
@@ -190,10 +193,10 @@ local function EnsureBinGroup(card, above)
     card.binNote:SetSpacing(DESCRIPTION_SPACING)
     card.binNote:SetTextColor(0.85, 0.85, 0.85)
 
+    -- Keys, labels and the title are filled in by Panel.Sync for the mode shown.
     card.binRows = {}
-    for index, bin in ipairs(ns.GetStatTargetBins()) do
+    for index = 1, 3 do
         local option = CreateFrame("Button", nil, group, "BackdropTemplate")
-        option.key = bin.key
         option:SetBackdrop(ROW_BACKDROP)
 
         -- Same tick as the mode rows; the whole card is the click target.
@@ -205,19 +208,17 @@ local function EnsureBinGroup(card, above)
 
         option.label = option:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         option.label:SetPoint("LEFT", option.check, "RIGHT", 1, 0)
-        option.label:SetText(bin.label)
 
         option:SetScript("OnEnter", function(self)
             self.hovered = true
-            PaintRow(self, ns.GetStatTargetBin() == self.key, not self.dimmed)
+            PaintRow(self, SelectedChoice() == self.key, true)
         end)
         option:SetScript("OnLeave", function(self)
             self.hovered = false
-            PaintRow(self, ns.GetStatTargetBin() == self.key, false)
+            PaintRow(self, SelectedChoice() == self.key, false)
         end)
         option:SetScript("OnClick", function()
-            if option.dimmed then return end
-            ns.SetStatTargetBin(bin.key)
+            ns.GetTargetChoice(ns.GetWeightMode()).set(option.key)
             Panel.Sync(card)
         end)
         card.binRows[index] = option
@@ -299,23 +300,20 @@ function Panel.Sync(card)
         PaintRow(row, row.key == selected, row.hovered == true)
     end
 
-    -- The difficulty only applies to Guide; the choice is kept for switching back.
-    local bin = ns.GetStatTargetBin()
-    local dimmed = selected ~= "GUIDE"
+    -- The cards show this mode's own choice; the other mode's is kept for switching back.
+    local choice = ns.GetTargetChoice(selected)
+    card.binTitle:SetText(choice.title)
     local binAbout = ""
     for index, option in ipairs(card.binRows or {}) do
-        local checked = option.key == bin
+        local info = choice.options[index] or {}
+        option.key = info.key
+        option.label:SetText(info.label or "")
+        local checked = info.key ~= nil and info.key == choice.selected
         option.check:SetChecked(checked)
-        if checked then
-            binAbout = ns.GetStatTargetBins()[index].about or ""
-        end
-        if dimmed then option.hovered = false end
+        if checked then binAbout = info.about or "" end
         PaintRow(option, checked, option.hovered == true)
-        option.dimmed = dimmed
-        option:EnableMouse(not dimmed)
-        option:SetAlpha(dimmed and BIN_DIMMED_ALPHA or 1)
     end
-    card.binNote:SetText(dimmed and BIN_NOT_USED or binAbout)
+    card.binNote:SetText(binAbout)
 
     local info = ns.GetWeightModeInfo(selected)
     card.about:SetText(info.about or "")
