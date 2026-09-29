@@ -229,7 +229,7 @@ local BAG_INDICATOR_OPTIONS = {
 
 -- Best in Slot section: the hover tooltip's Recommended (gems / enchant) block.
 local BIS_TOOLTIP_OPTIONS = {
-    { key = "showBisGemsEnchants", label = "Best in Slot tooltip: gems and enchants" },
+    { key = "showBisGemsEnchants", label = "Best in Slot tooltip" },
 }
 
 local function EnsureOptionCheckbox(card, option, parent)

@@ -106,16 +106,31 @@ local function GetEntryGemIDs(entry)
     return out
 end
 
-local function GetEntryEnchant(entry)
-    local item = type(entry) == "table" and entry.item or nil
-    if type(item) ~= "table" or type(item.enchant) ~= "table" then return nil end
+local function ParseEnchant(raw)
+    if type(raw) ~= "table" then return nil end
     local enchant = {
-        id = SafeNumber(item.enchant.id),
-        itemID = SafeNumber(item.enchant.item_id),
-        spellID = SafeNumber(item.enchant.spell_id),
+        id = SafeNumber(raw.id),
+        itemID = SafeNumber(raw.item_id),
+        spellID = SafeNumber(raw.spell_id),
     }
     if not (enchant.id or enchant.itemID or enchant.spellID) then return nil end
     return enchant
+end
+
+local function GetEntryEnchant(entry)
+    local item = type(entry) == "table" and entry.item or nil
+    return type(item) == "table" and ParseEnchant(item.enchant) or nil
+end
+
+-- Optional alternatives (not in every data build): one gem, one enchant.
+local function GetEntryGemAltID(entry)
+    local item = type(entry) == "table" and entry.item or nil
+    return type(item) == "table" and SafeNumber(item.gem_alt_id) or nil
+end
+
+local function GetEntryEnchantAlt(entry)
+    local item = type(entry) == "table" and entry.item or nil
+    return type(item) == "table" and ParseEnchant(item.enchant_alt) or nil
 end
 
 -- The complete recommended item as a hyperlink, so the game itself shows it at its
@@ -197,17 +212,38 @@ local function GetQualityHex(quality)
     return "|cffdbdbdb"
 end
 
--- Name of a plain item (gem, enchant scroll); nil until the game has its data,
--- in which case the load is requested and an open tooltip redraws when it arrives.
-local function GetPlainItemName(itemID)
+-- Name and quality of a plain item (gem, enchant scroll); nil until the game has its
+-- data, in which case the load is requested and an open tooltip redraws when it arrives.
+local function GetPlainItem(itemID)
     itemID = SafeNumber(itemID)
     if not itemID then return nil end
-    local name = GetItemInfoByLinkOrID(nil, itemID)
+    local name, _, quality = GetItemInfoByLinkOrID(nil, itemID)
     if not name or name == "" then
         RequestItemLoad(itemID)
         return nil
     end
-    return name
+    return name, quality
+end
+
+-- The game's colour for an item quality as {r, g, b}; white when unknown.
+local function GetQualityRGB(quality)
+    quality = SafeNumber(quality)
+    if quality == nil then return { 1, 1, 1 } end
+    local r, g, b
+    if C_Item and type(C_Item.GetItemQualityColor) == "function" then
+        local ok, qr, qg, qb = pcall(C_Item.GetItemQualityColor, quality)
+        if ok then r, g, b = tonumber(qr), tonumber(qg), tonumber(qb) end
+    end
+    if not (r and g and b) and type(GetItemQualityColor) == "function" then
+        local ok, qr, qg, qb = pcall(GetItemQualityColor, quality)
+        if ok then r, g, b = tonumber(qr), tonumber(qg), tonumber(qb) end
+    end
+    if not (r and g and b) and type(ITEM_QUALITY_COLORS) == "table" and type(ITEM_QUALITY_COLORS[quality]) == "table" then
+        local color = ITEM_QUALITY_COLORS[quality]
+        r, g, b = tonumber(color.r), tonumber(color.g), tonumber(color.b)
+    end
+    if r and g and b then return { r, g, b } end
+    return { 1, 1, 1 }
 end
 
 local function GetSpellNameByID(spellID)
@@ -245,36 +281,27 @@ function Panel.GemsForSockets(gemIDs, tooltipLines)
     return out
 end
 
--- Name of the recommended enchant: its scroll item, its spell, then -- only when the
+-- Name and quality of an enchant: its scroll item, its spell, then -- only when the
 -- data carries nothing else (PvP lists) -- the id itself read as the scroll item.
-local function GetEnchantName(enchant)
-    local name = GetPlainItemName(enchant.itemID) or GetSpellNameByID(enchant.spellID)
-    if not name and not enchant.itemID and not enchant.spellID then
-        name = GetPlainItemName(enchant.id)
+-- Falls back to "Enchant #id" (quality unknown) until the game has the name.
+local function GetEnchantDisplay(enchant)
+    local name, quality = GetPlainItem(enchant.itemID)
+    if not name then
+        name = GetSpellNameByID(enchant.spellID)
     end
-    return name
+    if not name and not enchant.itemID and not enchant.spellID then
+        name, quality = GetPlainItem(enchant.id)
+    end
+    if not name then
+        return "Enchant #" .. tostring(enchant.id or enchant.itemID or enchant.spellID), nil
+    end
+    return name, quality
 end
 
--- "Gems: A, B" and "Enchant: X" for a best-in-slot entry (nil when it has none).
--- itemLines: the recommended item's raw tooltip lines, nil while not loaded.
-local function BuildRecommendationTexts(entry, itemLines)
-    local gemsText, enchantText = nil, nil
-    local gems = {}
-    for _, gemID in ipairs(Panel.GemsForSockets(GetEntryGemIDs(entry), itemLines)) do
-        gems[#gems + 1] = GetPlainItemName(gemID) or ("Gem #" .. tostring(gemID))
-    end
-    if #gems > 0 then
-        gemsText = "Gems: " .. table.concat(gems, ", ")
-    end
-    local enchant = GetEntryEnchant(entry)
-    if enchant then
-        local name = GetEnchantName(enchant)
-        if not name then
-            name = "Enchant #" .. tostring(enchant.id or enchant.itemID or enchant.spellID)
-        end
-        enchantText = "Enchant: " .. name
-    end
-    return gemsText, enchantText
+local function GetGemDisplay(gemID)
+    local name, quality = GetPlainItem(gemID)
+    if not name then return "Gem #" .. tostring(gemID), nil end
+    return name, quality
 end
 
 ---------------------------------------------------------------------------
@@ -352,11 +379,14 @@ local function LineColor(line)
     return { 1, 1, 1 }
 end
 
+local SET_LINE_TEXT = "Part of the tier set"
+local SET_LINE_GAP = 4
+
 -- Pure filter over tooltip data lines ({leftText, rightText, leftColor, ...}).
 -- Keeps: the item name, item level, upgrade level, binding, slot / armor type,
--- armor (or weapon damage), the "+N Stat" block and the set name "(x/y)".
--- Drops everything else, and all text from the stats' end onward except the
--- set name line (no effects, set pieces, set bonuses, sockets or flavor text).
+-- armor (or weapon damage) and the "+N Stat" block; a set item's "Name (x/y)"
+-- line becomes "Part of the tier set". Drops everything else, and all text from
+-- the stats' end onward (no effects, set pieces, set bonuses, sockets or flavor text).
 function Panel.FilterItemTooltipLines(lines)
     local out = {}
     if type(lines) ~= "table" then return out end
@@ -395,7 +425,10 @@ function Panel.FilterItemTooltipLines(lines)
                 phase = "tail"
             end
             if phase == "tail" and left:find("^.+ %(%d+/%d+%)$") then
-                add(left, "", line)
+                -- The set's name and count read as noise here: a plain note instead,
+                -- in the game's set colour, a little apart from the stats.
+                add(SET_LINE_TEXT, "", line)
+                out[#out].gap = SET_LINE_GAP
                 break
             end
         end
@@ -526,16 +559,66 @@ end
 
 local TOOLTIP_PAD = 10
 local TOOLTIP_LINE_GAP = 2
-local TOOLTIP_SECTION_GAP = 8
+local TOOLTIP_SECTION_GAP = 12
+local TOOLTIP_SUBSECTION_GAP = 4
+local TOOLTIP_INDENT = 8
 local TOOLTIP_MIN_WIDTH = 170
 local TOOLTIP_RIGHT_GAP = 16
 local TOOLTIP_OFFSET = 12
 local GOLD = { 1.0, 0.82, 0.0 }
 local TEXT_COLOR = { 0.92, 0.92, 0.92 }
 local DIM_COLOR = { 0.55, 0.55, 0.55 }
+local OR_PREFIX = "|cff8c8c8cor|r "
+
+-- One recommended gem / enchant name: indented, in its quality colour, and wrapped
+-- to the tooltip's width instead of widening it.
+local function RecommendationNameLine(name, quality, isAlternative)
+    return {
+        left = (isAlternative and OR_PREFIX or "") .. name,
+        color = GetQualityRGB(quality),
+        indent = true,
+        wrap = true,
+    }
+end
+
+-- The Recommended block's lines under its heading, stacked:
+--   Gems / one gem per real socket / "or" alternative gem,
+--   Enchant / the enchant / "or" alternative enchant.
+-- itemLines: the recommended item's raw tooltip lines, nil while not loaded.
+local function BuildRecommendationLines(entry, itemLines)
+    local out = {}
+    local gems = Panel.GemsForSockets(GetEntryGemIDs(entry), itemLines)
+    if #gems > 0 then
+        out[#out + 1] = { left = "Gems", color = DIM_COLOR }
+        for _, gemID in ipairs(gems) do
+            out[#out + 1] = RecommendationNameLine(GetGemDisplay(gemID))
+        end
+        local altID = GetEntryGemAltID(entry)
+        if altID then
+            local name, quality = GetGemDisplay(altID)
+            out[#out + 1] = RecommendationNameLine(name, quality, true)
+        end
+    end
+    local enchant = GetEntryEnchant(entry)
+    if enchant then
+        out[#out + 1] = {
+            left = "Enchant",
+            color = DIM_COLOR,
+            gap = (#out > 0) and TOOLTIP_SUBSECTION_GAP or nil,
+        }
+        out[#out + 1] = RecommendationNameLine(GetEnchantDisplay(enchant))
+        local alt = GetEntryEnchantAlt(entry)
+        if alt then
+            local name, quality = GetEnchantDisplay(alt)
+            out[#out + 1] = RecommendationNameLine(name, quality, true)
+        end
+    end
+    return out
+end
 
 -- The lines of the Best in Slot tooltip for one row, as data:
--- { left, right?, color, font = "title"|"header"|nil, gapBefore? }.
+-- { left, right?, color, font = "title"|"header"|nil, gapBefore? (section gap),
+--   gap? (extra pixels above), indent?, wrap? (wraps to the width, never widens it) }.
 local function BuildRecommendedTooltipLines(row)
     local entry = row and row.recommendedEntry
     if not entry then return {} end
@@ -559,11 +642,10 @@ local function BuildRecommendedTooltipLines(row)
     end
 
     if RecommendedBlockOn() then
-        local gemsText, enchantText = BuildRecommendationTexts(entry, rawLines)
-        if gemsText or enchantText then
+        local block = BuildRecommendationLines(entry, rawLines)
+        if #block > 0 then
             lines[#lines + 1] = { left = "Recommended", color = GOLD, font = "header", gapBefore = true }
-            if gemsText then lines[#lines + 1] = { left = gemsText, color = TEXT_COLOR } end
-            if enchantText then lines[#lines + 1] = { left = enchantText, color = TEXT_COLOR } end
+            for _, line in ipairs(block) do lines[#lines + 1] = line end
         end
     end
 
@@ -627,12 +709,41 @@ end
 local function RenderRecommendedTooltip(row, lines)
     local tip = EnsureRecommendedTooltip()
     tip.shownLines = lines
-    local y = -TOOLTIP_PAD
+
+    -- Pass 1: set the texts and find the width. Wrapping lines (gem / enchant names)
+    -- never widen the tooltip: the item's own lines decide its width.
     local width = TOOLTIP_MIN_WIDTH
+    for index, line in ipairs(lines) do
+        local font = FONT_FOR[line.font] or "GameFontHighlightSmall"
+        local color = line.color or TEXT_COLOR
+        local left = TooltipFontString(tip, tip.lefts, index, font)
+        left:SetWordWrap(line.wrap == true)
+        left:SetWidth(0)
+        left:SetText(line.left or "")
+        left:SetTextColor(color[1], color[2], color[3])
+        local right = TooltipFontString(tip, tip.rights, index, font)
+        if line.right then
+            right:SetText(line.right)
+            right:SetTextColor(color[1], color[2], color[3])
+        else
+            right:SetText("")
+        end
+        if not line.wrap then
+            local lineWidth = left:GetStringWidth() or 0
+            if line.indent then lineWidth = lineWidth + TOOLTIP_INDENT end
+            if line.right then
+                lineWidth = lineWidth + TOOLTIP_RIGHT_GAP + (right:GetStringWidth() or 0)
+            end
+            if lineWidth + TOOLTIP_PAD * 2 > width then width = lineWidth + TOOLTIP_PAD * 2 end
+        end
+    end
+    width = math.ceil(width)
+
+    -- Pass 2: place the lines top to bottom.
+    local y = -TOOLTIP_PAD
     local separatorShown = false
     tip.separator:Hide()
     for index, line in ipairs(lines) do
-        local font = FONT_FOR[line.font] or "GameFontHighlightSmall"
         if line.gapBefore then
             y = y - TOOLTIP_SECTION_GAP
             if line.font == "header" and not separatorShown then
@@ -643,39 +754,32 @@ local function RenderRecommendedTooltip(row, lines)
                 tip.separator:Show()
             end
         end
-        local left = TooltipFontString(tip, tip.lefts, index, font)
+        if line.gap then y = y - line.gap end
+        local indent = line.indent and TOOLTIP_INDENT or 0
+        local left = tip.lefts[index]
         left:ClearAllPoints()
-        left:SetPoint("TOPLEFT", tip, "TOPLEFT", TOOLTIP_PAD, y)
-        left:SetText(line.left or "")
-        local color = line.color or TEXT_COLOR
-        left:SetTextColor(color[1], color[2], color[3])
+        left:SetPoint("TOPLEFT", tip, "TOPLEFT", TOOLTIP_PAD + indent, y)
+        if line.wrap then left:SetWidth(width - TOOLTIP_PAD * 2 - indent) end
         left:Show()
-        local lineWidth = left:GetStringWidth() or 0
 
-        local right = TooltipFontString(tip, tip.rights, index, font)
+        local right = tip.rights[index]
         if line.right then
             right:ClearAllPoints()
             right:SetPoint("TOPRIGHT", tip, "TOPRIGHT", -TOOLTIP_PAD, y)
-            right:SetText(line.right)
-            right:SetTextColor(color[1], color[2], color[3])
             right:Show()
-            lineWidth = lineWidth + TOOLTIP_RIGHT_GAP + (right:GetStringWidth() or 0)
         else
-            right:SetText("")
             right:Hide()
         end
 
         local height = left:GetStringHeight() or 12
         if height < 10 then height = 12 end
         y = y - height - TOOLTIP_LINE_GAP
-        if lineWidth + TOOLTIP_PAD * 2 > width then width = lineWidth + TOOLTIP_PAD * 2 end
     end
     for index = #lines + 1, #tip.lefts do
         tip.lefts[index]:Hide()
         if tip.rights[index] then tip.rights[index]:Hide() end
     end
 
-    width = math.ceil(width)
     tip:SetSize(width, math.ceil(-y + TOOLTIP_PAD - TOOLTIP_LINE_GAP))
     tip:ClearAllPoints()
     -- Next to the row: to its right, or to its left when there is no room.
