@@ -169,7 +169,7 @@ function Layout.GetRightPanelWidth(frame)
         if ns.StatVerdictWeightsDrawerPanel and ns.StatVerdictWeightsDrawerPanel.GetPreferredWidth then
             return ns.StatVerdictWeightsDrawerPanel.GetPreferredWidth(frame)
         end
-        return Clamp(280 + SizeDelta("benchmark.width"), 200, 520)
+        return Clamp(300 + SizeDelta("benchmark.width"), 200, 520)
     end
     local showTrinkets = mode == "trinkets"
     local showBis = mode == "bis"

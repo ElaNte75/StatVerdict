@@ -1,0 +1,111 @@
+# Deep review notes (2026-09-29, night): things to decide one by one
+
+Written for the next session. Everything **sure** was cleaned up and pushed (section A). Everything I was
+**not 100% sure about** was left untouched and is listed in section B with the evidence, my suggestion, and
+why I stopped. Suggested order: B1 first (it decides B2/B3/B4), then the rest.
+
+Tests at the end of the review: 481 of 481 passing.
+
+## A. Already cleaned (safe, tests unchanged)
+
+| Commit | What |
+|---|---|
+| Cleanup: remove 24 local functions nothing calls | 22 `local function`s (plus 2 that became unused) that were defined and never referenced in their file: `SV_Comparison` (SafeNumber), `SV_Modifiers` (GetProfileMaxGapUrgency, HasHigherPriorityGaps, GetExtraWeight), `SV_Scoring` (AddTrackedKeys), `SV_BisProgressPanel`/`SV_ManualDrawerPanel` (Register), `SV_SettingsPanel` (ApplyDropdownLabelFont, EnsureResizeRegion, EnsureViewToggle), `SV_StatAudit` (EnsureMissingSnapshotButtons, ClampWindowToScreen, SafeStringWidth, SetSetupCheckboxTextColor, EnsureWindowOnScreen, CreateSeparator, BuildAspectLabel), `SV_StatProgressPanel` (LayoutOffSpecEmptyHint, RegisterSummaryText, EnsureContentHost, GetSummaryCardWidth, EnsureSummaryHeightRegion). 226 lines gone, 0 added. |
+| Cleanup: drop no-op 'hide legacy' helpers | `HideLegacyDualTabs`, `HideLegacyTitleFontSteppers`, `ClearLegacyLockButton` (and their calls): they only hid fields that no code assigns any more. |
+| Cleanup: dead `_check_profiles.py` + stale instructions | Root `_check_profiles.py` read the removed `SV_ProfileData.lua` from hard-coded Windows paths. `Ship.bat` still described a Bridge export and a `Data\Generated` update that `ship.ps1` no longer does. `VERIFICATION.md` pointed at a `tests/` folder that does not exist (now `tools/tests`, needs `lupa`). The three workflows committed as "StatVerdict Benchmark Bot" (now "StatVerdict Data Bot"). |
+| This commit | `SV_DashboardLayout.lua`: the unused fallback width of the Mode drawer (280) now matches the drawer (300). |
+
+Also checked and found clean: the toc (every file exists, every Lua file under Core/UI/Data is listed), no
+accidental globals at file level (only bindings, slash commands and the addon-compartment callbacks), no
+`Raider`/Benchmark/Popular/Easy-Normal-Hard wording in player-visible strings, no debug `print` left over
+(all prints are slash-command output), and every tool module under `tools/` is used by code, tests or a workflow.
+
+## B. Open items (not changed, need a decision)
+
+### B1. A "dev build" layer that is not in the repo (biggest one)
+- `ns.STATVERDICT_DEV_TOOLS` is read in 4 places (`StatVerdict.lua:177`, `SV_UpgradeIndicatorView.lua:79`,
+  `SV_StatAudit.lua:1260,3836`) but **never set anywhere in the repo**; `ns.IS_DEV_BUILD` is true only for an addon
+  folder called `StatVerdict_Dev` (`SV_Constants.lua:6`).
+- `/sv help` advertises `/svdev`, `/svmove`, `/svbis` (only when the flag is set); no handler for them exists here.
+- `ship.ps1` bans `UI\SV_AdvancedDevelopmentMode.lua` and `UI\SV_DevLayoutNudge.lua`, which are not in the repo, so they
+  probably exist only on the owner's desktop.
+- Roughly 340 references to `DevLayout` / `AdvDev` / `AdvancedDevelopment` across the UI (`SV_StatProgressPanel` 79,
+  `SV_DashboardLayout` 67, `SV_RightPanelMode` 46, `SV_OptionsDrawerPanel` 40, `SV_LayoutOffsets` whole file, 449 lines...).
+  With the flag never set these branches are dead in this repo, but the dev files (outside the repo) may call them.
+- **Question for the owner:** does the dev build still exist and get used? If yes: commit it (or move the layout editor
+  to its own folder) so the repo is complete. If no: remove `SV_LayoutOffsets.lua`, the `DevLayout` calls and the
+  `IS_DEV_BUILD` / `STATVERDICT_DEV_TOOLS` branches in one careful pass (big diff, needs the UI geometry tests).
+- Why I stopped: removing it may break something only visible outside the repo, and it touches most UI files.
+
+### B2. Exported functions nothing calls (34 found, 0 removed)
+`ns.*` is private to the addon (not published as a global), so these are unreachable from other addons. Left in place
+because several look like hooks for the missing dev files (B1) or small public-style APIs:
+- Dev layout: `EnsureDevLayoutGripRegion`, `EnsureDevLayoutRimRegions`, `EnsureDevLayoutStripRegion`, `IsDevLayoutHidden`,
+  `ToggleDevLayoutScreenLock`, `UnregisterDevLayoutRegionsByPrefix`, `RequestAdvancedDevelopmentModeLayoutRefresh`,
+  `DebugHeroOptionsForSpec`, `ToggleStatAuditLayoutController`, `IsPublicStatVerdictLoaded`.
+- Drawer / minimap API: `IsOptionsDrawerOpen`, `SetOptionsDrawerOpen`, `ToggleOptionsDrawer`, `IsStatVerdictMinimapButtonShown`,
+  `SetStatVerdictMinimapButtonShown`, `CloseAllChipDropdowns`, `IsChipDropdown`, `IsBagIndicatorOptionEnabled`.
+- Stats / layout helpers: `EnsureCachedStatAuditLiveModifiers`, `GetCurrentCharacterSheetStatValue`,
+  `GetProfileSnapshotDisplayStats`, `GetStatAuditTargetPointTotal`, `GetStatVerdictWindowTitleBarHeight`,
+  `Layout.GetFixedSlotRows`, `Layout.GetStatScreenWidth`, `Layout.GetWellLeft`, `Panel.UpdateProgressCache`.
+- Constants: `ns.ACTIVE_PROVIDER`, `ns.ADDON_NAME`, `ns.ADDON_FOLDER`.
+- Only tests call: `GetGearLevels`, `GetStatTargetBins`, `GetStatVerdictHeroSubTreeIDs`, `Panel.GetRecommendedTooltip`
+  (fine to keep).
+- **Suggestion:** after B1, delete the ones with no caller and no test in one commit.
+
+### B3. "Hide legacy" code that may or may not do something
+Still present because I could not prove the fields are never created (or they also clean up the dev layout registry):
+`HideLegacyBagMarkerControls` (`SV_SettingsPanel.lua:277`), `HideLegacyTitleFontUi` (`SV_OptionsDrawerPanel.lua:329`, also
+unregisters dev layout regions), `HideLegacyPanelTitle` (`SV_RightPanelMode.lua`), `EnsureOffSpecEmptyHint`
+(`SV_StatProgressPanel.lua`, always returns nil), the "legacy floating text / incomplete-build" path in
+`SV_StatAudit.lua` around lines 2539-2690 (an `EnsureIncompleteBuildText` is still created and shown), and comments
+saying "retire legacy strips" in `SV_DashboardLayout.lua`. Fields such as `titleFontLabel`, `displayTitle`,
+`offSpecEmptyHint` are never assigned in the repo. Needs a look in the running game before deleting.
+
+### B4. One-time SavedVariables migrations
+`SV_StatAudit.lua:838, 929, 942, 1297`, `SV_DashboardLayout.lua:138, 182`, `SV_RightPanelMode.lua:442`,
+`SV_BisProgressPanel.lua:1348`, `SV_OptionsDrawerPanel.lua:509` migrate old saved keys (global custom table, old goal
+"Overall/Leveling" to Mythic+, per-character layout to global, shared BiS/Trinkets key, per-drawer X...).
+The owner said the addon is local-only, so they may be removable, but deleting them silently drops a user's saved layout
+if an old `StatVerdictDB` still exists. **Question:** is any old `StatVerdictDB` still in use on the owner's machine?
+
+### B5. Layout keys still named "benchmark.*"
+`benchmark.card` / `benchmark.width` are the Mode drawer's saved layout keys (`SV_WeightsDrawerPanel.lua:27`,
+`SV_DashboardLayout.lua:172,184,538`, `SV_LayoutOffsets.lua`); the comment says they are kept on purpose so saved
+positions carry over. Renaming is trivial but resets saved drawer positions. Decide together with B4.
+
+### B6. Stale roadmap `IMPROVEMENTS.md` (repo root, UTF-16)
+Lists 5 old design problems (Fury Titan's Grip, prismatic sockets, 2H to 1H fallback, embellishment cap, tier-set
+protection) and refers to the removed `SV_ProfileData.lua`. Embellishment and tier-set code now exists in `SV_Rules.lua`
+(`embellished`, `WouldBreakTierSet`), so at least items 4 and 5 look implemented; 1-3 are unverified. Needs the owner
+to say which are done, then either update or delete the file (also re-save it as UTF-8).
+
+### B7. Quest / merchant / Adventure Guide arrows: intended or not?
+`SV_QuestRewardIndicatorSource`, `SV_MerchantIndicatorSource`, `SV_AdventureGuideIndicatorSource` are loaded and active,
+`VERIFICATION.md` says they "may still show upgrade arrows", while `SV_OptionsDrawerPanel.lua:498` says
+"bags-only is already the behavior". One of the two statements is stale. Tomorrow's quest-chain test will show which.
+
+### B8. Version mismatch
+`StatVerdict.toc` Version 1.0.8 vs `ns.VERSION = "1.0.7"` (`StatVerdict.lua:4`); `STORE.md` changelog says 1.0.7.
+`ship.ps1` bumps both together, so a run of it fixes it. Owner's decision (already in HANDOFF section 6).
+
+### B9. Old design/plan docs and a foreign branch
+- `docs/superpowers/plans/2026-09-26-benchmark-mythicplus-data.md`, `.../2026-09-27-keylevel-bracket-benchmarks-phase1.md`
+  and `docs/superpowers/specs/2026-09-26-benchmark-mythicplus-data-design.md` describe the removed Raider.IO benchmark
+  system. Historical value only. The other three plans (ClassCodex pipeline, wiring, full coverage) are current.
+- Remote branch `origin/worktree-keylevel-bracket-benchmarks`: 64 commits, **no common history with `main`**, from
+  2026-09-26/27 (Low/Mid/High key-level brackets, spec-name in the tier text, live benchmark refreshes, the Bridge export
+  script, `StatVerdict/tests/test_profile_validation.py`). It is the old benchmark lineage that the ClassCodex rewrite
+  replaced; the last UI commits there (class-coloured spec/hero name in the description text) were **not** verified to
+  exist in `main`. Confirm they are obsolete before deleting the branch.
+- Old repos `Scraper` and `farmerassistant`: only the owner can delete them on GitHub (HANDOFF section 6).
+
+### B10. Data and tooling findings from earlier tonight (see also `overnight-progress.md`)
+- Monk Windwalker average item level 289 in Mythic+ and Raid (others ~334); Evoker Devastation 314, Augmentation 320.
+  BiS ids match the guide exactly, so the cause is in the SimC item levels; needs a SimC run inspecting per-slot levels.
+- Item check weapon rows look extreme (-35% to -57%); the weapon swap in `tools/item_check.py` (MH vs OH, 1H vs 2H)
+  should be checked before trusting weapon deltas.
+- An unmatched non-empty hero-talent name (translated client) with no subtree id gives no profile by design; decide
+  whether a guess is acceptable there.
+- Measured-mode stat targets are 0 for a stat the best gear does not carry (Versatility on 18 specs); the row now shows
+  with target 0. Decide whether such a row should look different in the UI (unchanged for now: UI is not mine to change).

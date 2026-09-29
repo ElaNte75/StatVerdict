@@ -65,6 +65,8 @@ Real-data tests (`tools/tests/test_addon_integration.py`) load the whole addon w
 every spec x goal x hero cell; a bad data refresh must fail them (and the refresh workflow refuses to commit it).
 Dispatch a workflow: `gh workflow run <file>.yml`.
 
+> **Next session: read `docs/REVIEW-NOTES-2026-09-29.md` first** (deep review: what was cleaned, and the open items B1-B10 to go through one by one), and `docs/overnight-progress.md`.
+
 ## 5. Tonight's jobs (in priority order)
 1. **Item check (cloud SimC job).** `tools/item_check.py` + `.github/workflows/item-check.yml` (manual dispatch) simulate one
    real character — Enhancement Shaman, profile `tools/data/characters/enhancement_shaman.simc` (anonymised) — with each
