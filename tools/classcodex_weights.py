@@ -16,6 +16,7 @@ tools/tests/fixtures/simc_scale_factor_report.README.md.
 """
 from __future__ import annotations
 
+import sys
 import os
 from pathlib import Path
 from typing import Any
@@ -178,6 +179,9 @@ def compute_weight_context(
             threads=scale_factor_threads(),
         )
     except Exception as exc:  # noqa: BLE001 - fail closed; caller skips this combo
+        # The skip reason stays short (it is grouped in the run summary); the
+        # actual SimC message goes to the log so a failure can be diagnosed.
+        print(f"SimC error for {spec.spec_name}: {str(exc)[-500:]}", file=sys.stderr)
         raise ComboSkipped(f"SimC run failed ({type(exc).__name__})") from exc
     metric = scale_metric_for_role(spec.role)
     try:

@@ -344,6 +344,9 @@ def reconstruct_target_context(
     try:
         stats_by_actor, _report = run_simc(simc_binary, profile_text)
     except Exception as exc:  # noqa: BLE001 - fail closed; caller skips this combo
+        # The skip reason stays short (it is grouped in the run summary); the
+        # actual SimC message goes to the log so a failure can be diagnosed.
+        print(f"SimC error for {spec.spec_name}: {str(exc)[-500:]}", file=sys.stderr)
         raise ComboSkipped(f"SimC run failed ({type(exc).__name__})") from exc
     actor_name = next(iter(actor_map))
     reconstructed = stats_by_actor.get(actor_name)
