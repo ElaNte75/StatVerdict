@@ -32,7 +32,7 @@ If you already use SimulationCraft for exact character-specific optimization, th
 - Shows **Stat Progress** toward build targets, with live Weights
 - Lets you **Approve** bag pieces into a virtual loadout for a spec you are not wearing
 - Tracks **Best in Slot** progress (Mythic+, Raid, PvP)
-- **Weights** drawer chooses how stat priorities are decided: Guide (default), Measured or Blend
+- **Weights** drawer chooses how stat priorities are decided: Guide (default, with an Easy / Normal / Hard stat target difficulty) or Measured
 
 ---
 

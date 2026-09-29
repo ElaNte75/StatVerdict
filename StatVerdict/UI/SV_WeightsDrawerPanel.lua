@@ -31,10 +31,10 @@ local function ActiveProfile()
     return context and context.profile or nil
 end
 
--- Only MEASURED and BLEND read measured weights; a build without them falls back
--- to the guide order, which the status line says.
+-- Only MEASURED reads measured weights; a build without them falls back to the
+-- guide order, which the status line says.
 local function MissingMeasuredData(mode)
-    if mode ~= "MEASURED" and mode ~= "BLEND" then return false end
+    if mode ~= "MEASURED" then return false end
     local profile = ActiveProfile()
     return type(profile) == "table" and profile.secondaryWeights == nil
 end
@@ -135,19 +135,24 @@ local function EnsureModeRow(card, index, mode)
     return row
 end
 
--- "Stat targets" group: title, the three levels as check options side by side
--- (a radio group: exactly one is ticked), then the note under them (two lines).
-local BIN_NOTE_HEIGHT = 26
+-- "Stat targets" group: title, the three difficulties as check options side by
+-- side, easy to hard (a radio group: exactly one is ticked), then the selected
+-- difficulty's explanation under them (two lines). Only Guide uses the
+-- difficulty: with Measured the options are dimmed and locked.
+local DESCRIPTION_SPACING = 4
+local BIN_NOTE_HEIGHT = 2 * 10 + DESCRIPTION_SPACING + 2
 local BIN_GROUP_HEIGHT = 38 + 2 + BIN_NOTE_HEIGHT
+local BIN_DIMMED_ALPHA = 0.45
+local BIN_NOT_USED = "Not used with our own measurement."
 local BIN_OPTION_TOP = -16
 local BIN_OPTION_WIDTH = 80
 local BIN_OPTION_STEP = 82
 local BIN_OPTION_HEIGHT = 22
 
-local function EnsureBinGroup(card, y)
+local function EnsureBinGroup(card, above)
     local group = CreateFrame("Frame", nil, card)
-    group:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, y)
-    group:SetPoint("TOPRIGHT", card, "TOPRIGHT", -MARGIN, y)
+    group:SetPoint("TOPLEFT", above, "BOTTOMLEFT", 0, -10)
+    group:SetPoint("TOPRIGHT", above, "BOTTOMRIGHT", 0, -10)
     group:SetHeight(BIN_GROUP_HEIGHT)
     card.binGroup = group
 
@@ -164,8 +169,8 @@ local function EnsureBinGroup(card, y)
     card.binNote:SetJustifyH("LEFT")
     card.binNote:SetJustifyV("TOP")
     card.binNote:SetWordWrap(true)
-    card.binNote:SetTextColor(GREY[1], GREY[2], GREY[3])
-    card.binNote:SetText("Tier 1 is the most demanding. Applies to Guide and Blend.")
+    card.binNote:SetSpacing(DESCRIPTION_SPACING)
+    card.binNote:SetTextColor(0.85, 0.85, 0.85)
 
     card.binRows = {}
     for index, bin in ipairs(ns.GetStatTargetBins()) do
@@ -186,6 +191,7 @@ local function EnsureBinGroup(card, y)
         option.label:SetText(bin.label)
 
         option:SetScript("OnClick", function()
+            if option.dimmed then return end
             ns.SetStatTargetBin(bin.key)
             Panel.Sync(card)
         end)
@@ -221,21 +227,29 @@ local function EnsureCard(frame)
     card.intro:SetTextColor(GREY[1], GREY[2], GREY[3])
     card.intro:SetText("Choose how stat priorities and targets are decided.")
 
+    local lastRow
     for index, mode in ipairs(ns.GetWeightModes()) do
         local row = EnsureModeRow(card, index, mode)
         local y = ROWS_TOP - ((index - 1) * ROW_STEP)
         row:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, y)
         row:SetPoint("TOPRIGHT", card, "TOPRIGHT", -MARGIN, y)
+        lastRow = row
     end
 
     -- Everything below hangs from the element above it, so nothing depends on a guessed
-    -- card height: stat target group > status line (empty when all is well) > separator
-    -- > title > description.
-    local rowsBottom = ROWS_TOP - ((#ns.GetWeightModes() - 1) * ROW_STEP) - ROW_HEIGHT
-    local group = EnsureBinGroup(card, rowsBottom - 10)
+    -- card height: selected mode's description > status line (empty when all is well)
+    -- > separator > stat target group (with the difficulty's explanation).
+    card.about = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    card.about:SetPoint("TOPLEFT", lastRow, "BOTTOMLEFT", 0, -8)
+    card.about:SetPoint("TOPRIGHT", lastRow, "BOTTOMRIGHT", 0, -8)
+    card.about:SetJustifyH("LEFT")
+    card.about:SetWordWrap(true)
+    card.about:SetSpacing(DESCRIPTION_SPACING)
+    card.about:SetTextColor(0.85, 0.85, 0.85)
+
     card.status = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    card.status:SetPoint("TOPLEFT", group, "BOTTOMLEFT", 0, -2)
-    card.status:SetPoint("TOPRIGHT", group, "BOTTOMRIGHT", 0, -2)
+    card.status:SetPoint("TOPLEFT", card.about, "BOTTOMLEFT", 0, -4)
+    card.status:SetPoint("TOPRIGHT", card.about, "BOTTOMRIGHT", 0, -4)
     card.status:SetJustifyH("LEFT")
     card.status:SetWordWrap(true)
 
@@ -245,19 +259,7 @@ local function EnsureCard(frame)
     card.separator:SetPoint("TOPLEFT", card.status, "BOTTOMLEFT", 0, -10)
     card.separator:SetPoint("TOPRIGHT", card.status, "BOTTOMRIGHT", 0, -10)
 
-    card.aboutTitle = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    card.aboutTitle:SetPoint("TOPLEFT", card.separator, "BOTTOMLEFT", 0, -12)
-    card.aboutTitle:SetPoint("TOPRIGHT", card.separator, "BOTTOMRIGHT", 0, -12)
-    card.aboutTitle:SetJustifyH("LEFT")
-    card.aboutTitle:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
-
-    card.about = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    card.about:SetPoint("TOPLEFT", card.aboutTitle, "BOTTOMLEFT", 0, -8)
-    card.about:SetPoint("TOPRIGHT", card.aboutTitle, "BOTTOMRIGHT", 0, -8)
-    card.about:SetJustifyH("LEFT")
-    card.about:SetWordWrap(true)
-    card.about:SetSpacing(4)
-    card.about:SetTextColor(0.85, 0.85, 0.85)
+    EnsureBinGroup(card, card.separator)
 
     frame.weightsDrawerCard = card
     return card
@@ -272,19 +274,26 @@ function Panel.Sync(card)
         PaintRow(row, row.key == selected, row.hovered == true)
     end
 
+    -- The difficulty only applies to Guide; the choice is kept for switching back.
     local bin = ns.GetStatTargetBin()
-    for _, option in ipairs(card.binRows or {}) do
+    local dimmed = selected ~= "GUIDE"
+    local binAbout = ""
+    for index, option in ipairs(card.binRows or {}) do
         local checked = option.key == bin
         option.check:SetChecked(checked)
         if checked then
             option.label:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+            binAbout = ns.GetStatTargetBins()[index].about or ""
         else
             option.label:SetTextColor(WHITE[1], WHITE[2], WHITE[3])
         end
+        option.dimmed = dimmed
+        option:EnableMouse(not dimmed)
+        option:SetAlpha(dimmed and BIN_DIMMED_ALPHA or 1)
     end
+    card.binNote:SetText(dimmed and BIN_NOT_USED or binAbout)
 
     local info = ns.GetWeightModeInfo(selected)
-    card.aboutTitle:SetText(info.label .. " weights")
     card.about:SetText(info.about or "")
 
     local status = ""

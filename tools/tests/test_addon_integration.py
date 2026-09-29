@@ -14,7 +14,7 @@ from tools.spec_catalog import SPECS
 from tools.tests.test_addon_lua import FRAME_STUB, LuaRuntime, compile_lua_file, new_runtime, toc_lua_files
 
 GOALS = ("MYTHIC_PLUS", "RAID", "PVP")
-WEIGHT_MODES = ("GUIDE", "MEASURED", "BLEND")
+WEIGHT_MODES = ("GUIDE", "MEASURED")
 CANONICAL_STAT = {
     "ITEM_MOD_CRIT_RATING_SHORT": "critical_strike",
     "ITEM_MOD_HASTE_RATING_SHORT": "haste",
@@ -346,13 +346,6 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
                 problems.append(f"{cell}: guide mode must not use measured weights")
         elif weight_status == "ok" and profile.secondaryWeights is None:
             problems.append(f"{cell}: measured weights not applied")
-        if mode == "BLEND":
-            guide = self.build_profile(spec, goal, hero, "GUIDE")
-            if lua_list(profile.secondaryOrder) != lua_list(guide.secondaryOrder):
-                problems.append(f"{cell}: blend order differs from the guide order")
-            weights = profile.secondaryWeights
-            if weights is not None and abs(max(weights[k] for k in weights.keys()) - 1.0) > 1e-9:
-                problems.append(f"{cell}: blended weights not normalised to 1.0")
         for stat_key in lua_list(profile.secondaryOrder):
             weight = ns.GetDefaultStatWeight(profile, stat_key)
             if not isinstance(weight, (int, float)) or weight <= 0:
@@ -362,7 +355,7 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
 
     def check_targets(self, cell: str, context, profile, mode: str, problems: list[str]) -> None:
         """The audit rows show the mode's targets: GUIDE the ClassCodex (u.gg) top20
-        targets when the data has them, MEASURED our own, BLEND between the two.
+        targets when the data has them, MEASURED our own.
         A stat missing on one side uses the other side's target."""
         def positive(table, key):
             value = table[key] if table is not None else None
@@ -379,16 +372,7 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
                 continue
             own_value, guide_value = positive(own, canonical), positive(guide, canonical)
             target = float(row.target)
-            if mode == "MEASURED" or guide_value is None:
-                expected = own_value
-            elif mode == "GUIDE" or own_value is None:
-                expected = guide_value
-            else:
-                low, high = min(own_value, guide_value), max(own_value, guide_value)
-                if not low - 1e-6 <= target <= high + 1e-6:
-                    problems.append(f"{cell}: {canonical} target {target} not between guide {guide_value} "
-                                    f"and ours {own_value}")
-                expected = (own_value + guide_value) / 2
+            expected = own_value if mode == "MEASURED" or guide_value is None else guide_value
             if expected is None or abs(target - expected) > 1e-6:
                 problems.append(f"{cell}: {canonical} target {target}, expected {expected}")
 

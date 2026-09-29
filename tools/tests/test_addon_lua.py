@@ -95,21 +95,26 @@ class WeightModeCoreTests(unittest.TestCase):
         self.ns.RequestStatAuditRefresh = lambda: self.calls.__setitem__("audit", self.calls["audit"] + 1)
         self.ns.RefreshUpgradeIndicators = lambda *a: self.calls.__setitem__("indicators", self.calls["indicators"] + 1)
 
-    def test_three_modes_with_guide_recommended(self) -> None:
+    def test_two_modes_with_guide_recommended(self) -> None:
         modes = self.ns.GetWeightModes()
-        self.assertEqual(["GUIDE", "MEASURED", "BLEND"], [modes[i].key for i in (1, 2, 3)])
-        self.assertEqual(["Guide", "Measured", "Blend"], [modes[i].label for i in (1, 2, 3)])
+        self.assertEqual(2, len(modes))
+        self.assertEqual(["GUIDE", "MEASURED"], [modes[i].key for i in (1, 2)])
+        self.assertEqual(["Guide", "Measured"], [modes[i].label for i in (1, 2)])
         self.assertEqual("Recommended", modes[1].hint)
-        self.assertEqual(["From guides", "Our own measurement", "Guides + our measurement"],
-                         [modes[i].meaning for i in (1, 2, 3)])
+        self.assertEqual(["From guides", "Our own measurement"], [modes[i].meaning for i in (1, 2)])
         self.assertEqual("Stat priority and stat targets taken straight from the guides. Recommended.",
                          modes[1].about)
         self.assertEqual("Our own simulation: stat targets from best-in-slot gear with recommended gems "
                          "and enchants, and stat values measured by our simulations.", modes[2].about)
-        self.assertEqual("A mix of both: the guide's order, with targets and stat values averaged with "
-                         "our own measurement.", modes[3].about)
         self.assertEqual("Measured", self.ns.GetWeightModeInfo("MEASURED").label)
         self.assertEqual("Guide", self.ns.GetWeightModeInfo("junk").label)
+        self.assertEqual("Guide", self.ns.GetWeightModeInfo("BLEND").label)
+
+    def test_blend_mode_is_gone(self) -> None:
+        self.assertFalse(self.ns.SetWeightMode("BLEND"))
+        self.lua.globals().StatVerdictDB.weightMode = "BLEND"
+        self.assertEqual("GUIDE", self.ns.GetWeightMode())
+        self.assertEqual({"audit": 0, "indicators": 0}, self.calls)
 
     def test_default_mode_is_guide_and_old_benchmark_level_is_ignored(self) -> None:
         self.lua.globals().StatVerdictDB.benchmarkLevel = "ELITE"
@@ -124,11 +129,16 @@ class WeightModeCoreTests(unittest.TestCase):
         self.assertEqual("MEASURED", self.ns.GetWeightMode())
         self.assertEqual({"audit": 1, "indicators": 1}, self.calls)
 
-    def test_three_stat_target_tiers(self) -> None:
+    def test_three_difficulties_from_easy_to_hard(self) -> None:
         bins = self.ns.GetStatTargetBins()
-        # Saved keys stay top20/50/80; Tier 1 (top20) is the most demanding.
-        self.assertEqual(["top20", "top50", "top80"], [bins[i].key for i in (1, 2, 3)])
-        self.assertEqual(["Tier 1", "Tier 2", "Tier 3"], [bins[i].label for i in (1, 2, 3)])
+        # Saved keys stay top20/50/80, shown easy to hard; Hard (top20) is the default.
+        self.assertEqual(3, len(bins))
+        self.assertEqual(["top80", "top50", "top20"], [bins[i].key for i in (1, 2, 3)])
+        self.assertEqual(["Easy", "Normal", "Hard"], [bins[i].label for i in (1, 2, 3)])
+        self.assertEqual(["Stat targets that most players reach. A comfortable goal.",
+                          "The stats of a typical player. A solid, realistic goal.",
+                          "The stats the best-equipped players reach. The most demanding goal."],
+                         [bins[i].about for i in (1, 2, 3)])
         self.assertEqual("top20", self.ns.GetStatTargetBin())
 
     def test_set_stat_target_bin_saves_it_and_refreshes(self) -> None:
@@ -583,7 +593,7 @@ class CoreProfileTests(unittest.TestCase):
         self.assertIsNone(profile.secondaryWeights)
         self.assertEqual(SECONDARY["haste"], profile.secondaryOrder[1])
 
-    # --- Stat weight mode: GUIDE (default) / MEASURED / BLEND -----------------
+    # --- Stat weight mode: GUIDE (default) / MEASURED ---------------------------
     # Fixture San'layn: guide haste > crit > mastery > vers; SimC measured
     # haste 1.0, crit 0.8, vers 0.6, mastery 0.5 (vers above mastery: they disagree).
     GUIDE_ORDER = ("haste", "crit", "mastery", "vers")
@@ -604,18 +614,18 @@ class CoreProfileTests(unittest.TestCase):
         lua, ns = self.build_runtime()
         self.assertEqual("GUIDE", ns.ProfileRepository.DEFAULT_WEIGHT_MODE)
         self.assertEqual("GUIDE", ns.ProfileRepository.GetWeightMode())
-        for mode in ("GUIDE", "MEASURED", "BLEND"):
+        for mode in ("GUIDE", "MEASURED"):
             lua.globals().StatVerdictDB.weightMode = mode
             self.assertEqual(mode, ns.ProfileRepository.GetWeightMode())
 
     def test_garbage_saved_weight_mode_falls_back_to_default(self) -> None:
         lua, ns = self.build_runtime()
-        for garbage in ("nonsense", "guide", 3, lua.table()):
+        for garbage in ("nonsense", "guide", "BLEND", 3, lua.table()):
             lua.globals().StatVerdictDB.weightMode = garbage
             self.assertEqual("GUIDE", ns.ProfileRepository.GetWeightMode(), garbage)
         lua.globals().StatVerdictDB = None
         self.assertEqual("GUIDE", ns.ProfileRepository.GetWeightMode())
-        lua.globals().StatVerdictDB = lua.table(weightMode="junk")
+        lua.globals().StatVerdictDB = lua.table(weightMode="BLEND")
         profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
         self.assertEqual(self.keys(*self.GUIDE_ORDER), self.order(profile))
         self.assertIsNone(profile.secondaryWeights)
@@ -657,66 +667,6 @@ class CoreProfileTests(unittest.TestCase):
         self.assertEqual(self.keys(*self.MEASURED_ORDER), self.order(profile))
         self.assertEqual({SECONDARY["haste"]: 1.0, SECONDARY["crit"]: 0.8, SECONDARY["vers"]: 0.6,
                           SECONDARY["mastery"]: 0.5}, self.weight_table(profile))
-
-    def test_blend_mode_keeps_the_guide_order_and_mixes_the_weights(self) -> None:
-        lua, ns = self.build_runtime(weight_mode="BLEND")
-        load_addon_file(lua, ns, "Core/SV_Modifiers.lua")
-        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
-        self.assertEqual(self.keys(*self.GUIDE_ORDER), self.order(profile))
-        # Guide rank weights 4/3/2/1 over the top one: 1.0 / 0.75 / 0.5 / 0.25,
-        # mixed 50/50 with the measured weights; the max is already 1.0.
-        expected = {"haste": 0.5 * 1.0 + 0.5 * 1.0, "crit": 0.5 * 0.75 + 0.5 * 0.8,
-                    "mastery": 0.5 * 0.5 + 0.5 * 0.5, "vers": 0.5 * 0.25 + 0.5 * 0.6}
-        weights = self.weight_table(profile)
-        self.assertEqual(set(self.keys(*expected)), set(weights))
-        for name, value in expected.items():
-            self.assertAlmostEqual(value, weights[SECONDARY[name]], msg=name)
-        # Same downstream path as measured weights: the audit rows show the scoring weight.
-        rows = profile.auditTargets.rows
-        for i in range(1, len(rows) + 1):
-            self.assertEqual(ns.GetMeasuredSecondaryRawWeight(profile, rows[i].key), rows[i].baseModifier)
-
-    def test_blend_mode_renormalises_and_leaves_unmeasured_stats_on_the_guide(self) -> None:
-        build_id = now_build_id()
-        weights = make_classcodex_weights(build_id)
-        weights["profiles"]["DEATHKNIGHT_BLOOD"]["goals"]["MYTHIC_PLUS"]["heroTalents"]["sanlayn"] = {
-            "critical_strike": 1.0, "haste": 0.4, "versatility": 0.6, "mastery": "junk",
-        }
-        lua, ns = self.build_runtime(build_id=build_id, weights=weights, weight_mode="BLEND")
-        load_addon_file(lua, ns, "Core/SV_Modifiers.lua")
-        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
-        self.assertEqual(self.keys(*self.GUIDE_ORDER), self.order(profile))
-        # haste 0.5+0.2 = 0.7, crit 0.375+0.5 = 0.875, vers 0.125+0.3 = 0.425; / 0.875.
-        weights = self.weight_table(profile)
-        self.assertEqual(set(self.keys("haste", "crit", "vers")), set(weights))
-        self.assertAlmostEqual(0.7 / 0.875, weights[SECONDARY["haste"]])
-        self.assertAlmostEqual(1.0, weights[SECONDARY["crit"]])
-        self.assertAlmostEqual(0.425 / 0.875, weights[SECONDARY["vers"]])
-
-    def test_blend_mode_without_measured_weights_is_pure_guide(self) -> None:
-        lua, ns = self.build_runtime(weight_mode="BLEND")
-        load_addon_file(lua, ns, "Core/SV_Modifiers.lua")
-        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua, heroTalentName="Deathbringer"))
-        self.assertIsNone(profile.secondaryWeights)
-        self.assertEqual(self.keys("crit", "mastery", "vers", "haste"), self.order(profile))
-        self.assertEqual([4.0, 3.0, 2.0, 1.0], self.base_modifiers(profile))
-
-    def test_blend_mode_gives_tied_guide_stats_the_same_guide_share(self) -> None:
-        build_id = now_build_id()
-        targets = make_classcodex_targets(build_id)
-        context = targets["profiles"]["DEATHKNIGHT_BLOOD"]["goals"]["MYTHIC_PLUS"]["heroTalents"]["sanlayn"]
-        context["priorityProfiles"][0]["tiers"] = [["critical_strike", "mastery"]]
-        weights = make_classcodex_weights(build_id)
-        weights["profiles"]["DEATHKNIGHT_BLOOD"]["goals"]["MYTHIC_PLUS"]["heroTalents"]["sanlayn"] = {
-            "critical_strike": 0.5, "haste": 1.0, "versatility": 0.5, "mastery": 0.5,
-        }
-        lua, ns = self.build_runtime(build_id=build_id, targets=targets, weights=weights, weight_mode="BLEND")
-        load_addon_file(lua, ns, "Core/SV_Modifiers.lua")
-        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
-        weights = self.weight_table(profile)
-        # crit (rank 2) and mastery (rank 3) are one guide tier: both use rank 2's 0.75.
-        self.assertAlmostEqual(0.5 * 0.75 + 0.25, weights[SECONDARY["crit"]])
-        self.assertAlmostEqual(0.5 * 0.75 + 0.25, weights[SECONDARY["mastery"]])
 
     def test_switching_weight_mode_rebuilds_the_cached_provider_view(self) -> None:
         lua, ns = self.build_runtime()
@@ -799,32 +749,6 @@ class CoreProfileTests(unittest.TestCase):
         self.assertEqual(self.keys(*self.MEASURED_ORDER), self.order(profile))
         self.assertEqual("MEASURED", profile.auditTargets.targetMode)
 
-    def test_blend_mode_averages_guide_and_own_targets(self) -> None:
-        lua, ns = self.guide_runtime(weight_mode="BLEND")
-        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
-        # mastery has no guide target: it keeps ours.
-        self.assertEqual({"crit": (1000 + 1140) / 2, "haste": (1200 + 900) / 2, "mastery": 680.0,
-                          "vers": (300 + 430) / 2}, self.named_targets(profile))
-        self.assertEqual(self.keys(*self.GUIDE_ORDER), self.order(profile))
-        lua.globals().StatVerdictDB.statTargetBin = "top50"
-        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
-        self.assertEqual((680 + 600) / 2, self.named_targets(profile)["mastery"])
-        # Without guide targets BLEND shows our own.
-        plain_lua, plain_ns = self.build_runtime(weight_mode="BLEND")
-        plain = plain_ns.ProfileRepository.BuildRuntimeProfile(self.context(plain_lua))
-        self.assertEqual(self.OWN_TARGETS, self.named_targets(plain))
-
-    def test_blend_uses_the_guide_target_when_ours_is_missing(self) -> None:
-        build_id = now_build_id()
-        targets = add_guide_targets(make_classcodex_targets(build_id), "DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "sanlayn",
-                                    make_guide_targets(top20=(1000, 1200, 500, 300)))
-        stats = targets["profiles"]["DEATHKNIGHT_BLOOD"]["goals"]["MYTHIC_PLUS"]["heroTalents"]["sanlayn"][
-            "targets"]["statTargets"]["stats"]
-        del stats["mastery"]
-        lua, ns = self.build_runtime(build_id=build_id, targets=targets, weight_mode="BLEND")
-        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
-        self.assertEqual(500.0, self.named_targets(profile)["mastery"])
-
     def test_quality_checks_still_read_our_own_targets(self) -> None:
         build_id = now_build_id()
         targets = add_guide_targets(make_classcodex_targets(build_id), "DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "sanlayn",
@@ -871,12 +795,12 @@ class CoreProfileTests(unittest.TestCase):
         self.assertEqual({"invalidate": 1, "audit": 1, "indicators": 1}, calls)
         self.assertIn("MEASURED", printed[-1])
 
-        ns.HandleWeightModeSlash("blend")
-        self.assertEqual("BLEND", ns.ProfileRepository.GetWeightMode())
-        ns.HandleWeightModeSlash("nonsense")
-        self.assertEqual("BLEND", lua.globals().StatVerdictDB.weightMode)
-        self.assertEqual(2, calls["invalidate"])
-        self.assertIn("guide", printed[-1])  # usage line
+        for rejected in ("blend", "nonsense"):
+            ns.HandleWeightModeSlash(rejected)
+            self.assertEqual("MEASURED", lua.globals().StatVerdictDB.weightMode, rejected)
+            self.assertEqual(1, calls["invalidate"], rejected)
+            self.assertIn("guide", printed[-1])  # usage line
+            self.assertNotIn("blend", printed[-1].lower())
         ns.HandleWeightModeSlash("guide")
         self.assertEqual("GUIDE", lua.globals().StatVerdictDB.weightMode)
 
@@ -1077,13 +1001,18 @@ class PanelModeTests(unittest.TestCase):
         self.assertIn('mode = "weights"', source)
         self.assertNotIn("IsBenchmarkRelevant", source)
         self.assertNotIn('label = "Benchmark"', source)
+        self.assertIn('tooltip = "Choose how stat priorities and targets are decided: Guide or Measured."', source)
+        self.assertNotIn("Blend", source)
         for path in toc_lua_files():
             self.assertNotIn("IsBenchmarkRelevant", path.read_text(encoding="utf-8-sig"), path.name)
 
     def test_manual_describes_the_weights_button(self) -> None:
         source = (ADDON / "UI" / "SV_ManualDrawerPanel.lua").read_text(encoding="utf-8-sig")
-        self.assertIn("Weights — choose how stat priorities are decided: Guide, Measured or Blend.", source)
+        self.assertIn("Weights — choose how stat priorities and targets are decided: Guide (from the guides, "
+                      "recommended) or Measured (our own measurement).", source)
+        self.assertIn("With Guide you also pick a stat target difficulty: Easy, Normal or Hard.", source)
         self.assertNotIn("Benchmark", source)
+        self.assertNotIn("Blend", source)
 
 
 FRAME_STUB = """
@@ -1095,7 +1024,19 @@ local function Stub()
     return setmetatable(object, { __index = function(t, key)
         if key == "SetText" then return function(self, value) rawset(self, "text", value) end end
         if key == "SetShown" then return function(self, value) rawset(self, "shown", value) end end
-        if key == "CreateFontString" or key == "CreateTexture" then return function() return Stub() end end
+        if key == "CreateFontString" then
+            return function(self, name, layer, template)
+                local text = Stub()
+                rawset(text, "_template", template)
+                return text
+            end
+        end
+        if key == "CreateTexture" then return function() return Stub() end end
+        -- Sizes are recorded (underscore fields) for the drawer geometry checks.
+        if key == "SetHeight" then return function(self, value) rawset(self, "_height", value) end end
+        if key == "SetSize" then return function(self, w, h) rawset(self, "_width", w) rawset(self, "_height", h) end end
+        if key == "SetAlpha" then return function(self, value) rawset(self, "_alpha", value) end end
+        if key == "EnableMouse" then return function(self, value) rawset(self, "_mouse", value) end end
         if key == "SetPoint" then
             return function(self, ...)
                 local points = rawget(self, "points") or {}
@@ -1163,20 +1104,25 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         self.ns.StatVerdictWeightsDrawerPanel.Apply(self.frame)
         return self.frame.weightsDrawerCard
 
-    def test_title_intro_and_three_mode_rows(self) -> None:
+    EASY = "Stat targets that most players reach. A comfortable goal."
+    NORMAL = "The stats of a typical player. A solid, realistic goal."
+    HARD = "The stats the best-equipped players reach. The most demanding goal."
+    NOT_USED = "Not used with our own measurement."
+
+    def test_title_intro_and_two_mode_rows(self) -> None:
         card = self.card()
         self.assertEqual("Weights", card.title.text)
         self.assertEqual("Choose how stat priorities and targets are decided.", card.intro.text)
-        self.assertEqual(["GUIDE", "MEASURED", "BLEND"], [card.modeRows[i].key for i in (1, 2, 3)])
-        self.assertEqual(["Guide", "Measured", "Blend"], [card.modeRows[i].label.text for i in (1, 2, 3)])
+        self.assertEqual(2, len(card.modeRows))
+        self.assertEqual(["GUIDE", "MEASURED"], [card.modeRows[i].key for i in (1, 2)])
+        self.assertEqual(["Guide", "Measured"], [card.modeRows[i].label.text for i in (1, 2)])
         self.assertEqual("Recommended", card.modeRows[1].hint.text)
-        for i in (1, 2, 3):
+        for i in (1, 2):
             self.assertTrue(card.modeRows[i].meaning.text)
 
     def test_guide_is_selected_by_default(self) -> None:
         card = self.card()
-        self.assertEqual([True, False, False], [card.modeRows[i].check.checked for i in (1, 2, 3)])
-        self.assertEqual("Guide weights", card.aboutTitle.text)
+        self.assertEqual([True, False], [card.modeRows[i].check.checked for i in (1, 2)])
         self.assertIn("guides", card.about.text)
 
     def test_clicking_a_row_sets_the_weight_mode_and_marks_it(self) -> None:
@@ -1184,29 +1130,44 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         card.modeRows[2].scripts.OnClick()
         self.assertEqual("MEASURED", self.lua.globals().StatVerdictDB.weightMode)
         self.assertEqual("MEASURED", self.ns.ProfileRepository.GetWeightMode())
-        self.assertEqual([False, True, False], [card.modeRows[i].check.checked for i in (1, 2, 3)])
-        self.assertEqual("Measured weights", card.aboutTitle.text)
+        self.assertEqual([False, True], [card.modeRows[i].check.checked for i in (1, 2)])
         self.assertIn("simulations", card.about.text)
         self.assertGreaterEqual(self.refreshes, 1)
-        card.modeRows[3].scripts.OnClick()
-        self.assertEqual("BLEND", self.lua.globals().StatVerdictDB.weightMode)
-        self.assertEqual([False, False, True], [card.modeRows[i].check.checked for i in (1, 2, 3)])
-        self.assertEqual("Blend weights", card.aboutTitle.text)
+        card.modeRows[1].scripts.OnClick()
+        self.assertEqual("GUIDE", self.lua.globals().StatVerdictDB.weightMode)
+        self.assertEqual([True, False], [card.modeRows[i].check.checked for i in (1, 2)])
+        self.assertIn("guides", card.about.text)
 
     def test_saved_mode_is_shown_as_selected(self) -> None:
+        self.lua.globals().StatVerdictDB.weightMode = "MEASURED"
+        card = self.card()
+        self.assertEqual([False, True], [card.modeRows[i].check.checked for i in (1, 2)])
+
+    def test_saved_blend_mode_shows_guide(self) -> None:
         self.lua.globals().StatVerdictDB.weightMode = "BLEND"
         card = self.card()
-        self.assertEqual([False, False, True], [card.modeRows[i].check.checked for i in (1, 2, 3)])
+        self.assertEqual([True, False], [card.modeRows[i].check.checked for i in (1, 2)])
+        self.assertIn("guides", card.about.text)
 
-    def test_description_hangs_from_its_title_so_it_cannot_leave_the_card(self) -> None:
+    def test_mode_description_sits_right_under_the_mode_rows(self) -> None:
         card = self.card()
+        rawequal = self.lua.eval("rawequal")
+        # Where the third (Blend) row used to be: hanging from the last mode row.
         self.assertEqual("TOPLEFT", card.about.points[1][1])
-        self.assertTrue(self.lua.eval("rawequal")(card.aboutTitle, card.about.points[1][2]))
+        self.assertTrue(rawequal(card.modeRows[2], card.about.points[1][2]))
+        self.assertIsNone(card.aboutTitle)
+        # Then the status line, the separator and the stat target group, in that order.
+        self.assertTrue(rawequal(card.about, card.status.points[1][2]))
+        self.assertTrue(rawequal(card.status, card.separator.points[1][2]))
+        self.assertTrue(rawequal(card.separator, card.binGroup.points[1][2]))
         for mode in self.ns.GetWeightModes().values():
-            self.assertLessEqual(len(mode.about), 300, mode.key)  # about seven lines in the drawer
+            self.assertLessEqual(len(mode.about), 300, mode.key)
 
     def test_description_lines_have_extra_spacing(self) -> None:
-        self.assertGreaterEqual(self.card().about.spacing, 3)
+        card = self.card()
+        self.assertGreaterEqual(card.about.spacing, 3)
+        self.assertEqual(card.about._template, card.binNote._template)
+        self.assertEqual(card.about.spacing, card.binNote.spacing)
 
     def test_no_current_data_block_any_more(self) -> None:
         card = self.card()
@@ -1218,15 +1179,13 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         self.assertEqual("", self.card().status.text)
 
     def test_status_is_empty_when_measured_data_exists(self) -> None:
-        for mode in ("MEASURED", "BLEND"):
-            self.lua.globals().StatVerdictDB.weightMode = mode
-            self.assertEqual("", self.card().status.text, mode)
+        self.lua.globals().StatVerdictDB.weightMode = "MEASURED"
+        self.assertEqual("", self.card().status.text)
 
     def test_status_says_the_guide_is_used_without_measured_data(self) -> None:
         self.measured = False
-        for mode in ("MEASURED", "BLEND"):
-            self.lua.globals().StatVerdictDB.weightMode = mode
-            self.assertEqual(self.NO_DATA, self.card().status.text, mode)
+        self.lua.globals().StatVerdictDB.weightMode = "MEASURED"
+        self.assertEqual(self.NO_DATA, self.card().status.text)
 
     def test_status_is_empty_without_an_active_build(self) -> None:
         self.has_profile = False
@@ -1237,10 +1196,9 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
     def test_status_says_our_targets_are_used_without_guide_targets(self) -> None:
         self.guide_targets = False
         self.assertEqual(self.NO_GUIDE_TARGETS, self.card().status.text)
-        # Only in Guide mode: Measured shows our own targets anyway, Blend keeps its own message.
-        for mode in ("MEASURED", "BLEND"):
-            self.lua.globals().StatVerdictDB.weightMode = mode
-            self.assertEqual("", self.card().status.text, mode)
+        # Only in Guide mode: Measured shows our own targets anyway.
+        self.lua.globals().StatVerdictDB.weightMode = "MEASURED"
+        self.assertEqual("", self.card().status.text)
         self.measured = False
         self.assertEqual(self.NO_DATA, self.card().status.text)
 
@@ -1248,47 +1206,149 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         card = self.card()
         self.assertIn("guides", card.about.text)
         self.assertIn("stat targets", card.about.text)
-        for i in (1, 2, 3):
+        for i in (1, 2):
             self.assertLessEqual(len(card.modeRows[i].meaning.text), 31, i)  # one line in the row
 
     def test_no_raider_io_wording_left(self) -> None:
         source = (ADDON / "UI" / "SV_WeightsDrawerPanel.lua").read_text(encoding="utf-8-sig")
-        for word in ("MythicPlusBenchmarks", "confidence", "sample", "Mythic+", "top 25"):
+        for word in ("MythicPlusBenchmarks", "confidence", "sample", "Mythic+", "top 25", "Blend", "BLEND", "Tier"):
             self.assertNotIn(word, source)
 
     def bin_checks(self, card):
         return [card.binRows[i].check.checked for i in (1, 2, 3)]
 
-    def test_stat_target_group_below_the_mode_rows(self) -> None:
+    def test_stat_target_group_is_a_difficulty_from_easy_to_hard(self) -> None:
         card = self.card()
         self.assertEqual("Stat targets", card.binTitle.text)
-        self.assertEqual("Tier 1 is the most demanding. Applies to Guide and Blend.", card.binNote.text)
-        self.assertEqual(["top20", "top50", "top80"], [card.binRows[i].key for i in (1, 2, 3)])
-        self.assertEqual(["Tier 1", "Tier 2", "Tier 3"], [card.binRows[i].label.text for i in (1, 2, 3)])
-        self.assertEqual([True, False, False], self.bin_checks(card))
-        # The status line (and the description under it) hangs below the group.
-        self.assertTrue(self.lua.eval("rawequal")(card.binGroup, card.status.points[1][2]))
+        self.assertEqual(3, len(card.binRows))
+        self.assertEqual(["top80", "top50", "top20"], [card.binRows[i].key for i in (1, 2, 3)])
+        self.assertEqual(["Easy", "Normal", "Hard"], [card.binRows[i].label.text for i in (1, 2, 3)])
+        # Side by side, left to right.
+        xs = [card.binRows[i].points[1][4] for i in (1, 2, 3)]
+        self.assertEqual(sorted(xs), xs)
+        self.assertEqual(len(set(xs)), 3)
+        # Default: Hard (top20), explained under the options.
+        self.assertEqual([False, False, True], self.bin_checks(card))
+        self.assertEqual(self.HARD, card.binNote.text)
+        self.assertNotIn("Tier", card.binNote.text)
 
-    def test_stat_target_group_shows_the_saved_bin(self) -> None:
-        self.lua.globals().StatVerdictDB.statTargetBin = "top80"
-        self.assertEqual([False, False, True], self.bin_checks(self.card()))
+    def test_stat_target_group_shows_the_saved_difficulty(self) -> None:
+        for key, checks, note in (("top80", [True, False, False], self.EASY),
+                                  ("top50", [False, True, False], self.NORMAL)):
+            self.lua.globals().StatVerdictDB.statTargetBin = key
+            card = self.card()
+            self.assertEqual(checks, self.bin_checks(card), key)
+            self.assertEqual(note, card.binNote.text, key)
 
-    def test_invalid_saved_bin_shows_top_20(self) -> None:
+    def test_invalid_saved_bin_shows_hard(self) -> None:
         self.lua.globals().StatVerdictDB.statTargetBin = "top99"
-        self.assertEqual([True, False, False], self.bin_checks(self.card()))
+        card = self.card()
+        self.assertEqual([False, False, True], self.bin_checks(card))
+        self.assertEqual(self.HARD, card.binNote.text)
 
-    def test_clicking_a_stat_target_level_sets_it_and_refreshes(self) -> None:
+    def test_clicking_a_difficulty_sets_it_and_refreshes(self) -> None:
         card = self.card()
         card.binRows[2].scripts.OnClick()
         self.assertEqual("top50", self.lua.globals().StatVerdictDB.statTargetBin)
         self.assertEqual("top50", self.ns.ProfileRepository.GetStatTargetBin())
         self.assertEqual([False, True, False], self.bin_checks(card))
+        self.assertEqual(self.NORMAL, card.binNote.text)
         self.assertGreaterEqual(self.refreshes, 1)
         card.binRows[1].scripts.OnClick()
-        self.assertEqual("top20", self.lua.globals().StatVerdictDB.statTargetBin)
+        self.assertEqual("top80", self.lua.globals().StatVerdictDB.statTargetBin)
         self.assertEqual([True, False, False], self.bin_checks(card))
+        self.assertEqual(self.EASY, card.binNote.text)
         # The weight mode is left alone.
         self.assertEqual("GUIDE", self.ns.GetWeightMode())
+
+    def test_difficulty_is_dimmed_and_locked_in_measured_mode(self) -> None:
+        self.lua.globals().StatVerdictDB.statTargetBin = "top50"
+        card = self.card()
+        for i in (1, 2, 3):
+            self.assertFalse(card.binRows[i].dimmed, i)
+            self.assertNotEqual(False, card.binRows[i]._mouse, i)
+        card.modeRows[2].scripts.OnClick()
+        self.assertEqual(self.NOT_USED, card.binNote.text)
+        for i in (1, 2, 3):
+            option = card.binRows[i]
+            self.assertTrue(option.dimmed, i)
+            self.assertFalse(option._mouse, i)
+            self.assertGreaterEqual(option._alpha, 0.4, i)  # still readable
+            self.assertLess(option._alpha, 1, i)
+        # The remembered choice still shows, and a click cannot change it.
+        self.assertEqual([False, True, False], self.bin_checks(card))
+        card.binRows[3].scripts.OnClick()
+        self.assertEqual("top50", self.lua.globals().StatVerdictDB.statTargetBin)
+        self.assertEqual([False, True, False], self.bin_checks(card))
+        self.assertEqual(self.NOT_USED, card.binNote.text)
+        # Back to Guide: the same choice, clickable again.
+        card.modeRows[1].scripts.OnClick()
+        self.assertEqual(self.NORMAL, card.binNote.text)
+        for i in (1, 2, 3):
+            self.assertFalse(card.binRows[i].dimmed, i)
+            self.assertTrue(card.binRows[i]._mouse, i)
+            self.assertEqual(1, card.binRows[i]._alpha, i)
+
+    # --- Geometry: the whole drawer must fit the card ---------------------------
+    # The drawer card spans the Stat Progress card: frame height 440 minus the title
+    # well (33), the well padding (6) and a gutter above and below (2 x 10).
+    CARD_HEIGHT = 440 - 33 - 6 - 2 * 10
+    BOTTOM_BORDER = 6
+    DRAWER_TEXT_WIDTH = 280 - 2 * 14
+    # Conservative pixel sizes of the WoW fonts used (font size, average character width).
+    FONTS = {"GameFontNormal": (12, 6.5), "GameFontNormalSmall": (10, 5.5), "GameFontHighlightSmall": (10, 5.5)}
+
+    def text_height(self, text_object, width: int) -> float:
+        size, char_width = self.FONTS[text_object._template]
+        per_line = max(1, int(width // char_width))
+        lines, current = 0, 0
+        for word in (text_object.text or "").split():
+            need = len(word) if current == 0 else current + 1 + len(word)
+            if current and need > per_line:
+                lines, current = lines + 1, len(word)
+            else:
+                current = need
+        lines += 1 if current else 0
+        spacing = text_object.spacing or 2
+        return 0 if lines == 0 else lines * size + (lines - 1) * spacing
+
+    def region_top(self, card, region) -> float:
+        """Distance of a region's top from the card's top (negative is down), following
+        its first anchor the way WoW does for TOPLEFT points."""
+        point = region.points[1]
+        relative, relative_point, y = point[2], point[3], point[5]
+        if self.lua.eval("rawequal")(relative, card):
+            return y
+        base = self.region_top(card, relative)
+        if str(relative_point).startswith("BOTTOM"):
+            base -= self.region_height(relative)
+        return base + y
+
+    def region_height(self, region) -> float:
+        if region._height is not None:
+            return region._height
+        return self.text_height(region, self.DRAWER_TEXT_WIDTH)
+
+    def lowest_bottom(self, card) -> float:
+        return self.region_top(card, card.binGroup) - self.region_height(card.binGroup)
+
+    def test_whole_drawer_fits_the_card_in_every_state(self) -> None:
+        worst = 0
+        for mode in ("GUIDE", "MEASURED"):
+            for measured in (True, False):
+                for guide_targets in (True, False):
+                    self.lua.globals().StatVerdictDB.weightMode = mode
+                    self.measured, self.guide_targets = measured, guide_targets
+                    card = self.card()
+                    bottom = self.lowest_bottom(card)
+                    worst = min(worst, bottom)
+                    self.assertGreaterEqual(bottom, -(self.CARD_HEIGHT - self.BOTTOM_BORDER),
+                                            (mode, measured, guide_targets))
+        # The difficulty explanation fits its reserved space (two lines).
+        for about in [bin.about for bin in self.ns.GetStatTargetBins().values()] + [self.NOT_USED]:
+            card.binNote.text = about
+            self.assertLessEqual(self.text_height(card.binNote, self.DRAWER_TEXT_WIDTH), card.binNote._height, about)
+        print(f"\n[weights drawer] content bottom {-worst:.0f}px of {self.CARD_HEIGHT - self.BOTTOM_BORDER}px")
 
     def test_card_padding_copies_the_features_drawer(self) -> None:
         # The layout key stays "benchmark.card" so saved drawer positions carry over.
