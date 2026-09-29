@@ -188,15 +188,24 @@ def _int_key(value: Any) -> int | None:
     return None
 
 
+# db_gamedata tables of the shape {[enchant spell id] = scroll item id}, in
+# priority order. Real data (build 20260929064954-6702fd4-878715d1):
+# `enchants` holds the current enchant scrolls Icy Veins names (e.g.
+# [1236076] = 243990, while u.gg lists spell 1236076 with the other-quality
+# scroll 243991); `recipes` holds older/other crafted items.
+GAME_DATA_SPELL_TO_ITEM_TABLES = ("enchants", "recipes")
+
+
 def build_enchant_lookup(ugg_root: dict | None, game_data: dict | None) -> dict[str, dict[int, Any]]:
     """Translation tables for enchant ids, from every u.gg enchant entry
     that carries the real enchant id (PvE entries: {id=<enchant id>,
     itemId=<scroll item id>, spellId=<enchant spell id>}, weapon runes:
-    {id, spellId}) and from ClassCodex's db_gamedata `recipes`
-    ({[spellId] = scroll itemId}):
+    {id, spellId}) and from ClassCodex's db_gamedata `enchants` and
+    `recipes` tables ({[spellId] = scroll itemId}):
       byItem:  scroll item id -> {"id", "spell_id"?, "item_id"}
       bySpell: enchant spell id -> {"id", "spell_id", "item_id"?}
-      recipeSpellByItem: scroll item id -> enchant spell id (inverted recipes)
+      recipeSpellByItem: scroll item id -> enchant spell id (both tables
+      inverted, `enchants` first)
     Enchants are shared across specs, so the tables span every spec."""
     by_item: dict[int, dict[str, int]] = {}
     by_spell: dict[int, dict[str, int]] = {}
@@ -209,9 +218,11 @@ def build_enchant_lookup(ugg_root: dict | None, game_data: dict | None) -> dict[
                     collect_real_enchants(spec_data.get("enchants"), by_item, by_spell)
 
     recipe_spell_by_item: dict[int, int] = {}
-    recipes = game_data.get("recipes") if isinstance(game_data, dict) else None
-    if isinstance(recipes, dict):
-        for spell_id, item_id in recipes.items():
+    for table_name in GAME_DATA_SPELL_TO_ITEM_TABLES:
+        table = game_data.get(table_name) if isinstance(game_data, dict) else None
+        if not isinstance(table, dict):
+            continue
+        for spell_id, item_id in table.items():
             spell_key, item_key = _int_key(spell_id), _int_key(item_id)
             if spell_key is not None and item_key is not None:
                 recipe_spell_by_item.setdefault(item_key, spell_key)

@@ -222,14 +222,20 @@ class ClassCodexBuildTests(unittest.TestCase):
             "Head = {{id = 8017, itemId = 244007, spellId = 1236084}}}, pvp = {Head = {{id = 243951}}}}}}}"
             "}}\n"
         )
-        game_data = "ClassCodexGameData = {recipes = {[1236084] = 244007, [1236062] = 243962}}\n"
+        # Real db_gamedata: `enchants` names the scroll Icy Veins uses (243990
+        # for spell 1236076; u.gg lists that spell with 243991); `recipes`
+        # fills the rest, `enchants` winning on a shared item.
+        game_data = (
+            "ClassCodexGameData = {enchants = {[1236076] = 243990, [1236062] = 243962},"
+            " recipes = {[1236084] = 244007, [999] = 243962}}\n"
+        )
         specs = build({"db_ugg": ugg, "db_gamedata": game_data})
         lookup = specs["DEATHKNIGHT_frost"]["enchantLookup"]["value"]
         self.assertIs(lookup, specs["MAGE_fire"]["enchantLookup"]["value"])
         self.assertEqual({"id": 8017, "item_id": 244007, "spell_id": 1236084}, lookup["byItem"][244007])
         self.assertEqual({"id": 3368, "spell_id": 53344}, lookup["bySpell"][53344])
         self.assertNotIn(243951, lookup["byItem"])  # a bare PvP scroll id is not a real enchant
-        self.assertEqual({244007: 1236084, 243962: 1236062}, lookup["recipeSpellByItem"])
+        self.assertEqual({243990: 1236076, 244007: 1236084, 243962: 1236062}, lookup["recipeSpellByItem"])
 
     def test_talents_are_extracted_alongside_the_other_fields(self) -> None:
         # Without `talents`, tools/classcodex_targets.py and
