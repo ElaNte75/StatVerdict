@@ -1,0 +1,79 @@
+# Item-check profile: sanitized SimulationCraft addon export
+# (character renamed; account and location lines removed).
+
+shaman="Tester"
+level=90
+race=draenei
+role=attack
+spec=enhancement
+talents=CcQALMl7AwW51MWzGneuHE3tPOzMjZmZmZmZmZmZmZGAAAAAAAAAsAbwMW0YbAMTwGAzyMmxYZZGYmxYxMzMjxCzAAAMGzMxMDAMGA
+
+# Elder Mosshorns (250)
+head=,id=249648,bonus_id=12786/6652/12667/13577,content_tuning=6015
+# Voidbreaker's Choker (220)
+neck=,id=264286,bonus_id=12769,content_tuning=3320
+# Elder Mossvein Greatleaves (230)
+shoulder=,id=249650,enchant_id=8028,bonus_id=12772/6652/13578,content_tuning=6020
+# Voidbreaker's Wrap (246)
+back=,id=257175,bonus_id=12785/6652/13577,content_tuning=3320
+# Elder Mossmail (246)
+chest=,id=249645,bonus_id=6652/13577/12781,content_tuning=6019
+# Elder Mossbands (250)
+wrist=,id=249652,bonus_id=12786/6652/12667/13577,content_tuning=6012
+# Elder Mossfeelers (250)
+hands=,id=249647,bonus_id=12786/6652/13577
+# Elder Mosscinch (250)
+waist=,id=249651,bonus_id=12786/6652/12667/13577,content_tuning=6015
+# Gear-Linked Leggings (246)
+legs=,id=275156,bonus_id=12785/6652/13577/11311,content_tuning=4280
+# Voidstalker's Greaves (246)
+feet=,id=263773,bonus_id=12785/42/13577,content_tuning=3321
+# Radiant Phoenix Band (233)
+finger1=,id=256971,enchant_id=8020,gem_id=240899,bonus_id=6652/13668/12773,content_tuning=3321
+# Omission of Light (189)
+finger2=,id=251093,enchant_id=7964,bonus_id=13441/13436/13668,drop_level=88,content_tuning=3321
+# Withered Saptor's Paw (237)
+trinket1=,id=251782,bonus_id=12778/42/6652,content_tuning=6018
+# Void-Reaper's Libram (250)
+trinket2=,id=251785,bonus_id=12786/6652,content_tuning=6011
+# Void-Touched Smasher (263)
+main_hand=,id=263913,bonus_id=6652/12790,content_tuning=3321
+# Void-Touched Smasher (246)
+off_hand=,id=263913,bonus_id=12785/6652,content_tuning=3321
+
+### Gear from Bags
+#
+# Loa-Blessed Beads (233)
+# neck=,id=256970,bonus_id=12777/6652/13668,content_tuning=3321
+#
+# Tarnished Dawnlit Pendant (192)
+# neck=,id=258911,bonus_id=13729/13668,drop_level=90,content_tuning=3321
+#
+# Elder Mossveil (250)
+# back=,id=249625,bonus_id=12786/6652/13577,content_tuning=6013
+#
+# Tarnished Dawnlit Corsair's Tunic (198)
+# chest=,id=258920,bonus_id=13730/6652/13578,drop_level=90,content_tuning=3022
+#
+# Voidbreaker's Sash (214)
+# waist=,id=257206,bonus_id=13634,content_tuning=3320
+#
+# Rootspeaker's Leggings (233)
+# legs=,id=257003,bonus_id=12777/6652/13577,content_tuning=3321
+#
+# Voidbreaker's Circle (220)
+# finger1=,id=264287,bonus_id=12769,content_tuning=3320
+#
+# Voidbreaker's Signet (220)
+# finger1=,id=257169,bonus_id=12769,content_tuning=3320
+#
+# Dawnforged Ritual Knife (214)
+# main_hand=,id=237926,bonus_id=12247/12246/12497,content_tuning=3615,crafted_stats=32/36,crafting_quality=5
+#
+# Mertei's Command Baton (253)
+# main_hand=,id=275218,bonus_id=6652/13333/12787,content_tuning=3321
+#
+# Blood-Tempered Bulwark (214)
+# off_hand=,id=237920,bonus_id=12247/12246/12497,content_tuning=3615,crafted_stats=40/32,crafting_quality=5
+#
+### End of Gear from Bags

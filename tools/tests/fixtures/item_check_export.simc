@@ -1,0 +1,59 @@
+# Somebody - Enhancement - 2026-09-29 21:19 - EU/Someserver
+# SimC Addon 12.1.0-03
+
+shaman="Somebody"
+level=90
+race=draenei
+region=eu
+server=someserver
+role=attack
+professions=alchemy=50/herbalism=35
+spec=enhancement
+
+talents=AAAA
+
+# Saved Loadout: Other
+# talents=BBBB
+
+omnium_talents=136825:1
+
+# Old Helm (250)
+head=,id=1001,bonus_id=1/2,content_tuning=6015
+# Old Chain (220)
+neck=,id=1002,bonus_id=3
+# Ring One (233)
+finger1=,id=1011,enchant_id=8020,gem_id=240899,bonus_id=6652
+# Ring Two (189)
+finger2=,id=1012,enchant_id=7964
+# Trinket One (237)
+trinket1=,id=1021
+# Trinket Two (250)
+trinket2=,id=1022
+# Axe (263)
+main_hand=,id=1031
+
+### Gear from Bags
+#
+# Spare Beads (233)
+# neck=,id=2001,bonus_id=12777
+#
+# Spare Band (220)
+# finger1=,id=2011,bonus_id=12769
+#
+# Spare Knife (214)
+# main_hand=,id=2031,crafted_stats=32/36,crafting_quality=5
+#
+### Weekly Reward Choices
+#
+# Vault Helm (280)
+# head=,id=3001
+#
+### End of Weekly Reward Choices
+
+### Additional Character Info
+#
+# catalyst_currencies=2813:8/3269:8
+#
+# upgrade_currencies=i:228339:1
+
+# Checksum: 37d378fd
