@@ -13,6 +13,7 @@ from tools.classcodex_weights import (
     parse_scale_factors,
     scale_metric_for_role,
 )
+from tools.classcodex_targets import ComboSkipped
 from tools.live_benchmark_engine import SPEC_BY_KEY
 from tools.tests.test_simc_stat_engine import sim_option_lines
 
@@ -161,6 +162,33 @@ class WeightTalentFallbackTests(unittest.TestCase):
         with patch("tools.classcodex_weights.run_simc", side_effect=[RuntimeError(TALENT_ERROR), ({}, scale_report())]):
             data = build_all_weights(specs, Path("simc"), goals=("RAID",))
         self.assertIn("RAID", data["profiles"]["DEATHKNIGHT_FROST"]["goals"])
+
+
+class WeightRecoveryTests(unittest.TestCase):
+    gear = [
+        {"itemId": 1, "slot": "Head", "ilvl": 330},
+        {"itemId": 2, "slot": "Main Hand", "ilvl": 330},
+        {"itemId": 3, "slot": "Off Hand", "ilvl": 330},
+    ]
+
+    def test_weapon_recovery_applies_and_the_rotation_is_kept(self) -> None:
+        spec = SPEC_BY_KEY["MONK_WINDWALKER"]
+        error = RuntimeError("Player sv_0001 has both a 1-hand and 2-hand weapon equipped at once")
+        with patch("tools.classcodex_weights.run_simc", side_effect=[error, ({}, scale_report())]) as mock_run:
+            weights = compute_weight_context(spec, self.gear, "X", Path("simc"))
+        self.assertAlmostEqual(1.0, weights["critical_strike"])
+        retried = mock_run.call_args.args[1]
+        self.assertNotIn("off_hand=", retried)
+        # Scale factors need the real action list: never stat-sheet-only.
+        self.assertNotIn("default_actions=0", retried)
+        self.assertEqual(SCALE_FACTOR_TIMEOUT_SECONDS, mock_run.call_args.kwargs["timeout_seconds"])
+
+    def test_an_all_zero_healer_report_is_skipped_not_written(self) -> None:
+        spec = SPEC_BY_KEY["PRIEST_HOLY"]
+        report = scale_report("hps", Crit=0.0, Haste=0.0, Mastery=0.0, Vers=0.0)
+        with patch("tools.classcodex_weights.run_simc", return_value=({}, report)):
+            with self.assertRaisesRegex(ComboSkipped, "no positive hps scale factor"):
+                compute_weight_context(spec, GEAR, "X", Path("simc"))
 
 
 class BuildAllWeightsTests(unittest.TestCase):
