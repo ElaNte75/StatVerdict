@@ -50,7 +50,13 @@ source and the real installed addon both have it correctly.
   SimulationCraft (`tools/simc_stat_engine.py`; specs SimC cannot model use a
   gear-only Wowhead fallback, `tools/wowhead_stat_engine.py`) and writes
   `SV_ClassCodexTargets.lua`: targets, BiS list, ranked trinkets and stat
-  priority per spec/goal/hero talent.
+  priority per spec/goal/hero talent. Each context also gets
+  `targets.levels.hero` / `.champion`: the same loadout re-simulated at Hero
+  and Champion 6/6, and the file root carries `trackSwap` (Myth/Hero bonus id
+  -> Hero/Champion 6/6 bonus id) and `trackItemLevels`.
+- `tools/upgrade_tracks.py` -- the upgrade tracks (Adventurer to Myth), their
+  ranks and item levels from the game's DB2 tables on wago.tools, and the
+  verified Myth -> Hero / Champion swap table used above.
 - `tools/classcodex_weights.py` / `tools/classcodex_weights_cli.py` -- real
   SimC scale-factor stat weights per spec/goal/hero talent, normalised so the
   best secondary stat is 1.0, written to `SV_ClassCodexWeights.lua`. A missing

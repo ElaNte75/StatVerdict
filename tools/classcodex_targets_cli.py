@@ -23,6 +23,7 @@ try:
         gate_and_write,
     )
     from tools.lua_render import to_lua_compact
+    from tools.upgrade_tracks import load_track_swap
     from tools.wowhead_stat_engine import TooltipCache, reconstruct_loadout
 except ModuleNotFoundError:
     from classcodex_build import build
@@ -37,10 +38,12 @@ except ModuleNotFoundError:
         gate_and_write,
     )
     from lua_render import to_lua_compact
+    from upgrade_tracks import load_track_swap
     from wowhead_stat_engine import TooltipCache, reconstruct_loadout
 
-# Real data (build 20260928064230-9b041a5-43564495, 40 specs / 235
-# contexts) renders to ~4.0MB, so this budget has ~1.2MB of headroom.
+# Real data renders compactly to ~0.7MB (build 20260929064954, 240
+# contexts); the Hero/Champion levels add ~0.26KB per context and trackSwap
+# ~0.3KB, so this budget keeps plenty of headroom.
 MAX_FILE_BYTES = 5 * 1024 * 1024
 NAMESPACE_KEY = "ClassCodexTargets"
 
@@ -89,11 +92,21 @@ def main(argv: list[str] | None = None) -> int:
     # Gear-only Wowhead fallback, used only for specs SimC cannot initialise
     # at all; an unreachable Wowhead just skips those combos (reported below).
     wowhead_reconstruct = functools.partial(reconstruct_loadout, cache=TooltipCache())
-    result = build_all(specs, args.simc_bin, skips=skips, wowhead_reconstruct=wowhead_reconstruct)
+    # Myth -> Hero / Champion 6/6 bonus-id swap from the game's DB2 tables
+    # (None when wago.tools is unreachable: then no per-track levels).
+    track_swap = load_track_swap(specs)
+    result = build_all(
+        specs, args.simc_bin, skips=skips, wowhead_reconstruct=wowhead_reconstruct, track_swap=track_swap
+    )
     print(format_skip_summary(skips), file=sys.stderr)
     print(format_rating_sanity(result), file=sys.stderr)
-    print(format_coverage_report(result), file=sys.stderr)
+    print(format_coverage_report(result, track_swap), file=sys.stderr)
     data = {"schemaVersion": 1, "buildId": fetched.build_id, "publishedAt": fetched.published_at, **result}
+    if track_swap is not None:
+        # The addon swaps BiS/trinket bonus ids at runtime with trackSwap
+        # (the data itself keeps the Myth ids).
+        data["trackSwap"] = track_swap.swap
+        data["trackItemLevels"] = track_swap.item_levels
     return gate_and_write(data, args.out, NAMESPACE_KEY, write_addon_file, args.min_coverage_ratio)
 
 

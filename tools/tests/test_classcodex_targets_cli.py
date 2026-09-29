@@ -75,6 +75,7 @@ class WowheadFallbackCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, redirect_stderr(stderr), redirect_stdout(io.StringIO()), \
                 patch("tools.classcodex_targets_cli.fetch_all", return_value=fetched), \
                 patch("tools.classcodex_targets_cli.build", return_value=SPECS), \
+                patch("tools.classcodex_targets_cli.load_track_swap", return_value=None), \
                 patch("tools.classcodex_targets.run_simc", side_effect=fake_run_simc), \
                 patch("tools.classcodex_targets_cli.reconstruct_loadout", side_effect=OSError("network down")) as wowhead:
             out = Path(tmp) / "SV_ClassCodexTargets.lua"
@@ -85,6 +86,58 @@ class WowheadFallbackCliTests(unittest.TestCase):
         self.assertIn("PALADIN_HOLY/RAID/all: wowhead fallback failed", stderr.getvalue())
         # The CI log carries the ours-vs-u.gg rating sanity check.
         self.assertIn("DEATHKNIGHT_FROST/RAID/all: ours 3 vs u.gg top50 n/a", stderr.getvalue())
+
+
+class TrackSwapCliTests(unittest.TestCase):
+    specs = {
+        "DEATHKNIGHT_frost": {
+            "gear": {"value": {"all": {"raid": [{"itemId": 1, "slot": "Head", "bonusIDs": [12854]}]}}},
+            "talents": {"value": {"all": {"raid": [{"export": "DK"}]}}},
+        }
+    }
+
+    def run_cli(self, track_swap):
+        fetched = FetchResult(build_id="b1", published_at="2026-09-29", sources={})
+        levels = {
+            "sv_0001": {"ratings": {"crit": 0.9, "haste": 1.8}, "item_levels": {"head": 321.0}},
+            "sv_0002": {"ratings": {"crit": 0.8, "haste": 1.6}, "item_levels": {"head": 308.0}},
+        }
+        runs = [GOOD, (levels, {})]
+        stderr = io.StringIO()
+        with tempfile.TemporaryDirectory() as tmp, redirect_stderr(stderr), redirect_stdout(io.StringIO()), \
+                patch("tools.classcodex_targets_cli.fetch_all", return_value=fetched), \
+                patch("tools.classcodex_targets_cli.build", return_value=self.specs), \
+                patch("tools.classcodex_targets_cli.load_track_swap", return_value=track_swap) as loader, \
+                patch("tools.classcodex_targets.run_simc", side_effect=lambda *_a, **_k: runs.pop(0)):
+            out = Path(tmp) / "SV_ClassCodexTargets.lua"
+            code = classcodex_targets_cli.main(["--simc-bin", "simc", "--out", str(out)])
+            namespace = run_addon_namespace(out.read_text(encoding="utf-8"), "t.lua", addon_name="StatVerdict")
+        self.assertEqual(0, code)
+        loader.assert_called_once_with(self.specs)
+        return namespace["ClassCodexTargets"], stderr.getvalue()
+
+    def test_the_file_root_carries_track_swap_and_item_levels(self) -> None:
+        from tools.upgrade_tracks import TrackSwap
+
+        swap = TrackSwap(
+            {"hero": {12854: 12846}, "champion": {12854: 12838}},
+            {"myth": 334, "hero": 321, "champion": 308},
+            {"hero": [], "champion": []},
+            {12854: "myth"},
+        )
+        data, log = self.run_cli(swap)
+        self.assertEqual({"hero": {12854: 12846}, "champion": {12854: 12838}}, data["trackSwap"])
+        self.assertEqual({"myth": 334, "hero": 321, "champion": 308}, data["trackItemLevels"])
+        targets = data["profiles"]["DEATHKNIGHT_FROST"]["goals"]["RAID"]["heroTalents"]["all"]["targets"]
+        self.assertEqual({"critical_strike": 0.9, "haste": 1.8}, targets["levels"]["hero"]["statTargets"]["stats"])
+        self.assertEqual(308.0, targets["levels"]["champion"]["averageItemLevel"])
+        self.assertIn("track swap hero: 1 id(s) mapped, 0 unmapped", log)
+
+    def test_without_the_upgrade_tables_the_file_has_no_track_data(self) -> None:
+        data, log = self.run_cli(None)
+        self.assertNotIn("trackSwap", data)
+        self.assertNotIn("trackItemLevels", data)
+        self.assertIn("track swap: not available", log)
 
 
 if __name__ == "__main__":

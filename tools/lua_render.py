@@ -63,7 +63,11 @@ def to_lua_compact(value: Any) -> str:
         parts = []
         for key in sorted(value, key=str):
             name = str(key)
-            lua_key = name if _is_lua_name(name) else f"[{json.dumps(name, ensure_ascii=False)}]"
+            if isinstance(key, int) and not isinstance(key, bool):
+                # A real number key (e.g. trackSwap's bonus ids), kept numeric.
+                lua_key = f"[{key}]"
+            else:
+                lua_key = name if _is_lua_name(name) else f"[{json.dumps(name, ensure_ascii=False)}]"
             parts.append(f"{lua_key}={to_lua_compact(value[key])}")
         return "{" + ",".join(parts) + "}"
     raise TypeError(f"Unsupported type: {type(value)}")

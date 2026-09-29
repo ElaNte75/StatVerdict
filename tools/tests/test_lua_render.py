@@ -46,6 +46,13 @@ class CompactLuaRenderTests(unittest.TestCase):
         self.assertIn('["9lives"]=', text)
         self.assertIn("top20=", text)
 
+    def test_integer_keys_stay_numbers_in_lua(self) -> None:
+        # trackSwap = {hero = {[12854] = 12846}}: the addon looks bonus ids up by number.
+        data = {"hero": {12854: 12846, 13848: 12846}}
+        text = to_lua_compact(data)
+        self.assertIn("[12854]=12846", text)
+        self.assertEqual(data, self.load(text))
+
     def test_compact_is_smaller_and_has_no_newlines(self) -> None:
         self.assertNotIn("\n", to_lua_compact(SAMPLE))
         self.assertLess(len(to_lua_compact(SAMPLE)), len(to_lua(SAMPLE)))
