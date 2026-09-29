@@ -97,6 +97,36 @@ def _merge_field(per_source: dict[str, Any]) -> tuple[Any, str] | None:
     return None
 
 
+def _merge_stat_priority(per_source: dict[str, Any]) -> tuple[Any, str] | None:
+    """The stat priority follows the Icy Veins guide (the project owner's
+    reference, and what the official ClassCodex addon shows on its Icy Veins
+    tab). Icy Veins only publishes one PvE list per hero tree (context "all"),
+    so per hero tree: Icy Veins' list is kept as-is; u.gg's PvP list (the only
+    PvP-specific one) is added under "pvp"; hero trees Icy Veins does not
+    cover fall back to u.gg's full entry. u.gg's single-target/aoe lists are
+    dropped whenever Icy Veins covers the hero tree, so they cannot outrank
+    the guide."""
+    icy = per_source.get("icyveins")
+    ugg = per_source.get("ugg")
+    if not (isinstance(icy, dict) and icy):
+        return _merge_field(per_source)
+    merged: dict[str, Any] = {}
+    for hero_key, contexts in icy.items():
+        if isinstance(contexts, dict) and contexts:
+            merged[hero_key] = dict(contexts)
+    if isinstance(ugg, dict):
+        for hero_key, contexts in ugg.items():
+            if not isinstance(contexts, dict):
+                continue
+            if hero_key not in merged:
+                merged[hero_key] = dict(contexts)
+            elif contexts.get("pvp"):
+                merged[hero_key]["pvp"] = contexts["pvp"]
+    if not merged:
+        return _merge_field(per_source)
+    return merged, "icyveins"
+
+
 def build(fetch_sources: dict[str, str]) -> dict[str, dict]:
     """Returns {spec_key: {field: {"value": ..., "source": "ugg"|"icyveins"}}}
     for every class/spec found in either source. spec_key is "<CLASS>_<spec>"
@@ -125,7 +155,9 @@ def build(fetch_sources: dict[str, str]) -> dict[str, dict]:
                     class_data = root.get(class_folder) if isinstance(root, dict) else None
                     spec_data = class_data.get(spec_token) if isinstance(class_data, dict) else None
                     per_source[source_name] = spec_data.get(field_name) if isinstance(spec_data, dict) else None
-                merged = _merge_field(per_source)
+                merged = (
+                    _merge_stat_priority(per_source) if field_name == "statPriority" else _merge_field(per_source)
+                )
                 if merged is not None:
                     value, source_name = merged
                     spec_out[field_name] = {"value": value, "source": source_name}

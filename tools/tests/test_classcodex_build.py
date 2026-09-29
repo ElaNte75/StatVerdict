@@ -15,17 +15,55 @@ def _plain_global_source(global_name: str, class_token: str, spec_token: str, fi
     )
 
 
+def _lists(lua_like) -> list:
+    """Sandbox output turns Lua arrays into dicts keyed 1..n or lists; normalise to nested lists."""
+    if isinstance(lua_like, dict):
+        return [_lists(lua_like[key]) for key in sorted(lua_like)]
+    if isinstance(lua_like, list):
+        return [_lists(item) for item in lua_like]
+    return lua_like
+
+
 class ClassCodexBuildTests(unittest.TestCase):
     def test_prefers_ugg_over_icyveins_when_both_have_a_field(self) -> None:
         sources = {
-            "db_ugg": _plain_global_source("ugg", "DEATHKNIGHT", "frost", {"statPriority": 'from = "ugg"'}),
+            "db_ugg": _plain_global_source("ugg", "DEATHKNIGHT", "frost", {"trinkets": 'from = "ugg"'}),
             "db_icyveins": _plain_global_source(
-                "icyveins", "DEATHKNIGHT", "frost", {"statPriority": 'from = "icyveins"'}
+                "icyveins", "DEATHKNIGHT", "frost", {"trinkets": 'from = "icyveins"'}
             ),
         }
         specs = build(sources)
-        self.assertEqual("ugg", specs["DEATHKNIGHT_frost"]["statPriority"]["source"])
-        self.assertEqual("ugg", specs["DEATHKNIGHT_frost"]["statPriority"]["value"]["from"])
+        self.assertEqual("ugg", specs["DEATHKNIGHT_frost"]["trinkets"]["source"])
+        self.assertEqual("ugg", specs["DEATHKNIGHT_frost"]["trinkets"]["value"]["from"])
+
+    def test_stat_priority_follows_icy_veins_but_keeps_ugg_pvp(self) -> None:
+        ugg = (
+            'deathbringer = {["single-target"] = {secondary = {{"versatility"}, {"haste"}}},'
+            ' pvp = {secondary = {{"mastery"}, {"crit"}}}},'
+            ' wildhero = {["single-target"] = {secondary = {{"haste"}}}}'
+        )
+        icy = 'deathbringer = {all = {secondary = {{"crit"}, {"mastery", "versatility"}, {"haste"}}}}'
+        sources = {
+            "db_ugg": _plain_global_source("ugg", "DEATHKNIGHT", "blood", {"statPriority": ugg}),
+            "db_icyveins": _plain_global_source("icyveins", "DEATHKNIGHT", "blood", {"statPriority": icy}),
+        }
+        merged = build(sources)["DEATHKNIGHT_blood"]["statPriority"]
+        self.assertEqual("icyveins", merged["source"])
+        hero = merged["value"]["deathbringer"]
+        self.assertEqual([["crit"], ["mastery", "versatility"], ["haste"]], _lists(hero["all"]["secondary"]))
+        self.assertNotIn("single-target", hero)  # u.gg's PvE lists must not outrank the guide
+        self.assertEqual([["mastery"], ["crit"]], _lists(hero["pvp"]["secondary"]))
+        # A hero tree Icy Veins does not cover keeps u.gg's entry.
+        self.assertIn("single-target", merged["value"]["wildhero"])
+
+    def test_stat_priority_falls_back_to_ugg_when_icy_veins_has_none(self) -> None:
+        sources = {
+            "db_ugg": _plain_global_source(
+                "ugg", "DEATHKNIGHT", "blood", {"statPriority": 'hero = {pvp = {secondary = {{"crit"}}}}'}
+            ),
+            "db_icyveins": _plain_global_source("icyveins", "DEATHKNIGHT", "blood", {"gear": 'x = 1'}),
+        }
+        self.assertEqual("ugg", build(sources)["DEATHKNIGHT_blood"]["statPriority"]["source"])
 
     def test_falls_back_to_icyveins_when_ugg_lacks_the_field(self) -> None:
         sources = {
