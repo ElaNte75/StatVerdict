@@ -600,6 +600,53 @@ class ScoringWeightTests(unittest.TestCase):
 
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class TooltipProvenanceTests(unittest.TestCase):
+    TOOLTIP = """
+    local lines = {}
+    return {
+        lines = lines,
+        GetItem = function() return nil, "item:1000" end,
+        AddLine = function(self, text) lines[#lines + 1] = text end,
+        Show = function() end,
+    }
+    """
+
+    def setUp(self) -> None:
+        self.lua = new_runtime()
+        self.ns = self.lua.table()
+        load_addon_file(self.lua, self.ns, "UI/SV_Tooltip.lua")
+        self.asked = []
+
+        def provenance(goal=None):
+            self.asked.append(goal)
+            # Like the repository: no goal (or stale data) means unavailable.
+            return self.lua.table(available=goal == "RAID")
+
+        self.ns.ProfileRepository = self.lua.table(GetDataProvenance=provenance)
+        self.ns.GetStatAuditGoalMode = lambda: "PVP"
+
+    def lines(self, context):
+        self.ns.GetTooltipEvaluationContexts = lambda: context
+        tooltip = self.lua.execute(self.TOOLTIP)
+        self.ns.ProcessTooltip(tooltip)
+        return [tooltip.lines[i] for i in range(1, len(tooltip.lines) + 1)]
+
+    def test_unavailable_data_is_checked_for_the_contexts_goal(self) -> None:
+        lines = self.lines(self.lua.table(goal="PVP"))
+        self.assertEqual(["PVP"], self.asked)
+        self.assertTrue(any("profile data unavailable" in line for line in lines))
+
+    def test_available_goal_shows_no_unavailable_notice(self) -> None:
+        self.assertEqual([], self.lines(self.lua.table(goal="RAID")))
+        self.assertEqual(["RAID"], self.asked)
+
+    def test_context_without_a_goal_uses_the_selected_goal(self) -> None:
+        lines = self.lines(self.lua.table())
+        self.assertEqual(["PVP"], self.asked)
+        self.assertTrue(any("profile data unavailable" in line for line in lines))
+
+
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
 class PanelModeTests(unittest.TestCase):
     def setUp(self) -> None:
         self.lua = new_runtime()
