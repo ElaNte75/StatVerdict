@@ -187,3 +187,9 @@ end
 
 SLASH_STATVERDICT1 = "/sv"
 SlashCmdList["STATVERDICT"] = HandleSlash
+
+-- Hidden, not in /sv help: /svweights guide|measured|blend (see SV_ProfileRepository).
+SLASH_STATVERDICTWEIGHTS1 = "/svweights"
+SlashCmdList["STATVERDICTWEIGHTS"] = function(msg)
+    if ns.HandleWeightModeSlash then ns.HandleWeightModeSlash(msg) end
+end

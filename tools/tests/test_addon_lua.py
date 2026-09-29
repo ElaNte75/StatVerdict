@@ -135,7 +135,8 @@ class BenchmarkCoreTests(unittest.TestCase):
             self.assertEqual("BIS", wording.tag, goal)
             self.assertFalse(wording.popular, goal)
 
-    def build_runtime(self, build_id: str | None = None, targets: dict | None = None, weights: dict | None = None):
+    def build_runtime(self, build_id: str | None = None, targets: dict | None = None, weights: dict | None = None,
+                      weight_mode: str | None = None):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         build_id = build_id or now_build_id()
@@ -145,7 +146,7 @@ class BenchmarkCoreTests(unittest.TestCase):
         weights_path.write_text(render_weights_lua(weights or make_classcodex_weights(build_id)), encoding="utf-8")
         lua = new_runtime()
         ns = lua.table()
-        lua.globals().StatVerdictDB = lua.table()
+        lua.globals().StatVerdictDB = lua.table(weightMode=weight_mode)
         load = lua.eval("function(path, ns) local f = assert(loadfile(path)) f('StatVerdict', ns) end")
         load(str(targets_path), ns)
         load(str(weights_path), ns)
@@ -487,7 +488,7 @@ class BenchmarkCoreTests(unittest.TestCase):
         return [profile.secondaryOrder[i] for i in range(1, len(profile.secondaryOrder) + 1)]
 
     def test_measured_weights_order_the_secondaries(self) -> None:
-        lua, ns = self.build_runtime()
+        lua, ns = self.build_runtime(weight_mode="MEASURED")
         profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
         # ClassCodex priority is haste > crit > mastery > vers; SimC measured vers above mastery.
         self.assertEqual([SECONDARY["haste"], SECONDARY["crit"], SECONDARY["vers"], SECONDARY["mastery"]], self.order(profile))
@@ -498,7 +499,7 @@ class BenchmarkCoreTests(unittest.TestCase):
                          [rows[i].key for i in range(1, len(rows) + 1)])
 
     def test_stat_audit_base_modifiers_match_the_scoring_weights(self) -> None:
-        lua, ns = self.build_runtime()
+        lua, ns = self.build_runtime(weight_mode="MEASURED")
         load_addon_file(lua, ns, "Core/SV_Modifiers.lua")
         profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
         rows = profile.auditTargets.rows
@@ -514,7 +515,7 @@ class BenchmarkCoreTests(unittest.TestCase):
         self.assertEqual([4.0, 3.0, 2.0, 1.0], [rows[i].baseModifier for i in range(1, len(rows) + 1)])
 
     def test_hero_tree_without_weights_keeps_the_classcodex_priority(self) -> None:
-        lua, ns = self.build_runtime()
+        lua, ns = self.build_runtime(weight_mode="MEASURED")
         profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua, heroTalentName="Deathbringer"))
         self.assertIsNone(profile.secondaryWeights)
         self.assertEqual([SECONDARY["crit"], SECONDARY["mastery"], SECONDARY["vers"], SECONDARY["haste"]], self.order(profile))
@@ -525,7 +526,7 @@ class BenchmarkCoreTests(unittest.TestCase):
         weights["profiles"]["DEATHKNIGHT_BLOOD"]["goals"]["MYTHIC_PLUS"]["heroTalents"]["sanlayn"] = {
             "critical_strike": 1.0, "haste": 1.0, "versatility": 0.4, "mastery": "junk",
         }
-        lua, ns = self.build_runtime(build_id=build_id, weights=weights)
+        lua, ns = self.build_runtime(build_id=build_id, weights=weights, weight_mode="MEASURED")
         profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
         # haste/crit tie -> priority order (haste first); mastery has no usable weight -> after
         # the measured stats.
@@ -538,10 +539,207 @@ class BenchmarkCoreTests(unittest.TestCase):
         weights["profiles"]["DEATHKNIGHT_BLOOD"]["goals"]["MYTHIC_PLUS"]["heroTalents"]["sanlayn"] = {
             "critical_strike": 0, "haste": -1,
         }
-        lua, ns = self.build_runtime(build_id=build_id, weights=weights)
+        lua, ns = self.build_runtime(build_id=build_id, weights=weights, weight_mode="MEASURED")
         profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
         self.assertIsNone(profile.secondaryWeights)
         self.assertEqual(SECONDARY["haste"], profile.secondaryOrder[1])
+
+    # --- Stat weight mode: GUIDE (default) / MEASURED / BLEND -----------------
+    # Fixture San'layn: guide haste > crit > mastery > vers; SimC measured
+    # haste 1.0, crit 0.8, vers 0.6, mastery 0.5 (vers above mastery: they disagree).
+    GUIDE_ORDER = ("haste", "crit", "mastery", "vers")
+    MEASURED_ORDER = ("haste", "crit", "vers", "mastery")
+
+    def keys(self, *names: str) -> list[str]:
+        return [SECONDARY[name] for name in names]
+
+    def weight_table(self, profile) -> dict | None:
+        weights = profile.secondaryWeights
+        return None if weights is None else {key: weights[key] for key in weights.keys()}
+
+    def base_modifiers(self, profile) -> list[float]:
+        rows = profile.auditTargets.rows
+        return [rows[i].baseModifier for i in range(1, len(rows) + 1)]
+
+    def test_weight_mode_defaults_to_guide(self) -> None:
+        lua, ns = self.build_runtime()
+        self.assertEqual("GUIDE", ns.ProfileRepository.DEFAULT_WEIGHT_MODE)
+        self.assertEqual("GUIDE", ns.ProfileRepository.GetWeightMode())
+        for mode in ("GUIDE", "MEASURED", "BLEND"):
+            lua.globals().StatVerdictDB.weightMode = mode
+            self.assertEqual(mode, ns.ProfileRepository.GetWeightMode())
+
+    def test_garbage_saved_weight_mode_falls_back_to_default(self) -> None:
+        lua, ns = self.build_runtime()
+        for garbage in ("nonsense", "guide", 3, lua.table()):
+            lua.globals().StatVerdictDB.weightMode = garbage
+            self.assertEqual("GUIDE", ns.ProfileRepository.GetWeightMode(), garbage)
+        lua.globals().StatVerdictDB = None
+        self.assertEqual("GUIDE", ns.ProfileRepository.GetWeightMode())
+        lua.globals().StatVerdictDB = lua.table(weightMode="junk")
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        self.assertEqual(self.keys(*self.GUIDE_ORDER), self.order(profile))
+        self.assertIsNone(profile.secondaryWeights)
+
+    def test_guide_mode_follows_the_priority_list_only(self) -> None:
+        lua, ns = self.build_runtime(weight_mode="GUIDE")
+        load_addon_file(lua, ns, "Core/SV_Modifiers.lua")
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        self.assertEqual(self.keys(*self.GUIDE_ORDER), self.order(profile))
+        self.assertIsNone(profile.secondaryWeights)
+        self.assertEqual([4.0, 3.0, 2.0, 1.0], self.base_modifiers(profile))
+
+    def test_guide_mode_scores_exactly_like_the_no_weights_path(self) -> None:
+        # Same regression promise as ScoringWeightTests.test_without_measured_weights_
+        # the_rank_weights_are_unchanged: GUIDE must be the pre-measured-weights scoring,
+        # i.e. identical to a runtime that has no weights file at all.
+        guide_lua, guide_ns = self.build_runtime(weight_mode="GUIDE")
+        plain_lua, plain_ns = self.build_runtime(weight_mode="MEASURED")
+        plain_ns.ClassCodexWeights = None
+        for lua, ns in ((guide_lua, guide_ns), (plain_lua, plain_ns)):
+            load_addon_file(lua, ns, "Core/SV_Modifiers.lua")
+            ns.GetDynamicStatWeight = lambda profile, key, weight: weight
+        stat_keys = [STRENGTH, *SECONDARY.values(), "STATVERDICT_ITEM_LEVEL", "STATVERDICT_MAIN_HAND_DPS"]
+        for goal in ("MYTHIC_PLUS", "RAID", "PVP"):
+            guide = guide_ns.ProfileRepository.BuildRuntimeProfile(self.context(guide_lua, goal=goal))
+            plain = plain_ns.ProfileRepository.BuildRuntimeProfile(self.context(plain_lua, goal=goal))
+            self.assertEqual(self.order(plain), self.order(guide), goal)
+            self.assertIsNone(guide.secondaryWeights)
+            self.assertEqual(self.base_modifiers(plain), self.base_modifiers(guide), goal)
+            for key in stat_keys:
+                self.assertEqual(plain_ns.GetDefaultStatWeight(plain, key), guide_ns.GetDefaultStatWeight(guide, key), key)
+                for delta in (10, -10):
+                    self.assertEqual(plain_ns.GetDeltaAdjustedStatWeight(plain, key, delta, 1.0),
+                                     guide_ns.GetDeltaAdjustedStatWeight(guide, key, delta, 1.0), (key, delta))
+
+    def test_measured_mode_sorts_by_the_measured_weights(self) -> None:
+        lua, ns = self.build_runtime(weight_mode="MEASURED")
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        self.assertEqual(self.keys(*self.MEASURED_ORDER), self.order(profile))
+        self.assertEqual({SECONDARY["haste"]: 1.0, SECONDARY["crit"]: 0.8, SECONDARY["vers"]: 0.6,
+                          SECONDARY["mastery"]: 0.5}, self.weight_table(profile))
+
+    def test_blend_mode_keeps_the_guide_order_and_mixes_the_weights(self) -> None:
+        lua, ns = self.build_runtime(weight_mode="BLEND")
+        load_addon_file(lua, ns, "Core/SV_Modifiers.lua")
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        self.assertEqual(self.keys(*self.GUIDE_ORDER), self.order(profile))
+        # Guide rank weights 4/3/2/1 over the top one: 1.0 / 0.75 / 0.5 / 0.25,
+        # mixed 50/50 with the measured weights; the max is already 1.0.
+        expected = {"haste": 0.5 * 1.0 + 0.5 * 1.0, "crit": 0.5 * 0.75 + 0.5 * 0.8,
+                    "mastery": 0.5 * 0.5 + 0.5 * 0.5, "vers": 0.5 * 0.25 + 0.5 * 0.6}
+        weights = self.weight_table(profile)
+        self.assertEqual(set(self.keys(*expected)), set(weights))
+        for name, value in expected.items():
+            self.assertAlmostEqual(value, weights[SECONDARY[name]], msg=name)
+        # Same downstream path as measured weights: the audit rows show the scoring weight.
+        rows = profile.auditTargets.rows
+        for i in range(1, len(rows) + 1):
+            self.assertEqual(ns.GetMeasuredSecondaryRawWeight(profile, rows[i].key), rows[i].baseModifier)
+
+    def test_blend_mode_renormalises_and_leaves_unmeasured_stats_on_the_guide(self) -> None:
+        build_id = now_build_id()
+        weights = make_classcodex_weights(build_id)
+        weights["profiles"]["DEATHKNIGHT_BLOOD"]["goals"]["MYTHIC_PLUS"]["heroTalents"]["sanlayn"] = {
+            "critical_strike": 1.0, "haste": 0.4, "versatility": 0.6, "mastery": "junk",
+        }
+        lua, ns = self.build_runtime(build_id=build_id, weights=weights, weight_mode="BLEND")
+        load_addon_file(lua, ns, "Core/SV_Modifiers.lua")
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        self.assertEqual(self.keys(*self.GUIDE_ORDER), self.order(profile))
+        # haste 0.5+0.2 = 0.7, crit 0.375+0.5 = 0.875, vers 0.125+0.3 = 0.425; / 0.875.
+        weights = self.weight_table(profile)
+        self.assertEqual(set(self.keys("haste", "crit", "vers")), set(weights))
+        self.assertAlmostEqual(0.7 / 0.875, weights[SECONDARY["haste"]])
+        self.assertAlmostEqual(1.0, weights[SECONDARY["crit"]])
+        self.assertAlmostEqual(0.425 / 0.875, weights[SECONDARY["vers"]])
+
+    def test_blend_mode_without_measured_weights_is_pure_guide(self) -> None:
+        lua, ns = self.build_runtime(weight_mode="BLEND")
+        load_addon_file(lua, ns, "Core/SV_Modifiers.lua")
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua, heroTalentName="Deathbringer"))
+        self.assertIsNone(profile.secondaryWeights)
+        self.assertEqual(self.keys("crit", "mastery", "vers", "haste"), self.order(profile))
+        self.assertEqual([4.0, 3.0, 2.0, 1.0], self.base_modifiers(profile))
+
+    def test_blend_mode_gives_tied_guide_stats_the_same_guide_share(self) -> None:
+        build_id = now_build_id()
+        targets = make_classcodex_targets(build_id)
+        context = targets["profiles"]["DEATHKNIGHT_BLOOD"]["goals"]["MYTHIC_PLUS"]["heroTalents"]["sanlayn"]
+        context["priorityProfiles"][0]["tiers"] = [["critical_strike", "mastery"]]
+        weights = make_classcodex_weights(build_id)
+        weights["profiles"]["DEATHKNIGHT_BLOOD"]["goals"]["MYTHIC_PLUS"]["heroTalents"]["sanlayn"] = {
+            "critical_strike": 0.5, "haste": 1.0, "versatility": 0.5, "mastery": 0.5,
+        }
+        lua, ns = self.build_runtime(build_id=build_id, targets=targets, weights=weights, weight_mode="BLEND")
+        load_addon_file(lua, ns, "Core/SV_Modifiers.lua")
+        profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+        weights = self.weight_table(profile)
+        # crit (rank 2) and mastery (rank 3) are one guide tier: both use rank 2's 0.75.
+        self.assertAlmostEqual(0.5 * 0.75 + 0.25, weights[SECONDARY["crit"]])
+        self.assertAlmostEqual(0.5 * 0.75 + 0.25, weights[SECONDARY["mastery"]])
+
+    def test_switching_weight_mode_rebuilds_the_cached_provider_view(self) -> None:
+        lua, ns = self.build_runtime()
+        ns.GetSnapshotHeroTalentName = lambda context: "San'layn"
+        repo = ns.ProfileRepository
+        guide = repo.RefreshProviderView("MYTHIC_PLUS")
+        self.assertEqual(self.keys(*self.GUIDE_ORDER), self.order(guide["DEATHKNIGHT"][250].default))
+        self.assertTrue(lua.eval("rawequal")(guide, repo.RefreshProviderView("MYTHIC_PLUS")))
+        self.assertTrue(repo.SetWeightMode("MEASURED"))
+        measured = repo.RefreshProviderView("MYTHIC_PLUS")
+        self.assertFalse(lua.eval("rawequal")(guide, measured))
+        self.assertEqual(self.keys(*self.MEASURED_ORDER), self.order(measured["DEATHKNIGHT"][250].default))
+        # A saved value changed behind the repository's back also counts as a new input.
+        lua.globals().StatVerdictDB.weightMode = "GUIDE"
+        again = repo.RefreshProviderView("MYTHIC_PLUS")
+        self.assertEqual(self.keys(*self.GUIDE_ORDER), self.order(again["DEATHKNIGHT"][250].default))
+        self.assertFalse(repo.SetWeightMode("bogus"))
+        self.assertEqual("GUIDE", lua.globals().StatVerdictDB.weightMode)
+
+    def test_weights_slash_command_sets_the_mode_and_refreshes(self) -> None:
+        lua, ns = self.build_runtime()
+        printed: list[str] = []
+        lua.globals().print = lambda *args: printed.append(" ".join(str(a) for a in args))
+        calls = {"invalidate": 0, "audit": 0, "indicators": 0}
+        original_invalidate = ns.ProfileRepository.InvalidateProviderViews
+
+        def invalidate():
+            calls["invalidate"] += 1
+            return original_invalidate()
+
+        ns.ProfileRepository.InvalidateProviderViews = invalidate
+        ns.RequestStatAuditRefresh = lambda: calls.__setitem__("audit", calls["audit"] + 1)
+        ns.RefreshUpgradeIndicators = lambda *a: calls.__setitem__("indicators", calls["indicators"] + 1)
+
+        ns.HandleWeightModeSlash("")
+        self.assertIn("GUIDE", printed[-1])
+        self.assertEqual({"invalidate": 0, "audit": 0, "indicators": 0}, calls)
+
+        ns.HandleWeightModeSlash("  Measured ")
+        self.assertEqual("MEASURED", lua.globals().StatVerdictDB.weightMode)
+        self.assertEqual({"invalidate": 1, "audit": 1, "indicators": 1}, calls)
+        self.assertIn("MEASURED", printed[-1])
+
+        ns.HandleWeightModeSlash("blend")
+        self.assertEqual("BLEND", ns.ProfileRepository.GetWeightMode())
+        ns.HandleWeightModeSlash("nonsense")
+        self.assertEqual("BLEND", lua.globals().StatVerdictDB.weightMode)
+        self.assertEqual(2, calls["invalidate"])
+        self.assertIn("guide", printed[-1])  # usage line
+        ns.HandleWeightModeSlash("guide")
+        self.assertEqual("GUIDE", lua.globals().StatVerdictDB.weightMode)
+
+    def test_weights_slash_command_is_registered(self) -> None:
+        lua = new_runtime()
+        lua.execute(FRAME_STUB)
+        lua.globals().SlashCmdList = lua.table()
+        lua.globals().StatVerdictDB = lua.table()
+        ns = lua.table()
+        ns.HandleWeightModeSlash = lambda msg: None
+        load_addon_file(lua, ns, "StatVerdict.lua")
+        self.assertEqual("/svweights", lua.globals().SLASH_STATVERDICTWEIGHTS1)
+        self.assertIsNotNone(lua.globals().SlashCmdList["STATVERDICTWEIGHTS"])
 
 
 SECONDARY = {
