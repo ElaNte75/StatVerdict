@@ -6,7 +6,7 @@ Working through five jobs in order; each is committed and pushed on its own.
 |---|---|---|
 | 1 | Data quality audit of the 240 contexts | done: `docs/data-quality-report.md`, no pipeline fix needed |
 | 2 | Fidelity check against raw Icy Veins data | done: `docs/data-fidelity-report.md`, 0 real differences |
-| 3 | Update STORE.md / VERDICT_MODEL.md | not started |
+| 3 | Update STORE.md / VERDICT_MODEL.md | done: Easy/Normal/Hard -> Tier 3/2/1, Weights drawer -> Mode drawer, data-source names removed from store copy |
 | 4 | Robustness tests (odd characters) | not started |
 | 5 | Lua review for small safe fixes | not started |
 

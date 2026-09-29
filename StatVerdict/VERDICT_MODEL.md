@@ -12,13 +12,17 @@ percentages.
   rules. It does not mean a measured performance gain.
 - **Live weights** redistribute a capped secondary-stat budget toward profile
   targets. Item level and primary-stat weights remain fixed anchors.
-- **Best in Slot and trinket references** (Mythic+, Raid and PvP: curated ClassCodex
+- **Best in Slot and trinket references** (Mythic+, Raid and PvP: curated guide
   lists, tiered trinkets) are hints from goal-specific profile data. They may only
   affect a verdict when that data passes the profile quality and freshness checks.
-- **Stat weights** follow the guides' priority (Icy Veins / u.gg) by default; the
-  Weights drawer can switch to our own simulated values. The guide stat targets
-  come in three difficulties (Easy / Normal / Hard, default Hard); our own
-  measurement uses a single target from best-in-slot gear.
+  A found item with an upgrade track counts like the Best in Slot piece when that
+  piece is a tier-set piece (the Catalyst rule).
+- **Stat weights** follow the guides' priority by default (Guide mode; stats the
+  guide calls roughly equal weigh alike); the Mode drawer can switch to Measured,
+  our own simulated values. Guide stat targets come in three tiers (Tier 3 / Tier 2
+  / Tier 1, the default being the most demanding); Measured targets come from
+  best-in-slot gear at a chosen gear level (Champion / Hero / Myth). A stat with
+  no target keeps its row with target 0.
 - **Main Spec baseline** is currently equipped gear.
 - **Off Spec baseline** is the saved virtual loadout. Dynamic off-spec weights
   require stats captured while that specialization was active.

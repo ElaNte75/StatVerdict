@@ -32,7 +32,7 @@ If you already use SimulationCraft for exact character-specific optimization, th
 - Shows **Stat Progress** toward build targets, with live Weights
 - Lets you **Approve** bag pieces into a virtual loadout for a spec you are not wearing
 - Tracks **Best in Slot** progress (Mythic+, Raid, PvP)
-- **Weights** drawer chooses how stat priorities are decided: Guide (default, with an Easy / Normal / Hard stat target difficulty) or Measured
+- **Mode** drawer chooses how stat priorities are decided: Guide (default, with a Tier 3 / 2 / 1 stat target choice) or Measured (our own measurement, at Champion, Hero or Myth gear level)
 
 ---
 
@@ -44,7 +44,7 @@ StatVerdict does **not** simulate your DPS. It uses a practical priority model:
 2. **Rings & necks** — often have no primary stat; the top secondary is boosted so jewelry compares fairly.
 3. **Trinkets** — validated, goal-specific Best-in-Slot tiers add reference value. StatVerdict does not calculate proc or on-use performance.
 
-Targets and priorities come from bundled ClassCodex profile data. Freshness and quality checks disable a context instead of silently substituting another goal or stale fallback.
+Targets and priorities come from bundled guide data. Freshness and quality checks disable a context instead of silently substituting another goal or stale fallback.
 
 Verdict Points are arbitrary heuristic points, not DPS/HPS, survival, win rate, or a measured percentage gain. Empty sockets are not treated as already gemmed. Encounter mechanics, execution, most proc/on-use effects, embellishment power, tertiary value, set-bonus magnitude, and upgrade costs are outside the model.
 
@@ -63,7 +63,7 @@ Verdict Points are arbitrary heuristic points, not DPS/HPS, survival, win rate, 
 
 **StatVerdict** helps you decide whether gear is worth equipping for the specialization you care about — including an Off Spec you are not currently playing.
 
-It is built for players who do **not** want to export characters into Raidbots or SimulationCraft for every drop. Instead, StatVerdict uses a clear priority model: item level and primary stats first, ClassCodex-ordered secondaries next, with special handling for rings, necks, and trinkets.
+It is built for players who do **not** want to export characters into Raidbots or SimulationCraft for every drop. Instead, StatVerdict uses a clear priority model: item level and primary stats first, guide-ordered secondaries next, with special handling for rings, necks, and trinkets.
 
 Open your bags, hover an item, and get a supported verdict for Main Spec and Off Spec. Use Stat Progress to see how close you are to your targets. Approve pieces into a virtual loadout when you are gearing a build you are not wearing right now; capture that specialization once before relying on its live weights.
 
