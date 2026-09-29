@@ -116,7 +116,7 @@ class ShardingTests(unittest.TestCase):
             with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
                 code = main(["--merge-inputs", str(shard), "--out", str(out)])
             self.assertEqual(0, code)
-            self.assertIn('["MAGE_FIRE"]', out.read_text(encoding="utf-8"))
+            self.assertIn('MAGE_FIRE={', out.read_text(encoding="utf-8"))
 
     def test_merge_mode_refuses_a_missing_partial(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
