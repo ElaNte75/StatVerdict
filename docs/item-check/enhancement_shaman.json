@@ -1,0 +1,764 @@
+{
+  "generated_at": "2026-09-29 18:33 UTC",
+  "character": "Enhancement Shaman",
+  "settings": {
+    "iterations": 30000,
+    "target_error": 0.05,
+    "scenarios": {
+      "st": "Single target (Patchwerk)",
+      "cleave": "3-target cleave (Patchwerk, desired_targets=3)"
+    },
+    "error_note": "± is the 95% confidence interval of the difference (1.96 x combined mean_std_dev)"
+  },
+  "baseline": {
+    "st": {
+      "mean": 65053.453708948815,
+      "std_err": 16.53011895826082
+    },
+    "stats": {
+      "ratings": {
+        "crit": 426.0,
+        "haste": 663.0,
+        "mastery": 677.0,
+        "versatility": 97.0
+      },
+      "percentages": {
+        "crit": 0.19260869565217392,
+        "haste": 0.15068181818181814,
+        "mastery": 0.5943478260869566,
+        "versatility": 0.04796296296296296
+      },
+      "agility": 1612.0
+    },
+    "cleave": {
+      "mean": 128406.55154013261,
+      "std_err": 32.66247896995978
+    }
+  },
+  "rows": [
+    {
+      "key": "279194",
+      "slot": "neck",
+      "name": "Collar of Jealousy",
+      "item_id": 279194,
+      "ilevel": 272,
+      "stats": "Haste 121, Mastery 143",
+      "source": "quest",
+      "note": "",
+      "simulable": true,
+      "replaced_slot": "neck",
+      "replaced": "Voidbreaker's Choker",
+      "replaced_ilevel": 220,
+      "st": {
+        "dps": {
+          "mean": 66559.57244436507,
+          "std_err": 16.976972891828073
+        },
+        "delta": {
+          "abs": 1506.118735416254,
+          "pct": 2.315201806432409,
+          "err95": 46.442589448345444
+        }
+      },
+      "slot_attempts": {
+        "neck": 66559.6
+      },
+      "cleave": {
+        "dps": {
+          "mean": 131554.4646343383,
+          "std_err": 33.541766089264314
+        },
+        "delta": {
+          "abs": 3147.9130942056945,
+          "pct": 2.4515206244923067,
+          "err95": 91.76249464128418
+        }
+      },
+      "rank": 1
+    },
+    {
+      "key": "279196",
+      "slot": "neck",
+      "name": "Chain of Vengeance",
+      "item_id": 279196,
+      "ilevel": 272,
+      "stats": "Crit 121, Haste 143",
+      "source": "quest",
+      "note": "",
+      "simulable": true,
+      "replaced_slot": "neck",
+      "replaced": "Voidbreaker's Choker",
+      "replaced_ilevel": 220,
+      "st": {
+        "dps": {
+          "mean": 66032.21416460015,
+          "std_err": 16.785504705186803
+        },
+        "delta": {
+          "abs": 978.7604556513397,
+          "pct": 1.5045480291182458,
+          "err95": 46.17445528182053
+        }
+      },
+      "slot_attempts": {
+        "neck": 66032.2
+      },
+      "cleave": {
+        "dps": {
+          "mean": 130187.04659532516,
+          "std_err": 33.1794441734102
+        },
+        "delta": {
+          "abs": 1780.495055192543,
+          "pct": 1.3866076409941288,
+          "err95": 91.25506257548622
+        }
+      },
+      "rank": 2
+    },
+    {
+      "key": "279195",
+      "slot": "neck",
+      "name": "Choker of Anger",
+      "item_id": 279195,
+      "ilevel": 272,
+      "stats": "Crit 140, Vers 125",
+      "source": "quest",
+      "note": "",
+      "simulable": true,
+      "replaced_slot": "neck",
+      "replaced": "Voidbreaker's Choker",
+      "replaced_ilevel": 220,
+      "st": {
+        "dps": {
+          "mean": 65804.73391105067,
+          "std_err": 16.73445198746385
+        },
+        "delta": {
+          "abs": 751.2802021018579,
+          "pct": 1.1548659744694094,
+          "err95": 46.103212995956156
+        }
+      },
+      "slot_attempts": {
+        "neck": 65804.7
+      },
+      "cleave": {
+        "dps": {
+          "mean": 130226.74726185508,
+          "std_err": 33.09966038895907
+        },
+        "delta": {
+          "abs": 1820.19572172247,
+          "pct": 1.417525585642396,
+          "err95": 91.14368915804368
+        }
+      },
+      "rank": 3
+    },
+    {
+      "key": "278894",
+      "slot": "feet",
+      "name": "Faithleaper's Sabatons",
+      "item_id": 278894,
+      "ilevel": 272,
+      "stats": "Agi 79, Crit 59, Mastery 54",
+      "source": "quest",
+      "note": "",
+      "simulable": true,
+      "replaced_slot": "feet",
+      "replaced": "Voidstalker's Greaves",
+      "replaced_ilevel": 246,
+      "st": {
+        "dps": {
+          "mean": 65756.94232675349,
+          "std_err": 16.734318770151077
+        },
+        "delta": {
+          "abs": 703.4886178046727,
+          "pct": 1.0814008752742057,
+          "err95": 46.10302723593162
+        }
+      },
+      "slot_attempts": {
+        "feet": 65756.9
+      },
+      "cleave": {
+        "dps": {
+          "mean": 130299.72612556856,
+          "std_err": 33.0909432843205
+        },
+        "delta": {
+          "abs": 1893.174585435947,
+          "pct": 1.4743598069793564,
+          "err95": 91.1315286108332
+        }
+      },
+      "rank": 4
+    },
+    {
+      "key": "278882",
+      "slot": "head",
+      "name": "Ophidian General's Barbute",
+      "item_id": 278882,
+      "ilevel": 272,
+      "stats": "Agi 106, Haste 72, Vers 79",
+      "source": "quest",
+      "note": "",
+      "simulable": true,
+      "replaced_slot": "head",
+      "replaced": "Elder Mosshorns",
+      "replaced_ilevel": 250,
+      "st": {
+        "dps": {
+          "mean": 65723.61133058998,
+          "std_err": 16.747663267156085
+        },
+        "delta": {
+          "abs": 670.1576216411631,
+          "pct": 1.0301645545822506,
+          "err95": 46.1216386092257
+        }
+      },
+      "slot_attempts": {
+        "head": 65723.6
+      },
+      "cleave": {
+        "dps": {
+          "mean": 129573.54528353566,
+          "std_err": 33.032209525579106
+        },
+        "delta": {
+          "abs": 1166.9937434030435,
+          "pct": 0.9088272595174456,
+          "err95": 91.04963500025846
+        }
+      },
+      "rank": 5
+    },
+    {
+      "key": "278898",
+      "slot": "hands",
+      "name": "Fangsmasher Gauntlets",
+      "item_id": 278898,
+      "ilevel": 272,
+      "stats": "Agi 79, Crit 59, Haste 54",
+      "source": "quest",
+      "note": "",
+      "simulable": true,
+      "replaced_slot": "hands",
+      "replaced": "Elder Mossfeelers",
+      "replaced_ilevel": 250,
+      "st": {
+        "dps": {
+          "mean": 65693.50134382136,
+          "std_err": 16.73496932982706
+        },
+        "delta": {
+          "abs": 640.0476348725497,
+          "pct": 0.9838795611623371,
+          "err95": 46.1039343920765
+        }
+      },
+      "slot_attempts": {
+        "hands": 65693.5
+      },
+      "cleave": {
+        "dps": {
+          "mean": 129655.32096626984,
+          "std_err": 32.93421836080085
+        },
+        "delta": {
+          "abs": 1248.7694261372235,
+          "pct": 0.9725122364546399,
+          "err95": 90.91316429975535
+        }
+      },
+      "rank": 6
+    },
+    {
+      "key": "bag03-249625",
+      "slot": "back",
+      "name": "Elder Mossveil",
+      "item_id": 249625,
+      "ilevel": 250,
+      "stats": "Agi 48, Haste 47, Vers 28",
+      "source": "bags",
+      "note": "",
+      "simulable": true,
+      "replaced_slot": "back",
+      "replaced": "Voidbreaker's Wrap",
+      "replaced_ilevel": 246,
+      "st": {
+        "dps": {
+          "mean": 64994.195998873256,
+          "std_err": 16.535263484847537
+        },
+        "delta": {
+          "abs": -59.25771007555886,
+          "pct": -0.0910907979469925,
+          "err95": 45.826282604837054
+        }
+      },
+      "slot_attempts": {
+        "back": 64994.2
+      },
+      "cleave": {
+        "dps": {
+          "mean": 128135.14801670276,
+          "std_err": 32.61549577472538
+        },
+        "delta": {
+          "abs": -271.4035234298499,
+          "pct": -0.21136267594961813,
+          "err95": 90.4706806971024
+        }
+      },
+      "rank": 7
+    },
+    {
+      "key": "bag01-256970",
+      "slot": "neck",
+      "name": "Loa-Blessed Beads",
+      "item_id": 256970,
+      "ilevel": 233,
+      "stats": "Crit 75, Haste 100",
+      "source": "bags",
+      "note": "",
+      "simulable": true,
+      "replaced_slot": "neck",
+      "replaced": "Voidbreaker's Choker",
+      "replaced_ilevel": 220,
+      "st": {
+        "dps": {
+          "mean": 64930.5686142364,
+          "std_err": 16.56130302476951
+        },
+        "delta": {
+          "abs": -122.8850947124156,
+          "pct": -0.18889864827501296,
+          "err95": 45.862391375184735
+        }
+      },
+      "slot_attempts": {
+        "neck": 64930.6
+      },
+      "cleave": {
+        "dps": {
+          "mean": 127951.99040697137,
+          "std_err": 32.49351228652871
+        },
+        "delta": {
+          "abs": -454.5611331612454,
+          "pct": -0.35400151137862723,
+          "err95": 90.3019004141112
+        }
+      },
+      "rank": 8
+    },
+    {
+      "key": "bag02-258911",
+      "slot": "neck",
+      "name": "Tarnished Dawnlit Pendant",
+      "item_id": 258911,
+      "ilevel": 192,
+      "stats": "Mastery 79, Vers 74",
+      "source": "bags",
+      "note": "",
+      "simulable": true,
+      "replaced_slot": "neck",
+      "replaced": "Voidbreaker's Choker",
+      "replaced_ilevel": 220,
+      "st": {
+        "dps": {
+          "mean": 64807.66264815349,
+          "std_err": 16.50190448329288
+        },
+        "delta": {
+          "abs": -245.79106079532357,
+          "pct": -0.37782937996651256,
+          "err95": 45.780065532924546
+        }
+      },
+      "slot_attempts": {
+        "neck": 64807.7
+      },
+      "cleave": {
+        "dps": {
+          "mean": 128547.28893895057,
+          "std_err": 32.69715125684605
+        },
+        "delta": {
+          "abs": 140.73739881796064,
+          "pct": 0.1096029736255117,
+          "err95": 90.58383873425103
+        }
+      },
+      "rank": 9
+    },
+    {
+      "key": "bag06-257003",
+      "slot": "legs",
+      "name": "Rootspeaker's Leggings",
+      "item_id": 257003,
+      "ilevel": 233,
+      "stats": "Agi 74, Haste 65, Mastery 55",
+      "source": "bags",
+      "note": "",
+      "simulable": true,
+      "replaced_slot": "legs",
+      "replaced": "Gear-Linked Leggings",
+      "replaced_ilevel": 246,
+      "st": {
+        "dps": {
+          "mean": 64686.10615970623,
+          "std_err": 16.47409316966195
+        },
+        "delta": {
+          "abs": -367.34754924258596,
+          "pct": -0.5646856981431153,
+          "err95": 45.741570223458346
+        }
+      },
+      "slot_attempts": {
+        "legs": 64686.1
+      },
+      "cleave": {
+        "dps": {
+          "mean": 127612.73719348907,
+          "std_err": 32.46453344062144
+        },
+        "delta": {
+          "abs": -793.8143466435431,
+          "pct": -0.6182039289447328,
+          "err95": 90.2618510514087
+        }
+      },
+      "rank": 10
+    },
+    {
+      "key": "bag08-257169",
+      "slot": "finger",
+      "name": "Voidbreaker's Signet",
+      "item_id": 257169,
+      "ilevel": 220,
+      "stats": "Crit 84, Vers 75",
+      "source": "bags",
+      "note": "",
+      "simulable": true,
+      "replaced_slot": "finger2",
+      "replaced": "Omission of Light",
+      "replaced_ilevel": 189,
+      "st": {
+        "dps": {
+          "mean": 64323.570615220044,
+          "std_err": 16.343583612173934
+        },
+        "delta": {
+          "abs": -729.8830937287712,
+          "pct": -1.1219743950786856,
+          "err95": 45.56136076822571
+        }
+      },
+      "slot_attempts": {
+        "finger1": 63921.0,
+        "finger2": 64323.6
+      },
+      "cleave": {
+        "dps": {
+          "mean": 127266.47562847554,
+          "std_err": 32.27680646016354
+        },
+        "delta": {
+          "abs": -1140.0759116570698,
+          "pct": -0.8878642857259091,
+          "err95": 90.00284504231664
+        }
+      },
+      "rank": 11
+    },
+    {
+      "key": "bag07-264287",
+      "slot": "finger",
+      "name": "Voidbreaker's Circle",
+      "item_id": 264287,
+      "ilevel": 220,
+      "stats": "Crit 86, Vers 72",
+      "source": "bags",
+      "note": "",
+      "simulable": true,
+      "replaced_slot": "finger2",
+      "replaced": "Omission of Light",
+      "replaced_ilevel": 189,
+      "st": {
+        "dps": {
+          "mean": 64301.06721664421,
+          "std_err": 16.384594086804682
+        },
+        "delta": {
+          "abs": -752.3864923046058,
+          "pct": -1.1565665608943785,
+          "err95": 45.61791077283263
+        }
+      },
+      "slot_attempts": {
+        "finger1": 63876.4,
+        "finger2": 64301.1
+      },
+      "cleave": {
+        "dps": {
+          "mean": 127307.14208999382,
+          "std_err": 32.333651566151495
+        },
+        "delta": {
+          "abs": -1099.409450138788,
+          "pct": -0.8561942026728869,
+          "err95": 90.08119392734994
+        }
+      },
+      "rank": 12
+    },
+    {
+      "key": "bag05-257206",
+      "slot": "waist",
+      "name": "Voidbreaker's Sash",
+      "item_id": 257206,
+      "ilevel": 214,
+      "stats": "Agi 46, Crit 35, Mastery 42",
+      "source": "bags",
+      "note": "",
+      "simulable": true,
+      "replaced_slot": "waist",
+      "replaced": "Elder Mosscinch",
+      "replaced_ilevel": 250,
+      "st": {
+        "dps": {
+          "mean": 64191.423616059976,
+          "std_err": 16.355949647123193
+        },
+        "delta": {
+          "abs": -862.0300928888391,
+          "pct": -1.3251104188035714,
+          "err95": 45.57840495396026
+        }
+      },
+      "slot_attempts": {
+        "waist": 64191.4
+      },
+      "cleave": {
+        "dps": {
+          "mean": 126658.8266203605,
+          "std_err": 32.22195990689202
+        },
+        "delta": {
+          "abs": -1747.7249197721103,
+          "pct": -1.3610870308481655,
+          "err95": 89.92731687956284
+        }
+      },
+      "rank": 13
+    },
+    {
+      "key": "bag04-258920",
+      "slot": "chest",
+      "name": "Tarnished Dawnlit Corsair's Tunic",
+      "item_id": 258920,
+      "ilevel": 198,
+      "stats": "Agi 53, Crit 47, Vers 43",
+      "source": "bags",
+      "note": "",
+      "simulable": true,
+      "replaced_slot": "chest",
+      "replaced": "Elder Mossmail",
+      "replaced_ilevel": 246,
+      "st": {
+        "dps": {
+          "mean": 60678.19424153299,
+          "std_err": 15.447342082588461
+        },
+        "delta": {
+          "abs": -4375.2594674158245,
+          "pct": -6.725637484200105,
+          "err95": 44.34389914597985
+        }
+      },
+      "slot_attempts": {
+        "chest": 60678.2
+      },
+      "cleave": {
+        "dps": {
+          "mean": 119984.59274745561,
+          "std_err": 30.55134518241135
+        },
+        "delta": {
+          "abs": -8421.958792677004,
+          "pct": -6.558823277833122,
+          "err95": 87.65873430095063
+        }
+      },
+      "rank": 14
+    },
+    {
+      "key": "bag09-237926",
+      "slot": "main_hand",
+      "name": "Dawnforged Ritual Knife",
+      "item_id": 237926,
+      "ilevel": 214,
+      "stats": "Crit 26, Haste 26",
+      "source": "bags",
+      "note": "",
+      "simulable": true,
+      "replaced_slot": "main_hand",
+      "replaced": "Void-Touched Smasher",
+      "replaced_ilevel": 263,
+      "st": {
+        "dps": {
+          "mean": 42126.498760615614,
+          "std_err": 10.725888742208198
+        },
+        "delta": {
+          "abs": -22926.9549483332,
+          "pct": -35.24325557088654,
+          "err95": 38.62192418872664
+        }
+      },
+      "slot_attempts": {
+        "main_hand": 42126.5
+      },
+      "cleave": {
+        "dps": {
+          "mean": 88082.28469503867,
+          "std_err": 22.458328195205528
+        },
+        "delta": {
+          "abs": -40324.26684509394,
+          "pct": -31.403589895871363,
+          "err95": 77.69154296035774
+        }
+      },
+      "rank": 15
+    },
+    {
+      "key": "bag11-237920",
+      "slot": "off_hand",
+      "name": "Blood-Tempered Bulwark",
+      "item_id": 237920,
+      "ilevel": 214,
+      "stats": "Crit 26, Vers 26",
+      "source": "bags",
+      "note": "",
+      "simulable": true,
+      "replaced_slot": "off_hand",
+      "replaced": "Void-Touched Smasher",
+      "replaced_ilevel": 246,
+      "st": {
+        "dps": {
+          "mean": 37520.94757675208,
+          "std_err": 9.566878278316771
+        },
+        "delta": {
+          "abs": -27532.506132196737,
+          "pct": -42.32289688319705,
+          "err95": 37.433947216548475
+        }
+      },
+      "slot_attempts": {
+        "off_hand": 37520.9
+      },
+      "cleave": {
+        "dps": {
+          "mean": 72204.22663674688,
+          "std_err": 18.383641754696008
+        },
+        "delta": {
+          "abs": -56202.32490338573,
+          "pct": -43.76904778555639,
+          "err95": 73.4619875116266
+        }
+      },
+      "rank": 16
+    },
+    {
+      "key": "bag10-275218",
+      "slot": "main_hand",
+      "name": "Mertei's Command Baton",
+      "item_id": 275218,
+      "ilevel": 253,
+      "stats": "Haste 44, Mastery 24",
+      "source": "bags",
+      "note": "",
+      "simulable": true,
+      "replaced_slot": "main_hand",
+      "replaced": "Void-Touched Smasher",
+      "replaced_ilevel": 263,
+      "st": {
+        "dps": {
+          "mean": 28067.91618457173,
+          "std_err": 7.438999115750267
+        },
+        "delta": {
+          "abs": -36985.53752437708,
+          "pct": -56.854072175555096,
+          "err95": 35.52867193745913
+        }
+      },
+      "slot_attempts": {
+        "main_hand": 28067.9
+      },
+      "cleave": {
+        "dps": {
+          "mean": 52266.52293185615,
+          "std_err": 15.426546591215004
+        },
+        "delta": {
+          "abs": -76140.02860827647,
+          "pct": -59.29606215184387,
+          "err95": 70.79958089297168
+        }
+      },
+      "rank": 17
+    },
+    {
+      "key": "280377",
+      "slot": "trinket",
+      "name": "Breath of Jan'alai",
+      "item_id": 280377,
+      "ilevel": 272,
+      "stats": "Agi 101",
+      "source": "quest",
+      "note": "not simulable: SimC midnight has no handler for the on-use fire cone (spell 1308728), so only its Agility is counted",
+      "simulable": false,
+      "replaced_slot": "trinket1",
+      "replaced": "Withered Saptor's Paw",
+      "replaced_ilevel": 237,
+      "st": {
+        "dps": {
+          "mean": 65221.62938045596,
+          "std_err": 16.589293862541552
+        },
+        "delta": {
+          "abs": 168.17567150714603,
+          "pct": 0.2585192052363111,
+          "err95": 45.901237599358254
+        }
+      },
+      "slot_attempts": {
+        "trinket1": 65221.6,
+        "trinket2": 65108.3
+      },
+      "cleave": {
+        "dps": {
+          "mean": 129570.11153124063,
+          "std_err": 32.8984978352587
+        },
+        "delta": {
+          "abs": 1163.5599911080208,
+          "pct": 0.9061531340512309,
+          "err95": 90.86346689545397
+        }
+      },
+      "rank": null
+    }
+  ],
+  "partial": false
+}
