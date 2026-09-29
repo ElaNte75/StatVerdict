@@ -11,7 +11,7 @@ from __future__ import annotations
 import unittest
 
 from tools.spec_catalog import SPECS
-from tools.tests.test_addon_lua import FRAME_STUB, LuaRuntime, new_runtime, toc_lua_files
+from tools.tests.test_addon_lua import FRAME_STUB, LuaRuntime, compile_lua_file, new_runtime, toc_lua_files
 
 GOALS = ("MYTHIC_PLUS", "RAID", "PVP")
 
@@ -63,9 +63,8 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
         lua.execute(WOW_GLOBALS_STUB)
         lua.globals().StatVerdictDB = lua.table()
         ns = lua.table()
-        load = lua.eval("function(path, ns) local f, err = loadfile(path) if not f then error(err) end f('StatVerdict', ns) end")
         for path in toc_lua_files():
-            load(str(path), ns)
+            compile_lua_file(lua, path)("StatVerdict", ns)
         lua.execute("setmetatable(_G, nil)")
         lua.eval("function(src, buildId) assert(loadstring or load)(src)(buildId) end")(
             PIN_TIME_TO_BUILD, ns.ClassCodexTargets.buildId)

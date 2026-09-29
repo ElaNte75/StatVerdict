@@ -10,7 +10,9 @@ from tools.classcodex_weights_cli import render_lua as render_weights_lua
 from tools.tests.addon_fixtures import make_classcodex_targets, make_classcodex_weights
 
 try:
-    from lupa import LuaRuntime
+    # WoW runs Lua 5.1: test the addon on a 5.1 runtime so syntax or library
+    # calls newer Lua versions added (goto, //, integer division, utf8...) fail here.
+    from lupa.lua51 import LuaRuntime
 except ImportError:  # optional dev dependency: pip install lupa
     LuaRuntime = None
 
@@ -33,9 +35,15 @@ def new_runtime():
     return lua
 
 
+def compile_lua_file(lua, path: Path):
+    """Compile a Lua file the way WoW does: a leading UTF-8 BOM is allowed
+    (the WoW loader skips it; plain Lua 5.1 loadfile does not)."""
+    compile_source = lua.eval("function(src, name) local f, err = loadstring(src, name) if not f then error(err) end return f end")
+    return compile_source(Path(path).read_text(encoding="utf-8-sig"), "@" + str(path))
+
+
 def load_addon_file(lua, ns, relative_path: str) -> None:
-    loader = lua.eval("function(path) local f, err = loadfile(path) if not f then error(err) end return f end")
-    loader(str(ADDON / relative_path))("StatVerdict", ns)
+    compile_lua_file(lua, ADDON / relative_path)("StatVerdict", ns)
 
 
 def now_build_id(days_ago: int = 0) -> str:
@@ -46,9 +54,17 @@ def now_build_id(days_ago: int = 0) -> str:
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
 class AddonLuaSyntaxTests(unittest.TestCase):
+    def test_addon_tests_run_on_wows_lua_version(self) -> None:
+        lua = new_runtime()
+        self.assertEqual("Lua 5.1", lua.eval("_VERSION"))
+        # 5.2+ syntax must not compile here, so it is caught before it reaches the game.
+        check = lua.eval("function(src) local f, err = loadstring(src) return f == nil end")
+        self.assertTrue(check("goto done ::done::"))
+        self.assertTrue(check("local x = 7 // 2"))
+
     def test_every_toc_file_compiles(self) -> None:
         lua = new_runtime()
-        check = lua.eval("function(src, name) local f, err = load(src, name) if not f then return err end return nil end")
+        check = lua.eval("function(src, name) local f, err = loadstring(src, name) if not f then return err end return nil end")
         for path in toc_lua_files():
             self.assertTrue(path.exists(), f"{path} is listed in the .toc but missing")
             error = check(path.read_text(encoding="utf-8-sig"), "@" + path.name)
