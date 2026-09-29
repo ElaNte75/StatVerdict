@@ -24403,6 +24403,2165 @@ ns.ClassCodexTargets = {
             ["primaryStat"] = "intellect",
             ["specKey"] = "EVOKER_DEVASTATION",
         },
+        ["EVOKER_PRESERVATION"] = {
+            ["classToken"] = "EVOKER",
+            ["goals"] = {
+                ["MYTHIC_PLUS"] = {
+                    ["heroTalents"] = {
+                        ["chronowarden"] = {
+                            ["bis"] = {
+                                ["label"] = "ClassCodex BiS",
+                                ["slots"] = {
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13696,
+                                                13440,
+                                                13692,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271501,
+                                        },
+                                        ["slot"] = "Head",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                13987,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268265,
+                                        },
+                                        ["slot"] = "Neck",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13694,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271499,
+                                        },
+                                        ["slot"] = "Shoulders",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 239656,
+                                        },
+                                        ["slot"] = "Back",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13690,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271504,
+                                        },
+                                        ["slot"] = "Chest",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 244584,
+                                        },
+                                        ["slot"] = "Wrist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13691,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271502,
+                                        },
+                                        ["slot"] = "Hands",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8791,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 244581,
+                                        },
+                                        ["slot"] = "Waist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13693,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271500,
+                                        },
+                                        ["slot"] = "Legs",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8792,
+                                                13836,
+                                            },
+                                            ["item_id"] = 244577,
+                                        },
+                                        ["slot"] = "Feet",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                12686,
+                                                8960,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 240949,
+                                        },
+                                        ["slot"] = "Finger 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                12846,
+                                            },
+                                            ["item_id"] = 272148,
+                                        },
+                                        ["slot"] = "Finger 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 270162,
+                                        },
+                                        ["slot"] = "Trinket 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 270164,
+                                        },
+                                        ["slot"] = "Trinket 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 271092,
+                                        },
+                                        ["slot"] = "Main Hand",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                12693,
+                                                8960,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 245769,
+                                        },
+                                        ["slot"] = "Off Hand",
+                                    },
+                                },
+                            },
+                            ["priorityProfiles"] = {
+                                {
+                                    ["context"] = "Mythic+",
+                                    ["heroTalent"] = "chronowarden",
+                                    ["order"] = {
+                                        "mastery",
+                                        "critical_strike",
+                                        "versatility",
+                                        "haste",
+                                    },
+                                    ["tiers"] = {
+                                        {
+                                            "mastery",
+                                            "critical_strike",
+                                        },
+                                        {
+                                            "versatility",
+                                            "haste",
+                                        },
+                                    },
+                                },
+                            },
+                            ["targets"] = {
+                                ["averageItemLevel"] = 332.6875,
+                                ["itemCount"] = 16,
+                                ["itemLevelSlots"] = 16,
+                                ["sourceGoal"] = "MYTHIC_PLUS",
+                                ["statTargets"] = {
+                                    ["context"] = "MYTHIC_PLUS",
+                                    ["source"] = "ClassCodex BiS + Wowhead gear totals (no SimC support for this spec)",
+                                    ["stats"] = {
+                                        ["critical_strike"] = 1139.0,
+                                        ["haste"] = 916.0,
+                                        ["mastery"] = 284.0,
+                                        ["versatility"] = 415.0,
+                                    },
+                                },
+                                ["targetMetadata"] = {
+                                    ["lowItemReplacements"] = 0,
+                                    ["recovery"] = {
+                                        "wowhead fallback",
+                                    },
+                                    ["unresolvedLowItems"] = 0,
+                                },
+                            },
+                            ["trinkets"] = {
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270162,
+                                    ["tier"] = "S",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13334,
+                                        13696,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270164,
+                                    ["tier"] = "A",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250215,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270167,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250214,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270171,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12845,
+                                    },
+                                    ["item_id"] = 250248,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 273796,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        40,
+                                        12838,
+                                    },
+                                    ["item_id"] = 274493,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12851,
+                                    },
+                                    ["item_id"] = 250255,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        12846,
+                                    },
+                                    ["item_id"] = 251792,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        42,
+                                        12846,
+                                    },
+                                    ["item_id"] = 264701,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13183,
+                                        6652,
+                                        12846,
+                                    },
+                                    ["item_id"] = 248583,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        41,
+                                        13335,
+                                        13786,
+                                    },
+                                    ["item_id"] = 268292,
+                                    ["tier"] = "C",
+                                },
+                            },
+                        },
+                        ["flameshaper"] = {
+                            ["bis"] = {
+                                ["label"] = "ClassCodex BiS",
+                                ["slots"] = {
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13696,
+                                                13440,
+                                                13692,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271501,
+                                        },
+                                        ["slot"] = "Head",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                13987,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268265,
+                                        },
+                                        ["slot"] = "Neck",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13694,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271499,
+                                        },
+                                        ["slot"] = "Shoulders",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 239656,
+                                        },
+                                        ["slot"] = "Back",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13690,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271504,
+                                        },
+                                        ["slot"] = "Chest",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 244584,
+                                        },
+                                        ["slot"] = "Wrist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13691,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271502,
+                                        },
+                                        ["slot"] = "Hands",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8791,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 244581,
+                                        },
+                                        ["slot"] = "Waist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13693,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271500,
+                                        },
+                                        ["slot"] = "Legs",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8792,
+                                                13836,
+                                            },
+                                            ["item_id"] = 244577,
+                                        },
+                                        ["slot"] = "Feet",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                12686,
+                                                8960,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 240949,
+                                        },
+                                        ["slot"] = "Finger 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                12846,
+                                            },
+                                            ["item_id"] = 272148,
+                                        },
+                                        ["slot"] = "Finger 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 270162,
+                                        },
+                                        ["slot"] = "Trinket 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 270164,
+                                        },
+                                        ["slot"] = "Trinket 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 271092,
+                                        },
+                                        ["slot"] = "Main Hand",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                12693,
+                                                8960,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 245769,
+                                        },
+                                        ["slot"] = "Off Hand",
+                                    },
+                                },
+                            },
+                            ["priorityProfiles"] = {
+                                {
+                                    ["context"] = "Mythic+",
+                                    ["heroTalent"] = "flameshaper",
+                                    ["order"] = {
+                                        "mastery",
+                                        "critical_strike",
+                                        "versatility",
+                                        "haste",
+                                    },
+                                    ["tiers"] = {
+                                        {
+                                            "mastery",
+                                            "critical_strike",
+                                        },
+                                        {
+                                            "versatility",
+                                            "haste",
+                                        },
+                                    },
+                                },
+                            },
+                            ["targets"] = {
+                                ["averageItemLevel"] = 332.6875,
+                                ["itemCount"] = 16,
+                                ["itemLevelSlots"] = 16,
+                                ["sourceGoal"] = "MYTHIC_PLUS",
+                                ["statTargets"] = {
+                                    ["context"] = "MYTHIC_PLUS",
+                                    ["source"] = "ClassCodex BiS + Wowhead gear totals (no SimC support for this spec)",
+                                    ["stats"] = {
+                                        ["critical_strike"] = 1139.0,
+                                        ["haste"] = 916.0,
+                                        ["mastery"] = 284.0,
+                                        ["versatility"] = 415.0,
+                                    },
+                                },
+                                ["targetMetadata"] = {
+                                    ["lowItemReplacements"] = 0,
+                                    ["recovery"] = {
+                                        "wowhead fallback",
+                                    },
+                                    ["unresolvedLowItems"] = 0,
+                                },
+                            },
+                            ["trinkets"] = {
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270162,
+                                    ["tier"] = "S",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13334,
+                                        13696,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270164,
+                                    ["tier"] = "A",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250215,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270167,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250214,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270171,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12845,
+                                    },
+                                    ["item_id"] = 250248,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 273796,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        40,
+                                        12838,
+                                    },
+                                    ["item_id"] = 274493,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12851,
+                                    },
+                                    ["item_id"] = 250255,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        12846,
+                                    },
+                                    ["item_id"] = 251792,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        42,
+                                        12846,
+                                    },
+                                    ["item_id"] = 264701,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13183,
+                                        6652,
+                                        12846,
+                                    },
+                                    ["item_id"] = 248583,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        41,
+                                        13335,
+                                        13786,
+                                    },
+                                    ["item_id"] = 268292,
+                                    ["tier"] = "C",
+                                },
+                            },
+                        },
+                    },
+                },
+                ["PVP"] = {
+                    ["heroTalents"] = {
+                        ["chronowarden"] = {
+                            ["bis"] = {
+                                ["label"] = "ClassCodex BiS",
+                                ["slots"] = {
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13554,
+                                                13692,
+                                                13698,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271501,
+                                        },
+                                        ["slot"] = "Head",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8792,
+                                            },
+                                            ["item_id"] = 240952,
+                                        },
+                                        ["slot"] = "Neck",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13694,
+                                                13697,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271499,
+                                        },
+                                        ["slot"] = "Shoulders",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                            },
+                                            ["item_id"] = 270540,
+                                        },
+                                        ["slot"] = "Back",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8960,
+                                                12384,
+                                                8792,
+                                            },
+                                            ["item_id"] = 244562,
+                                        },
+                                        ["slot"] = "Chest",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                                13554,
+                                            },
+                                            ["item_id"] = 270484,
+                                        },
+                                        ["slot"] = "Wrist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13691,
+                                                13697,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271502,
+                                        },
+                                        ["slot"] = "Hands",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12833,
+                                                13658,
+                                                13662,
+                                                13554,
+                                                13452,
+                                                13576,
+                                            },
+                                            ["item_id"] = 270737,
+                                        },
+                                        ["slot"] = "Waist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13693,
+                                                13698,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271500,
+                                        },
+                                        ["slot"] = "Legs",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                            },
+                                            ["item_id"] = 270497,
+                                        },
+                                        ["slot"] = "Feet",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8792,
+                                            },
+                                            ["item_id"] = 240951,
+                                        },
+                                        ["slot"] = "Finger 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                12686,
+                                                8960,
+                                                8792,
+                                            },
+                                            ["item_id"] = 240951,
+                                        },
+                                        ["slot"] = "Finger 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                            },
+                                            ["item_id"] = 270558,
+                                        },
+                                        ["slot"] = "Trinket 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                            },
+                                            ["item_id"] = 270556,
+                                        },
+                                        ["slot"] = "Trinket 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12833,
+                                                13658,
+                                                13452,
+                                            },
+                                            ["item_id"] = 270853,
+                                        },
+                                        ["slot"] = "Main Hand",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12833,
+                                                13658,
+                                                13452,
+                                            },
+                                            ["item_id"] = 270847,
+                                        },
+                                        ["slot"] = "Off Hand",
+                                    },
+                                },
+                            },
+                            ["priorityProfiles"] = {
+                                {
+                                    ["context"] = "PvP",
+                                    ["heroTalent"] = "chronowarden",
+                                    ["order"] = {
+                                        "versatility",
+                                        "haste",
+                                        "mastery",
+                                        "critical_strike",
+                                    },
+                                    ["tiers"] = {},
+                                },
+                            },
+                            ["targets"] = {
+                                ["averageItemLevel"] = nil,
+                                ["itemCount"] = 16,
+                                ["itemLevelSlots"] = 0,
+                                ["sourceGoal"] = "PVP",
+                                ["statTargets"] = {
+                                    ["context"] = "PVP",
+                                    ["source"] = "ClassCodex BiS + Wowhead gear totals (no SimC support for this spec)",
+                                    ["stats"] = {
+                                        ["critical_strike"] = 252.0,
+                                        ["haste"] = 1198.0,
+                                        ["mastery"] = 92.0,
+                                        ["versatility"] = 1050.0,
+                                    },
+                                },
+                                ["targetMetadata"] = {
+                                    ["lowItemReplacements"] = 0,
+                                    ["recovery"] = {
+                                        "wowhead fallback",
+                                    },
+                                    ["unresolvedLowItems"] = 0,
+                                },
+                            },
+                            ["trinkets"] = {
+                                {
+                                    ["bonus_ids"] = {
+                                        13650,
+                                        13657,
+                                    },
+                                    ["item_id"] = 270556,
+                                    ["tier"] = "S",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13650,
+                                        13657,
+                                    },
+                                    ["item_id"] = 270558,
+                                    ["tier"] = "S",
+                                },
+                            },
+                        },
+                        ["flameshaper"] = {
+                            ["bis"] = {
+                                ["label"] = "ClassCodex BiS",
+                                ["slots"] = {
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13554,
+                                                13692,
+                                                13698,
+                                                1545,
+                                                13576,
+                                            },
+                                            ["item_id"] = 271501,
+                                        },
+                                        ["slot"] = "Head",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8792,
+                                            },
+                                            ["item_id"] = 240952,
+                                        },
+                                        ["slot"] = "Neck",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13694,
+                                                13697,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271499,
+                                        },
+                                        ["slot"] = "Shoulders",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                            },
+                                            ["item_id"] = 270540,
+                                        },
+                                        ["slot"] = "Back",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13690,
+                                                13698,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271504,
+                                        },
+                                        ["slot"] = "Chest",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                                13554,
+                                            },
+                                            ["item_id"] = 270484,
+                                        },
+                                        ["slot"] = "Wrist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13691,
+                                                13697,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271502,
+                                        },
+                                        ["slot"] = "Hands",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                                13554,
+                                            },
+                                            ["item_id"] = 270487,
+                                        },
+                                        ["slot"] = "Waist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13693,
+                                                13698,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271500,
+                                        },
+                                        ["slot"] = "Legs",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                            },
+                                            ["item_id"] = 270497,
+                                        },
+                                        ["slot"] = "Feet",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8792,
+                                            },
+                                            ["item_id"] = 240951,
+                                        },
+                                        ["slot"] = "Finger 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8792,
+                                            },
+                                            ["item_id"] = 240951,
+                                        },
+                                        ["slot"] = "Finger 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                            },
+                                            ["item_id"] = 270558,
+                                        },
+                                        ["slot"] = "Trinket 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                            },
+                                            ["item_id"] = 270556,
+                                        },
+                                        ["slot"] = "Trinket 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12833,
+                                                13658,
+                                                13452,
+                                            },
+                                            ["item_id"] = 270853,
+                                        },
+                                        ["slot"] = "Main Hand",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12833,
+                                                13658,
+                                                13452,
+                                            },
+                                            ["item_id"] = 270847,
+                                        },
+                                        ["slot"] = "Off Hand",
+                                    },
+                                },
+                            },
+                            ["priorityProfiles"] = {
+                                {
+                                    ["context"] = "PvP",
+                                    ["heroTalent"] = "flameshaper",
+                                    ["order"] = {
+                                        "versatility",
+                                        "haste",
+                                        "mastery",
+                                        "critical_strike",
+                                    },
+                                    ["tiers"] = {},
+                                },
+                            },
+                            ["targets"] = {
+                                ["averageItemLevel"] = nil,
+                                ["itemCount"] = 16,
+                                ["itemLevelSlots"] = 0,
+                                ["sourceGoal"] = "PVP",
+                                ["statTargets"] = {
+                                    ["context"] = "PVP",
+                                    ["source"] = "ClassCodex BiS + Wowhead gear totals (no SimC support for this spec)",
+                                    ["stats"] = {
+                                        ["critical_strike"] = 397.0,
+                                        ["haste"] = 1137.0,
+                                        ["mastery"] = 156.0,
+                                        ["versatility"] = 959.0,
+                                    },
+                                },
+                                ["targetMetadata"] = {
+                                    ["lowItemReplacements"] = 0,
+                                    ["recovery"] = {
+                                        "wowhead fallback",
+                                    },
+                                    ["unresolvedLowItems"] = 0,
+                                },
+                            },
+                            ["trinkets"] = {
+                                {
+                                    ["bonus_ids"] = {
+                                        13650,
+                                        13657,
+                                    },
+                                    ["item_id"] = 270556,
+                                    ["tier"] = "S",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13650,
+                                        13657,
+                                    },
+                                    ["item_id"] = 270558,
+                                    ["tier"] = "S",
+                                },
+                            },
+                        },
+                    },
+                },
+                ["RAID"] = {
+                    ["heroTalents"] = {
+                        ["chronowarden"] = {
+                            ["bis"] = {
+                                ["label"] = "ClassCodex BiS",
+                                ["slots"] = {
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13696,
+                                                13440,
+                                                13692,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271501,
+                                        },
+                                        ["slot"] = "Head",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                13987,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268265,
+                                        },
+                                        ["slot"] = "Neck",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13694,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271499,
+                                        },
+                                        ["slot"] = "Shoulders",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8791,
+                                                13836,
+                                            },
+                                            ["item_id"] = 239656,
+                                        },
+                                        ["slot"] = "Back",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13334,
+                                                6652,
+                                                13846,
+                                                13690,
+                                                13698,
+                                                12854,
+                                            },
+                                            ["item_id"] = 271504,
+                                        },
+                                        ["slot"] = "Chest",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8791,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 244584,
+                                        },
+                                        ["slot"] = "Wrist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13691,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271502,
+                                        },
+                                        ["slot"] = "Hands",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13696,
+                                                13662,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 268254,
+                                        },
+                                        ["slot"] = "Waist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13693,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271500,
+                                        },
+                                        ["slot"] = "Legs",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13662,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 268258,
+                                        },
+                                        ["slot"] = "Feet",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 268249,
+                                        },
+                                        ["slot"] = "Finger 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8791,
+                                                13836,
+                                            },
+                                            ["item_id"] = 240949,
+                                        },
+                                        ["slot"] = "Finger 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 270162,
+                                        },
+                                        ["slot"] = "Trinket 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 270164,
+                                        },
+                                        ["slot"] = "Trinket 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 271092,
+                                        },
+                                        ["slot"] = "Main Hand",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                12693,
+                                                8960,
+                                                8791,
+                                                13836,
+                                            },
+                                            ["item_id"] = 245769,
+                                        },
+                                        ["slot"] = "Off Hand",
+                                    },
+                                },
+                            },
+                            ["priorityProfiles"] = {
+                                {
+                                    ["context"] = "Raid",
+                                    ["heroTalent"] = "chronowarden",
+                                    ["order"] = {
+                                        "mastery",
+                                        "critical_strike",
+                                        "versatility",
+                                        "haste",
+                                    },
+                                    ["tiers"] = {
+                                        {
+                                            "mastery",
+                                            "critical_strike",
+                                        },
+                                        {
+                                            "versatility",
+                                            "haste",
+                                        },
+                                    },
+                                },
+                            },
+                            ["targets"] = {
+                                ["averageItemLevel"] = 335.125,
+                                ["itemCount"] = 16,
+                                ["itemLevelSlots"] = 16,
+                                ["sourceGoal"] = "RAID",
+                                ["statTargets"] = {
+                                    ["context"] = "RAID",
+                                    ["source"] = "ClassCodex BiS + Wowhead gear totals (no SimC support for this spec)",
+                                    ["stats"] = {
+                                        ["critical_strike"] = 995.0,
+                                        ["haste"] = 526.0,
+                                        ["mastery"] = 1027.0,
+                                        ["versatility"] = 207.0,
+                                    },
+                                },
+                                ["targetMetadata"] = {
+                                    ["lowItemReplacements"] = 0,
+                                    ["recovery"] = {
+                                        "wowhead fallback",
+                                    },
+                                    ["unresolvedLowItems"] = 0,
+                                },
+                            },
+                            ["trinkets"] = {
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270162,
+                                    ["tier"] = "S",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13334,
+                                        13696,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270164,
+                                    ["tier"] = "A",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250215,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270167,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250214,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270171,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12845,
+                                    },
+                                    ["item_id"] = 250248,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 273796,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        40,
+                                        12838,
+                                    },
+                                    ["item_id"] = 274493,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12851,
+                                    },
+                                    ["item_id"] = 250255,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        12846,
+                                    },
+                                    ["item_id"] = 251792,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        42,
+                                        12846,
+                                    },
+                                    ["item_id"] = 264701,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13183,
+                                        6652,
+                                        12846,
+                                    },
+                                    ["item_id"] = 248583,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        41,
+                                        13335,
+                                        13786,
+                                    },
+                                    ["item_id"] = 268292,
+                                    ["tier"] = "C",
+                                },
+                            },
+                        },
+                        ["flameshaper"] = {
+                            ["bis"] = {
+                                ["label"] = "ClassCodex BiS",
+                                ["slots"] = {
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13696,
+                                                13440,
+                                                13692,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271501,
+                                        },
+                                        ["slot"] = "Head",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                13987,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268265,
+                                        },
+                                        ["slot"] = "Neck",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13694,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271499,
+                                        },
+                                        ["slot"] = "Shoulders",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8791,
+                                                13836,
+                                            },
+                                            ["item_id"] = 239656,
+                                        },
+                                        ["slot"] = "Back",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13334,
+                                                6652,
+                                                13846,
+                                                13690,
+                                                13698,
+                                                12854,
+                                            },
+                                            ["item_id"] = 271504,
+                                        },
+                                        ["slot"] = "Chest",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8791,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 244584,
+                                        },
+                                        ["slot"] = "Wrist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13691,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271502,
+                                        },
+                                        ["slot"] = "Hands",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13696,
+                                                13662,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 268254,
+                                        },
+                                        ["slot"] = "Waist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13693,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271500,
+                                        },
+                                        ["slot"] = "Legs",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13662,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 268258,
+                                        },
+                                        ["slot"] = "Feet",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 268249,
+                                        },
+                                        ["slot"] = "Finger 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8791,
+                                                13836,
+                                            },
+                                            ["item_id"] = 240949,
+                                        },
+                                        ["slot"] = "Finger 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 270162,
+                                        },
+                                        ["slot"] = "Trinket 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 270164,
+                                        },
+                                        ["slot"] = "Trinket 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 271092,
+                                        },
+                                        ["slot"] = "Main Hand",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                12693,
+                                                8960,
+                                                8791,
+                                                13836,
+                                            },
+                                            ["item_id"] = 245769,
+                                        },
+                                        ["slot"] = "Off Hand",
+                                    },
+                                },
+                            },
+                            ["priorityProfiles"] = {
+                                {
+                                    ["context"] = "Raid",
+                                    ["heroTalent"] = "flameshaper",
+                                    ["order"] = {
+                                        "mastery",
+                                        "critical_strike",
+                                        "versatility",
+                                        "haste",
+                                    },
+                                    ["tiers"] = {
+                                        {
+                                            "mastery",
+                                            "critical_strike",
+                                        },
+                                        {
+                                            "versatility",
+                                            "haste",
+                                        },
+                                    },
+                                },
+                            },
+                            ["targets"] = {
+                                ["averageItemLevel"] = 335.125,
+                                ["itemCount"] = 16,
+                                ["itemLevelSlots"] = 16,
+                                ["sourceGoal"] = "RAID",
+                                ["statTargets"] = {
+                                    ["context"] = "RAID",
+                                    ["source"] = "ClassCodex BiS + Wowhead gear totals (no SimC support for this spec)",
+                                    ["stats"] = {
+                                        ["critical_strike"] = 995.0,
+                                        ["haste"] = 526.0,
+                                        ["mastery"] = 1027.0,
+                                        ["versatility"] = 207.0,
+                                    },
+                                },
+                                ["targetMetadata"] = {
+                                    ["lowItemReplacements"] = 0,
+                                    ["recovery"] = {
+                                        "wowhead fallback",
+                                    },
+                                    ["unresolvedLowItems"] = 0,
+                                },
+                            },
+                            ["trinkets"] = {
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270162,
+                                    ["tier"] = "S",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13334,
+                                        13696,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270164,
+                                    ["tier"] = "A",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250215,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270167,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250214,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270171,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12845,
+                                    },
+                                    ["item_id"] = 250248,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 273796,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        40,
+                                        12838,
+                                    },
+                                    ["item_id"] = 274493,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12851,
+                                    },
+                                    ["item_id"] = 250255,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        12846,
+                                    },
+                                    ["item_id"] = 251792,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        42,
+                                        12846,
+                                    },
+                                    ["item_id"] = 264701,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13183,
+                                        6652,
+                                        12846,
+                                    },
+                                    ["item_id"] = 248583,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        41,
+                                        13335,
+                                        13786,
+                                    },
+                                    ["item_id"] = 268292,
+                                    ["tier"] = "C",
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+            ["primaryStat"] = "intellect",
+            ["specKey"] = "EVOKER_PRESERVATION",
+        },
         ["HUNTER_BEAST_MASTERY"] = {
             ["classToken"] = "HUNTER",
             ["goals"] = {
@@ -32424,6 +34583,397 @@ ns.ClassCodexTargets = {
             ["goals"] = {
                 ["MYTHIC_PLUS"] = {
                     ["heroTalents"] = {
+                        ["frostfire"] = {
+                            ["bis"] = {
+                                ["label"] = "ClassCodex BiS",
+                                ["slots"] = {
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13696,
+                                                13440,
+                                                13692,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271564,
+                                        },
+                                        ["slot"] = "Head",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                13987,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268265,
+                                        },
+                                        ["slot"] = "Neck",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13694,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271562,
+                                        },
+                                        ["slot"] = "Shoulders",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8792,
+                                                13836,
+                                            },
+                                            ["item_id"] = 239656,
+                                        },
+                                        ["slot"] = "Back",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13690,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271567,
+                                        },
+                                        ["slot"] = "Chest",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8793,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 239648,
+                                        },
+                                        ["slot"] = "Wrist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13691,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271565,
+                                        },
+                                        ["slot"] = "Hands",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8792,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 239649,
+                                        },
+                                        ["slot"] = "Waist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13693,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271563,
+                                        },
+                                        ["slot"] = "Legs",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13662,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 268255,
+                                        },
+                                        ["slot"] = "Feet",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 268266,
+                                        },
+                                        ["slot"] = "Finger 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8793,
+                                                13836,
+                                            },
+                                            ["item_id"] = 240949,
+                                        },
+                                        ["slot"] = "Finger 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 270167,
+                                        },
+                                        ["slot"] = "Trinket 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 270164,
+                                        },
+                                        ["slot"] = "Trinket 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14004,
+                                                13771,
+                                                8960,
+                                                8793,
+                                                13836,
+                                            },
+                                            ["item_id"] = 245770,
+                                        },
+                                        ["slot"] = "Main Hand",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                13771,
+                                                8960,
+                                                8793,
+                                                13836,
+                                            },
+                                            ["item_id"] = 245769,
+                                        },
+                                        ["slot"] = "Off Hand",
+                                    },
+                                },
+                            },
+                            ["priorityProfiles"] = {
+                                {
+                                    ["context"] = "Mythic+",
+                                    ["heroTalent"] = "frostfire",
+                                    ["order"] = {
+                                        "versatility",
+                                        "haste",
+                                        "mastery",
+                                        "critical_strike",
+                                    },
+                                    ["tiers"] = {
+                                        {
+                                            "haste",
+                                            "mastery",
+                                            "critical_strike",
+                                        },
+                                    },
+                                },
+                            },
+                            ["targets"] = {
+                                ["averageItemLevel"] = 332.875,
+                                ["itemCount"] = 16,
+                                ["itemLevelSlots"] = 16,
+                                ["sourceGoal"] = "MYTHIC_PLUS",
+                                ["statTargets"] = {
+                                    ["context"] = "MYTHIC_PLUS",
+                                    ["source"] = "ClassCodex BiS + SimulationCraft",
+                                    ["stats"] = {
+                                        ["critical_strike"] = 419.0,
+                                        ["haste"] = 1547.0,
+                                        ["mastery"] = 733.0,
+                                        ["versatility"] = 636.0,
+                                    },
+                                },
+                                ["targetMetadata"] = {
+                                    ["lowItemReplacements"] = 0,
+                                    ["recovery"] = {
+                                        "talents borrowed from RAID",
+                                    },
+                                    ["unresolvedLowItems"] = 0,
+                                },
+                            },
+                            ["trinkets"] = {
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 273796,
+                                    ["tier"] = "S",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270167,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13334,
+                                        13696,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270164,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12844,
+                                    },
+                                    ["item_id"] = 270169,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        12833,
+                                        13439,
+                                        6652,
+                                        12699,
+                                    },
+                                    ["item_id"] = 273649,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        13654,
+                                    },
+                                    ["item_id"] = 250144,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250214,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270170,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250215,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270168,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250259,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250224,
+                                    ["tier"] = "C",
+                                },
+                            },
+                        },
                         ["sunfury"] = {
                             ["bis"] = {
                                 ["label"] = "ClassCodex BiS",
@@ -38311,6 +40861,2176 @@ ns.ClassCodexTargets = {
             },
             ["primaryStat"] = "agility",
             ["specKey"] = "MONK_BREWMASTER",
+        },
+        ["MONK_MISTWEAVER"] = {
+            ["classToken"] = "MONK",
+            ["goals"] = {
+                ["MYTHIC_PLUS"] = {
+                    ["heroTalents"] = {
+                        ["conduit-of-the-celestials"] = {
+                            ["bis"] = {
+                                ["label"] = "ClassCodex BiS",
+                                ["slots"] = {
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13696,
+                                                13440,
+                                                13692,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271519,
+                                        },
+                                        ["slot"] = "Head",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                13987,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268265,
+                                        },
+                                        ["slot"] = "Neck",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13694,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271517,
+                                        },
+                                        ["slot"] = "Shoulders",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 239656,
+                                        },
+                                        ["slot"] = "Back",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13690,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271522,
+                                        },
+                                        ["slot"] = "Chest",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 244576,
+                                        },
+                                        ["slot"] = "Wrist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13691,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271520,
+                                        },
+                                        ["slot"] = "Hands",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8793,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 244573,
+                                        },
+                                        ["slot"] = "Waist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13693,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271518,
+                                        },
+                                        ["slot"] = "Legs",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8793,
+                                                13836,
+                                            },
+                                            ["item_id"] = 244569,
+                                        },
+                                        ["slot"] = "Feet",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268266,
+                                        },
+                                        ["slot"] = "Finger 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                12846,
+                                            },
+                                            ["item_id"] = 272150,
+                                        },
+                                        ["slot"] = "Finger 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 270162,
+                                        },
+                                        ["slot"] = "Trinket 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 270167,
+                                        },
+                                        ["slot"] = "Trinket 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                12497,
+                                                13751,
+                                                14004,
+                                                13640,
+                                                8960,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 245770,
+                                        },
+                                        ["slot"] = "Main Hand",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268263,
+                                        },
+                                        ["slot"] = "Off Hand",
+                                    },
+                                },
+                            },
+                            ["priorityProfiles"] = {
+                                {
+                                    ["context"] = "Mythic+",
+                                    ["heroTalent"] = "conduit-of-the-celestials",
+                                    ["order"] = {
+                                        "haste",
+                                        "versatility",
+                                        "critical_strike",
+                                        "mastery",
+                                    },
+                                    ["tiers"] = {
+                                        {
+                                            "versatility",
+                                            "critical_strike",
+                                            "mastery",
+                                        },
+                                    },
+                                },
+                            },
+                            ["targets"] = {
+                                ["averageItemLevel"] = 332.25,
+                                ["itemCount"] = 16,
+                                ["itemLevelSlots"] = 16,
+                                ["sourceGoal"] = "MYTHIC_PLUS",
+                                ["statTargets"] = {
+                                    ["context"] = "MYTHIC_PLUS",
+                                    ["source"] = "ClassCodex BiS + Wowhead gear totals (no SimC support for this spec)",
+                                    ["stats"] = {
+                                        ["critical_strike"] = 558.0,
+                                        ["haste"] = 1316.0,
+                                        ["mastery"] = 830.0,
+                                        ["versatility"] = 299.0,
+                                    },
+                                },
+                                ["targetMetadata"] = {
+                                    ["lowItemReplacements"] = 0,
+                                    ["recovery"] = {
+                                        "wowhead fallback",
+                                    },
+                                    ["unresolvedLowItems"] = 0,
+                                },
+                            },
+                            ["trinkets"] = {
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270162,
+                                    ["tier"] = "S",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270167,
+                                    ["tier"] = "A",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13334,
+                                        13696,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270164,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250214,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270171,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 273796,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12845,
+                                    },
+                                    ["item_id"] = 250248,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        40,
+                                        13335,
+                                        13654,
+                                    },
+                                    ["item_id"] = 249808,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250215,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12844,
+                                    },
+                                    ["item_id"] = 270169,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        12846,
+                                    },
+                                    ["item_id"] = 251792,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12851,
+                                    },
+                                    ["item_id"] = 250255,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13183,
+                                        6652,
+                                        12846,
+                                    },
+                                    ["item_id"] = 248583,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 193757,
+                                    ["tier"] = "C",
+                                },
+                            },
+                        },
+                        ["master-of-harmony"] = {
+                            ["bis"] = {
+                                ["label"] = "ClassCodex BiS",
+                                ["slots"] = {
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13696,
+                                                13440,
+                                                13692,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271519,
+                                        },
+                                        ["slot"] = "Head",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                13987,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268265,
+                                        },
+                                        ["slot"] = "Neck",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13694,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271517,
+                                        },
+                                        ["slot"] = "Shoulders",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 239656,
+                                        },
+                                        ["slot"] = "Back",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13690,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271522,
+                                        },
+                                        ["slot"] = "Chest",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 244576,
+                                        },
+                                        ["slot"] = "Wrist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13691,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271520,
+                                        },
+                                        ["slot"] = "Hands",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8793,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 244573,
+                                        },
+                                        ["slot"] = "Waist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13693,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271518,
+                                        },
+                                        ["slot"] = "Legs",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8793,
+                                                13836,
+                                            },
+                                            ["item_id"] = 244569,
+                                        },
+                                        ["slot"] = "Feet",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268266,
+                                        },
+                                        ["slot"] = "Finger 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                12846,
+                                            },
+                                            ["item_id"] = 272150,
+                                        },
+                                        ["slot"] = "Finger 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 270162,
+                                        },
+                                        ["slot"] = "Trinket 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 270167,
+                                        },
+                                        ["slot"] = "Trinket 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                12497,
+                                                13751,
+                                                14004,
+                                                13640,
+                                                8960,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 245770,
+                                        },
+                                        ["slot"] = "Main Hand",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268263,
+                                        },
+                                        ["slot"] = "Off Hand",
+                                    },
+                                },
+                            },
+                            ["priorityProfiles"] = {
+                                {
+                                    ["context"] = "Mythic+",
+                                    ["heroTalent"] = "master-of-harmony",
+                                    ["order"] = {
+                                        "haste",
+                                        "versatility",
+                                        "critical_strike",
+                                        "mastery",
+                                    },
+                                    ["tiers"] = {
+                                        {
+                                            "versatility",
+                                            "critical_strike",
+                                            "mastery",
+                                        },
+                                    },
+                                },
+                            },
+                            ["targets"] = {
+                                ["averageItemLevel"] = 332.25,
+                                ["itemCount"] = 16,
+                                ["itemLevelSlots"] = 16,
+                                ["sourceGoal"] = "MYTHIC_PLUS",
+                                ["statTargets"] = {
+                                    ["context"] = "MYTHIC_PLUS",
+                                    ["source"] = "ClassCodex BiS + Wowhead gear totals (no SimC support for this spec)",
+                                    ["stats"] = {
+                                        ["critical_strike"] = 558.0,
+                                        ["haste"] = 1316.0,
+                                        ["mastery"] = 830.0,
+                                        ["versatility"] = 299.0,
+                                    },
+                                },
+                                ["targetMetadata"] = {
+                                    ["lowItemReplacements"] = 0,
+                                    ["recovery"] = {
+                                        "wowhead fallback",
+                                    },
+                                    ["unresolvedLowItems"] = 0,
+                                },
+                            },
+                            ["trinkets"] = {
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270162,
+                                    ["tier"] = "S",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270167,
+                                    ["tier"] = "A",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13334,
+                                        13696,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270164,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250214,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270171,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 273796,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12845,
+                                    },
+                                    ["item_id"] = 250248,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        40,
+                                        13335,
+                                        13654,
+                                    },
+                                    ["item_id"] = 249808,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250215,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12844,
+                                    },
+                                    ["item_id"] = 270169,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        12846,
+                                    },
+                                    ["item_id"] = 251792,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12851,
+                                    },
+                                    ["item_id"] = 250255,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13183,
+                                        6652,
+                                        12846,
+                                    },
+                                    ["item_id"] = 248583,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 193757,
+                                    ["tier"] = "C",
+                                },
+                            },
+                        },
+                    },
+                },
+                ["PVP"] = {
+                    ["heroTalents"] = {
+                        ["conduit-of-the-celestials"] = {
+                            ["bis"] = {
+                                ["label"] = "ClassCodex BiS",
+                                ["slots"] = {
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13554,
+                                                13692,
+                                                13698,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271519,
+                                        },
+                                        ["slot"] = "Head",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8794,
+                                            },
+                                            ["item_id"] = 240952,
+                                        },
+                                        ["slot"] = "Neck",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13694,
+                                                13697,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271517,
+                                        },
+                                        ["slot"] = "Shoulders",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                            },
+                                            ["item_id"] = 270540,
+                                        },
+                                        ["slot"] = "Back",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13690,
+                                                13698,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271522,
+                                        },
+                                        ["slot"] = "Chest",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12843,
+                                                13440,
+                                                6652,
+                                                13696,
+                                                13662,
+                                                12699,
+                                            },
+                                            ["item_id"] = 159300,
+                                        },
+                                        ["slot"] = "Wrist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                13691,
+                                                13697,
+                                                12838,
+                                            },
+                                            ["item_id"] = 271520,
+                                        },
+                                        ["slot"] = "Hands",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12833,
+                                                13658,
+                                                13662,
+                                                13554,
+                                                13452,
+                                                13576,
+                                            },
+                                            ["item_id"] = 270706,
+                                        },
+                                        ["slot"] = "Waist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                13693,
+                                                13698,
+                                                12838,
+                                            },
+                                            ["item_id"] = 271518,
+                                        },
+                                        ["slot"] = "Legs",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13662,
+                                                13332,
+                                                11215,
+                                                12827,
+                                            },
+                                            ["item_id"] = 268247,
+                                        },
+                                        ["slot"] = "Feet",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                12497,
+                                                13571,
+                                                13448,
+                                                12715,
+                                                8792,
+                                            },
+                                            ["item_id"] = 240951,
+                                        },
+                                        ["slot"] = "Finger 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                12497,
+                                                13571,
+                                                13448,
+                                                12715,
+                                                8792,
+                                            },
+                                            ["item_id"] = 240951,
+                                        },
+                                        ["slot"] = "Finger 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                            },
+                                            ["item_id"] = 270558,
+                                        },
+                                        ["slot"] = "Trinket 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                            },
+                                            ["item_id"] = 270556,
+                                        },
+                                        ["slot"] = "Trinket 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12833,
+                                                13658,
+                                                13452,
+                                            },
+                                            ["item_id"] = 270845,
+                                        },
+                                        ["slot"] = "Main Hand",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12833,
+                                                13658,
+                                                13452,
+                                            },
+                                            ["item_id"] = 270847,
+                                        },
+                                        ["slot"] = "Off Hand",
+                                    },
+                                },
+                            },
+                            ["priorityProfiles"] = {
+                                {
+                                    ["context"] = "PvP",
+                                    ["heroTalent"] = "conduit-of-the-celestials",
+                                    ["order"] = {
+                                        "haste",
+                                        "versatility",
+                                        "mastery",
+                                        "critical_strike",
+                                    },
+                                    ["tiers"] = {
+                                        {
+                                            "haste",
+                                            "versatility",
+                                        },
+                                    },
+                                },
+                            },
+                            ["targets"] = {
+                                ["averageItemLevel"] = nil,
+                                ["itemCount"] = 16,
+                                ["itemLevelSlots"] = 0,
+                                ["sourceGoal"] = "PVP",
+                                ["statTargets"] = {
+                                    ["context"] = "PVP",
+                                    ["source"] = "ClassCodex BiS + Wowhead gear totals (no SimC support for this spec)",
+                                    ["stats"] = {
+                                        ["critical_strike"] = 260.0,
+                                        ["haste"] = 932.0,
+                                        ["mastery"] = 501.0,
+                                        ["versatility"] = 927.0,
+                                    },
+                                },
+                                ["targetMetadata"] = {
+                                    ["lowItemReplacements"] = 0,
+                                    ["recovery"] = {
+                                        "wowhead fallback",
+                                    },
+                                    ["unresolvedLowItems"] = 0,
+                                },
+                            },
+                            ["trinkets"] = {
+                                {
+                                    ["bonus_ids"] = {
+                                        13650,
+                                        13657,
+                                    },
+                                    ["item_id"] = 270556,
+                                    ["tier"] = "S",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13650,
+                                        13657,
+                                    },
+                                    ["item_id"] = 270558,
+                                    ["tier"] = "S",
+                                },
+                            },
+                        },
+                        ["master-of-harmony"] = {
+                            ["bis"] = {
+                                ["label"] = "ClassCodex BiS",
+                                ["slots"] = {
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13554,
+                                                13692,
+                                                13698,
+                                                1545,
+                                                13576,
+                                            },
+                                            ["item_id"] = 271519,
+                                        },
+                                        ["slot"] = "Head",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8794,
+                                            },
+                                            ["item_id"] = 240952,
+                                        },
+                                        ["slot"] = "Neck",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13694,
+                                                13697,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271517,
+                                        },
+                                        ["slot"] = "Shoulders",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                            },
+                                            ["item_id"] = 270539,
+                                        },
+                                        ["slot"] = "Back",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13690,
+                                                13698,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271522,
+                                        },
+                                        ["slot"] = "Chest",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                13554,
+                                                13576,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8960,
+                                                12384,
+                                                8794,
+                                            },
+                                            ["item_id"] = 244560,
+                                        },
+                                        ["slot"] = "Wrist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13691,
+                                                13697,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271520,
+                                        },
+                                        ["slot"] = "Hands",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                13554,
+                                                13576,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8960,
+                                                12384,
+                                                8794,
+                                            },
+                                            ["item_id"] = 244557,
+                                        },
+                                        ["slot"] = "Waist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13693,
+                                                13698,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271518,
+                                        },
+                                        ["slot"] = "Legs",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                            },
+                                            ["item_id"] = 270512,
+                                        },
+                                        ["slot"] = "Feet",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8794,
+                                            },
+                                            ["item_id"] = 240951,
+                                        },
+                                        ["slot"] = "Finger 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8794,
+                                            },
+                                            ["item_id"] = 240951,
+                                        },
+                                        ["slot"] = "Finger 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                            },
+                                            ["item_id"] = 270558,
+                                        },
+                                        ["slot"] = "Trinket 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                            },
+                                            ["item_id"] = 270556,
+                                        },
+                                        ["slot"] = "Trinket 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12833,
+                                                13658,
+                                                13452,
+                                            },
+                                            ["item_id"] = 270846,
+                                        },
+                                        ["slot"] = "Main Hand",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12833,
+                                                13658,
+                                                13452,
+                                            },
+                                            ["item_id"] = 270847,
+                                        },
+                                        ["slot"] = "Off Hand",
+                                    },
+                                },
+                            },
+                            ["priorityProfiles"] = {
+                                {
+                                    ["context"] = "PvP",
+                                    ["heroTalent"] = "master-of-harmony",
+                                    ["order"] = {
+                                        "versatility",
+                                        "mastery",
+                                        "haste",
+                                        "critical_strike",
+                                    },
+                                    ["tiers"] = {},
+                                },
+                            },
+                            ["targets"] = {
+                                ["averageItemLevel"] = nil,
+                                ["itemCount"] = 16,
+                                ["itemLevelSlots"] = 0,
+                                ["sourceGoal"] = "PVP",
+                                ["statTargets"] = {
+                                    ["context"] = "PVP",
+                                    ["source"] = "ClassCodex BiS + Wowhead gear totals (no SimC support for this spec)",
+                                    ["stats"] = {
+                                        ["critical_strike"] = 196.0,
+                                        ["haste"] = 490.0,
+                                        ["mastery"] = 956.0,
+                                        ["versatility"] = 935.0,
+                                    },
+                                },
+                                ["targetMetadata"] = {
+                                    ["lowItemReplacements"] = 0,
+                                    ["recovery"] = {
+                                        "wowhead fallback",
+                                    },
+                                    ["unresolvedLowItems"] = 0,
+                                },
+                            },
+                            ["trinkets"] = {
+                                {
+                                    ["bonus_ids"] = {
+                                        13650,
+                                        13657,
+                                    },
+                                    ["item_id"] = 270556,
+                                    ["tier"] = "S",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13650,
+                                        13657,
+                                    },
+                                    ["item_id"] = 270558,
+                                    ["tier"] = "S",
+                                },
+                            },
+                        },
+                    },
+                },
+                ["RAID"] = {
+                    ["heroTalents"] = {
+                        ["conduit-of-the-celestials"] = {
+                            ["bis"] = {
+                                ["label"] = "ClassCodex BiS",
+                                ["slots"] = {
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13334,
+                                                6652,
+                                                13696,
+                                                13847,
+                                                13692,
+                                                13698,
+                                                12854,
+                                            },
+                                            ["item_id"] = 271519,
+                                        },
+                                        ["slot"] = "Head",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                13987,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268265,
+                                        },
+                                        ["slot"] = "Neck",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13694,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271517,
+                                        },
+                                        ["slot"] = "Shoulders",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 239656,
+                                        },
+                                        ["slot"] = "Back",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13690,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271522,
+                                        },
+                                        ["slot"] = "Chest",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 244576,
+                                        },
+                                        ["slot"] = "Wrist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13691,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271520,
+                                        },
+                                        ["slot"] = "Hands",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 244573,
+                                        },
+                                        ["slot"] = "Waist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13693,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271518,
+                                        },
+                                        ["slot"] = "Legs",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13662,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268247,
+                                        },
+                                        ["slot"] = "Feet",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268266,
+                                        },
+                                        ["slot"] = "Finger 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 268252,
+                                        },
+                                        ["slot"] = "Finger 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 270162,
+                                        },
+                                        ["slot"] = "Trinket 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 270167,
+                                        },
+                                        ["slot"] = "Trinket 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                12497,
+                                                13751,
+                                                14004,
+                                                13640,
+                                                8960,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 245770,
+                                        },
+                                        ["slot"] = "Main Hand",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268263,
+                                        },
+                                        ["slot"] = "Off Hand",
+                                    },
+                                },
+                            },
+                            ["priorityProfiles"] = {
+                                {
+                                    ["context"] = "Raid",
+                                    ["heroTalent"] = "conduit-of-the-celestials",
+                                    ["order"] = {
+                                        "haste",
+                                        "versatility",
+                                        "critical_strike",
+                                        "mastery",
+                                    },
+                                    ["tiers"] = {
+                                        {
+                                            "versatility",
+                                            "critical_strike",
+                                            "mastery",
+                                        },
+                                    },
+                                },
+                            },
+                            ["targets"] = {
+                                ["averageItemLevel"] = 333.25,
+                                ["itemCount"] = 16,
+                                ["itemLevelSlots"] = 16,
+                                ["sourceGoal"] = "RAID",
+                                ["statTargets"] = {
+                                    ["context"] = "RAID",
+                                    ["source"] = "ClassCodex BiS + Wowhead gear totals (no SimC support for this spec)",
+                                    ["stats"] = {
+                                        ["critical_strike"] = 948.0,
+                                        ["haste"] = 1263.0,
+                                        ["mastery"] = 453.0,
+                                        ["versatility"] = 351.0,
+                                    },
+                                },
+                                ["targetMetadata"] = {
+                                    ["lowItemReplacements"] = 0,
+                                    ["recovery"] = {
+                                        "wowhead fallback",
+                                    },
+                                    ["unresolvedLowItems"] = 0,
+                                },
+                            },
+                            ["trinkets"] = {
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270162,
+                                    ["tier"] = "S",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270167,
+                                    ["tier"] = "A",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13334,
+                                        13696,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270164,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250214,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270171,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 273796,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12845,
+                                    },
+                                    ["item_id"] = 250248,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        40,
+                                        13335,
+                                        13654,
+                                    },
+                                    ["item_id"] = 249808,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250215,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12844,
+                                    },
+                                    ["item_id"] = 270169,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        12846,
+                                    },
+                                    ["item_id"] = 251792,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12851,
+                                    },
+                                    ["item_id"] = 250255,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13183,
+                                        6652,
+                                        12846,
+                                    },
+                                    ["item_id"] = 248583,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 193757,
+                                    ["tier"] = "C",
+                                },
+                            },
+                        },
+                        ["master-of-harmony"] = {
+                            ["bis"] = {
+                                ["label"] = "ClassCodex BiS",
+                                ["slots"] = {
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13334,
+                                                6652,
+                                                13696,
+                                                13847,
+                                                13692,
+                                                13698,
+                                                12854,
+                                            },
+                                            ["item_id"] = 271519,
+                                        },
+                                        ["slot"] = "Head",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                13987,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268265,
+                                        },
+                                        ["slot"] = "Neck",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13694,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271517,
+                                        },
+                                        ["slot"] = "Shoulders",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 239656,
+                                        },
+                                        ["slot"] = "Back",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13690,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271522,
+                                        },
+                                        ["slot"] = "Chest",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 244576,
+                                        },
+                                        ["slot"] = "Wrist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13691,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271520,
+                                        },
+                                        ["slot"] = "Hands",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 244573,
+                                        },
+                                        ["slot"] = "Waist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13693,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271518,
+                                        },
+                                        ["slot"] = "Legs",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13662,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268247,
+                                        },
+                                        ["slot"] = "Feet",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268266,
+                                        },
+                                        ["slot"] = "Finger 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 268252,
+                                        },
+                                        ["slot"] = "Finger 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 270162,
+                                        },
+                                        ["slot"] = "Trinket 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 270167,
+                                        },
+                                        ["slot"] = "Trinket 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                12497,
+                                                13751,
+                                                14004,
+                                                13640,
+                                                8960,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 245770,
+                                        },
+                                        ["slot"] = "Main Hand",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268263,
+                                        },
+                                        ["slot"] = "Off Hand",
+                                    },
+                                },
+                            },
+                            ["priorityProfiles"] = {
+                                {
+                                    ["context"] = "Raid",
+                                    ["heroTalent"] = "master-of-harmony",
+                                    ["order"] = {
+                                        "haste",
+                                        "versatility",
+                                        "critical_strike",
+                                        "mastery",
+                                    },
+                                    ["tiers"] = {
+                                        {
+                                            "versatility",
+                                            "critical_strike",
+                                            "mastery",
+                                        },
+                                    },
+                                },
+                            },
+                            ["targets"] = {
+                                ["averageItemLevel"] = 333.25,
+                                ["itemCount"] = 16,
+                                ["itemLevelSlots"] = 16,
+                                ["sourceGoal"] = "RAID",
+                                ["statTargets"] = {
+                                    ["context"] = "RAID",
+                                    ["source"] = "ClassCodex BiS + Wowhead gear totals (no SimC support for this spec)",
+                                    ["stats"] = {
+                                        ["critical_strike"] = 948.0,
+                                        ["haste"] = 1263.0,
+                                        ["mastery"] = 453.0,
+                                        ["versatility"] = 351.0,
+                                    },
+                                },
+                                ["targetMetadata"] = {
+                                    ["lowItemReplacements"] = 0,
+                                    ["recovery"] = {
+                                        "wowhead fallback",
+                                    },
+                                    ["unresolvedLowItems"] = 0,
+                                },
+                            },
+                            ["trinkets"] = {
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270162,
+                                    ["tier"] = "S",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270167,
+                                    ["tier"] = "A",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13334,
+                                        13696,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270164,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250214,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270171,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 273796,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12845,
+                                    },
+                                    ["item_id"] = 250248,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        40,
+                                        13335,
+                                        13654,
+                                    },
+                                    ["item_id"] = 249808,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250215,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12844,
+                                    },
+                                    ["item_id"] = 270169,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        12846,
+                                    },
+                                    ["item_id"] = 251792,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12851,
+                                    },
+                                    ["item_id"] = 250255,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13183,
+                                        6652,
+                                        12846,
+                                    },
+                                    ["item_id"] = 248583,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 193757,
+                                    ["tier"] = "C",
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+            ["primaryStat"] = "intellect",
+            ["specKey"] = "MONK_MISTWEAVER",
         },
         ["MONK_WINDWALKER"] = {
             ["classToken"] = "MONK",
@@ -47708,6 +52428,272 @@ ns.ClassCodexTargets = {
                                 },
                             },
                         },
+                        ["voidweaver"] = {
+                            ["bis"] = {
+                                ["label"] = "ClassCodex BiS",
+                                ["slots"] = {
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13554,
+                                                13692,
+                                                13698,
+                                                1545,
+                                                13576,
+                                            },
+                                            ["item_id"] = 271555,
+                                        },
+                                        ["slot"] = "Head",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8792,
+                                            },
+                                            ["item_id"] = 240952,
+                                        },
+                                        ["slot"] = "Neck",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13694,
+                                                13697,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271553,
+                                        },
+                                        ["slot"] = "Shoulders",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                            },
+                                            ["item_id"] = 270540,
+                                        },
+                                        ["slot"] = "Back",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13690,
+                                                13698,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271558,
+                                        },
+                                        ["slot"] = "Chest",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                13554,
+                                                13576,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                12685,
+                                                8960,
+                                                8792,
+                                            },
+                                            ["item_id"] = 239677,
+                                        },
+                                        ["slot"] = "Wrist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13691,
+                                                13697,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271556,
+                                        },
+                                        ["slot"] = "Hands",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                13554,
+                                                13576,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                12685,
+                                                8960,
+                                                8792,
+                                            },
+                                            ["item_id"] = 239682,
+                                        },
+                                        ["slot"] = "Waist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13693,
+                                                13698,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271554,
+                                        },
+                                        ["slot"] = "Legs",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                12497,
+                                                13765,
+                                                13657,
+                                                8792,
+                                            },
+                                            ["item_id"] = 239684,
+                                        },
+                                        ["slot"] = "Feet",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8792,
+                                            },
+                                            ["item_id"] = 240951,
+                                        },
+                                        ["slot"] = "Finger 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8792,
+                                            },
+                                            ["item_id"] = 240951,
+                                        },
+                                        ["slot"] = "Finger 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                            },
+                                            ["item_id"] = 270558,
+                                        },
+                                        ["slot"] = "Trinket 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                            },
+                                            ["item_id"] = 270556,
+                                        },
+                                        ["slot"] = "Trinket 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12833,
+                                                13658,
+                                                13452,
+                                            },
+                                            ["item_id"] = 270845,
+                                        },
+                                        ["slot"] = "Main Hand",
+                                    },
+                                },
+                            },
+                            ["priorityProfiles"] = {
+                                {
+                                    ["context"] = "PvP",
+                                    ["heroTalent"] = "voidweaver",
+                                    ["order"] = {
+                                        "versatility",
+                                        "haste",
+                                        "mastery",
+                                        "critical_strike",
+                                    },
+                                    ["tiers"] = {},
+                                },
+                            },
+                            ["targets"] = {
+                                ["averageItemLevel"] = nil,
+                                ["itemCount"] = 15,
+                                ["itemLevelSlots"] = 0,
+                                ["sourceGoal"] = "PVP",
+                                ["statTargets"] = {
+                                    ["context"] = "PVP",
+                                    ["source"] = "ClassCodex BiS + Wowhead gear totals (no SimC support for this spec)",
+                                    ["stats"] = {
+                                        ["critical_strike"] = 371.0,
+                                        ["haste"] = 986.0,
+                                        ["mastery"] = 309.0,
+                                        ["versatility"] = 764.0,
+                                    },
+                                },
+                                ["targetMetadata"] = {
+                                    ["lowItemReplacements"] = 0,
+                                    ["recovery"] = {
+                                        "wowhead fallback",
+                                    },
+                                    ["unresolvedLowItems"] = 0,
+                                },
+                            },
+                            ["trinkets"] = {
+                                {
+                                    ["bonus_ids"] = {
+                                        13650,
+                                        13657,
+                                    },
+                                    ["item_id"] = 270556,
+                                    ["tier"] = "S",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13650,
+                                        13657,
+                                    },
+                                    ["item_id"] = 270558,
+                                    ["tier"] = "S",
+                                },
+                            },
+                        },
                     },
                 },
                 ["RAID"] = {
@@ -48495,6 +53481,2055 @@ ns.ClassCodexTargets = {
             },
             ["primaryStat"] = "intellect",
             ["specKey"] = "PRIEST_DISCIPLINE",
+        },
+        ["PRIEST_HOLY"] = {
+            ["classToken"] = "PRIEST",
+            ["goals"] = {
+                ["MYTHIC_PLUS"] = {
+                    ["heroTalents"] = {
+                        ["archon"] = {
+                            ["bis"] = {
+                                ["label"] = "ClassCodex BiS",
+                                ["slots"] = {
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13334,
+                                                6652,
+                                                13846,
+                                                13696,
+                                                13692,
+                                                13698,
+                                                12854,
+                                            },
+                                            ["item_id"] = 271555,
+                                        },
+                                        ["slot"] = "Head",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                13987,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268265,
+                                        },
+                                        ["slot"] = "Neck",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13694,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271553,
+                                        },
+                                        ["slot"] = "Shoulders",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 239656,
+                                        },
+                                        ["slot"] = "Back",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13690,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271558,
+                                        },
+                                        ["slot"] = "Chest",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 239648,
+                                        },
+                                        ["slot"] = "Wrist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13691,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271556,
+                                        },
+                                        ["slot"] = "Hands",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 239649,
+                                        },
+                                        ["slot"] = "Waist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13693,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271554,
+                                        },
+                                        ["slot"] = "Legs",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13662,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268218,
+                                        },
+                                        ["slot"] = "Feet",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 268252,
+                                        },
+                                        ["slot"] = "Finger 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 240949,
+                                        },
+                                        ["slot"] = "Finger 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 270162,
+                                        },
+                                        ["slot"] = "Trinket 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 270164,
+                                        },
+                                        ["slot"] = "Trinket 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 271092,
+                                        },
+                                        ["slot"] = "Main Hand",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                12693,
+                                                8960,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 245769,
+                                        },
+                                        ["slot"] = "Off Hand",
+                                    },
+                                },
+                            },
+                            ["priorityProfiles"] = {
+                                {
+                                    ["context"] = "Mythic+",
+                                    ["heroTalent"] = "archon",
+                                    ["order"] = {
+                                        "versatility",
+                                        "critical_strike",
+                                        "mastery",
+                                        "haste",
+                                    },
+                                    ["tiers"] = {
+                                        {
+                                            "versatility",
+                                            "critical_strike",
+                                            "mastery",
+                                        },
+                                    },
+                                },
+                            },
+                            ["targets"] = {
+                                ["averageItemLevel"] = 333.6875,
+                                ["itemCount"] = 16,
+                                ["itemLevelSlots"] = 16,
+                                ["sourceGoal"] = "MYTHIC_PLUS",
+                                ["statTargets"] = {
+                                    ["context"] = "MYTHIC_PLUS",
+                                    ["source"] = "ClassCodex BiS + Wowhead gear totals (no SimC support for this spec)",
+                                    ["stats"] = {
+                                        ["critical_strike"] = 1299.0,
+                                        ["haste"] = 880.0,
+                                        ["mastery"] = 431.0,
+                                        ["versatility"] = 156.0,
+                                    },
+                                },
+                                ["targetMetadata"] = {
+                                    ["lowItemReplacements"] = 0,
+                                    ["recovery"] = {
+                                        "wowhead fallback",
+                                    },
+                                    ["unresolvedLowItems"] = 0,
+                                },
+                            },
+                            ["trinkets"] = {
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270162,
+                                    ["tier"] = "S",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13334,
+                                        13696,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270164,
+                                    ["tier"] = "A",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270167,
+                                    ["tier"] = "A",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250214,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250215,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12851,
+                                    },
+                                    ["item_id"] = 250255,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 193757,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 273796,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270171,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        12846,
+                                    },
+                                    ["item_id"] = 251792,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        40,
+                                        12838,
+                                    },
+                                    ["item_id"] = 274493,
+                                    ["tier"] = "C",
+                                },
+                            },
+                        },
+                        ["oracle"] = {
+                            ["bis"] = {
+                                ["label"] = "ClassCodex BiS",
+                                ["slots"] = {
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13334,
+                                                6652,
+                                                13846,
+                                                13696,
+                                                13692,
+                                                13698,
+                                                12854,
+                                            },
+                                            ["item_id"] = 271555,
+                                        },
+                                        ["slot"] = "Head",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                13987,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268265,
+                                        },
+                                        ["slot"] = "Neck",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13694,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271553,
+                                        },
+                                        ["slot"] = "Shoulders",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 239656,
+                                        },
+                                        ["slot"] = "Back",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13690,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271558,
+                                        },
+                                        ["slot"] = "Chest",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 239648,
+                                        },
+                                        ["slot"] = "Wrist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13691,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271556,
+                                        },
+                                        ["slot"] = "Hands",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 239649,
+                                        },
+                                        ["slot"] = "Waist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13693,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271554,
+                                        },
+                                        ["slot"] = "Legs",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13662,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268218,
+                                        },
+                                        ["slot"] = "Feet",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 268252,
+                                        },
+                                        ["slot"] = "Finger 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 240949,
+                                        },
+                                        ["slot"] = "Finger 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 270162,
+                                        },
+                                        ["slot"] = "Trinket 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 270164,
+                                        },
+                                        ["slot"] = "Trinket 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 271092,
+                                        },
+                                        ["slot"] = "Main Hand",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                12693,
+                                                8960,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 245769,
+                                        },
+                                        ["slot"] = "Off Hand",
+                                    },
+                                },
+                            },
+                            ["priorityProfiles"] = {
+                                {
+                                    ["context"] = "Mythic+",
+                                    ["heroTalent"] = "oracle",
+                                    ["order"] = {
+                                        "versatility",
+                                        "critical_strike",
+                                        "mastery",
+                                        "haste",
+                                    },
+                                    ["tiers"] = {
+                                        {
+                                            "versatility",
+                                            "critical_strike",
+                                            "mastery",
+                                        },
+                                    },
+                                },
+                            },
+                            ["targets"] = {
+                                ["averageItemLevel"] = 333.6875,
+                                ["itemCount"] = 16,
+                                ["itemLevelSlots"] = 16,
+                                ["sourceGoal"] = "MYTHIC_PLUS",
+                                ["statTargets"] = {
+                                    ["context"] = "MYTHIC_PLUS",
+                                    ["source"] = "ClassCodex BiS + Wowhead gear totals (no SimC support for this spec)",
+                                    ["stats"] = {
+                                        ["critical_strike"] = 1299.0,
+                                        ["haste"] = 880.0,
+                                        ["mastery"] = 431.0,
+                                        ["versatility"] = 156.0,
+                                    },
+                                },
+                                ["targetMetadata"] = {
+                                    ["lowItemReplacements"] = 0,
+                                    ["recovery"] = {
+                                        "wowhead fallback",
+                                    },
+                                    ["unresolvedLowItems"] = 0,
+                                },
+                            },
+                            ["trinkets"] = {
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270162,
+                                    ["tier"] = "S",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13334,
+                                        13696,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270164,
+                                    ["tier"] = "A",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270167,
+                                    ["tier"] = "A",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250214,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250215,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12851,
+                                    },
+                                    ["item_id"] = 250255,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 193757,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 273796,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270171,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        12846,
+                                    },
+                                    ["item_id"] = 251792,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        40,
+                                        12838,
+                                    },
+                                    ["item_id"] = 274493,
+                                    ["tier"] = "C",
+                                },
+                            },
+                        },
+                    },
+                },
+                ["PVP"] = {
+                    ["heroTalents"] = {
+                        ["archon"] = {
+                            ["bis"] = {
+                                ["label"] = "ClassCodex BiS",
+                                ["slots"] = {
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                13554,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8794,
+                                            },
+                                            ["item_id"] = 239680,
+                                        },
+                                        ["slot"] = "Head",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                12686,
+                                                8960,
+                                                8794,
+                                            },
+                                            ["item_id"] = 240952,
+                                        },
+                                        ["slot"] = "Neck",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13694,
+                                                13697,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271553,
+                                        },
+                                        ["slot"] = "Shoulders",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                            },
+                                            ["item_id"] = 270538,
+                                        },
+                                        ["slot"] = "Back",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13690,
+                                                13698,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271558,
+                                        },
+                                        ["slot"] = "Chest",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                                13554,
+                                            },
+                                            ["item_id"] = 270517,
+                                        },
+                                        ["slot"] = "Wrist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13691,
+                                                13697,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271556,
+                                        },
+                                        ["slot"] = "Hands",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                13554,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8794,
+                                            },
+                                            ["item_id"] = 239682,
+                                        },
+                                        ["slot"] = "Waist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13693,
+                                                13698,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271554,
+                                        },
+                                        ["slot"] = "Legs",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8960,
+                                                12384,
+                                                8794,
+                                            },
+                                            ["item_id"] = 239684,
+                                        },
+                                        ["slot"] = "Feet",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8794,
+                                            },
+                                            ["item_id"] = 240951,
+                                        },
+                                        ["slot"] = "Finger 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                            },
+                                            ["item_id"] = 270535,
+                                        },
+                                        ["slot"] = "Finger 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12844,
+                                                13440,
+                                                41,
+                                                12699,
+                                            },
+                                            ["item_id"] = 250215,
+                                        },
+                                        ["slot"] = "Trinket 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13333,
+                                                12842,
+                                            },
+                                            ["item_id"] = 270162,
+                                        },
+                                        ["slot"] = "Trinket 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12833,
+                                                13658,
+                                                13452,
+                                            },
+                                            ["item_id"] = 270846,
+                                        },
+                                        ["slot"] = "Main Hand",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12833,
+                                                13658,
+                                                13452,
+                                            },
+                                            ["item_id"] = 270847,
+                                        },
+                                        ["slot"] = "Off Hand",
+                                    },
+                                },
+                            },
+                            ["priorityProfiles"] = {
+                                {
+                                    ["context"] = "PvP",
+                                    ["heroTalent"] = "archon",
+                                    ["order"] = {
+                                        "versatility",
+                                        "mastery",
+                                        "haste",
+                                        "critical_strike",
+                                    },
+                                    ["tiers"] = {},
+                                },
+                            },
+                            ["targets"] = {
+                                ["averageItemLevel"] = nil,
+                                ["itemCount"] = 16,
+                                ["itemLevelSlots"] = 0,
+                                ["sourceGoal"] = "PVP",
+                                ["statTargets"] = {
+                                    ["context"] = "PVP",
+                                    ["source"] = "ClassCodex BiS + Wowhead gear totals (no SimC support for this spec)",
+                                    ["stats"] = {
+                                        ["critical_strike"] = 225.0,
+                                        ["haste"] = 199.0,
+                                        ["mastery"] = 1016.0,
+                                        ["versatility"] = 1075.0,
+                                    },
+                                },
+                                ["targetMetadata"] = {
+                                    ["lowItemReplacements"] = 0,
+                                    ["recovery"] = {
+                                        "wowhead fallback",
+                                    },
+                                    ["unresolvedLowItems"] = 0,
+                                },
+                            },
+                            ["trinkets"] = {
+                                {
+                                    ["bonus_ids"] = {
+                                        13650,
+                                        13657,
+                                    },
+                                    ["item_id"] = 270556,
+                                    ["tier"] = "S",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13650,
+                                        13657,
+                                    },
+                                    ["item_id"] = 270558,
+                                    ["tier"] = "S",
+                                },
+                            },
+                        },
+                        ["oracle"] = {
+                            ["bis"] = {
+                                ["label"] = "ClassCodex BiS",
+                                ["slots"] = {
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                13554,
+                                                13576,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8794,
+                                            },
+                                            ["item_id"] = 239680,
+                                        },
+                                        ["slot"] = "Head",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8794,
+                                            },
+                                            ["item_id"] = 240952,
+                                        },
+                                        ["slot"] = "Neck",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13694,
+                                                13697,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271553,
+                                        },
+                                        ["slot"] = "Shoulders",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                            },
+                                            ["item_id"] = 270539,
+                                        },
+                                        ["slot"] = "Back",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13690,
+                                                13698,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271558,
+                                        },
+                                        ["slot"] = "Chest",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                13554,
+                                                13576,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8960,
+                                                12384,
+                                                8794,
+                                            },
+                                            ["item_id"] = 239677,
+                                        },
+                                        ["slot"] = "Wrist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13691,
+                                                13697,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271556,
+                                        },
+                                        ["slot"] = "Hands",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                13554,
+                                                13576,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8794,
+                                            },
+                                            ["item_id"] = 239682,
+                                        },
+                                        ["slot"] = "Waist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13452,
+                                                13658,
+                                                12833,
+                                                13693,
+                                                13698,
+                                                1545,
+                                            },
+                                            ["item_id"] = 271554,
+                                        },
+                                        ["slot"] = "Legs",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8960,
+                                                12384,
+                                                8792,
+                                            },
+                                            ["item_id"] = 239684,
+                                        },
+                                        ["slot"] = "Feet",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8794,
+                                            },
+                                            ["item_id"] = 240951,
+                                        },
+                                        ["slot"] = "Finger 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12245,
+                                                13760,
+                                                12497,
+                                                13766,
+                                                13658,
+                                                8794,
+                                            },
+                                            ["item_id"] = 240951,
+                                        },
+                                        ["slot"] = "Finger 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                            },
+                                            ["item_id"] = 270558,
+                                        },
+                                        ["slot"] = "Trinket 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13650,
+                                                13657,
+                                            },
+                                            ["item_id"] = 270556,
+                                        },
+                                        ["slot"] = "Trinket 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12833,
+                                                13658,
+                                                13452,
+                                            },
+                                            ["item_id"] = 270846,
+                                        },
+                                        ["slot"] = "Main Hand",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12833,
+                                                13658,
+                                                13452,
+                                            },
+                                            ["item_id"] = 270847,
+                                        },
+                                        ["slot"] = "Off Hand",
+                                    },
+                                },
+                            },
+                            ["priorityProfiles"] = {
+                                {
+                                    ["context"] = "PvP",
+                                    ["heroTalent"] = "oracle",
+                                    ["order"] = {
+                                        "versatility",
+                                        "mastery",
+                                        "haste",
+                                        "critical_strike",
+                                    },
+                                    ["tiers"] = {},
+                                },
+                            },
+                            ["targets"] = {
+                                ["averageItemLevel"] = nil,
+                                ["itemCount"] = 16,
+                                ["itemLevelSlots"] = 0,
+                                ["sourceGoal"] = "PVP",
+                                ["statTargets"] = {
+                                    ["context"] = "PVP",
+                                    ["source"] = "ClassCodex BiS + Wowhead gear totals (no SimC support for this spec)",
+                                    ["stats"] = {
+                                        ["critical_strike"] = 225.0,
+                                        ["haste"] = 395.0,
+                                        ["mastery"] = 932.0,
+                                        ["versatility"] = 918.0,
+                                    },
+                                },
+                                ["targetMetadata"] = {
+                                    ["lowItemReplacements"] = 0,
+                                    ["recovery"] = {
+                                        "wowhead fallback",
+                                    },
+                                    ["unresolvedLowItems"] = 0,
+                                },
+                            },
+                            ["trinkets"] = {
+                                {
+                                    ["bonus_ids"] = {
+                                        13650,
+                                        13657,
+                                    },
+                                    ["item_id"] = 270556,
+                                    ["tier"] = "S",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13650,
+                                        13657,
+                                    },
+                                    ["item_id"] = 270558,
+                                    ["tier"] = "S",
+                                },
+                            },
+                        },
+                    },
+                },
+                ["RAID"] = {
+                    ["heroTalents"] = {
+                        ["archon"] = {
+                            ["bis"] = {
+                                ["label"] = "ClassCodex BiS",
+                                ["slots"] = {
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13334,
+                                                6652,
+                                                13846,
+                                                13696,
+                                                13692,
+                                                13698,
+                                                12854,
+                                            },
+                                            ["item_id"] = 271555,
+                                        },
+                                        ["slot"] = "Head",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                13987,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268265,
+                                        },
+                                        ["slot"] = "Neck",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13694,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271553,
+                                        },
+                                        ["slot"] = "Shoulders",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13662,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268248,
+                                        },
+                                        ["slot"] = "Back",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13690,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271558,
+                                        },
+                                        ["slot"] = "Chest",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8791,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 239648,
+                                        },
+                                        ["slot"] = "Wrist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13691,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271556,
+                                        },
+                                        ["slot"] = "Hands",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8791,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 239649,
+                                        },
+                                        ["slot"] = "Waist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13693,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271554,
+                                        },
+                                        ["slot"] = "Legs",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13662,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 268218,
+                                        },
+                                        ["slot"] = "Feet",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 268252,
+                                        },
+                                        ["slot"] = "Finger 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 268249,
+                                        },
+                                        ["slot"] = "Finger 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 270162,
+                                        },
+                                        ["slot"] = "Trinket 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 270164,
+                                        },
+                                        ["slot"] = "Trinket 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 271092,
+                                        },
+                                        ["slot"] = "Main Hand",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                12693,
+                                                8960,
+                                                8791,
+                                                13836,
+                                            },
+                                            ["item_id"] = 245769,
+                                        },
+                                        ["slot"] = "Off Hand",
+                                    },
+                                },
+                            },
+                            ["priorityProfiles"] = {
+                                {
+                                    ["context"] = "Raid",
+                                    ["heroTalent"] = "archon",
+                                    ["order"] = {
+                                        "critical_strike",
+                                        "versatility",
+                                        "mastery",
+                                        "haste",
+                                    },
+                                    ["tiers"] = {
+                                        {
+                                            "critical_strike",
+                                            "versatility",
+                                            "mastery",
+                                        },
+                                    },
+                                },
+                            },
+                            ["targets"] = {
+                                ["averageItemLevel"] = 334.6875,
+                                ["itemCount"] = 16,
+                                ["itemLevelSlots"] = 16,
+                                ["sourceGoal"] = "RAID",
+                                ["statTargets"] = {
+                                    ["context"] = "RAID",
+                                    ["source"] = "ClassCodex BiS + Wowhead gear totals (no SimC support for this spec)",
+                                    ["stats"] = {
+                                        ["critical_strike"] = 1185.0,
+                                        ["haste"] = 445.0,
+                                        ["mastery"] = 917.0,
+                                        ["versatility"] = 191.0,
+                                    },
+                                },
+                                ["targetMetadata"] = {
+                                    ["lowItemReplacements"] = 0,
+                                    ["recovery"] = {
+                                        "wowhead fallback",
+                                    },
+                                    ["unresolvedLowItems"] = 0,
+                                },
+                            },
+                            ["trinkets"] = {
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270162,
+                                    ["tier"] = "S",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13334,
+                                        13696,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270164,
+                                    ["tier"] = "A",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270167,
+                                    ["tier"] = "A",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250214,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250215,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12851,
+                                    },
+                                    ["item_id"] = 250255,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 193757,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 273796,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270171,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        12846,
+                                    },
+                                    ["item_id"] = 251792,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        40,
+                                        12838,
+                                    },
+                                    ["item_id"] = 274493,
+                                    ["tier"] = "C",
+                                },
+                            },
+                        },
+                        ["oracle"] = {
+                            ["bis"] = {
+                                ["label"] = "ClassCodex BiS",
+                                ["slots"] = {
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13334,
+                                                6652,
+                                                13846,
+                                                13696,
+                                                13692,
+                                                13698,
+                                                12854,
+                                            },
+                                            ["item_id"] = 271555,
+                                        },
+                                        ["slot"] = "Head",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                13987,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268265,
+                                        },
+                                        ["slot"] = "Neck",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13694,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271553,
+                                        },
+                                        ["slot"] = "Shoulders",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13662,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268248,
+                                        },
+                                        ["slot"] = "Back",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13690,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271558,
+                                        },
+                                        ["slot"] = "Chest",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8791,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 239648,
+                                        },
+                                        ["slot"] = "Wrist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13691,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271556,
+                                        },
+                                        ["slot"] = "Hands",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8791,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 239649,
+                                        },
+                                        ["slot"] = "Waist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13693,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271554,
+                                        },
+                                        ["slot"] = "Legs",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13662,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 268218,
+                                        },
+                                        ["slot"] = "Feet",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 268252,
+                                        },
+                                        ["slot"] = "Finger 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 268249,
+                                        },
+                                        ["slot"] = "Finger 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 270162,
+                                        },
+                                        ["slot"] = "Trinket 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 270164,
+                                        },
+                                        ["slot"] = "Trinket 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 271092,
+                                        },
+                                        ["slot"] = "Main Hand",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                12693,
+                                                8960,
+                                                8791,
+                                                13836,
+                                            },
+                                            ["item_id"] = 245769,
+                                        },
+                                        ["slot"] = "Off Hand",
+                                    },
+                                },
+                            },
+                            ["priorityProfiles"] = {
+                                {
+                                    ["context"] = "Raid",
+                                    ["heroTalent"] = "oracle",
+                                    ["order"] = {
+                                        "critical_strike",
+                                        "versatility",
+                                        "mastery",
+                                        "haste",
+                                    },
+                                    ["tiers"] = {
+                                        {
+                                            "critical_strike",
+                                            "versatility",
+                                            "mastery",
+                                        },
+                                    },
+                                },
+                            },
+                            ["targets"] = {
+                                ["averageItemLevel"] = 334.6875,
+                                ["itemCount"] = 16,
+                                ["itemLevelSlots"] = 16,
+                                ["sourceGoal"] = "RAID",
+                                ["statTargets"] = {
+                                    ["context"] = "RAID",
+                                    ["source"] = "ClassCodex BiS + Wowhead gear totals (no SimC support for this spec)",
+                                    ["stats"] = {
+                                        ["critical_strike"] = 1185.0,
+                                        ["haste"] = 445.0,
+                                        ["mastery"] = 917.0,
+                                        ["versatility"] = 191.0,
+                                    },
+                                },
+                                ["targetMetadata"] = {
+                                    ["lowItemReplacements"] = 0,
+                                    ["recovery"] = {
+                                        "wowhead fallback",
+                                    },
+                                    ["unresolvedLowItems"] = 0,
+                                },
+                            },
+                            ["trinkets"] = {
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270162,
+                                    ["tier"] = "S",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13334,
+                                        13696,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270164,
+                                    ["tier"] = "A",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270167,
+                                    ["tier"] = "A",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250214,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250215,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12851,
+                                    },
+                                    ["item_id"] = 250255,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 193757,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 273796,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270171,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        12846,
+                                    },
+                                    ["item_id"] = 251792,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        40,
+                                        12838,
+                                    },
+                                    ["item_id"] = 274493,
+                                    ["tier"] = "C",
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+            ["primaryStat"] = "intellect",
+            ["specKey"] = "PRIEST_HOLY",
         },
         ["PRIEST_SHADOW"] = {
             ["classToken"] = "PRIEST",
@@ -52633,6 +59668,382 @@ ns.ClassCodexTargets = {
             ["goals"] = {
                 ["MYTHIC_PLUS"] = {
                     ["heroTalents"] = {
+                        ["fatebound"] = {
+                            ["bis"] = {
+                                ["label"] = "ClassCodex BiS",
+                                ["slots"] = {
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13696,
+                                                13440,
+                                                13692,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271510,
+                                        },
+                                        ["slot"] = "Head",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                13987,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268265,
+                                        },
+                                        ["slot"] = "Neck",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13694,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271508,
+                                        },
+                                        ["slot"] = "Shoulders",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13662,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268248,
+                                        },
+                                        ["slot"] = "Back",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13690,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271513,
+                                        },
+                                        ["slot"] = "Chest",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 244576,
+                                        },
+                                        ["slot"] = "Wrist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13691,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271511,
+                                        },
+                                        ["slot"] = "Hands",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8795,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 244573,
+                                        },
+                                        ["slot"] = "Waist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13693,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271509,
+                                        },
+                                        ["slot"] = "Legs",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 244569,
+                                        },
+                                        ["slot"] = "Feet",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 268252,
+                                        },
+                                        ["slot"] = "Finger 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8795,
+                                                13836,
+                                            },
+                                            ["item_id"] = 240949,
+                                        },
+                                        ["slot"] = "Finger 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 270175,
+                                        },
+                                        ["slot"] = "Trinket 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 270173,
+                                        },
+                                        ["slot"] = "Trinket 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268209,
+                                        },
+                                        ["slot"] = "Main Hand",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                13771,
+                                                8960,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 237837,
+                                        },
+                                        ["slot"] = "Off Hand",
+                                    },
+                                },
+                            },
+                            ["priorityProfiles"] = {
+                                {
+                                    ["context"] = "Mythic+",
+                                    ["heroTalent"] = "fatebound",
+                                    ["order"] = {
+                                        "versatility",
+                                        "critical_strike",
+                                        "haste",
+                                        "mastery",
+                                    },
+                                    ["tiers"] = {
+                                        {
+                                            "critical_strike",
+                                            "haste",
+                                            "mastery",
+                                        },
+                                    },
+                                },
+                            },
+                            ["targets"] = {
+                                ["averageItemLevel"] = 335.5625,
+                                ["itemCount"] = 16,
+                                ["itemLevelSlots"] = 16,
+                                ["sourceGoal"] = "MYTHIC_PLUS",
+                                ["statTargets"] = {
+                                    ["context"] = "MYTHIC_PLUS",
+                                    ["source"] = "ClassCodex BiS + SimulationCraft",
+                                    ["stats"] = {
+                                        ["critical_strike"] = 1588.0,
+                                        ["haste"] = 742.0,
+                                        ["mastery"] = 372.0,
+                                        ["versatility"] = 603.0,
+                                    },
+                                },
+                                ["targetMetadata"] = {
+                                    ["lowItemReplacements"] = 0,
+                                    ["recovery"] = {
+                                        "talents borrowed from RAID",
+                                    },
+                                    ["unresolvedLowItems"] = 0,
+                                },
+                            },
+                            ["trinkets"] = {
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270175,
+                                    ["tier"] = "S",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270173,
+                                    ["tier"] = "A",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        40,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 159617,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270165,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250215,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270166,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13334,
+                                        13696,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270164,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250225,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250228,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 273796,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250214,
+                                    ["tier"] = "C",
+                                },
+                            },
+                        },
                         ["trickster"] = {
                             ["bis"] = {
                                 ["label"] = "ClassCodex BiS",
@@ -56668,6 +64079,391 @@ ns.ClassCodexTargets = {
                                 },
                             },
                         },
+                        ["stormbringer"] = {
+                            ["bis"] = {
+                                ["label"] = "ClassCodex BiS",
+                                ["slots"] = {
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13696,
+                                                13440,
+                                                13692,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271483,
+                                        },
+                                        ["slot"] = "Head",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                13987,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268265,
+                                        },
+                                        ["slot"] = "Neck",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13694,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271481,
+                                        },
+                                        ["slot"] = "Shoulders",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8791,
+                                                13836,
+                                            },
+                                            ["item_id"] = 239656,
+                                        },
+                                        ["slot"] = "Back",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13334,
+                                                6652,
+                                                13846,
+                                                13690,
+                                                13698,
+                                                12854,
+                                            },
+                                            ["item_id"] = 271486,
+                                        },
+                                        ["slot"] = "Chest",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8791,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 244584,
+                                        },
+                                        ["slot"] = "Wrist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13691,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271484,
+                                        },
+                                        ["slot"] = "Hands",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8791,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 244581,
+                                        },
+                                        ["slot"] = "Waist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13693,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271482,
+                                        },
+                                        ["slot"] = "Legs",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8791,
+                                                13836,
+                                            },
+                                            ["item_id"] = 244577,
+                                        },
+                                        ["slot"] = "Feet",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 240949,
+                                        },
+                                        ["slot"] = "Finger 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 268249,
+                                        },
+                                        ["slot"] = "Finger 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 270164,
+                                        },
+                                        ["slot"] = "Trinket 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 270167,
+                                        },
+                                        ["slot"] = "Trinket 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 271092,
+                                        },
+                                        ["slot"] = "Main Hand",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8791,
+                                                13836,
+                                            },
+                                            ["item_id"] = 237831,
+                                        },
+                                        ["slot"] = "Off Hand",
+                                    },
+                                },
+                            },
+                            ["priorityProfiles"] = {
+                                {
+                                    ["context"] = "Mythic+",
+                                    ["heroTalent"] = "stormbringer",
+                                    ["order"] = {
+                                        "mastery",
+                                        "critical_strike",
+                                        "haste",
+                                        "versatility",
+                                    },
+                                    ["tiers"] = {
+                                        {
+                                            "mastery",
+                                            "critical_strike",
+                                        },
+                                        {
+                                            "haste",
+                                            "versatility",
+                                        },
+                                    },
+                                },
+                            },
+                            ["targets"] = {
+                                ["averageItemLevel"] = 335.375,
+                                ["itemCount"] = 16,
+                                ["itemLevelSlots"] = 16,
+                                ["sourceGoal"] = "MYTHIC_PLUS",
+                                ["statTargets"] = {
+                                    ["context"] = "MYTHIC_PLUS",
+                                    ["source"] = "ClassCodex BiS + SimulationCraft",
+                                    ["stats"] = {
+                                        ["critical_strike"] = 1032.0,
+                                        ["haste"] = 858.0,
+                                        ["mastery"] = 1144.0,
+                                        ["versatility"] = 248.0,
+                                    },
+                                },
+                                ["targetMetadata"] = {
+                                    ["lowItemReplacements"] = 0,
+                                    ["recovery"] = {
+                                        "talents borrowed from RAID",
+                                    },
+                                    ["unresolvedLowItems"] = 0,
+                                },
+                            },
+                            ["trinkets"] = {
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 273796,
+                                    ["tier"] = "S",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13334,
+                                        13696,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270164,
+                                    ["tier"] = "A",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250215,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270167,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250214,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        40,
+                                        12838,
+                                    },
+                                    ["item_id"] = 274493,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250224,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        13654,
+                                    },
+                                    ["item_id"] = 250144,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12854,
+                                    },
+                                    ["item_id"] = 273794,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13335,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270161,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13183,
+                                        6652,
+                                        12846,
+                                    },
+                                    ["item_id"] = 248583,
+                                    ["tier"] = "C",
+                                },
+                            },
+                        },
                     },
                 },
                 ["PVP"] = {
@@ -58215,6 +66011,375 @@ ns.ClassCodexTargets = {
                                 },
                                 ["targetMetadata"] = {
                                     ["lowItemReplacements"] = 0,
+                                    ["unresolvedLowItems"] = 0,
+                                },
+                            },
+                            ["trinkets"] = {
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270175,
+                                    ["tier"] = "S",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 273796,
+                                    ["tier"] = "A",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270173,
+                                    ["tier"] = "A",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270165,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13334,
+                                        13696,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270164,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250225,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250228,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250215,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250214,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12846,
+                                    },
+                                    ["item_id"] = 270166,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270168,
+                                    ["tier"] = "C",
+                                },
+                            },
+                        },
+                        ["totemic"] = {
+                            ["bis"] = {
+                                ["label"] = "ClassCodex BiS",
+                                ["slots"] = {
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13696,
+                                                13440,
+                                                13692,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271483,
+                                        },
+                                        ["slot"] = "Head",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                13987,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268265,
+                                        },
+                                        ["slot"] = "Neck",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13694,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271481,
+                                        },
+                                        ["slot"] = "Shoulders",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13662,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268253,
+                                        },
+                                        ["slot"] = "Back",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12846,
+                                                13334,
+                                                6652,
+                                                13846,
+                                                13690,
+                                                13698,
+                                                1574,
+                                            },
+                                            ["item_id"] = 271486,
+                                        },
+                                        ["slot"] = "Chest",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8793,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 244584,
+                                        },
+                                        ["slot"] = "Wrist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13691,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271484,
+                                        },
+                                        ["slot"] = "Hands",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13696,
+                                                13662,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 268254,
+                                        },
+                                        ["slot"] = "Waist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13693,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271482,
+                                        },
+                                        ["slot"] = "Legs",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13662,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 268258,
+                                        },
+                                        ["slot"] = "Feet",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8793,
+                                                13836,
+                                            },
+                                            ["item_id"] = 240949,
+                                        },
+                                        ["slot"] = "Finger 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                12846,
+                                            },
+                                            ["item_id"] = 272147,
+                                        },
+                                        ["slot"] = "Finger 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 270175,
+                                        },
+                                        ["slot"] = "Trinket 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 270173,
+                                        },
+                                        ["slot"] = "Trinket 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268209,
+                                        },
+                                        ["slot"] = "Main Hand",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                13771,
+                                                8960,
+                                                8793,
+                                                13836,
+                                            },
+                                            ["item_id"] = 237850,
+                                        },
+                                        ["slot"] = "Off Hand",
+                                    },
+                                },
+                            },
+                            ["priorityProfiles"] = {
+                                {
+                                    ["context"] = "Mythic+",
+                                    ["heroTalent"] = "totemic",
+                                    ["order"] = {
+                                        "mastery",
+                                        "haste",
+                                        "critical_strike",
+                                        "versatility",
+                                    },
+                                    ["tiers"] = {
+                                        {
+                                            "mastery",
+                                            "haste",
+                                        },
+                                        {
+                                            "critical_strike",
+                                            "versatility",
+                                        },
+                                    },
+                                },
+                            },
+                            ["targets"] = {
+                                ["averageItemLevel"] = 333.25,
+                                ["itemCount"] = 16,
+                                ["itemLevelSlots"] = 16,
+                                ["sourceGoal"] = "MYTHIC_PLUS",
+                                ["statTargets"] = {
+                                    ["context"] = "MYTHIC_PLUS",
+                                    ["source"] = "ClassCodex BiS + SimulationCraft",
+                                    ["stats"] = {
+                                        ["critical_strike"] = 828.0,
+                                        ["haste"] = 1065.0,
+                                        ["mastery"] = 1056.0,
+                                        ["versatility"] = 237.0,
+                                    },
+                                },
+                                ["targetMetadata"] = {
+                                    ["lowItemReplacements"] = 0,
+                                    ["recovery"] = {
+                                        "talents borrowed from RAID",
+                                    },
                                     ["unresolvedLowItems"] = 0,
                                 },
                             },
@@ -63983,6 +72148,388 @@ ns.ClassCodexTargets = {
                                 },
                                 ["targetMetadata"] = {
                                     ["lowItemReplacements"] = 0,
+                                    ["unresolvedLowItems"] = 0,
+                                },
+                            },
+                            ["trinkets"] = {
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 273796,
+                                    ["tier"] = "S",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13334,
+                                        13696,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270164,
+                                    ["tier"] = "A",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250215,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270167,
+                                    ["tier"] = "B",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        12833,
+                                        13439,
+                                        6652,
+                                        12699,
+                                    },
+                                    ["item_id"] = 273649,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        13654,
+                                    },
+                                    ["item_id"] = 250144,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12844,
+                                    },
+                                    ["item_id"] = 270169,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        6652,
+                                        13334,
+                                        12854,
+                                    },
+                                    ["item_id"] = 270168,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250224,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        13440,
+                                        6652,
+                                        12699,
+                                        12846,
+                                    },
+                                    ["item_id"] = 250214,
+                                    ["tier"] = "C",
+                                },
+                                {
+                                    ["bonus_ids"] = {
+                                        40,
+                                        12838,
+                                    },
+                                    ["item_id"] = 274493,
+                                    ["tier"] = "C",
+                                },
+                            },
+                        },
+                        ["soul-harvester"] = {
+                            ["bis"] = {
+                                ["label"] = "ClassCodex BiS",
+                                ["slots"] = {
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                13334,
+                                                6652,
+                                                13846,
+                                                13696,
+                                                13692,
+                                                13698,
+                                                12854,
+                                            },
+                                            ["item_id"] = 271546,
+                                        },
+                                        ["slot"] = "Head",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                13987,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268265,
+                                        },
+                                        ["slot"] = "Neck",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13694,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271544,
+                                        },
+                                        ["slot"] = "Shoulders",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 239656,
+                                        },
+                                        ["slot"] = "Back",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13690,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271549,
+                                        },
+                                        ["slot"] = "Chest",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 239648,
+                                        },
+                                        ["slot"] = "Wrist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13691,
+                                                13697,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271547,
+                                        },
+                                        ["slot"] = "Hands",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8960,
+                                                12384,
+                                                8790,
+                                                13836,
+                                                13696,
+                                            },
+                                            ["item_id"] = 239649,
+                                        },
+                                        ["slot"] = "Waist",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13440,
+                                                13693,
+                                                13698,
+                                                12846,
+                                            },
+                                            ["item_id"] = 271545,
+                                        },
+                                        ["slot"] = "Legs",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13662,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 268218,
+                                        },
+                                        ["slot"] = "Feet",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13668,
+                                                13334,
+                                                12846,
+                                            },
+                                            ["item_id"] = 268252,
+                                        },
+                                        ["slot"] = "Finger 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 240949,
+                                        },
+                                        ["slot"] = "Finger 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13334,
+                                                12854,
+                                            },
+                                            ["item_id"] = 270164,
+                                        },
+                                        ["slot"] = "Trinket 1",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                6652,
+                                                13335,
+                                                12854,
+                                            },
+                                            ["item_id"] = 270167,
+                                        },
+                                        ["slot"] = "Trinket 2",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14004,
+                                                13771,
+                                                8960,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 245770,
+                                        },
+                                        ["slot"] = "Main Hand",
+                                    },
+                                    {
+                                        ["item"] = {
+                                            ["bonus_ids"] = {
+                                                12214,
+                                                13667,
+                                                12497,
+                                                13751,
+                                                14001,
+                                                13771,
+                                                8960,
+                                                8790,
+                                                13836,
+                                            },
+                                            ["item_id"] = 245769,
+                                        },
+                                        ["slot"] = "Off Hand",
+                                    },
+                                },
+                            },
+                            ["priorityProfiles"] = {
+                                {
+                                    ["context"] = "Mythic+",
+                                    ["heroTalent"] = "soul-harvester",
+                                    ["order"] = {
+                                        "critical_strike",
+                                        "haste",
+                                        "mastery",
+                                        "versatility",
+                                    },
+                                    ["tiers"] = {
+                                        {
+                                            "mastery",
+                                            "versatility",
+                                        },
+                                    },
+                                },
+                            },
+                            ["targets"] = {
+                                ["averageItemLevel"] = 334.125,
+                                ["itemCount"] = 16,
+                                ["itemLevelSlots"] = 16,
+                                ["sourceGoal"] = "MYTHIC_PLUS",
+                                ["statTargets"] = {
+                                    ["context"] = "MYTHIC_PLUS",
+                                    ["source"] = "ClassCodex BiS + SimulationCraft",
+                                    ["stats"] = {
+                                        ["critical_strike"] = 1331.0,
+                                        ["haste"] = 1329.0,
+                                        ["mastery"] = 417.0,
+                                        ["versatility"] = 274.0,
+                                    },
+                                },
+                                ["targetMetadata"] = {
+                                    ["lowItemReplacements"] = 0,
+                                    ["recovery"] = {
+                                        "talents borrowed from RAID",
+                                    },
                                     ["unresolvedLowItems"] = 0,
                                 },
                             },
