@@ -64,7 +64,7 @@ except ModuleNotFoundError:
     from simc_stat_engine import run_simc
     from spec_catalog import SPEC_BY_KEY
 
-STATS = ("crit", "haste", "mastery", "versatility")
+STATS = ("critical_strike", "haste", "mastery", "versatility")  # the pipeline's canonical names
 # Metrics kept from every run. For the "taken" metrics smaller is better, so their value for the
 # player is the negated scale factor.
 METRICS = ("dps", "dtps", "dmg_taken", "htps", "deaths")
@@ -97,7 +97,11 @@ def guide_orders(stat_priority: dict[str, Any] | None) -> dict[str, list[str]]:
             groups = block.get("secondary") if isinstance(block, dict) else None
             if not isinstance(groups, list):
                 continue
-            flat = [name for group in groups for name in (group if isinstance(group, list) else [group])]
+            flat = [
+                "critical_strike" if name == "crit" else name
+                for group in groups
+                for name in (group if isinstance(group, list) else [group])
+            ]
             if all(stat in flat for stat in STATS):
                 result[variant] = flat
     return result
@@ -128,7 +132,8 @@ def run_metrics(spec, gear_list, talent_loadout, simc_binary: Path, upgrades, se
     for metric in METRICS:
         try:
             out[metric] = parse_scale_factors(report, metric).get(actor) or {}
-        except ValueError:
+        except ValueError as exc:
+            print(f"{spec.spec_name} {metric}: {exc}", file=sys.stderr)
             out[metric] = {}
     return out
 
