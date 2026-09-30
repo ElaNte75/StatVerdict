@@ -107,6 +107,19 @@ def simulate(spec, items, exports, simc_binary: Path, variants: list[dict[str, i
     return stats[actor]["ratings"], results
 
 
+def verify(spec, items, exports, simc_binary: Path, settings: dict[str, Any], deltas: dict[str, int], seeds=(101, 102, 103)):
+    """The found split against the guide's split, head to head with fresh seeds and a tighter error.
+    Returns the gain of each seed (percent) and how many seeds agree that the found split is better."""
+    tight = {**settings, "target_error": 0.03, "iterations": 40000}
+    zero = {stat: 0 for stat in STATS}
+    gains = []
+    for seed in seeds:
+        _ratings, results = simulate(spec, items, exports, simc_binary, [zero, deltas], {**tight, "seed": seed})
+        a, b = results[variant_name(zero)], results[variant_name(deltas)]
+        gains.append(100 * (b[0] - a[0]) / a[0])
+    return {"gains_pct": gains, "mean_gain_pct": sum(gains) / len(gains), "seeds_better": sum(1 for g in gains if g > 0)}
+
+
 def climb(spec, items, exports, simc_binary: Path, settings: dict[str, Any]) -> dict[str, Any]:
     state = {stat: 0 for stat in STATS}
     base: dict[str, float] | None = None
@@ -142,7 +155,9 @@ def climb(spec, items, exports, simc_binary: Path, settings: dict[str, Any]) -> 
         else:
             break
     final = results.get(variant_name(state)) or current
+    check = verify(spec, items, exports, simc_binary, settings, state) if any(state.values()) else None
     return {
+        "verify": check,
         "base_ratings": base,
         "deltas": state,
         "final_ratings": {stat: base[stat] + state[stat] for stat in STATS},
@@ -157,6 +172,13 @@ def order(ratings: dict[str, float]) -> list[str]:
     return sorted(STATS, key=lambda stat: -ratings[stat])
 
 
+def check_text(check) -> str:
+    if not check:
+        return "no change to check"
+    gains = " / ".join(f"{g:+.2f}%" for g in check["gains_pct"])
+    return f"{gains} ({check['seeds_better']}/{len(check['gains_pct'])} better)"
+
+
 def render_md(document: dict[str, Any]) -> str:
     lines = [
         "# Stat split probe (experiment)",
@@ -166,19 +188,19 @@ def render_md(document: dict[str, Any]) -> str:
         "SimulationCraft; the best clearly better move is taken until none helps. It is an upper bound:",
         "real items may not offer that split. Nothing here is used by the addon.",
         "",
-        "| Spec | Goal | Hero tree | DPS gain | Guide split (rating order) | Best split found (rating order) | Same order |",
-        "|---|---|---|---|---|---|---|",
+        "| Spec | Goal | Hero tree | DPS gain (search) | Head-to-head check (3 fresh seeds) | Guide split (rating order) | Best split found (rating order) | Same order |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     for entry in document["results"]:
         head = f"| {entry['spec']} | {entry['goal']} | {entry['heroTalent']} |"
         if entry.get("skipped"):
-            lines.append(f"{head} skipped: {entry['skipped']} | | | |")
+            lines.append(f"{head} skipped: {entry['skipped']} | | | | |")
             continue
         r = entry["result"]
         base_order, final_order = order(r["base_ratings"]), order(r["final_ratings"])
         fmt = lambda ratings: " > ".join(f"{s[:4]} {ratings[s]:.0f}" for s in order(ratings))
         lines.append(
-            f"{head} {r['gain_pct']:+.2f}% | {fmt(r['base_ratings'])} | {fmt(r['final_ratings'])} | "
+            f"{head} {r['gain_pct']:+.2f}% | {check_text(r.get('verify'))} | {fmt(r['base_ratings'])} | {fmt(r['final_ratings'])} | "
             f"{'yes' if base_order == final_order else 'no'} |"
         )
     return "\n".join(lines) + "\n"
@@ -192,12 +214,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--all-hero-trees", action="store_true", help="default: the first hero tree only")
     parser.add_argument("--target-error", type=float, default=0.08)
     parser.add_argument("--iterations", type=int, default=20000)
-    parser.add_argument("--out", type=Path, default=Path("docs/stat-split-probe"))
+    parser.add_argument("--fight-style-mplus", default="DungeonSlice", help="SimC fight style used for the M+ goal")
+    parser.add_argument("--out", type=Path, default=Path("docs/stat-split-probe-2"))
     args = parser.parse_args(argv)
     settings = {
         "iterations": args.iterations, "target_error": args.target_error,
         "max_time": 300, "fixed_time": 1,
     }
+
     wanted = set(args.specs.split(","))
     goals = tuple(args.goals.split(","))
     fetched = fetch_all()
@@ -233,7 +257,10 @@ def main(argv: list[str] | None = None) -> int:
                 try:
                     if not items or not exports:
                         raise ComboSkipped("no usable gear or talents")
-                    results.append({**base, "result": climb(spec, items, exports, args.simc_bin, settings)})
+                    goal_settings = dict(settings)
+                    if goal == "MYTHIC_PLUS" and args.fight_style_mplus:
+                        goal_settings["global_lines"] = (f"fight_style={args.fight_style_mplus}",)
+                    results.append({**base, "result": climb(spec, items, exports, args.simc_bin, goal_settings)})
                 except ComboSkipped as skip:
                     results.append({**base, "skipped": skip.reason})
                 save()

@@ -113,6 +113,7 @@ def render_profiles(
     target_error: float | None = None,
     seed: int | None = None,
     extra_lines: tuple[str, ...] = (),
+    global_lines: tuple[str, ...] = (),
     stat_sheet_only: bool = False,
     talents_optional: bool = False,
 ) -> tuple[str, dict[str, dict[str, Any]]]:
@@ -138,6 +139,7 @@ def render_profiles(
         blocks.append(f"target_error={target_error}")
     if seed is not None:
         blocks.append(f"seed={int(seed)}")
+    blocks += list(global_lines)
     blocks += [
         "report_details=0",
         "allow_experimental_specializations=1",
