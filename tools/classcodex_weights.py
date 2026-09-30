@@ -32,12 +32,14 @@ try:
         build_simc_items,
         canonical_stat_name,
         format_simc_error,
+        guide_gear_list,
         loadout_upgrades_for,
         select_goal_context,
         select_talent_export,
         run_with_talent_fallback,
         talent_exports_from_entries,
     )
+    from tools.classcodex_rules import pvp_bonus_lookup
     from tools.spec_catalog import SPEC_BY_KEY
     from tools.simc_stat_engine import run_simc
 except ModuleNotFoundError:
@@ -51,6 +53,7 @@ except ModuleNotFoundError:
         build_simc_items,
         canonical_stat_name,
         format_simc_error,
+        guide_gear_list,
         loadout_upgrades_for,
         select_goal_context,
         select_talent_export,
@@ -58,6 +61,7 @@ except ModuleNotFoundError:
         talent_exports_from_entries,
     )
     from spec_catalog import SPEC_BY_KEY
+    from classcodex_rules import pvp_bonus_lookup
     from simc_stat_engine import run_simc
 
 # SimC long stat names for its `scale_only=` filter (SimC's parse_stat_type
@@ -230,6 +234,7 @@ def build_all_weights(
     given, one SkipRecord per skipped spec/combo is appended to it."""
     skipped: list[SkipRecord] = skips if skips is not None else []
     profiles: dict[str, Any] = {}
+    pvp_bonus = pvp_bonus_lookup(specs)
     for spec_key, fields in specs.items():
         catalog_key = _classcodex_key_to_catalog_key(spec_key)
         spec = SPEC_BY_KEY.get(catalog_key)
@@ -246,7 +251,7 @@ def build_all_weights(
         for goal in goals:
             hero_talents_out: dict[str, Any] = {}
             for hero_talent_key in hero_talent_keys:
-                gear_list = select_goal_context(gear_value, hero_talent_key, goal)
+                gear_list = guide_gear_list(gear_value, goal, pvp_bonus)
                 talent_loadout = talent_exports_from_entries(select_goal_context(talents_value, hero_talent_key, goal))
                 if not talent_loadout:
                     # Same rule as the targets pipeline: ClassCodex has no

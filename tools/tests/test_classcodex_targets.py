@@ -703,7 +703,7 @@ class BuildAllTests(unittest.TestCase):
             "DEATHKNIGHT_blood": {
                 "gear": {"value": {"all": {"mplus": [{"itemId": 1, "slot": "Head", "ilvl": 330}], "raid": [{"itemId": 2, "slot": "Head", "ilvl": 330}]}}, "source": "ugg"},
                 "talents": {"value": {"all": {"mplus": [{"export": "M", "recommended": True}], "raid": [{"export": "R", "recommended": True}]}}, "source": "ugg"},
-                "trinkets": {"value": {"all": {"mplus": [{"itemId": 9, "tier": "S"}]}}, "source": "ugg"},
+                "trinkets": {"value": {"all": {"all": [{"itemId": 9, "tier": "S"}]}}, "source": "ugg"},
                 "statPriority": {"value": {"all": {"mplus": {"secondary": [["crit"], ["haste"]]}}}, "source": "ugg"},
             }
         }
@@ -838,11 +838,10 @@ class CoverageReportTests(unittest.TestCase):
             "DEATHKNIGHT_frost": {
                 "gear": {
                     "value": {
-                        "all": {"raid": [{"itemId": 1, "slot": "Head", "bonusIDs": [13848]}]},
-                        "deathbringer": {"pvp": [{"itemId": 2, "slot": "Head"}]},
+                        "all": {"raid": [{"itemId": 1, "slot": "Head", "bonusIDs": [13848]}], "pvp": [{"itemId": 2, "slot": "Head"}]},
                     },
                     "source": "icyveins",
-                    "origins": {"all": {"raid": "icyveins"}, "deathbringer": {"pvp": "ugg"}},
+                    "origins": {"all": {"raid": "icyveins", "pvp": "ugg"}},
                 },
                 "talents": {"value": {"deathbringer": {"raid": [{"export": "X"}], "pvp": [{"export": "P"}]}}},
                 "trinkets": {"value": {"all": {"all": [{"itemId": 9, "tier": "S"}, {"itemId": 8, "tier": "A"}]}}},

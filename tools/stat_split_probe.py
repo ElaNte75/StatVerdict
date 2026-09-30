@@ -29,6 +29,7 @@ try:
         _hero_talent_keys,
         build_simc_items,
         format_simc_error,
+        guide_gear_list,
         loadout_upgrades_for,
         run_with_talent_fallback,
         select_goal_context,
@@ -45,6 +46,7 @@ except ModuleNotFoundError:
         _hero_talent_keys,
         build_simc_items,
         format_simc_error,
+        guide_gear_list,
         loadout_upgrades_for,
         run_with_talent_fallback,
         select_goal_context,
@@ -253,7 +255,7 @@ def main(argv: list[str] | None = None) -> int:
                         exports = talent_exports_from_entries(select_goal_context(talents_value, hero, other))
                         if exports:
                             break
-                items = build_simc_items(select_goal_context(gear_value, hero, goal), loadout_upgrades_for(fields, hero, goal))
+                items = build_simc_items(guide_gear_list(gear_value, goal), loadout_upgrades_for(fields, hero, goal))
                 try:
                     if not items or not exports:
                         raise ComboSkipped("no usable gear or talents")

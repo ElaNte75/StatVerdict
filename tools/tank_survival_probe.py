@@ -28,6 +28,7 @@ try:
         _hero_talent_keys,
         build_simc_items,
         format_simc_error,
+        guide_gear_list,
         loadout_upgrades_for,
         run_with_talent_fallback,
         select_goal_context,
@@ -50,6 +51,7 @@ except ModuleNotFoundError:
         _hero_talent_keys,
         build_simc_items,
         format_simc_error,
+        guide_gear_list,
         loadout_upgrades_for,
         run_with_talent_fallback,
         select_goal_context,
@@ -252,7 +254,7 @@ def main(argv: list[str] | None = None) -> int:
         for hero in sorted(_hero_talent_keys(gear_value, talents_value)):
             for goal in goals:
                 base = {"spec": catalog_key, "goal": goal, "heroTalent": hero, "guide": guides}
-                gear_list = select_goal_context(gear_value, hero, goal)
+                gear_list = guide_gear_list(gear_value, goal)
                 loadout = talent_exports_from_entries(select_goal_context(talents_value, hero, goal))
                 if not loadout:
                     for other in goals:

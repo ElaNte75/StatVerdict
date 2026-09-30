@@ -13,12 +13,14 @@ from pathlib import Path
 from typing import Any, Callable, NamedTuple
 
 try:
+    from tools.classcodex_rules import bis_gear, default_priority, guide_field, guide_field_with_fallback, pvp_bonus_lookup
     from tools.classcodex_build import ENCHANT_LOOKUP_FIELD, collect_real_enchants
     from tools.classcodex_lua_sandbox import run_addon_namespace
     from tools.simc_stat_engine import render_profiles, run_simc, run_simc_with_recovery
     from tools.spec_catalog import SPEC_BY_KEY
     from tools.upgrade_tracks import SWAP_TARGETS, TrackSwap, swap_bonus_ids
 except ModuleNotFoundError:
+    from classcodex_rules import bis_gear, default_priority, guide_field, guide_field_with_fallback, pvp_bonus_lookup
     from classcodex_build import ENCHANT_LOOKUP_FIELD, collect_real_enchants
     from classcodex_lua_sandbox import run_addon_namespace
     from simc_stat_engine import render_profiles, run_simc, run_simc_with_recovery
@@ -317,7 +319,7 @@ def select_loadout_upgrades(
     are skipped."""
     enchants: dict[str, dict[str, int]] = {}
     lookup = _enchant_lookup(enchants_value, enchant_lookup)
-    by_slot = select_goal_context(enchants_value, hero_talent_key, goal)
+    by_slot = guide_field_with_fallback(enchants_value, goal)  # ClassCodex reads enchants under hero "all"
     if isinstance(by_slot, dict):
         for slot_name, entries in by_slot.items():
             simc_slot = CLASSCODEX_SLOT_TO_SIMC.get(str(slot_name))
@@ -329,7 +331,7 @@ def select_loadout_upgrades(
                 enchants[simc_slot] = enchant
 
     gems: dict[str, int] = {}
-    gem_sets = select_goal_context(gems_value, hero_talent_key, goal)
+    gem_sets = guide_field_with_fallback(gems_value, goal)  # ... and gems too
     candidates = [e for e in (gem_sets if isinstance(gem_sets, list) else []) if isinstance(e, dict)]
     if candidates:
         best = max(candidates, key=_pop)
@@ -358,6 +360,31 @@ def loadout_upgrades_for(fields: dict[str, Any], hero_talent_key: str, goal: str
         goal,
         (fields.get(ENCHANT_LOOKUP_FIELD) or {}).get("value"),
     )
+
+
+def guide_gear_list(
+    gear_value: Any, goal: str, pvp_bonus: dict[int, list[int]] | None = None
+) -> list[dict[str, Any]] | None:
+    """The Best in Slot list ClassCodex shows for the goal (hero "all"). PvP items without bonus ids borrow
+    them by item id from u.gg's PvP gear lists, as ClassCodex does (PvpItemBonusIds)."""
+    return _with_pvp_bonus(bis_gear(gear_value, goal), goal, pvp_bonus)
+
+
+def guide_trinket_list(
+    trinkets_value: Any, goal: str, pvp_bonus: dict[int, list[int]] | None = None
+) -> list[dict[str, Any]] | None:
+    return _with_pvp_bonus(guide_field(trinkets_value, goal), goal, pvp_bonus)
+
+
+def _with_pvp_bonus(entries: Any, goal: str, pvp_bonus: dict[int, list[int]] | None) -> Any:
+    if goal != "PVP" or not pvp_bonus or not isinstance(entries, list):
+        return entries
+    out = []
+    for entry in entries:
+        if isinstance(entry, dict) and not entry.get("bonusIDs") and entry.get("itemId") in pvp_bonus:
+            entry = {**entry, "bonusIDs": list(pvp_bonus[entry["itemId"]])}
+        out.append(entry)
+    return out
 
 
 def build_simc_items(
@@ -1277,6 +1304,7 @@ def build_all(
     trackSwap/trackItemLevels at the document root."""
     skipped: list[SkipRecord] = skips if skips is not None else []
     profiles: dict[str, Any] = {}
+    pvp_bonus = pvp_bonus_lookup(specs)
     for spec_key, fields in specs.items():
         catalog_key = _classcodex_key_to_catalog_key(spec_key)
         spec = SPEC_BY_KEY.get(catalog_key)
@@ -1297,7 +1325,7 @@ def build_all(
         for goal in goals:
             hero_talents_out: dict[str, Any] = {}
             for hero_talent_key in hero_talent_keys:
-                gear_list = select_goal_context(gear_value, hero_talent_key, goal)
+                gear_list = guide_gear_list(gear_value, goal, pvp_bonus)
                 talent_loadout = talent_exports_from_entries(select_goal_context(talents_value, hero_talent_key, goal))
                 extra_recovery: list[str] = []
                 if not talent_loadout:
@@ -1327,18 +1355,16 @@ def build_all(
                 except ComboSkipped as skip:
                     skipped.append(SkipRecord(catalog_key, goal, hero_talent_key, skip.reason))
                     continue
-                gear_source = field_origin(fields.get("gear"), hero_talent_key, goal)
+                gear_source = field_origin(fields.get("gear"), "all", goal)
                 if gear_source:
                     target_context["targets"]["targetMetadata"]["gearSource"] = gear_source
                 # u.gg's own targets, independent of how the SimC run went.
                 guide_targets = guide_targets_for(stat_targets_value, hero_talent_key, goal)
                 if guide_targets:
                     target_context["targets"]["guideTargets"] = guide_targets
-                target_context["trinkets"] = trinkets_from_entries(
-                    select_goal_context(trinkets_value, hero_talent_key, goal)
-                )
+                target_context["trinkets"] = trinkets_from_entries(guide_trinket_list(trinkets_value, goal, pvp_bonus))
                 row = priority_row_from_context(
-                    select_goal_context(stat_priority_value, hero_talent_key, goal),
+                    default_priority(stat_priority_value, hero_talent_key, goal),
                     GOAL_LABEL[goal],
                     hero_talent_key,
                 )
