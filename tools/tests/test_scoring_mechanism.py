@@ -102,6 +102,16 @@ class ScoringMechanismTests(unittest.TestCase):
         for key, share in expected.items():
             self.assertAlmostEqual(share, ns.GetScoringSecondaryWeights(profile, key)[0], msg=key)
 
+    def test_a_buff_does_not_move_the_ratings_until_gear_or_spec_changes(self) -> None:
+        lua, ns = self.lua, self.ns
+        verdict.set_character(lua, STATES["mid"], 1600)
+        before = ns.GetCurrentStatRating("ITEM_MOD_HASTE_RATING_SHORT")
+        # A flask appears: the game reports more Haste, but no gear or spec event happened.
+        lua.execute("local old = GetCombatRating; GetCombatRating = function(id) return old(id) + (id == 18 and 500 or 0) end")
+        self.assertEqual(before, ns.GetCurrentStatRating("ITEM_MOD_HASTE_RATING_SHORT"))
+        ns.InvalidateCurrentStatRatings()  # what an equipment/spec/talent event does
+        self.assertEqual(before + 500, ns.GetCurrentStatRating("ITEM_MOD_HASTE_RATING_SHORT"))
+
 
 if __name__ == "__main__":
     unittest.main()

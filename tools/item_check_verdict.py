@@ -101,6 +101,7 @@ def load_addon():
     lua.execute(INVSLOT_LUA)
     lua.globals().StatVerdictDB = lua.table()
     ns = lua.table()
+    lua.globals().SV_TEST_NS = ns
     for path in toc_lua_files():
         compile_lua_file(lua, path)("StatVerdict", ns)
     lua.execute("setmetatable(_G, nil)")
@@ -146,6 +147,8 @@ def set_character(lua, ratings: dict[str, float], agility: float) -> None:
     end
     UnitStat = function() return {agility}, {agility}, 0, 0 end
     """)
+    # The addon reads ratings at gear/spec changes only; a new character is such a change.
+    lua.execute("if SV_TEST_NS and SV_TEST_NS.InvalidateCurrentStatRatings then SV_TEST_NS.InvalidateCurrentStatRatings() end")
 
 
 def build_profile(lua, ns, goal: str, mode: str):

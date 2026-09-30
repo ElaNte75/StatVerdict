@@ -83,3 +83,5 @@ so manually copied or stale generated files fail closed.
 - A candidate more than 5 item levels above the equipped piece never falls below a floor that grows with the gap
   (not for neck, ring, trinket). Up to +5 the stats can still decide.
 - Measured secondary shares are proportional to the measured weights; Guide uses rank shares from the guide order.
+- The live weights read the character's ratings when gear, spec, talents, level or login change, not on every
+  buff: a flask, food or combat buff does not move the verdicts of the moment.

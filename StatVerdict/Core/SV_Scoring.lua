@@ -405,7 +405,7 @@ function ns.GetTrackedProfileStats(profile)
     return keys
 end
 
-function ns.GetCurrentStatRating(statKey)
+local function ReadCurrentStatRating(statKey)
     if type(GetCombatRating) ~= "function" then
         return nil
     end
@@ -440,6 +440,44 @@ function ns.GetCurrentStatRating(statKey)
         return nil
     end
     return converted
+end
+
+-- The rating the live weights work from is read when the gear, spec, talents or level change,
+-- not on every buff. A flask, food or combat buff must not move the verdicts of the moment.
+local ratingCache = {}
+
+function ns.InvalidateCurrentStatRatings()
+    ratingCache = {}
+end
+
+function ns.GetCurrentStatRating(statKey)
+    local cached = ratingCache[statKey]
+    if cached ~= nil then
+        return cached
+    end
+    local value = ReadCurrentStatRating(statKey)
+    if value ~= nil then
+        ratingCache[statKey] = value
+    end
+    return value
+end
+
+local ratingEventFrame = CreateFrame and CreateFrame("Frame") or nil
+if ratingEventFrame then
+    for _, eventName in ipairs({
+        "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "PLAYER_EQUIPMENT_CHANGED", "PLAYER_LEVEL_UP",
+        "PLAYER_SPECIALIZATION_CHANGED", "PLAYER_TALENT_UPDATE", "ACTIVE_TALENT_GROUP_CHANGED",
+        "TRAIT_CONFIG_UPDATED", "TRAIT_SUB_TREE_CHANGED",
+    }) do
+        pcall(ratingEventFrame.RegisterEvent, ratingEventFrame, eventName)
+    end
+    ratingEventFrame:SetScript("OnEvent", function()
+        ns.InvalidateCurrentStatRatings()
+        if C_Timer and C_Timer.After then
+            -- Ratings settle shortly after a gear change; read them again then.
+            C_Timer.After(0.3, ns.InvalidateCurrentStatRatings)
+        end
+    end)
 end
 
 local WEAPON_EQUIP_LOCATIONS = {

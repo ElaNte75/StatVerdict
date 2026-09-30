@@ -746,7 +746,6 @@ RegisterEventSafe("BAG_UPDATE_DELAYED")
 RegisterEventSafe("BAG_NEW_ITEMS_UPDATED")
 RegisterEventSafe("PLAYER_REGEN_ENABLED")
 RegisterEventSafe("GET_ITEM_INFO_RECEIVED")
-RegisterEventSafe("COMBAT_RATING_UPDATE")
 local function AnyArrowWindowVisible()
     if AnyKnownContainerVisible() then
         return true
@@ -771,15 +770,6 @@ scanFrame:SetScript("OnEvent", function(_, event)
     if event == "GET_ITEM_INFO_RECEIVED" then
         -- Item data arrives in bursts; only care while a window with arrows is open,
         -- and answer a whole burst with one late refresh.
-        if AnyArrowWindowVisible() then
-            clearDecisionCacheOnNextScan = true
-            bagRefreshCounter = bagRefreshCounter + 1
-            ns.RefreshUpgradeIndicators("full", ITEM_INFO_DELAY)
-        end
-        return
-    end
-    if event == "COMBAT_RATING_UPDATE" then
-        -- Flask, food, level up... change the live weights without an equipment change.
         if AnyArrowWindowVisible() then
             clearDecisionCacheOnNextScan = true
             bagRefreshCounter = bagRefreshCounter + 1
