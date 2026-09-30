@@ -112,6 +112,7 @@ def render_profiles(
     scale_only: tuple[str, ...] | None = None,
     target_error: float | None = None,
     seed: int | None = None,
+    extra_lines: tuple[str, ...] = (),
     stat_sheet_only: bool = False,
     talents_optional: bool = False,
 ) -> tuple[str, dict[str, dict[str, Any]]]:
@@ -159,6 +160,9 @@ def render_profiles(
             )
         )
         actor_map[actor_name] = record
+    if extra_lines:
+        # After the players: SimC profilesets refer to the actor defined above them.
+        blocks.append("\n".join(extra_lines))
     return "\n\n".join(blocks) + "\n", actor_map
 
 
