@@ -316,6 +316,71 @@
     "start_dps": 189861.07408823757
    },
    "spec": "MAGE_FIRE"
+  },
+  {
+   "goal": "MYTHIC_PLUS",
+   "heroTalent": "herald-of-the-sun",
+   "result": {
+    "base_ratings": {
+     "crit": 963.0,
+     "haste": 1220.0,
+     "mastery": 1125.0,
+     "versatility": 73.0
+    },
+    "deltas": {
+     "crit": 50,
+     "haste": -250,
+     "mastery": 200,
+     "versatility": 0
+    },
+    "final_dps": 157473.41057423683,
+    "final_ratings": {
+     "crit": 1013.0,
+     "haste": 970.0,
+     "mastery": 1325.0,
+     "versatility": 73.0
+    },
+    "gain_pct": 0.48066434852591244,
+    "history": [
+     {
+      "best_gain_pct": 0.3851372106607119,
+      "dps": 156720.1128647265,
+      "round": 2,
+      "step": 200,
+      "z": 6.703262205661814
+     },
+     {
+      "best_gain_pct": 0.04418337642232956,
+      "dps": 157247.1123601446,
+      "round": 3,
+      "step": 200,
+      "z": 0.7689948581002388
+     },
+     {
+      "best_gain_pct": 0.11094650212229935,
+      "dps": 157261.38131897186,
+      "round": 4,
+      "step": 100,
+      "z": 1.9252164440946047
+     },
+     {
+      "best_gain_pct": 0.19290933740365043,
+      "dps": 157138.05058119597,
+      "round": 5,
+      "step": 50,
+      "z": 3.358700067770066
+     },
+     {
+      "best_gain_pct": 0.056771118131080746,
+      "dps": 157473.41057423683,
+      "round": 6,
+      "step": 50,
+      "z": 0.9878005783571484
+     }
+    ],
+    "start_dps": 156720.1128647265
+   },
+   "spec": "PALADIN_RETRIBUTION"
   }
  ]
 }
