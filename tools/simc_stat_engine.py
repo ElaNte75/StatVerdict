@@ -111,6 +111,7 @@ def render_profiles(
     calculate_scale_factors: bool = False,
     scale_only: tuple[str, ...] | None = None,
     target_error: float | None = None,
+    seed: int | None = None,
     stat_sheet_only: bool = False,
     talents_optional: bool = False,
 ) -> tuple[str, dict[str, dict[str, Any]]]:
@@ -134,6 +135,8 @@ def render_profiles(
         blocks.append("scale_only=" + ",".join(scale_only))
     if target_error is not None:
         blocks.append(f"target_error={target_error}")
+    if seed is not None:
+        blocks.append(f"seed={int(seed)}")
     blocks += [
         "report_details=0",
         "allow_experimental_specializations=1",
