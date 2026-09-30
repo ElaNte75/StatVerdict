@@ -10,7 +10,7 @@ local MODES = {
     },
     {
         key = "MEASURED", label = "Measured", meaning = "Our own measurement", hint = "",
-        about = "Our own simulation of your DPS: targets from best-in-slot gear with gems and enchants, and measured stat values. For tank specs it measures damage, not survivability.",
+        about = "Our own DPS simulation: best-in-slot targets and measured stat values. Tanks are measured for damage, not survivability. Healers use the guide.",
     },
 }
 local DEFAULT_MODE = "GUIDE"

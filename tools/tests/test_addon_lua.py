@@ -105,9 +105,8 @@ class WeightModeCoreTests(unittest.TestCase):
         self.assertEqual(["From guides", "Our own measurement"], [modes[i].meaning for i in (1, 2)])
         self.assertEqual("Stat priority and stat targets taken straight from the guides. Recommended.",
                          modes[1].about)
-        self.assertEqual("Our own simulation of your DPS: targets from best-in-slot gear with gems and "
-                         "enchants, and measured stat values. For tank specs it measures damage, not "
-                         "survivability.", modes[2].about)
+        self.assertEqual("Our own DPS simulation: best-in-slot targets and measured stat values. Tanks are measured for damage, not survivability. Healers use the guide.",
+                         modes[2].about)
         self.assertEqual("Measured", self.ns.GetWeightModeInfo("MEASURED").label)
         self.assertEqual("Guide", self.ns.GetWeightModeInfo("junk").label)
         self.assertEqual("Guide", self.ns.GetWeightModeInfo("BLEND").label)
@@ -1406,7 +1405,7 @@ class PanelModeTests(unittest.TestCase):
         source = (ADDON / "UI" / "SV_ManualDrawerPanel.lua").read_text(encoding="utf-8-sig")
         self.assertIn("Mode — choose how stat priorities and targets are decided: Guide (from the guides, "
                       "recommended) or Measured (our own measurement of your DPS; tank specs are measured for damage, "
-                      "not survivability).", source)
+                      "not survivability; healers are not measured and use the guide).", source)
         self.assertIn("With Guide you also pick a stat target difficulty: Tier 3, Tier 2 or Tier 1 "
                       "(the most demanding).", source)
         self.assertIn("With Measured you pick a gear level instead: Champion, Hero or Myth (the most "
