@@ -913,7 +913,7 @@ class IcyVeinsItemLevelTests(unittest.TestCase):
         self.assertEqual(300.0, context["targets"]["averageItemLevel"])
         self.assertEqual("classcodex", context["targets"]["targetMetadata"]["itemLevelSource"])
 
-    def test_a_catalyst_entry_simulates_and_shows_the_catalyst_item(self) -> None:
+    def test_a_catalyst_entry_simulates_and_shows_the_tier_piece_at_max_upgrade(self) -> None:
         gear = [
             {
                 "slot": "Head",
@@ -923,8 +923,10 @@ class IcyVeinsItemLevelTests(unittest.TestCase):
             }
         ]
         context, profile = self.simulate({"ratings": {"crit": 1.0, "haste": 2.0}}, gear)
-        self.assertIn("head=,id=271875,bonus_id=13848/13847", profile)
-        self.assertEqual({"item_id": 271875, "bonus_ids": [13848, 13847]}, context["bis"]["slots"][0]["item"])
+        # The top-level item is the BiS tier piece; the catalyst block names the base item that
+        # converts into it and carries the max-upgrade bonus ids.
+        self.assertIn("head=,id=271537,bonus_id=13848/13847", profile)
+        self.assertEqual({"item_id": 271537, "bonus_ids": [13848, 13847]}, context["bis"]["slots"][0]["item"])
 
 
 class IcyVeinsEnchantTranslationTests(unittest.TestCase):
@@ -1027,9 +1029,6 @@ class WowheadItemLevelTests(unittest.TestCase):
         self.assertEqual({"HEAD": 334.0, "NECK": 344.0}, levels)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class AnnotatedPriorityEntryTests(unittest.TestCase):
     def test_icy_veins_stat_notes_keep_the_stat(self) -> None:
@@ -1039,3 +1038,25 @@ class AnnotatedPriorityEntryTests(unittest.TestCase):
             {"secondary": [[{"stat": "versatility", "note": "to 24%"}], ["mastery"], ["haste"], ["crit"]]}, "PvP", "hero"
         )
         self.assertEqual(["versatility", "mastery", "haste", "critical_strike"], row["order"])
+
+
+class CatalystEntryTests(unittest.TestCase):
+    def test_the_bis_item_is_the_tier_piece_and_keeps_the_catalyst_bonus_ids(self) -> None:
+        from tools.classcodex_targets import gear_by_simc_slot
+
+        entry = {"slot": "Head", "itemId": 271483, "source": "Catalyst from Voidscar Arena",
+                 "catalyst": {"itemId": 251220, "bonusIDs": [12854]}}
+        head = gear_by_simc_slot([entry])["HEAD"]
+        self.assertEqual(271483, head["itemId"])
+        self.assertEqual([12854], head["bonusIDs"])
+        self.assertNotIn("catalyst", head)
+
+    def test_entries_without_a_catalyst_block_are_unchanged(self) -> None:
+        from tools.classcodex_targets import gear_by_simc_slot
+
+        head = gear_by_simc_slot([{"slot": "Head", "itemId": 1, "bonusIDs": [5]}])["HEAD"]
+        self.assertEqual((1, [5]), (head["itemId"], head["bonusIDs"]))
+
+
+if __name__ == "__main__":
+    unittest.main()

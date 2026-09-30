@@ -174,12 +174,13 @@ def gear_by_simc_slot(gear_list: list[dict[str, Any]] | None) -> dict[str, dict[
         if not isinstance(entry, dict):
             continue
         catalyst = entry.get("catalyst")
-        if isinstance(catalyst, dict) and isinstance(catalyst.get("itemId"), (int, float)):
-            # Icy Veins: {itemId = <drop>, catalyst = {itemId = <tier piece>,
-            # bonusIDs = {...}}} -- the BiS item is the Catalyst result, and
-            # only it carries the bonus ids that put it at max upgrade.
+        if isinstance(catalyst, dict):
+            # Icy Veins: {itemId = <the BiS tier piece>, catalyst = {itemId = <the base item that
+            # converts into it>, bonusIDs = {...}}}. Checked against SimC's item data (Head:
+            # 271483 "Serpent Crown of the Ophidian Oracle" is the set piece, 251220 "Voidscarred
+            # Crown" the base drop). The BiS item is the top-level one; only the catalyst block
+            # carries the bonus ids that put it at max upgrade, so those are added to it.
             entry = {k: v for k, v in entry.items() if k not in ("catalyst", "bonusIDs")}
-            entry["itemId"] = catalyst["itemId"]
             if isinstance(catalyst.get("bonusIDs"), list):
                 entry["bonusIDs"] = catalyst["bonusIDs"]
         simc_slot = CLASSCODEX_SLOT_TO_SIMC.get(str(entry.get("slot") or ""))
