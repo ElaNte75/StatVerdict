@@ -119,7 +119,7 @@ function ns.RenderTooltipVerdict(tooltip, context, comparison, isSecondary, show
         local rankText = trinket.rank and (" #" .. tostring(trinket.rank)) or ""
         AddLine(tooltip, c.white .. "Trinket Tier: " .. tierColor .. "(" .. tier .. rankText .. ")|r" .. c.reset, 1, 1, 1)
     end
-    if type(upgradeInfo) == "table" and tonumber(upgradeInfo.maxItemLevel) then
+    if type(upgradeInfo) == "table" and (tonumber(upgradeInfo.maxItemLevel) or 0) > 0 then
         local track = type(upgradeInfo.trackString) == "string" and upgradeInfo.trackString or "Upgrade Track"
         local currentLevel = tonumber(upgradeInfo.currentLevel)
         local maxLevel = tonumber(upgradeInfo.maxLevel)

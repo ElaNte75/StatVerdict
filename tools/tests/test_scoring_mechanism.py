@@ -172,6 +172,60 @@ class ScoringMechanismTests(unittest.TestCase):
         self.assertGreater(far[haste][1], near[haste][1])
         self.assertLess(over[haste][1], near[haste][1])
 
+    # --- two pieces are never both better than each other ---
+
+    RATING_NAME = {"crit_rating": "crit", "haste_rating": "haste", "mastery_rating": "mastery",
+                   "versatility_rating": "versatility"}
+
+    def between(self, mode: str, ratings: dict, slot: str, worn: dict, other: dict) -> float:
+        """The verdict points of `other` replacing `worn` in `slot`, for a character with `ratings`."""
+        lua, ns = self.lua, self.ns
+        verdict.set_character(lua, ratings, 1600)
+        profile = verdict.build_profile(lua, ns, "MYTHIC_PLUS", mode)
+        equipped = lua.table()
+        for gear_slot, (slot_id, _) in verdict.SLOTS.items():
+            link = f"item:{gear_slot}:246"
+            verdict.register_item(lua, link, 1, worn if gear_slot == slot else base_item(gear_slot), gear_slot)
+            equipped[slot_id] = link
+        lua.globals().EQUIPPED = equipped
+        verdict.register_item(lua, "item:c:1", 1, other, slot)
+        ns.ClearUpgradeIndicatorDecisionCache()
+        return float(ns.BuildComparison("item:c:1", profile).selected.deltaScore)
+
+    def pair_verdicts(self, mode: str, state: str, slot: str, a: dict, b: dict) -> tuple[float, float]:
+        ratings = dict(STATES[state])
+        forward = self.between(mode, ratings, slot, a, b)
+        shifted = dict(ratings)
+        for key, name in self.RATING_NAME.items():
+            shifted[name] = shifted[name] + b.get(key, 0) - a.get(key, 0)
+        backward = self.between(mode, shifted, slot, b, a)
+        return forward, backward
+
+    def test_two_pieces_are_never_both_better_than_each_other(self) -> None:
+        a = base_item("chest")
+        others = [
+            {**a, "name": "same ilvl, stats moved", "crit_rating": 20, "haste_rating": 110, "mastery_rating": 80},
+            {**a, "name": "versatility instead", "ilevel": 246, "versatility_rating": 72, "crit_rating": 30, "haste_rating": 50, "mastery_rating": 28},
+            {**a, "name": "+4 ilvl", "ilevel": 250, "agility": 115, "crit_rating": 50, "haste_rating": 84, "mastery_rating": 49},
+            {**a, "name": "-6 ilvl more top stats", "ilevel": 240, "agility": 104, "crit_rating": 40, "haste_rating": 84, "mastery_rating": 90},
+            {**a, "name": "+6 ilvl worse split", "ilevel": 252, "agility": 117, "crit_rating": 60, "haste_rating": 20, "mastery_rating": 20, "versatility_rating": 40},
+            {**a, "name": "+10 ilvl", "ilevel": 256, "agility": 122, "crit_rating": 80, "haste_rating": 60, "mastery_rating": 60},
+            {**a, "name": "primary -4, better top stats", "agility": 106, "crit_rating": 70, "haste_rating": 110, "mastery_rating": 90},
+        ]
+        for mode in ("GUIDE", "MEASURED"):
+            for state in STATES:
+                for other in others:
+                    forward, backward = self.pair_verdicts(mode, state, "chest", a, other)
+                    self.assertFalse(forward > 0 and backward > 0, (mode, state, other["name"], forward, backward))
+
+    def test_with_nothing_but_stats_the_two_directions_are_exactly_opposite(self) -> None:
+        a = base_item("chest")
+        b = {**a, "crit_rating": 20, "haste_rating": 110, "mastery_rating": 80}  # same item level, same primary
+        for mode in ("GUIDE", "MEASURED"):
+            for state in STATES:
+                forward, backward = self.pair_verdicts(mode, state, "chest", a, b)
+                self.assertAlmostEqual(0.0, forward + backward, places=6, msg=(mode, state, forward, backward))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -79,7 +79,7 @@ function ns.TryApproveItemLink(itemLink, slotID, preferSecondary)
     if ns.IsItemInEquipmentSnapshot and ns.RemoveItemFromVirtualLoadout
         and ns.IsItemInEquipmentSnapshot(profile, itemLink) then
         local removed, removeMessage = ns.RemoveItemFromVirtualLoadout(itemLink, profile)
-        PrintSV(removeMessage or (removed and "Removed." or "Remove failed."))
+        if not removed then PrintSV(removeMessage or "Remove failed.") end
         return removed and true or false
     end
 
@@ -96,8 +96,9 @@ function ns.TryApproveItemLink(itemLink, slotID, preferSecondary)
         end
     end
 
+    -- The marker on the item (MS / OS) is the answer; chat only says something when it did not work.
     local ok, message = ns.ApproveItemIntoVirtualLoadout(itemLink, profile, slotID)
-    PrintSV(message or (ok and "Saved." or "Approve failed."))
+    if not ok then PrintSV(message or "Approve failed.") end
     return ok and true or false
 end
 

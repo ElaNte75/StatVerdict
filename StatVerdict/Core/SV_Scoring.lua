@@ -127,23 +127,47 @@ local function GetSecondaryBaseWeight(rank)
     return TARGET_SECONDARY_BASE[rank] or 0.50
 end
 
+-- While a swap is judged, the ratings the live weights read are the MIDDLE of the swap (the rating now
+-- plus half of the change): judged from the other side the middle is the same, so the verdict of A over B
+-- is exactly the opposite of B over A and two pieces can never both be better than each other.
+local ratingOverride = nil
+
 -- The rating of a stat the character has now (an off-spec profile: the saved snapshot's).
-local function GetCurrentRatingForScoring(profile, statKey)
+local function GetPlayerRatingForScoring(profile, statKey)
     if ns.ShouldUseEquipmentSnapshot and ns.ShouldUseEquipmentSnapshot(profile) then
         return ns.GetSnapshotStatValue and ns.GetSnapshotStatValue(profile, statKey) or nil
     end
     return ns.GetCurrentStatRating and ns.GetCurrentStatRating(statKey) or nil
 end
 
+-- The rating the live weights read: the middle of the swap being judged, else the rating now.
+local function GetCurrentRatingForScoring(profile, statKey)
+    if ratingOverride and ratingOverride[statKey] ~= nil then
+        return ratingOverride[statKey]
+    end
+    return GetPlayerRatingForScoring(profile, statKey)
+end
+
+local function BeginSwapRatings(profile, candidateStats, equippedStats)
+    local mid = {}
+    for statKey in pairs(SECONDARY_TARGET_KEY) do
+        local current = GetPlayerRatingForScoring(profile, statKey)
+        if type(current) == "number" then
+            local delta = (tonumber(candidateStats[statKey]) or 0) - (tonumber(equippedStats[statKey]) or 0)
+            mid[statKey] = current + delta / 2
+        end
+    end
+    ratingOverride = mid
+end
+
+local function EndSwapRatings()
+    ratingOverride = nil
+end
+
 local function GetTargetLiveMultiplier(profile, statKey)
     local sanitizer = ns.SanitizeStatVerdictNumber
     local target = GetTargetForStat(profile, statKey)
-    local current
-    if ns.ShouldUseEquipmentSnapshot and ns.ShouldUseEquipmentSnapshot(profile) then
-        current = ns.GetSnapshotStatValue and ns.GetSnapshotStatValue(profile, statKey) or nil
-    else
-        current = ns.GetCurrentStatRating and ns.GetCurrentStatRating(statKey) or nil
-    end
+    local current = GetCurrentRatingForScoring(profile, statKey)
     if type(sanitizer) == "function" then
         target = sanitizer(target)
         current = sanitizer(current)
@@ -238,12 +262,7 @@ local function GetSecondaryCacheToken(profile)
     local parts = { id }
     if type(profile.secondaryOrder) == "table" then
         for _, statKey in ipairs(profile.secondaryOrder) do
-            local current
-            if ns.ShouldUseEquipmentSnapshot and ns.ShouldUseEquipmentSnapshot(profile) then
-                current = ns.GetSnapshotStatValue and ns.GetSnapshotStatValue(profile, statKey) or 0
-            else
-                current = ns.GetCurrentStatRating and ns.GetCurrentStatRating(statKey) or 0
-            end
+            local current = GetCurrentRatingForScoring(profile, statKey) or 0
             -- The target too: a new gear level or guide tier keeps the profile id.
             parts[#parts + 1] = tostring(statKey) .. "=" .. tostring(current)
                 .. "/" .. tostring(GetTargetForStat(profile, statKey))
@@ -353,6 +372,7 @@ end
 -- of the budget (base) and the live weight after the character's current stats (live).
 -- nil for anything the target-driven scoring does not weigh this way.
 function ns.GetScoringSecondaryWeights(profile, statKey)
+    ratingOverride = nil  -- never read a half-finished swap's ratings here
     if not IsGeneratedTargetProfile(profile) or not SECONDARY_TARGET_KEY[statKey] then return nil end
     local shares = ns.GetSecondaryBaseShares(profile.secondaryOrder, profile.equalGroups, profile.secondaryWeights)
     local base = shares[statKey]
@@ -650,36 +670,27 @@ function ns.GetItemProfileScore(itemLink, profile, slotID)
     return total, rows, stats
 end
 
-local function GetItemLevelGapGuardPenalty(candidateStats, equippedStats, profile)
-    if not IsGeneratedTargetProfile(profile) then return 0 end
-    if type(candidateStats) ~= "table" or type(equippedStats) ~= "table" then return 0 end
-
-    local candidateItemLevel = tonumber(candidateStats.STATVERDICT_ITEM_LEVEL) or 0
-    local equippedItemLevel = tonumber(equippedStats.STATVERDICT_ITEM_LEVEL) or 0
-    local gap = equippedItemLevel - candidateItemLevel
-    if gap <= 5 then return 0 end
-
-    local penalty = 0
-    local firstBand = math.min(gap, 10) - 5
-    if firstBand > 0 then penalty = penalty + (firstBand * 3) end
-    local secondBand = math.min(gap, 20) - 10
-    if secondBand > 0 then penalty = penalty + (secondBand * 5) end
-    local thirdBand = gap - 20
-    if thirdBand > 0 then penalty = penalty + (thirdBand * 8) end
-
-    return penalty
-end
-
--- Item level wins: a piece with clearly more item level has more primary stat and more of every
--- secondary, so it is an upgrade whatever its split of secondaries. Small steps (up to 5 item
--- levels) are left to the stats. Jewelry and trinkets are the exception: they carry no primary
--- stat, so a lower item level with much better stats can beat a higher one there.
+-- Item level wins, in both directions: a piece with clearly more item level has more primary stat and
+-- more of every secondary, so it is an upgrade whatever its split of secondaries, and a piece with
+-- clearly less item level is never one. Small steps (up to 5 item levels) are left to the stats.
+-- Jewelry and trinkets are the exception: they carry no primary stat, so a lower item level with much
+-- better stats can beat a higher one there. The two directions use the same number, so the verdict of
+-- A over B stays the opposite of B over A.
 local ITEM_LEVEL_WIN_FREE_GAP = 5
 local NO_ITEM_LEVEL_WIN = {
     INVTYPE_NECK = true,
     INVTYPE_FINGER = true,
     INVTYPE_TRINKET = true,
 }
+
+-- The points a gap of item levels (beyond the free gap) is worth: 3 per item level from 6 to 10, 5 from 11
+-- to 20, 8 above.
+local function ItemLevelGapPoints(gap)
+    local points = (math.min(gap, 10) - ITEM_LEVEL_WIN_FREE_GAP) * 3
+    if gap > 10 then points = points + (math.min(gap, 20) - 10) * 5 end
+    if gap > 20 then points = points + (gap - 20) * 8 end
+    return points
+end
 
 local function ApplyItemLevelWinGuard(total, rows, candidateStats, equippedStats, profile, equipLocation)
     if not IsGeneratedTargetProfile(profile) then return total end
@@ -689,41 +700,28 @@ local function ApplyItemLevelWinGuard(total, rows, candidateStats, equippedStats
     local candidateItemLevel = tonumber(candidateStats.STATVERDICT_ITEM_LEVEL) or 0
     local equippedItemLevel = tonumber(equippedStats.STATVERDICT_ITEM_LEVEL) or 0
     local gap = candidateItemLevel - equippedItemLevel
-    if gap <= ITEM_LEVEL_WIN_FREE_GAP then return total end
+    if math.abs(gap) <= ITEM_LEVEL_WIN_FREE_GAP then return total end
 
-    -- The points the gap is worth: 3 per item level from 6 to 10, 5 from 11 to 20, 8 above.
-    local floor = (math.min(gap, 10) - ITEM_LEVEL_WIN_FREE_GAP) * 3
-    if gap > 10 then floor = floor + (math.min(gap, 20) - 10) * 5 end
-    if gap > 20 then floor = floor + (gap - 20) * 8 end
-    if total >= floor then return total end
-
-    local lift = floor - total
+    local points = ItemLevelGapPoints(math.abs(gap))
+    local guarded
+    if gap > 0 then
+        if total >= points then return total end
+        guarded = points
+    else
+        if total <= -points then return total end
+        guarded = -points
+    end
+    local change = guarded - total
     rows[#rows + 1] = {
         statKey = "STATVERDICT_ITEM_LEVEL_GUARD",
         statName = "Item Level Guard",
         amount = 1,
-        points = lift,
-        signedPoints = lift,
-        weight = lift,
-        positive = true,
+        points = math.abs(change),
+        signedPoints = change,
+        weight = change,
+        positive = change > 0,
     }
-    return floor
-end
-
-local function ApplyItemLevelGapGuard(total, rows, candidateStats, equippedStats, profile)
-    local penalty = GetItemLevelGapGuardPenalty(candidateStats, equippedStats, profile)
-    if penalty <= 0 then return total end
-
-    rows[#rows + 1] = {
-        statKey = "STATVERDICT_ITEM_LEVEL_GUARD",
-        statName = "Item Level Guard",
-        amount = 1,
-        points = penalty,
-        signedPoints = -penalty,
-        weight = penalty,
-        positive = false,
-    }
-    return total - penalty
+    return guarded
 end
 
 -- Small primary deficit may lose to clearly better #1+#2 secondaries (sidegrades).
@@ -736,26 +734,29 @@ local function ApplySoftPrimaryGapForgiveness(total, rows, candidateStats, equip
     if not primaryKey then return total end
 
     local primaryDelta = (tonumber(candidateStats[primaryKey]) or 0) - (tonumber(equippedStats[primaryKey]) or 0)
-    if primaryDelta >= 0 or primaryDelta < -SOFT_PRIMARY_GAP then
+    if primaryDelta == 0 or math.abs(primaryDelta) > SOFT_PRIMARY_GAP then
         return total
     end
 
     local candidateItemLevel = tonumber(candidateStats.STATVERDICT_ITEM_LEVEL) or 0
     local equippedItemLevel = tonumber(equippedStats.STATVERDICT_ITEM_LEVEL) or 0
-    if candidateItemLevel < equippedItemLevel - SOFT_PRIMARY_ILVL_SLACK then
+    if math.abs(candidateItemLevel - equippedItemLevel) > SOFT_PRIMARY_ILVL_SLACK then
         return total
     end
 
+    -- Judged the same from both sides: the piece with the smaller primary is forgiven (+) when its top two
+    -- secondaries make up for it, and the piece with the larger primary loses the same amount (-).
+    local direction = primaryDelta < 0 and 1 or -1
     local primaryPoints = nil
     local topTwoPoints = 0
     for _, row in ipairs(rows) do
         if type(row) == "table" then
             if row.statKey == primaryKey then
-                primaryPoints = tonumber(row.signedPoints)
+                primaryPoints = (tonumber(row.signedPoints) or 0) * direction
             else
                 local rank = GetSecondaryRank(profile, row.statKey)
                 if rank and rank <= 2 then
-                    topTwoPoints = topTwoPoints + (tonumber(row.signedPoints) or 0)
+                    topTwoPoints = topTwoPoints + (tonumber(row.signedPoints) or 0) * direction
                 end
             end
         end
@@ -770,8 +771,8 @@ local function ApplySoftPrimaryGapForgiveness(total, rows, candidateStats, equip
         return total
     end
 
-    local forgiveness = (-primaryPoints) * (1 - SOFT_PRIMARY_PENALTY_KEEP)
-    if forgiveness <= 0 then
+    local forgiveness = (-primaryPoints) * (1 - SOFT_PRIMARY_PENALTY_KEEP) * direction
+    if forgiveness == 0 then
         return total
     end
 
@@ -779,10 +780,10 @@ local function ApplySoftPrimaryGapForgiveness(total, rows, candidateStats, equip
         statKey = "STATVERDICT_SOFT_PRIMARY_GAP",
         statName = "Soft Primary Gap",
         amount = math.abs(primaryDelta),
-        points = forgiveness,
+        points = math.abs(forgiveness),
         signedPoints = forgiveness,
         weight = forgiveness,
-        positive = true,
+        positive = forgiveness > 0,
     }
     return total + forgiveness
 end
@@ -799,6 +800,7 @@ function ns.GetWeightedDeltaScore(candidateLink, equippedLink, profile, slotID)
     local rows = {}
     local equipLocation = ns.GetItemEquipLocation and ns.GetItemEquipLocation(candidateLink) or nil
 
+    BeginSwapRatings(profile, candidateStats, equippedStats)
     for statKey in pairs(tracked) do
         local delta = (candidateStats[statKey] or 0) - (equippedStats[statKey] or 0)
         if delta ~= 0 then
@@ -806,7 +808,7 @@ function ns.GetWeightedDeltaScore(candidateLink, equippedLink, profile, slotID)
             -- stat is counted as the change in its effective value from now to after the swap.
             local scored = delta
             if SECONDARY_TARGET_KEY[statKey] and ns.GetEffectiveRatingDelta then
-                scored = ns.GetEffectiveRatingDelta(statKey, GetCurrentRatingForScoring(profile, statKey), delta) or delta
+                scored = ns.GetEffectiveRatingDelta(statKey, GetPlayerRatingForScoring(profile, statKey), delta) or delta
             end
             local points = ScoreStatAmount(profile, statKey, scored, true, equipLocation, candidateStats)
             total = total + points
@@ -821,6 +823,7 @@ function ns.GetWeightedDeltaScore(candidateLink, equippedLink, profile, slotID)
             }
         end
     end
+    EndSwapRatings()
 
     local candidateReferenceBonus = ns.GetItemReferenceBonus and ns.GetItemReferenceBonus(candidateLink, profile) or 0
     local equippedReferenceBonus = equippedLink and ns.GetItemReferenceBonus and ns.GetItemReferenceBonus(equippedLink, profile) or 0
@@ -839,7 +842,6 @@ function ns.GetWeightedDeltaScore(candidateLink, equippedLink, profile, slotID)
     end
 
     total = ApplySoftPrimaryGapForgiveness(total, rows, candidateStats, equippedStats, profile)
-    total = ApplyItemLevelGapGuard(total, rows, candidateStats, equippedStats, profile)
     total = ApplyItemLevelWinGuard(total, rows, candidateStats, equippedStats, profile, equipLocation)
 
     table.sort(rows, function(a, b)
@@ -888,12 +890,13 @@ function ns.GetWeightedDeltaScoreForEquippedSet(candidateLink, equippedItems, pr
     local rows = {}
     local equipLocation = ns.GetItemEquipLocation and ns.GetItemEquipLocation(candidateLink) or nil
 
+    BeginSwapRatings(profile, candidateStats, equippedStats)
     for statKey in pairs(tracked) do
         local delta = (candidateStats[statKey] or 0) - (equippedStats[statKey] or 0)
         if delta ~= 0 then
             local scored = delta
             if SECONDARY_TARGET_KEY[statKey] and ns.GetEffectiveRatingDelta then
-                scored = ns.GetEffectiveRatingDelta(statKey, GetCurrentRatingForScoring(profile, statKey), delta) or delta
+                scored = ns.GetEffectiveRatingDelta(statKey, GetPlayerRatingForScoring(profile, statKey), delta) or delta
             end
             local points = ScoreStatAmount(profile, statKey, scored, true, equipLocation, candidateStats)
             total = total + points
@@ -908,6 +911,7 @@ function ns.GetWeightedDeltaScoreForEquippedSet(candidateLink, equippedItems, pr
             }
         end
     end
+    EndSwapRatings()
 
     local candidateReferenceBonus = ns.GetItemReferenceBonus and ns.GetItemReferenceBonus(candidateLink, profile) or 0
     local referenceDelta = (candidateReferenceBonus or 0) - equippedReferenceBonus
@@ -925,7 +929,6 @@ function ns.GetWeightedDeltaScoreForEquippedSet(candidateLink, equippedItems, pr
     end
 
     total = ApplySoftPrimaryGapForgiveness(total, rows, candidateStats, equippedStats, profile)
-    total = ApplyItemLevelGapGuard(total, rows, candidateStats, equippedStats, profile)
     total = ApplyItemLevelWinGuard(total, rows, candidateStats, equippedStats, profile, equipLocation)
 
     table.sort(rows, function(a, b)

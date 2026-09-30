@@ -654,6 +654,9 @@ local function ScanVisibleItemFrames(kind)
     if clearDecisionCacheOnNextScan and ns.ClearUpgradeIndicatorDecisionCache then
         ns.ClearUpgradeIndicatorDecisionCache()
         clearDecisionCacheOnNextScan = false
+        -- Every slot remembers the item it last showed; after a change (an Alt-click save, a swap, a
+        -- new spec) that memory is stale, so this scan must repaint every slot.
+        bagRefreshCounter = bagRefreshCounter + 1
     end
 
     if AnyKnownContainerVisible() then

@@ -88,3 +88,7 @@ so manually copied or stale generated files fail closed.
 - Live secondary weights: each stat's fixed share is scaled by its distance from the target (same limits for
   every stat, no rank-based limits), then all four are brought back to the fixed budget in proportion; ties in
   the guide stay equal for equal needs.
+- A swap is judged with the live weights read at the MIDDLE of the swap (rating now plus half of the change), so
+  the verdict of piece A over piece B is exactly the opposite of B over A: two pieces are never both better than
+  each other. Item level wins in both directions beyond 5 item levels (jewelry and trinkets excepted), and the
+  small-primary forgiveness is given and taken back the same way.
