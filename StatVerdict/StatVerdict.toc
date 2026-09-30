@@ -24,6 +24,7 @@ Core/SV_ItemReferenceBonuses.lua
 Core/SV_Modifiers.lua
 Core/SV_LiveWeights.lua
 Core/SV_ItemData.lua
+Core/SV_DiminishingReturns.lua
 Core/SV_Scoring.lua
 Core/SV_Rules.lua
 Core/SV_Comparison.lua

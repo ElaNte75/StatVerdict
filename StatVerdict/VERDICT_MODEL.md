@@ -23,6 +23,10 @@ percentages.
   / Tier 1, the default being the most demanding); Measured targets come from
   best-in-slot gear at a chosen gear level (Champion / Hero / Myth). A stat with
   no target keeps its row with target 0.
+- **Diminishing returns.** A swap is judged by what it really adds to the stats you have now:
+  the game takes an increasing cut off rating past about 30% of a stat, so the change in the
+  effective stat (after the cuts) is scored, not a straight count of rating. Below the first
+  cut the two are identical.
 - **Main Spec baseline** is currently equipped gear.
 - **Off Spec baseline** is the saved virtual loadout. Dynamic off-spec weights
   require stats captured while that specialization was active.

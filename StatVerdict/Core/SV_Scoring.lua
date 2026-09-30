@@ -124,6 +124,14 @@ local function GetSecondaryBaseWeight(rank)
     return TARGET_SECONDARY_BASE[rank] or 0.50
 end
 
+-- The rating of a stat the character has now (an off-spec profile: the saved snapshot's).
+local function GetCurrentRatingForScoring(profile, statKey)
+    if ns.ShouldUseEquipmentSnapshot and ns.ShouldUseEquipmentSnapshot(profile) then
+        return ns.GetSnapshotStatValue and ns.GetSnapshotStatValue(profile, statKey) or nil
+    end
+    return ns.GetCurrentStatRating and ns.GetCurrentStatRating(statKey) or nil
+end
+
 local function GetTargetLiveMultiplier(profile, statKey, rank)
     local sanitizer = ns.SanitizeStatVerdictNumber
     local target = GetTargetForStat(profile, statKey)
@@ -719,7 +727,13 @@ function ns.GetWeightedDeltaScore(candidateLink, equippedLink, profile, slotID)
     for statKey in pairs(tracked) do
         local delta = (candidateStats[statKey] or 0) - (equippedStats[statKey] or 0)
         if delta ~= 0 then
-            local points = ScoreStatAmount(profile, statKey, delta, true, equipLocation, candidateStats)
+            -- What the swap really adds: rating loses value above the first cut, so a secondary
+            -- stat is counted as the change in its effective value from now to after the swap.
+            local scored = delta
+            if SECONDARY_TARGET_KEY[statKey] and ns.GetEffectiveRatingDelta then
+                scored = ns.GetEffectiveRatingDelta(statKey, GetCurrentRatingForScoring(profile, statKey), delta) or delta
+            end
+            local points = ScoreStatAmount(profile, statKey, scored, true, equipLocation, candidateStats)
             total = total + points
             rows[#rows + 1] = {
                 statKey = statKey,
