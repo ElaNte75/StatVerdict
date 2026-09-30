@@ -60,15 +60,16 @@ class ScoringMechanismTests(unittest.TestCase):
     def test_clearly_more_item_level_is_always_an_upgrade_on_armor(self) -> None:
         for mode in ("GUIDE", "MEASURED"):
             for state in STATES:
-                for gap in (6, 10, 20):
+                for gap in (10, 14, 20):
                     for pair in PAIRS:
                         selected = self.comparison(mode, state, "chest", candidate("chest", 246 + gap, pair))
                         self.assertTrue(selected.isUpgrade and selected.deltaScore > 0, (mode, state, gap, pair))
 
     def test_small_steps_are_left_to_the_stats(self) -> None:
-        # +5 item levels is not forced: a split that loses value (all Versatility) is not an upgrade.
-        worst = candidate("chest", 251, ("versatility_rating", "versatility_rating"))
-        self.assertFalse(self.comparison("GUIDE", "mid", "chest", worst).isUpgrade)
+        # Up to +9 item levels is not forced: a split that loses value (all Versatility) is not an upgrade.
+        for gap in (5, 9):
+            worst = candidate("chest", 246 + gap, ("versatility_rating", "versatility_rating"))
+            self.assertFalse(self.comparison("GUIDE", "mid", "chest", worst).isUpgrade, gap)
 
     def test_jewelry_is_the_exception(self) -> None:
         # Necks carry no primary stat: +10 item levels with the worst split is not forced up.
@@ -225,6 +226,26 @@ class ScoringMechanismTests(unittest.TestCase):
             for state in STATES:
                 forward, backward = self.pair_verdicts(mode, state, "chest", a, b)
                 self.assertAlmostEqual(0.0, forward + backward, places=6, msg=(mode, state, forward, backward))
+
+    def test_six_item_levels_do_not_beat_a_much_better_split(self) -> None:
+        # Seen in the game (head, Enhancement): the 256 piece has Haste + Versatility, the 250 piece has
+        # Haste + Mastery (the top two stats) and 5 less Agility. Six item levels are a small step, so the
+        # stats decide: in Guide the 250 piece is the upgrade and the 256 piece is not, from both sides.
+        high = {"name": "256", "ilevel": 256, "agility": 91, "haste_rating": 66, "versatility_rating": 72}
+        low = {"name": "250", "ilevel": 250, "agility": 86, "haste_rating": 84, "mastery_rating": 49}
+        ratings = {"crit": 261, "haste": 663, "mastery": 677, "versatility": 97}
+        for mode in ("GUIDE", "MEASURED"):
+            low_over_high = self.between(mode, ratings, "head", high, low)
+            shifted = dict(ratings, haste=ratings["haste"] + 84 - 66, mastery=ratings["mastery"] + 49,
+                           versatility=ratings["versatility"] - 72)
+            high_over_low = self.between(mode, shifted, "head", low, high)
+            if mode == "GUIDE":
+                self.assertGreater(low_over_high, 0, mode)
+                self.assertLess(high_over_low, 0, mode)
+            else:
+                # Measured follows our own measurements (Versatility is worth more there): it may decide
+                # the other way, but never both ways.
+                self.assertFalse(low_over_high > 0 and high_over_low > 0, mode)
 
 
 if __name__ == "__main__":

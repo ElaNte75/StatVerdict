@@ -672,19 +672,20 @@ end
 
 -- Item level wins, in both directions: a piece with clearly more item level has more primary stat and
 -- more of every secondary, so it is an upgrade whatever its split of secondaries, and a piece with
--- clearly less item level is never one. Small steps (up to 5 item levels) are left to the stats.
+-- clearly less item level is never one. "Clearly" means 10 or more item levels; smaller steps are left to
+-- the stats (a few item levels are worth less than a much better split of the secondaries).
 -- Jewelry and trinkets are the exception: they carry no primary stat, so a lower item level with much
 -- better stats can beat a higher one there. The two directions use the same number, so the verdict of
 -- A over B stays the opposite of B over A.
-local ITEM_LEVEL_WIN_FREE_GAP = 5
+local ITEM_LEVEL_WIN_FREE_GAP = 9
 local NO_ITEM_LEVEL_WIN = {
     INVTYPE_NECK = true,
     INVTYPE_FINGER = true,
     INVTYPE_TRINKET = true,
 }
 
--- The points a gap of item levels (beyond the free gap) is worth: 3 per item level from 6 to 10, 5 from 11
--- to 20, 8 above.
+-- The points a gap of item levels (beyond the free gap) is worth: 3 at 10 item levels, then 5 per item
+-- level up to 20 and 8 above.
 local function ItemLevelGapPoints(gap)
     local points = (math.min(gap, 10) - ITEM_LEVEL_WIN_FREE_GAP) * 3
     if gap > 10 then points = points + (math.min(gap, 20) - 10) * 5 end

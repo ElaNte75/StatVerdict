@@ -109,7 +109,7 @@ level up); tooltips are always fresh. Also, buffs count as stats (combat ratings
 Owner's rule: two data sets (Guide = 1:1 guide copy, Measured = our SimC), one decision mechanism. Only the
 mechanism changed, not the data:
 
-- **Item level wins.** A candidate more than 5 item levels above the equipped piece can no longer score below a
+- **Item level wins.** A candidate 10 or more item levels above the equipped piece can no longer score below a
   floor that grows with the gap (gap 6-10, 11-20, 21+); up to +5 it may still lose. Necks, rings and trinkets are
   exempt (no primary stat). Row shown as "Item Level Guard".
 - **Measured uses the size of the measured weights** (shares = 6.00 x weight / sum) instead of rank shares 4:3:2:1.

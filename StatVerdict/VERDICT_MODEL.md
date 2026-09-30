@@ -80,7 +80,7 @@ so manually copied or stale generated files fail closed.
 
 ## Item level wins, Measured weight sizes
 
-- A candidate more than 5 item levels above the equipped piece never falls below a floor that grows with the gap
+- A candidate 10 or more item levels above the equipped piece never falls below a floor that grows with the gap
   (not for neck, ring, trinket). Up to +5 the stats can still decide.
 - Measured secondary shares are proportional to the measured weights; Guide uses rank shares from the guide order.
 - The live weights read the character's ratings when gear, spec, talents, level or login change, not on every
@@ -90,5 +90,5 @@ so manually copied or stale generated files fail closed.
   the guide stay equal for equal needs.
 - A swap is judged with the live weights read at the MIDDLE of the swap (rating now plus half of the change), so
   the verdict of piece A over piece B is exactly the opposite of B over A: two pieces are never both better than
-  each other. Item level wins in both directions beyond 5 item levels (jewelry and trinkets excepted), and the
+  each other. Item level wins in both directions from 10 item levels (jewelry and trinkets excepted), and the
   small-primary forgiveness is given and taken back the same way.
