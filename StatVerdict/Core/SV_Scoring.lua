@@ -163,11 +163,15 @@ local function GetTargetLiveMultiplier(profile, statKey, rank)
     return 1 - ((1 - floor) * over)
 end
 
--- The fixed share of the secondary budget of each stat, in the profile's order: rank
--- weights (4, 3, 2, 1) scaled to TARGET_SECONDARY_BUDGET. Stats the guide calls roughly
--- equal (equalGroups: lists of positions in the order) share the average of their ranks.
+-- The fixed share of the secondary budget of each stat, in the profile's order.
+--   Guide (weights == nil): the guide gives an order only, so rank weights (4, 3, 2, 1) scaled to
+--   TARGET_SECONDARY_BUDGET; stats the guide calls roughly equal (equalGroups: lists of positions in
+--   the order) share the average of their ranks.
+--   Measured (weights = our own SimC weights by stat key): the budget is split in proportion to what
+--   was measured, so the stat we measured best counts most and a small measured difference stays
+--   small. Used when all four stats have a usable weight; otherwise the rank shares apply.
 -- Returns { [statKey] = share, ... } and the shares as a list in order.
-function ns.GetSecondaryBaseShares(order, equalGroups)
+function ns.GetSecondaryBaseShares(order, equalGroups, weights)
     local bases, keys = {}, {}
     if type(order) ~= "table" then return {}, {} end
     local sumBase = 0
@@ -176,6 +180,21 @@ function ns.GetSecondaryBaseShares(order, equalGroups)
             keys[#keys + 1] = { key = statKey, index = index }
             bases[index] = TARGET_SECONDARY_BASE[index] or 0.50
             sumBase = sumBase + bases[index]
+        end
+    end
+    if type(weights) == "table" and #keys > 0 then
+        local measured, sumMeasured, complete = {}, 0, true
+        for _, entry in ipairs(keys) do
+            local weight = tonumber(weights[entry.key])
+            if weight and weight > 0 then
+                measured[entry.index] = weight
+                sumMeasured = sumMeasured + weight
+            else
+                complete = false
+            end
+        end
+        if complete and sumMeasured > 0 then
+            bases, sumBase, equalGroups = measured, sumMeasured, nil
         end
     end
     if type(equalGroups) == "table" then
@@ -237,6 +256,11 @@ local function GetSecondaryCacheToken(profile)
             parts[#parts + 1] = "=" .. table.concat(group, ",")
         end
     end
+    if type(profile.secondaryWeights) == "table" then
+        for _, statKey in ipairs(profile.secondaryOrder or {}) do
+            parts[#parts + 1] = "w" .. tostring(profile.secondaryWeights[statKey])
+        end
+    end
     return table.concat(parts, "|")
 end
 
@@ -250,7 +274,7 @@ local function BuildAllocatedSecondaryWeights(profile)
     for _, statKey in ipairs(order) do
         if SECONDARY_TARGET_KEY[statKey] then keys[#keys + 1] = statKey end
     end
-    local shareByKey = ns.GetSecondaryBaseShares(order, profile.equalGroups)
+    local shareByKey = ns.GetSecondaryBaseShares(order, profile.equalGroups, profile.secondaryWeights)
     if #keys == 0 or next(shareByKey) == nil then
         return {}
     end
@@ -357,7 +381,7 @@ end
 -- nil for anything the target-driven scoring does not weigh this way.
 function ns.GetScoringSecondaryWeights(profile, statKey)
     if not IsGeneratedTargetProfile(profile) or not SECONDARY_TARGET_KEY[statKey] then return nil end
-    local shares = ns.GetSecondaryBaseShares(profile.secondaryOrder, profile.equalGroups)
+    local shares = ns.GetSecondaryBaseShares(profile.secondaryOrder, profile.equalGroups, profile.secondaryWeights)
     local base = shares[statKey]
     if base == nil then return nil end
     local live = GetAllocatedSecondaryWeight(profile, statKey)
@@ -635,6 +659,46 @@ local function GetItemLevelGapGuardPenalty(candidateStats, equippedStats, profil
     return penalty
 end
 
+-- Item level wins: a piece with clearly more item level has more primary stat and more of every
+-- secondary, so it is an upgrade whatever its split of secondaries. Small steps (up to 5 item
+-- levels) are left to the stats. Jewelry and trinkets are the exception: they carry no primary
+-- stat, so a lower item level with much better stats can beat a higher one there.
+local ITEM_LEVEL_WIN_FREE_GAP = 5
+local NO_ITEM_LEVEL_WIN = {
+    INVTYPE_NECK = true,
+    INVTYPE_FINGER = true,
+    INVTYPE_TRINKET = true,
+}
+
+local function ApplyItemLevelWinGuard(total, rows, candidateStats, equippedStats, profile, equipLocation)
+    if not IsGeneratedTargetProfile(profile) then return total end
+    if NO_ITEM_LEVEL_WIN[equipLocation] then return total end
+    if type(candidateStats) ~= "table" or type(equippedStats) ~= "table" then return total end
+
+    local candidateItemLevel = tonumber(candidateStats.STATVERDICT_ITEM_LEVEL) or 0
+    local equippedItemLevel = tonumber(equippedStats.STATVERDICT_ITEM_LEVEL) or 0
+    local gap = candidateItemLevel - equippedItemLevel
+    if gap <= ITEM_LEVEL_WIN_FREE_GAP then return total end
+
+    -- The points the gap is worth: 3 per item level from 6 to 10, 5 from 11 to 20, 8 above.
+    local floor = (math.min(gap, 10) - ITEM_LEVEL_WIN_FREE_GAP) * 3
+    if gap > 10 then floor = floor + (math.min(gap, 20) - 10) * 5 end
+    if gap > 20 then floor = floor + (gap - 20) * 8 end
+    if total >= floor then return total end
+
+    local lift = floor - total
+    rows[#rows + 1] = {
+        statKey = "STATVERDICT_ITEM_LEVEL_GUARD",
+        statName = "Item Level Guard",
+        amount = 1,
+        points = lift,
+        signedPoints = lift,
+        weight = lift,
+        positive = true,
+    }
+    return floor
+end
+
 local function ApplyItemLevelGapGuard(total, rows, candidateStats, equippedStats, profile)
     local penalty = GetItemLevelGapGuardPenalty(candidateStats, equippedStats, profile)
     if penalty <= 0 then return total end
@@ -765,6 +829,7 @@ function ns.GetWeightedDeltaScore(candidateLink, equippedLink, profile, slotID)
 
     total = ApplySoftPrimaryGapForgiveness(total, rows, candidateStats, equippedStats, profile)
     total = ApplyItemLevelGapGuard(total, rows, candidateStats, equippedStats, profile)
+    total = ApplyItemLevelWinGuard(total, rows, candidateStats, equippedStats, profile, equipLocation)
 
     table.sort(rows, function(a, b)
         return a.points > b.points
@@ -815,7 +880,11 @@ function ns.GetWeightedDeltaScoreForEquippedSet(candidateLink, equippedItems, pr
     for statKey in pairs(tracked) do
         local delta = (candidateStats[statKey] or 0) - (equippedStats[statKey] or 0)
         if delta ~= 0 then
-            local points = ScoreStatAmount(profile, statKey, delta, true, equipLocation, candidateStats)
+            local scored = delta
+            if SECONDARY_TARGET_KEY[statKey] and ns.GetEffectiveRatingDelta then
+                scored = ns.GetEffectiveRatingDelta(statKey, GetCurrentRatingForScoring(profile, statKey), delta) or delta
+            end
+            local points = ScoreStatAmount(profile, statKey, scored, true, equipLocation, candidateStats)
             total = total + points
             rows[#rows + 1] = {
                 statKey = statKey,
@@ -846,6 +915,7 @@ function ns.GetWeightedDeltaScoreForEquippedSet(candidateLink, equippedItems, pr
 
     total = ApplySoftPrimaryGapForgiveness(total, rows, candidateStats, equippedStats, profile)
     total = ApplyItemLevelGapGuard(total, rows, candidateStats, equippedStats, profile)
+    total = ApplyItemLevelWinGuard(total, rows, candidateStats, equippedStats, profile, equipLocation)
 
     table.sort(rows, function(a, b)
         return a.points > b.points

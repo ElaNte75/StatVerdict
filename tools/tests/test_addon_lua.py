@@ -698,15 +698,16 @@ class CoreProfileTests(unittest.TestCase):
 
     def test_stat_audit_base_modifiers_match_the_scoring_weights(self) -> None:
         # The Stat Progress table shows the weights the verdict scoring really uses: each stat's
-        # share of the fixed secondary budget by rank (measured weights only decide the order).
+        # share of the fixed secondary budget, in proportion to the measured weights.
         lua, ns = self.build_runtime(weight_mode="MEASURED")
         load_addon_file(lua, ns, "Core/SV_Modifiers.lua")
         load_addon_file(lua, ns, "Core/SV_Scoring.lua")
         profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
         rows = profile.auditTargets.rows
         base = {rows[i].key: rows[i].baseModifier for i in range(1, len(rows) + 1)}
-        # measured order: haste 1.0, crit 0.8, vers 0.6, mastery 0.5 -> shares 2.4, 1.8, 1.2, 0.6
-        for stat, share in (("haste", 2.4), ("crit", 1.8), ("vers", 1.2), ("mastery", 0.6)):
+        # measured haste 1.0, crit 0.8, vers 0.6, mastery 0.5: the 6.00 budget split in proportion (sum 2.9)
+        for stat, share in (("haste", 6 * 1.0 / 2.9), ("crit", 6 * 0.8 / 2.9), ("vers", 6 * 0.6 / 2.9),
+                            ("mastery", 6 * 0.5 / 2.9)):
             self.assertAlmostEqual(share, base[SECONDARY[stat]], msg=stat)
             scoring_base, _ = ns.GetScoringSecondaryWeights(profile, SECONDARY[stat])
             self.assertAlmostEqual(scoring_base, base[SECONDARY[stat]], msg=stat)

@@ -563,8 +563,9 @@ end
 -- averageItemLevel the item level they belong to (SelectTargetValues).
 local function BuildAuditTargets(averageItemLevel, targetValues, weightMode, secondaryOrder, secondaryWeights, equalGroups)
     -- The weight shown per stat is the very one the verdict scoring uses: its fixed share
-    -- of the secondary budget (ties share their average), see SV_Scoring.
-    local shares = ns.GetSecondaryBaseShares and ns.GetSecondaryBaseShares(secondaryOrder, equalGroups) or {}
+    -- of the secondary budget (Guide: by rank, ties share their average; Measured: in proportion to the
+    -- measured weights), see SV_Scoring.
+    local shares = ns.GetSecondaryBaseShares and ns.GetSecondaryBaseShares(secondaryOrder, equalGroups, secondaryWeights) or {}
     local rows = {}
     local seen = {}
 

@@ -103,3 +103,17 @@ level up); tooltips are always fresh. Also, buffs count as stats (combat ratings
 4. Refresh bag arrows on rating changes, debounced (E).
 5. Keep diminishing returns as implemented; it only matters above about 30% of a stat, so it changes little
    for low and mid gear and protects the high end.
+
+## 6. Implemented after the owner's decision (2026-09-30)
+
+Owner's rule: two data sets (Guide = 1:1 guide copy, Measured = our SimC), one decision mechanism. Only the
+mechanism changed, not the data:
+
+- **Item level wins.** A candidate more than 5 item levels above the equipped piece can no longer score below a
+  floor that grows with the gap (gap 6-10, 11-20, 21+); up to +5 it may still lose. Necks, rings and trinkets are
+  exempt (no primary stat). Row shown as "Item Level Guard".
+- **Measured uses the size of the measured weights** (shares = 6.00 x weight / sum) instead of rank shares 4:3:2:1.
+  Guide keeps rank shares (ties averaged) untouched.
+- **Diminishing returns** now also apply in the equipped-set comparison.
+- Tests: `tools/tests/test_scoring_mechanism.py`. Item check re-run: see `docs/item-check/enhancement_shaman_verdict.md`
+  (Guide M+ rank agreement 0.68 in the first table; the Guide is not tuned toward SimC by design).

@@ -77,3 +77,9 @@ summary, and per-context quality state. Shipping is blocked when required
 profiles are missing, unresolved data exceeds the accepted threshold, targets
 are implausible, or data is too old. Runtime loading repeats the safety checks
 so manually copied or stale generated files fail closed.
+
+## Item level wins, Measured weight sizes
+
+- A candidate more than 5 item levels above the equipped piece never falls below a floor that grows with the gap
+  (not for neck, ring, trinket). Up to +5 the stats can still decide.
+- Measured secondary shares are proportional to the measured weights; Guide uses rank shares from the guide order.
