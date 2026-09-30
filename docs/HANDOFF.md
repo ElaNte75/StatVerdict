@@ -10,6 +10,15 @@ Read this file first, then `git log --oneline -40` on `main`. Everything describ
   UI or product logic beyond what was agreed. If something is uncertain, write it in the report and do NOT apply it.
 - Be honest: say when something is not verified in the game. Never claim a fix that was not tested.
 - Strong UI preference: **nothing may jump, resize or shift on any toggle/selection.** Reserve space for the worst case.
+- **Two methods with two data sets, ONE mechanism (owner's rule, 2026-09-30).** *Guide* mode shows exactly what Icy Veins
+  (PvE) and u.gg (targets, PvP) say, so a player who read the guide sees the same numbers in the addon and has no reason to
+  distrust it. Its data (priority order, targets) is never changed, tuned or "corrected", even where our SimC disagrees
+  (e.g. the guide puts Crit first and SimC says Mastery: Guide keeps Crit first). *Measured* is our own method (SimC on our
+  own loadouts) and uses our own order and targets, which may differ from the guides. Data is not what we judge or fix here.
+  What we do judge and fix is the **mechanism**: given a priority order and targets, from either source, the scoring must
+  measure correctly (the top stat counts most, live weights follow the stats you have now, primary stat and item level anchor
+  the verdict, diminishing returns). Never validate the mechanism by asking "does Guide agree with SimC". "StatVerdict" /
+  "the addon" means the WoW addon (`StatVerdict/`), not the whole repo.
 - **The UI must never name a data source** ("ClassCodex", "Icy Veins", "u.gg" never appear in any player-visible string;
   a permanent test `NoDataSourceNamesShownTests` enforces it). Say "guides" / "our own measurement".
 - The owner dislikes hearing "u.gg" (thinks it means PvP only). In reports say "target data" or "PvP data" unless the
