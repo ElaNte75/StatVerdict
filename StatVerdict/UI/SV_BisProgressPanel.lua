@@ -18,12 +18,12 @@ local lastRefreshFrame = nil
 local lastRefreshProfile = nil
 
 local function Offset(key)
-    if ns.GetDevLayoutOffset then return ns.GetDevLayoutOffset(key) end
+    if ns.GetLayoutOffset then return ns.GetLayoutOffset(key) end
     return 0, 0
 end
 
 local function SizeDelta(key)
-    if ns.GetDevLayoutSizeDelta then return ns.GetDevLayoutSizeDelta(key) end
+    if ns.GetLayoutSizeDelta then return ns.GetLayoutSizeDelta(key) end
     return 0
 end
 
@@ -1123,8 +1123,8 @@ local function EnsureContentHost(card)
     if not card then return nil end
     local host = card.contentHost
     if host then
-        if ns.UnregisterDevLayoutBorderEditOnly then
-            ns.UnregisterDevLayoutBorderEditOnly(host, 0, 0, 0, 0)
+        if ns.UnregisterLayoutBorderEditOnly then
+            ns.UnregisterLayoutBorderEditOnly(host, 0, 0, 0, 0)
         end
         if host.SetBackdrop then
             host:SetBackdrop(nil)
@@ -1156,8 +1156,8 @@ local function LayoutContentHost(card)
     if not host then return end
 
     -- Content host is not an AdvDev target — orphan cyan boxes over the list.
-    if ns.UnregisterDevLayoutBorderEditOnly then
-        ns.UnregisterDevLayoutBorderEditOnly(host, 0, 0, 0, 0)
+    if ns.UnregisterLayoutBorderEditOnly then
+        ns.UnregisterLayoutBorderEditOnly(host, 0, 0, 0, 0)
     elseif host.SetBackdropBorderColor then
         host:SetBackdropBorderColor(0, 0, 0, 0)
     end
@@ -1315,14 +1315,14 @@ function Panel.Apply(frame)
         card:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", panelX, 14)
     end
     -- Whole card is the AdvDev target: Move X (shared dock) + Size W + Padding.
-    if ns.ApplyRightDrawerCardDev then
+    if ns.ApplyRightDrawerCard then
         local baseW
         if showTrinkets then
             baseW = SafeNumber(card.trinketsPreferredWidth) or SafeNumber(card.preferredWidth) or 300
         else
             baseW = SafeNumber(card.bisPreferredWidth) or SafeNumber(card.preferredWidth) or 360
         end
-        ns.ApplyRightDrawerCardDev(card, cardKey, cardLabel, widthKey, baseW)
+        ns.ApplyRightDrawerCard(card, cardKey, cardLabel, widthKey, baseW)
     end
 
     LayoutContentHost(card)

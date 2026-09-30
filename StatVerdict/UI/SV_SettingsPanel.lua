@@ -8,28 +8,28 @@ local DROPDOWN_LABEL_FONT_SIZE = 10
 local DROPDOWN_SCALE = 0.92
 
 local function Offset(key)
-    if ns.GetDevLayoutOffset then return ns.GetDevLayoutOffset(key) end
+    if ns.GetLayoutOffset then return ns.GetLayoutOffset(key) end
     return 0, 0
 end
 
 local function SizeDelta(key)
-    if ns.GetDevLayoutSizeDelta then return ns.GetDevLayoutSizeDelta(key) end
+    if ns.GetLayoutSizeDelta then return ns.GetLayoutSizeDelta(key) end
     return 0
 end
 
 local function HeightDelta(key)
-    if ns.GetDevLayoutHeightDelta then return ns.GetDevLayoutHeightDelta(key) end
+    if ns.GetLayoutHeightDelta then return ns.GetLayoutHeightDelta(key) end
     return 0
 end
 
 local function Padding(key)
-    if ns.GetDevLayoutPadding then return ns.GetDevLayoutPadding(key) end
+    if ns.GetLayoutPadding then return ns.GetLayoutPadding(key) end
     return { top = 0, bottom = 0, left = 0, right = 0 }
 end
 
 
 local function IsLocked(key)
-    return ns.IsDevLayoutScreenLocked and ns.IsDevLayoutScreenLocked(key)
+    return ns.IsLayoutScreenLocked and ns.IsLayoutScreenLocked(key)
 end
 
 -- TOPLEFT of child relative to TOPLEFT of parent (UI units).
@@ -60,13 +60,13 @@ local function PlaceSetupChild(frame, card, region, spec)
     local locked = IsLocked(key)
     local pad = Padding(key .. ".pad")
     local dx, dy = Offset(key)
-    local isAbs = ns.GetDevLayoutOffsetAbs and ns.GetDevLayoutOffsetAbs(key)
+    local isAbs = ns.GetLayoutOffsetAbs and ns.GetLayoutOffsetAbs(key)
 
     if locked then
-        if isAbs and ns.WriteDevLayoutOffset then
+        if isAbs and ns.WriteLayoutOffset then
             local cx, cy = RelTopLeft(card, frame)
             if cx ~= nil and cy ~= nil then
-                ns.WriteDevLayoutOffset(key, (dx or 0) - cx - defaultX, (dy or 0) - cy - defaultY, { _abs = false })
+                ns.WriteLayoutOffset(key, (dx or 0) - cx - defaultX, (dy or 0) - cy - defaultY, { _abs = false })
                 dx, dy = Offset(key)
             end
         end
@@ -97,10 +97,10 @@ local function PlaceSetupChild(frame, card, region, spec)
             if region.SetHeight then region:SetHeight(h) end
         end
     else
-        if (not isAbs) and ns.WriteDevLayoutOffset then
+        if (not isAbs) and ns.WriteLayoutOffset then
             local cx, cy = RelTopLeft(card, frame)
             if cx ~= nil and cy ~= nil then
-                ns.WriteDevLayoutOffset(key, cx + defaultX + (dx or 0), cy + defaultY + (dy or 0), { _abs = true })
+                ns.WriteLayoutOffset(key, cx + defaultX + (dx or 0), cy + defaultY + (dy or 0), { _abs = true })
                 dx, dy = Offset(key)
             else
                 -- Layout not ready: stay card-relative until the next refresh resolves coords.
@@ -436,10 +436,10 @@ function Panel.Apply(frame, controls)
         card.frameIndexBadge:SetTextColor(0.85, 0.78, 0.35)
     end
     card.frameIndexBadge:SetText("Panel 1")
-    if ns.RegisterDevLayoutEditOnly then
-        ns.RegisterDevLayoutEditOnly(card.frameIndexBadge)
+    if ns.RegisterLayoutEditOnly then
+        ns.RegisterLayoutEditOnly(card.frameIndexBadge)
     end
-    if not (ns.IsDevLayoutEditActive and ns.IsDevLayoutEditActive()) then
+    if not (ns.IsLayoutEditActive and ns.IsLayoutEditActive()) then
         card.frameIndexBadge:Hide()
     end
     if card.SetBackdrop then
@@ -476,8 +476,8 @@ function Panel.Apply(frame, controls)
     if frame.devSetupWidthRegion then frame.devSetupWidthRegion:Hide() end
     if frame.devSetupHeightRegion then frame.devSetupHeightRegion:Hide() end
     -- Panel chrome border is always visible (not AdvDev-only).
-    if ns.UnregisterDevLayoutBorderEditOnly then
-        ns.UnregisterDevLayoutBorderEditOnly(card, 0.72, 0.74, 0.78, 0.86)
+    if ns.UnregisterLayoutBorderEditOnly then
+        ns.UnregisterLayoutBorderEditOnly(card, 0.72, 0.74, 0.78, 0.86)
     elseif card.SetBackdropBorderColor then
         card:SetBackdropBorderColor(0.72, 0.74, 0.78, 0.86)
     end

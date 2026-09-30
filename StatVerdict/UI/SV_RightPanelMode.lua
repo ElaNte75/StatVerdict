@@ -168,8 +168,8 @@ end
 local function FirstNonZeroOffset(...)
     for i = 1, select("#", ...) do
         local key = select(i, ...)
-        if key and ns.GetDevLayoutOffset then
-            local x, y = ns.GetDevLayoutOffset(key)
+        if key and ns.GetLayoutOffset then
+            local x, y = ns.GetLayoutOffset(key)
             if (x and x ~= 0) or (y and y ~= 0) then
                 return x or 0, y or 0
             end
@@ -181,8 +181,8 @@ end
 local function FirstNonZeroWidthDelta(...)
     for i = 1, select("#", ...) do
         local key = select(i, ...)
-        if key and ns.GetDevLayoutSizeDelta then
-            local d = ns.GetDevLayoutSizeDelta(key) or 0
+        if key and ns.GetLayoutSizeDelta then
+            local d = ns.GetLayoutSizeDelta(key) or 0
             if d ~= 0 then return d end
         end
     end
@@ -191,8 +191,8 @@ end
 
 local function HeightDeltaForKey(key)
     if not key then return 0 end
-    if ns.GetDevLayoutHeightDelta then
-        return ns.GetDevLayoutHeightDelta(key) or 0
+    if ns.GetLayoutHeightDelta then
+        return ns.GetLayoutHeightDelta(key) or 0
     end
     local db = _G.StatVerdictDB and _G.StatVerdictDB.devDashboardOffsets
     local value = db and db[key]
@@ -268,8 +268,8 @@ local function ApplyChipSize(button, layoutPrefix)
 
     -- Padding = visual inset: Size W/H is the logical footprint.
     local pad = { top = 0, bottom = 0, left = 0, right = 0 }
-    if ns.GetDevLayoutPadding then
-        pad = ns.GetDevLayoutPadding(layoutPrefix .. ".title.pad")
+    if ns.GetLayoutPadding then
+        pad = ns.GetLayoutPadding(layoutPrefix .. ".title.pad")
     end
     local visW = math.max(20, width - (pad.left or 0) - (pad.right or 0))
     local visH = math.max(12, height - (pad.top or 0) - (pad.bottom or 0))
@@ -448,8 +448,8 @@ function ns.PlaceMsOsTitleChip(parent, _layoutPrefixIgnored, panelKind)
     local _, _, chipBaseW, chipBaseH = ApplyChipSize(toggle, layoutPrefix)
 
     local chipPad = { top = 0, bottom = 0, left = 0, right = 0 }
-    if ns.GetDevLayoutPadding then
-        chipPad = ns.GetDevLayoutPadding(layoutPrefix .. ".title.pad")
+    if ns.GetLayoutPadding then
+        chipPad = ns.GetLayoutPadding(layoutPrefix .. ".title.pad")
     end
     toggle:ClearAllPoints()
     toggle:SetPoint(
@@ -463,7 +463,7 @@ function ns.PlaceMsOsTitleChip(parent, _layoutPrefixIgnored, panelKind)
 
     HideInactiveTitleHandles(parent, layoutPrefix)
 
-    if ns.UnregisterDevLayoutRegion then
+    if ns.UnregisterLayoutRegion then
         -- Drop shared key so it cannot steal hits from per-panel keys.
         -- On the shared BiS card, only the active mode's title is registered.
     end
@@ -510,8 +510,8 @@ end
 -- Visual inset padding of a right-side drawer card (does not change its
 -- logical footprint or the shared dock position).
 function ns.GetRightDrawerCardPad(key)
-    if ns.GetDevLayoutPadding then
-        return ns.GetDevLayoutPadding(key .. ".pad")
+    if ns.GetLayoutPadding then
+        return ns.GetLayoutPadding(key .. ".pad")
     end
     return { top = 0, bottom = 0, left = 0, right = 0 }
 end
@@ -519,7 +519,7 @@ end
 -- Shared AdvDev wiring for a right-side drawer card: same model as Panel 1/2.
 -- Whole card is selectable (alwaysCapture), white outline in AdvDev, outer pad
 -- for Move X + Size W + Padding.
-function ns.ApplyRightDrawerCardDev(card, key, label, widthKey, baseW)
+function ns.ApplyRightDrawerCard(card, key, label, widthKey, baseW)
     if not card then return end
     if card.SetBackdrop then
         card:SetBackdrop({
@@ -534,8 +534,8 @@ function ns.ApplyRightDrawerCardDev(card, key, label, widthKey, baseW)
         card:SetBackdropBorderColor(0.72, 0.74, 0.78, 0.86)
     end
     -- Drawer chrome border is always visible (not AdvDev-only).
-    if ns.UnregisterDevLayoutBorderEditOnly then
-        ns.UnregisterDevLayoutBorderEditOnly(card, 0.72, 0.74, 0.78, 0.86)
+    if ns.UnregisterLayoutBorderEditOnly then
+        ns.UnregisterLayoutBorderEditOnly(card, 0.72, 0.74, 0.78, 0.86)
     elseif card.SetBackdropBorderColor then
         card:SetBackdropBorderColor(0.72, 0.74, 0.78, 0.86)
     end

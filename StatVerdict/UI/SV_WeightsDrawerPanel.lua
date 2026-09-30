@@ -24,14 +24,14 @@ local WHITE = { 1.0, 1.0, 1.0 }
 local ORANGE = { 1.0, 0.5, 0.0 }
 local LINE = { 0.72, 0.74, 0.78, 0.30 }
 
--- Layout keys keep the old "benchmark.*" names so saved drawer positions carry over.
+-- Layout keys are "weights.*"; positions saved under the old "benchmark.*" names are moved in EnsureLayoutDB.
 local function Offset(key)
-    if ns.GetDevLayoutOffset then return ns.GetDevLayoutOffset(key) end
+    if ns.GetLayoutOffset then return ns.GetLayoutOffset(key) end
     return 0, 0
 end
 
 local function SizeDelta(key)
-    if ns.GetDevLayoutSizeDelta then return ns.GetDevLayoutSizeDelta(key) end
+    if ns.GetLayoutSizeDelta then return ns.GetLayoutSizeDelta(key) end
     return 0
 end
 
@@ -363,7 +363,7 @@ function Panel.GetCardPad()
         return ns.GetRightDrawerCardPad and ns.GetRightDrawerCardPad(key)
             or { top = 0, bottom = 0, left = 0, right = 0 }
     end
-    local own = pad("benchmark.card")
+    local own = pad("weights.card")
     if (own.top or 0) ~= 0 or (own.bottom or 0) ~= 0 or (own.left or 0) ~= 0 or (own.right or 0) ~= 0 then
         return own
     end
@@ -371,7 +371,7 @@ function Panel.GetCardPad()
 end
 
 function Panel.GetPreferredWidth(frame)
-    local width = DRAWER_PREFERRED_WIDTH + SizeDelta("benchmark.width")
+    local width = DRAWER_PREFERRED_WIDTH + SizeDelta("weights.width")
     if width < 200 then width = 200 end
     if width > 520 then width = 520 end
     return width
@@ -385,7 +385,7 @@ function Panel.Apply(frame)
     end
 
     local card = EnsureCard(frame)
-    local cardX = Offset("benchmark.card")
+    local cardX = Offset("weights.card")
     local cardWidth = Panel.GetPreferredWidth(frame)
     local panelX = 770 + cardX
     if ns.StatVerdictDashboardLayout and ns.StatVerdictDashboardLayout.GetRightPanelX then
@@ -414,8 +414,8 @@ function Panel.Apply(frame)
         LayoutBinChips(card, innerWidth - 2 * MARGIN)
     end
     card:Show()
-    if ns.ApplyRightDrawerCardDev then
-        ns.ApplyRightDrawerCardDev(card, "benchmark.card", "Mode drawer", "benchmark.width", DRAWER_PREFERRED_WIDTH)
+    if ns.ApplyRightDrawerCard then
+        ns.ApplyRightDrawerCard(card, "weights.card", "Mode drawer", "weights.width", DRAWER_PREFERRED_WIDTH)
     end
 
     Panel.Sync(card)

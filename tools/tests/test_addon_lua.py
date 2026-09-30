@@ -1947,13 +1947,13 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
             self.assertEqual("TOP", text._justifyV)
 
     def test_card_padding_copies_the_features_drawer(self) -> None:
-        # The layout key stays "benchmark.card" so saved drawer positions carry over.
+        # The layout key stays "weights.card" so saved drawer positions carry over.
         pads = {"options.card.pad": self.lua.table(top=5, bottom=5, left=0, right=0)}
         zero = self.lua.table(top=0, bottom=0, left=0, right=0)
-        self.ns.GetDevLayoutPadding = lambda key: pads.get(key, zero)
+        self.ns.GetLayoutPadding = lambda key: pads.get(key, zero)
         pad = self.ns.StatVerdictWeightsDrawerPanel.GetCardPad()
         self.assertEqual((5, 5, 0, 0), (pad.top, pad.bottom, pad.left, pad.right))
-        pads["benchmark.card.pad"] = self.lua.table(top=2, bottom=3, left=0, right=0)
+        pads["weights.card.pad"] = self.lua.table(top=2, bottom=3, left=0, right=0)
         pad = self.ns.StatVerdictWeightsDrawerPanel.GetCardPad()
         self.assertEqual((2, 3), (pad.top, pad.bottom))
 
@@ -3242,6 +3242,41 @@ class TrinketTooltipFeatureToggleTests(unittest.TestCase):
         self.click("showBisTooltip", False)
         self.assertIs(True, self.db().trinketUseGameTooltip)
         self.assertIsNone(self.db().bisUseGameTooltip)
+
+
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class SavedLayoutMigrationTests(unittest.TestCase):
+    """The Mode drawer's saved positions moved from "benchmark.*" to "weights.*": nothing is lost."""
+
+    def setUp(self) -> None:
+        self.lua = new_runtime()
+        self.ns = self.lua.table()
+        load_addon_file(self.lua, self.ns, "UI/SV_LayoutOffsets.lua")
+
+    def saved(self, **offsets):
+        self.lua.globals().StatVerdictDB = self.lua.table(devDashboardOffsets=self.lua.table_from(offsets))
+        return self.ns.EnsureLayoutDB()
+
+    def test_old_keys_are_moved_and_removed(self) -> None:
+        db = self.saved(**{
+            "benchmark.card": self.lua.table(x=7, y=-3),
+            "benchmark.width": self.lua.table(width=20),
+            "benchmark.card.pad": self.lua.table(top=2),
+            "bis.card": self.lua.table(x=1, y=1),
+        })
+        self.assertEqual((7, -3), self.ns.GetLayoutOffset("weights.card"))
+        self.assertEqual(20, self.ns.GetLayoutSizeDelta("weights.width"))
+        self.assertEqual(2, self.ns.GetLayoutPadding("weights.card.pad").top)
+        self.assertIsNone(db["benchmark.card"])
+        self.assertIsNone(db["benchmark.width"])
+        self.assertIsNotNone(db["bis.card"])
+
+    def test_existing_new_keys_are_kept_and_it_runs_once(self) -> None:
+        db = self.saved(**{"benchmark.card": self.lua.table(x=7, y=-3), "weights.card": self.lua.table(x=1, y=2)})
+        self.assertEqual((1, 2), self.ns.GetLayoutOffset("weights.card"))
+        db["benchmark.card"] = self.lua.table(x=9, y=9)  # written again later: not moved a second time
+        self.ns.EnsureLayoutDB()
+        self.assertEqual((1, 2), self.ns.GetLayoutOffset("weights.card"))
 
 
 if __name__ == "__main__":

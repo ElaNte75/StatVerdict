@@ -1,7 +1,6 @@
 local addonName, ns = ...
 
 -- Public layout offsets: seed tuned defaults and expose read/write helpers.
--- The AdvDev editor (SV_DevLayoutNudge.lua) loads only in the developer TOC.
 local RESTORED_DEV_DASHBOARD_OFFSETS = {
 ["stats.summary.devSummaryItemDiffRegion"] = {
 ["y"] = 1,
@@ -275,9 +274,24 @@ local function CopyRecoveredOffsets(target)
     end
 end
 
-function ns.EnsureDevLayoutDB()
+function ns.EnsureLayoutDB()
     _G.StatVerdictDB = _G.StatVerdictDB or {}
     _G.StatVerdictDB.devDashboardOffsets = _G.StatVerdictDB.devDashboardOffsets or {}
+    -- The Mode drawer's saved positions used to be stored as "benchmark.*"; move them to "weights.*".
+    if _G.StatVerdictDB.layoutWeightsKeysMoved ~= true then
+        local saved = _G.StatVerdictDB.devDashboardOffsets
+        local moves = {}
+        for key, value in pairs(saved) do
+            if type(key) == "string" and key:sub(1, 10) == "benchmark." then
+                moves[#moves + 1] = { key, "weights." .. key:sub(11), value }
+            end
+        end
+        for _, move in ipairs(moves) do
+            if saved[move[2]] == nil then saved[move[2]] = move[3] end
+            saved[move[1]] = nil
+        end
+        _G.StatVerdictDB.layoutWeightsKeysMoved = true
+    end
     if not TableHasEntries(_G.StatVerdictDB.devDashboardOffsets) and _G.StatVerdictDB.devDashboardOffsetsRestoredFromBackup ~= true then
         CopyRecoveredOffsets(_G.StatVerdictDB.devDashboardOffsets)
         _G.StatVerdictDB.devDashboardOffsetsRestoredFromBackup = true
@@ -343,28 +357,28 @@ function ns.EnsureDevLayoutDB()
 end
 
 local function EnsureDB()
-    return ns.EnsureDevLayoutDB()
+    return ns.EnsureLayoutDB()
 end
 
-function ns.GetDevLayoutOffset(key)
+function ns.GetLayoutOffset(key)
     local value = EnsureDB()[key]
     if type(value) ~= "table" then return 0, 0 end
     return tonumber(value.x) or 0, tonumber(value.y) or 0
 end
 
-function ns.GetDevLayoutSizeDelta(key)
+function ns.GetLayoutSizeDelta(key)
     local value = EnsureDB()[key]
     if type(value) ~= "table" then return 0 end
     return tonumber(value.width) or 0
 end
 
-function ns.GetDevLayoutHeightDelta(key)
+function ns.GetLayoutHeightDelta(key)
     local value = EnsureDB()[key]
     if type(value) ~= "table" then return 0 end
     return tonumber(value.height) or 0
 end
 
-function ns.GetDevLayoutPadding(key)
+function ns.GetLayoutPadding(key)
     local value = EnsureDB()[key]
     if type(value) ~= "table" then
         return { top = 0, bottom = 0, left = 0, right = 0 }
@@ -377,7 +391,7 @@ function ns.GetDevLayoutPadding(key)
     }
 end
 
-function ns.WriteDevLayoutOffset(key, x, y, extras)
+function ns.WriteLayoutOffset(key, x, y, extras)
     if type(key) ~= "string" then return end
     local db = EnsureDB()
     local entry = db[key]
@@ -394,40 +408,40 @@ function ns.WriteDevLayoutOffset(key, x, y, extras)
     end
 end
 
-function ns.GetDevLayoutOffsetAbs(key)
+function ns.GetLayoutOffsetAbs(key)
     local value = EnsureDB()[key]
     return type(value) == "table" and value._abs == true
 end
 
 -- No-op stubs so product UI can call AdvDev helpers safely without the editor.
 -- Critical: edit-only badges/borders must stay hidden when the editor is absent.
-function ns.IsDevLayoutEditActive()
+function ns.IsLayoutEditActive()
     return false
 end
 
-function ns.IsDevLayoutScreenLocked(key)
+function ns.IsLayoutScreenLocked(key)
     return true
 end
 
-function ns.UnregisterDevLayoutRegion() end
-function ns.RegisterDevLayoutEditOnly(region)
+function ns.UnregisterLayoutRegion() end
+function ns.RegisterLayoutEditOnly(region)
     if region and region.Hide then
         region:Hide()
     end
 end
 
-function ns.RegisterDevLayoutBorderEditOnly(region, r, g, b, a)
+function ns.RegisterLayoutBorderEditOnly(region, r, g, b, a)
     if region and region.SetBackdropBorderColor then
         region:SetBackdropBorderColor(0, 0, 0, 0)
     end
 end
 
-function ns.UnregisterDevLayoutBorderEditOnly(region, r, g, b, a)
+function ns.UnregisterLayoutBorderEditOnly(region, r, g, b, a)
     if region and region.SetBackdropBorderColor and r ~= nil then
         region:SetBackdropBorderColor(r, g, b, a)
     end
 end
 
-function ns.EnsureDevLayoutWidthHandle() return nil end
-function ns.EnsureDevLayoutHeightHandle() return nil end
-function ns.EnsureDevLayoutTextHitRegion() return nil end
+function ns.EnsureLayoutWidthHandle() return nil end
+function ns.EnsureLayoutHeightHandle() return nil end
+function ns.EnsureLayoutTextHitRegion() return nil end

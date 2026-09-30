@@ -4,23 +4,23 @@ local Panel = {}
 ns.StatVerdictStatProgressPanel = Panel
 
 local function Offset(key)
-    if ns.GetDevLayoutOffset then return ns.GetDevLayoutOffset(key) end
+    if ns.GetLayoutOffset then return ns.GetLayoutOffset(key) end
     return 0, 0
 end
 
 local function SizeDelta(key)
-    if ns.GetDevLayoutSizeDelta then return ns.GetDevLayoutSizeDelta(key) end
+    if ns.GetLayoutSizeDelta then return ns.GetLayoutSizeDelta(key) end
     return 0
 end
 
 local function HeightDelta(key)
-    if ns.GetDevLayoutHeightDelta then return ns.GetDevLayoutHeightDelta(key) end
+    if ns.GetLayoutHeightDelta then return ns.GetLayoutHeightDelta(key) end
     return 0
 end
 
 
 local function Padding(key)
-    if ns.GetDevLayoutPadding then return ns.GetDevLayoutPadding(key) end
+    if ns.GetLayoutPadding then return ns.GetLayoutPadding(key) end
     return { top = 0, bottom = 0, left = 0, right = 0 }
 end
 
@@ -33,10 +33,10 @@ local function EnsureScreenBadge(screen, text)
         screen.screenIndexBadge:SetTextColor(0.85, 0.78, 0.35)
     end
     screen.screenIndexBadge:SetText(text or "")
-    if ns.RegisterDevLayoutEditOnly then
-        ns.RegisterDevLayoutEditOnly(screen.screenIndexBadge)
+    if ns.RegisterLayoutEditOnly then
+        ns.RegisterLayoutEditOnly(screen.screenIndexBadge)
     end
-    if not (ns.IsDevLayoutEditActive and ns.IsDevLayoutEditActive()) then
+    if not (ns.IsLayoutEditActive and ns.IsLayoutEditActive()) then
         screen.screenIndexBadge:Hide()
     end
 end
@@ -47,9 +47,9 @@ local function ApplyDevOnlyBorder(region, r, g, b, a)
     g = g or 0.74
     b = b or 0.78
     a = a or 0.86
-    if ns.RegisterDevLayoutBorderEditOnly then
-        ns.RegisterDevLayoutBorderEditOnly(region, r, g, b, a)
-    elseif ns.IsDevLayoutEditActive and ns.IsDevLayoutEditActive() then
+    if ns.RegisterLayoutBorderEditOnly then
+        ns.RegisterLayoutBorderEditOnly(region, r, g, b, a)
+    elseif ns.IsLayoutEditActive and ns.IsLayoutEditActive() then
         region:SetBackdropBorderColor(r, g, b, a)
     else
         region:SetBackdropBorderColor(0, 0, 0, 0)
@@ -59,10 +59,10 @@ end
 local function ApplyDevOnlyBadge(fontString, text)
     if not fontString then return end
     if text then fontString:SetText(text) end
-    if ns.RegisterDevLayoutEditOnly then
-        ns.RegisterDevLayoutEditOnly(fontString)
+    if ns.RegisterLayoutEditOnly then
+        ns.RegisterLayoutEditOnly(fontString)
     end
-    if not (ns.IsDevLayoutEditActive and ns.IsDevLayoutEditActive()) then
+    if not (ns.IsLayoutEditActive and ns.IsLayoutEditActive()) then
         fontString:Hide()
     end
 end
@@ -669,8 +669,8 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
         end
     end
     -- Panel chrome border is always visible (not AdvDev-only).
-    if ns.UnregisterDevLayoutBorderEditOnly then
-        ns.UnregisterDevLayoutBorderEditOnly(card, 0.72, 0.74, 0.78, 0.86)
+    if ns.UnregisterLayoutBorderEditOnly then
+        ns.UnregisterLayoutBorderEditOnly(card, 0.72, 0.74, 0.78, 0.86)
     elseif card.SetBackdropBorderColor then
         card:SetBackdropBorderColor(0.72, 0.74, 0.78, 0.86)
     end
@@ -773,15 +773,15 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
         mainScreen:SetBackdropColor(0.018, 0.022, 0.030, 0.72)
         -- Screen chrome is part of the product look (always visible).
         mainScreen:SetBackdropBorderColor(0.72, 0.74, 0.78, 0.86)
-        if ns.UnregisterDevLayoutBorderEditOnly then
-            ns.UnregisterDevLayoutBorderEditOnly(mainScreen, 0.72, 0.74, 0.78, 0.86)
+        if ns.UnregisterLayoutBorderEditOnly then
+            ns.UnregisterLayoutBorderEditOnly(mainScreen, 0.72, 0.74, 0.78, 0.86)
         end
     end
 
     -- Screen 1: child of Panel 2. Move/Size/Pad via AdvDev. Lock binds layout to Panel 2.
     local screenPad = { top = 0, bottom = 0, left = 0, right = 0 }
-    if ns.GetDevLayoutPadding then
-        screenPad = ns.GetDevLayoutPadding("screen.1.pad")
+    if ns.GetLayoutPadding then
+        screenPad = ns.GetLayoutPadding("screen.1.pad")
     end
     local screenX, screenY = Offset("screen.1")
     local screenW = 512 + SizeDelta("screen.1.width")
@@ -989,8 +989,8 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
         offScreen:SetBackdropColor(0.018, 0.022, 0.030, 0.72)
         -- Screen chrome is part of the product look (always visible).
         offScreen:SetBackdropBorderColor(0.72, 0.74, 0.78, 0.86)
-        if ns.UnregisterDevLayoutBorderEditOnly then
-            ns.UnregisterDevLayoutBorderEditOnly(offScreen, 0.72, 0.74, 0.78, 0.86)
+        if ns.UnregisterLayoutBorderEditOnly then
+            ns.UnregisterLayoutBorderEditOnly(offScreen, 0.72, 0.74, 0.78, 0.86)
         end
     end
 

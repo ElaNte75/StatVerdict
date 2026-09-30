@@ -35,13 +35,13 @@ local SCREEN_CONTENT_X = 6 -- content was historically at gridX while card sat a
 local SCREEN_BOTTOM_RESERVE = 28 -- Average Progress line under Main screen
 
 local function Offset(key)
-    if ns.GetDevLayoutOffset then return ns.GetDevLayoutOffset(key) end
+    if ns.GetLayoutOffset then return ns.GetLayoutOffset(key) end
     return 0, 0
 end
 
 
 local function SizeDelta(key)
-    if ns.GetDevLayoutSizeDelta then return ns.GetDevLayoutSizeDelta(key) end
+    if ns.GetLayoutSizeDelta then return ns.GetLayoutSizeDelta(key) end
     return 0
 end
 
@@ -64,8 +64,8 @@ end
 local function StatTableHeight(rowCount)
     local rows = math.max(1, tonumber(rowCount) or FIXED_SLOT_ROWS)
     local height = TABLE_HEADER_BAND + (rows * ROW_HEIGHT)
-    if ns.GetDevLayoutHeightDelta then
-        height = height + (ns.GetDevLayoutHeightDelta("stats.table.height") or 0)
+    if ns.GetLayoutHeightDelta then
+        height = height + (ns.GetLayoutHeightDelta("stats.table.height") or 0)
     end
     if height < 40 then height = 40 end
     return height
@@ -122,7 +122,7 @@ function Layout.GetRightPanelWidth(frame)
         if ns.StatVerdictWeightsDrawerPanel and ns.StatVerdictWeightsDrawerPanel.GetPreferredWidth then
             return ns.StatVerdictWeightsDrawerPanel.GetPreferredWidth(frame)
         end
-        return Clamp(300 + SizeDelta("benchmark.width"), 200, 520)
+        return Clamp(300 + SizeDelta("weights.width"), 200, 520)
     end
     local showTrinkets = mode == "trinkets"
     local showBis = mode == "bis"
@@ -134,7 +134,7 @@ local function SharedRightDockX()
     if x ~= 0 then return x end
     -- Migrate legacy per-drawer X so switching panels keeps the dock the user already set.
     local best, bestAbs = 0, 0
-    for _, key in ipairs({ "benchmark.card", "options.card", "manual.card", "bis.card" }) do
+    for _, key in ipairs({ "weights.card", "options.card", "manual.card", "bis.card" }) do
         local v = select(1, Offset(key))
         local a = math.abs(tonumber(v) or 0)
         if a > bestAbs then
@@ -189,8 +189,8 @@ function Layout.GetSetupCardRight(frame)
 end
 
 function Layout.GetSetupCardPad()
-    if ns.GetDevLayoutPadding then
-        return ns.GetDevLayoutPadding("setup.pad")
+    if ns.GetLayoutPadding then
+        return ns.GetLayoutPadding("setup.pad")
     end
     return { top = 0, bottom = 0, left = 0, right = 0 }
 end
@@ -198,8 +198,8 @@ end
 function Layout.GetSetupCardHeight(frame)
     local base = 360
     local delta = 0
-    if ns.GetDevLayoutHeightDelta then
-        delta = ns.GetDevLayoutHeightDelta("setup.height") or 0
+    if ns.GetLayoutHeightDelta then
+        delta = ns.GetLayoutHeightDelta("setup.height") or 0
     end
     return Clamp(base + delta, 120, 1200)
 end
@@ -230,8 +230,8 @@ function Layout.GetStatsCardLeft(frame)
 end
 
 function Layout.GetStatsCardPad()
-    if ns.GetDevLayoutPadding then
-        return ns.GetDevLayoutPadding("stats.pad")
+    if ns.GetLayoutPadding then
+        return ns.GetLayoutPadding("stats.pad")
     end
     return { top = 0, bottom = 0, left = 0, right = 0 }
 end
@@ -244,8 +244,8 @@ end
 function Layout.GetStatsCardHeight(frame)
     local base = 360
     local delta = 0
-    if ns.GetDevLayoutHeightDelta then
-        delta = ns.GetDevLayoutHeightDelta("stats.height") or 0
+    if ns.GetLayoutHeightDelta then
+        delta = ns.GetLayoutHeightDelta("stats.height") or 0
     end
     return Clamp(base + delta, 120, 1200)
 end
@@ -712,13 +712,13 @@ function Layout.Apply(frame, usedRows, controls)
 
             -- Title letters: cyan hit around the text; Move X only on the outer pad.
             local header = frame.headers and frame.headers[key]
-            if header and ns.EnsureDevLayoutTextHitRegion then
+            if header and ns.EnsureLayoutTextHitRegion then
                 local stringW = 0
                 if header.GetStringWidth then
                     stringW = tonumber(header:GetStringWidth()) or 0
                 end
                 local textKey = "stats.headerText." .. key
-                local textHit = ns.EnsureDevLayoutTextHitRegion(frame, textKey, header, {
+                local textHit = ns.EnsureLayoutTextHitRegion(frame, textKey, header, {
                     minWidth = math.max(8, math.min(colW - 2, stringW + 4)),
                     minHeight = 12,
                     padding = 1,
@@ -777,8 +777,8 @@ function Layout.Apply(frame, usedRows, controls)
         frame.devStatTableWidthRegion = CreateFrame("Frame", nil, frame)
         frame.devStatTableWidthRegion:EnableMouse(false)
     end
-    if ns.EnsureDevLayoutWidthHandle and tableAnchor then
-        frame.devStatTableWidthRegion = ns.EnsureDevLayoutWidthHandle(frame, "stats.table.width", tableAnchor, {
+    if ns.EnsureLayoutWidthHandle and tableAnchor then
+        frame.devStatTableWidthRegion = ns.EnsureLayoutWidthHandle(frame, "stats.table.width", tableAnchor, {
             width = 10,
             height = 28,
             gap = 2,
@@ -791,8 +791,8 @@ function Layout.Apply(frame, usedRows, controls)
     end
 
     local tableHeightHandle
-    if ns.EnsureDevLayoutHeightHandle and tableAnchor then
-        tableHeightHandle = ns.EnsureDevLayoutHeightHandle(frame, "stats.table.height", tableAnchor, {
+    if ns.EnsureLayoutHeightHandle and tableAnchor then
+        tableHeightHandle = ns.EnsureLayoutHeightHandle(frame, "stats.table.height", tableAnchor, {
             width = 28,
             height = 10,
             gap = 2,

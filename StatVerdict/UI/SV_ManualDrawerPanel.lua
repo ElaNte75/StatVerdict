@@ -10,12 +10,12 @@ local SCROLL_SIDE_PAD = 10
 local SCROLLBAR_WIDTH = 18
 
 local function Offset(key)
-    if ns.GetDevLayoutOffset then return ns.GetDevLayoutOffset(key) end
+    if ns.GetLayoutOffset then return ns.GetLayoutOffset(key) end
     return 0, 0
 end
 
 local function SizeDelta(key)
-    if ns.GetDevLayoutSizeDelta then return ns.GetDevLayoutSizeDelta(key) end
+    if ns.GetLayoutSizeDelta then return ns.GetLayoutSizeDelta(key) end
     return 0
 end
 
@@ -229,8 +229,8 @@ function Panel.Apply(frame)
     card:SetWidth(math.max(120, cardWidth - (cardPad.left or 0) - (cardPad.right or 0)))
     card:Show()
     -- Whole card is the AdvDev target: Move X (shared dock) + Size W + Padding.
-    if ns.ApplyRightDrawerCardDev then
-        ns.ApplyRightDrawerCardDev(card, "manual.card", "Manual drawer", "manual.width", DRAWER_PREFERRED_WIDTH)
+    if ns.ApplyRightDrawerCard then
+        ns.ApplyRightDrawerCard(card, "manual.card", "Manual drawer", "manual.width", DRAWER_PREFERRED_WIDTH)
     end
     -- Manual body text is not AdvDev-editable — drop any leftover title/content ghosts.
 

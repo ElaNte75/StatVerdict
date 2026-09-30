@@ -591,8 +591,8 @@ local function SaveWindowPosition(frame)
     if not left or not top then return end
     db.statAuditWindowPosByCharacter[key] = { mode = "TOPLEFT", x = left, y = top }
     local dashboardMoveX = 0
-    if ns.GetDevLayoutOffset then
-        dashboardMoveX = select(1, ns.GetDevLayoutOffset("dashboard.move")) or 0
+    if ns.GetLayoutOffset then
+        dashboardMoveX = select(1, ns.GetLayoutOffset("dashboard.move")) or 0
     end
     frame.devTopLeftBase = { x = left - dashboardMoveX, y = top }
     frame.svUserWindowPos = { x = left, y = top }
@@ -607,8 +607,8 @@ end
 local function SyncDevTopLeftBase(frame, left, top)
     if not frame then return end
     local dashboardMoveX = 0
-    if ns.GetDevLayoutOffset then
-        dashboardMoveX = select(1, ns.GetDevLayoutOffset("dashboard.move")) or 0
+    if ns.GetLayoutOffset then
+        dashboardMoveX = select(1, ns.GetLayoutOffset("dashboard.move")) or 0
     end
     frame.devTopLeftBase = { x = (left or 0) - dashboardMoveX, y = top or 0 }
 end

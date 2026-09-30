@@ -18,22 +18,22 @@ local TITLE_FONT_SIZE_MIN = 11
 local TITLE_FONT_SIZE_MAX = 24
 
 local function Offset(key)
-    if ns.GetDevLayoutOffset then return ns.GetDevLayoutOffset(key) end
+    if ns.GetLayoutOffset then return ns.GetLayoutOffset(key) end
     return 0, 0
 end
 
 local function SizeDelta(key)
-    if ns.GetDevLayoutSizeDelta then return ns.GetDevLayoutSizeDelta(key) end
+    if ns.GetLayoutSizeDelta then return ns.GetLayoutSizeDelta(key) end
     return 0
 end
 
 local function HeightDelta(key)
-    if ns.GetDevLayoutHeightDelta then return ns.GetDevLayoutHeightDelta(key) end
+    if ns.GetLayoutHeightDelta then return ns.GetLayoutHeightDelta(key) end
     return 0
 end
 
 local function Padding(key)
-    if ns.GetDevLayoutPadding then return ns.GetDevLayoutPadding(key) end
+    if ns.GetLayoutPadding then return ns.GetLayoutPadding(key) end
     return { top = 0, bottom = 0, left = 0, right = 0 }
 end
 
@@ -74,8 +74,8 @@ local function PlaceFeaturesTitle(card, fontString, layoutKey, label, defaultX, 
     if logicalH < 12 then logicalH = 12 end
 
     local hit = nil
-    if ns.EnsureDevLayoutTextHitRegion then
-        hit = ns.EnsureDevLayoutTextHitRegion(card, layoutKey, fontString, {
+    if ns.EnsureLayoutTextHitRegion then
+        hit = ns.EnsureLayoutTextHitRegion(card, layoutKey, fontString, {
             padding = 2,
             minWidth = 24,
             minHeight = 12,
@@ -113,8 +113,8 @@ local function PlaceBagChecksBlock(card, block, layoutKey, label, defaultX, defa
     block:SetSize(visW, visH)
     block:Show()
     if block.SetBackdrop then
-        if ns.UnregisterDevLayoutBorderEditOnly then
-            ns.UnregisterDevLayoutBorderEditOnly(block, 0, 0, 0, 0)
+        if ns.UnregisterLayoutBorderEditOnly then
+            ns.UnregisterLayoutBorderEditOnly(block, 0, 0, 0, 0)
         end
         if block.SetBackdropBorderColor then
             block:SetBackdropBorderColor(0, 0, 0, 0)
@@ -430,8 +430,8 @@ function Panel.Apply(frame)
     card:SetWidth(innerWidth)
     card:Show()
     -- Whole card is the AdvDev target: Move X (shared dock) + Size W + Padding.
-    if ns.ApplyRightDrawerCardDev then
-        ns.ApplyRightDrawerCardDev(card, "options.card", "Features drawer", "options.width", DRAWER_PREFERRED_WIDTH)
+    if ns.ApplyRightDrawerCard then
+        ns.ApplyRightDrawerCard(card, "options.card", "Features drawer", "options.width", DRAWER_PREFERRED_WIDTH)
     end
 
     -- Outer pad owns Size W — retire the legacy right-edge width strip.
@@ -456,13 +456,13 @@ function Panel.Apply(frame)
     -- Migrate older per-checkbox XY into the group once, if the group was never nudged.
     do
         local bx, by = Offset("options.bagChecks")
-        if (not bx or bx == 0) and (not by or by == 0) and ns.GetDevLayoutOffset and ns.WriteDevLayoutOffset then
-            local legacyX, legacyY = ns.GetDevLayoutOffset("options.showUpgradeArrow")
+        if (not bx or bx == 0) and (not by or by == 0) and ns.GetLayoutOffset and ns.WriteLayoutOffset then
+            local legacyX, legacyY = ns.GetLayoutOffset("options.showUpgradeArrow")
             if (not legacyX or legacyX == 0) and (not legacyY or legacyY == 0) then
-                legacyX, legacyY = ns.GetDevLayoutOffset("options.showBagIndicators")
+                legacyX, legacyY = ns.GetLayoutOffset("options.showBagIndicators")
             end
             if (legacyX and legacyX ~= 0) or (legacyY and legacyY ~= 0) then
-                ns.WriteDevLayoutOffset("options.bagChecks", legacyX or 0, legacyY or 0)
+                ns.WriteLayoutOffset("options.bagChecks", legacyX or 0, legacyY or 0)
             end
         end
     end
