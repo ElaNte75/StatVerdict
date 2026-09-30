@@ -2741,8 +2741,10 @@ local function FillOffSpecProgressTable(frame, selection, secondaryContext)
             end
             -- The weight shown is the one the verdict scoring uses (share of the fixed budget,
             -- and its live value for the stats you have now).
-            local scoringBase, scoringLive = ns.GetScoringSecondaryWeights
-                and ns.GetScoringSecondaryWeights(offProfile, row.key)
+            local scoringBase, scoringLive
+            if ns.GetScoringSecondaryWeights then
+                scoringBase, scoringLive = ns.GetScoringSecondaryWeights(offProfile, row.key)
+            end
             if scoringBase then baseModifier, liveModifier = scoringBase, scoringLive end
             local liveTrend = "same"
             if liveModifier and baseModifier then
@@ -3063,8 +3065,10 @@ UpdateFrame = function()
         end
         -- The weight shown is the one the verdict scoring uses (share of the fixed budget,
         -- and its live value for the stats you have now).
-        local scoringBase, scoringLive = ns.GetScoringSecondaryWeights
-            and ns.GetScoringSecondaryWeights(profile, row.key)
+        local scoringBase, scoringLive
+        if ns.GetScoringSecondaryWeights then
+            scoringBase, scoringLive = ns.GetScoringSecondaryWeights(profile, row.key)
+        end
         if scoringBase then baseModifier, liveModifier = scoringBase, scoringLive end
         local decimals = (row.key == "STATVERDICT_MAIN_HAND_DPS" or row.key == "STATVERDICT_OFF_HAND_DPS") and 2 or 0
         local liveTrend = "same"

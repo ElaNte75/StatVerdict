@@ -112,6 +112,14 @@ class ScoringMechanismTests(unittest.TestCase):
         ns.InvalidateCurrentStatRatings()  # what an equipment/spec/talent event does
         self.assertEqual(before + 500, ns.GetCurrentStatRating("ITEM_MOD_HASTE_RATING_SHORT"))
 
+    def test_stat_progress_reads_both_weights_from_the_scoring(self) -> None:
+        # `a and f()` keeps only the first value of f(); that once left the Weight column at "-".
+        import re
+        from pathlib import Path
+        source = Path("StatVerdict/UI/SV_StatAudit.lua").read_text(encoding="utf-8")
+        self.assertIsNone(re.search(r"scoringBase, scoringLive\s*=\s*ns\.GetScoringSecondaryWeights\s+and", source))
+        self.assertEqual(2, source.count("scoringBase, scoringLive = ns.GetScoringSecondaryWeights("))
+
 
 if __name__ == "__main__":
     unittest.main()
