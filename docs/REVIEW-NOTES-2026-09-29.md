@@ -149,3 +149,30 @@ Frame names are unchanged (`ns.UIName` still returns the same names).
 calls to names that no longer exist, and the fact that every removed function was a no-op or unreachable.
 If anything looks different in-game, `git log` shows the commit "Remove the development tooling ..." and
 "Remove unused exported functions ..." to restore from.
+
+## D. Second cleanup pass (2026-09-30) and what is left
+
+Done (each in its own commit, tests 512/512):
+- Docs: `IMPROVEMENTS.md` (all five items implemented), the three docs of the removed benchmark system, and stale
+  entries of `.gitattributes` are gone.
+- Names: `DevLayout*` helpers are `Layout*`; `ApplyRightDrawerCardDev` is `ApplyRightDrawerCard`; the Mode drawer's
+  saved keys `benchmark.*` are `weights.*` and saved positions are moved once (test included).
+- Editor leftovers: the hidden edit-only labels ("Panel 1/2", "screen 1/2", "box 1", "ms stats", "os stats"), the
+  unlocked-placement branch of the Panel 1 children, the text-hit/width/height handle stubs, the edit-mode checks and
+  every statement that hid a region no code creates (about 130 lines).
+
+Left, on purpose (all need an in-game check or a bigger rewrite):
+1. **The older weight model in `SV_Modifiers.lua` / `SV_LiveWeights.lua`** (point budget 10, tiers A/B/C, soft caps,
+   `GetDynamicStatWeight`, `NormalizeStatAuditLiveWeights`...). The verdicts and now the Stat Progress table use the
+   target-driven model in `SV_Scoring.lua`; the old one is only still used for the extras (weapon DPS, armor,
+   stamina) and by many tests. Removing it means rewriting those tests and the table's row code.
+2. Frames that are created and hidden but assigned: `devStatColumnRegions`, `devStatHeaderRegions`,
+   `devStatProgressWidthRegion`, `devStatTableMoveGrip`, `devStatTableRegion`, `devTopLeftBase`
+   (`SV_DashboardLayout.lua`): check that nothing uses them as anchors before removing.
+3. One-time SavedVariables fixes in `EnsureLayoutDB` and the migrations listed in B4, the `HideLegacy*` helpers (B3).
+4. The remote branch `origin/worktree-keylevel-bracket-benchmarks` (B9): not deleted, its last UI commits were not
+   verified to exist in `main`.
+5. `StatVerdictDB.statAuditDebugOverride` may still exist in old saved variables (harmless).
+
+The research on the live weight mechanism, with the findings that matter most (steep 4:3:2:1 shares, measured
+magnitudes discarded), is in `docs/research-live-weights-2026-09-30.md`.
