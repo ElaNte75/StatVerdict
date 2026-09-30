@@ -697,20 +697,20 @@ class CoreProfileTests(unittest.TestCase):
                          [rows[i].key for i in range(1, len(rows) + 1)])
 
     def test_stat_audit_base_modifiers_match_the_scoring_weights(self) -> None:
+        # The Stat Progress table shows the weights the verdict scoring really uses: each stat's
+        # share of the fixed secondary budget by rank (measured weights only decide the order).
         lua, ns = self.build_runtime(weight_mode="MEASURED")
         load_addon_file(lua, ns, "Core/SV_Modifiers.lua")
+        load_addon_file(lua, ns, "Core/SV_Scoring.lua")
         profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
         rows = profile.auditTargets.rows
         base = {rows[i].key: rows[i].baseModifier for i in range(1, len(rows) + 1)}
-        # haste 1.0, crit 0.8, vers 0.6, mastery 0.5 share the rank total 4+3+2+1 = 10.
-        total = 1.0 + 0.8 + 0.6 + 0.5
-        for stat, weight in (("haste", 1.0), ("crit", 0.8), ("vers", 0.6), ("mastery", 0.5)):
-            self.assertAlmostEqual(10 * weight / total, base[SECONDARY[stat]], msg=stat)
-            self.assertEqual(ns.GetMeasuredSecondaryRawWeight(profile, SECONDARY[stat]), base[SECONDARY[stat]])
-        # Without measured weights the rows keep the rank weights.
-        plain = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua, heroTalentName="Deathbringer"))
-        rows = plain.auditTargets.rows
-        self.assertEqual([4.0, 3.0, 2.0, 1.0], [rows[i].baseModifier for i in range(1, len(rows) + 1)])
+        # measured order: haste 1.0, crit 0.8, vers 0.6, mastery 0.5 -> shares 2.4, 1.8, 1.2, 0.6
+        for stat, share in (("haste", 2.4), ("crit", 1.8), ("vers", 1.2), ("mastery", 0.6)):
+            self.assertAlmostEqual(share, base[SECONDARY[stat]], msg=stat)
+            scoring_base, _ = ns.GetScoringSecondaryWeights(profile, SECONDARY[stat])
+            self.assertAlmostEqual(scoring_base, base[SECONDARY[stat]], msg=stat)
+        self.assertAlmostEqual(6.0, sum(base.values()))
 
     def test_hero_tree_without_weights_keeps_the_classcodex_priority(self) -> None:
         lua, ns = self.build_runtime(weight_mode="MEASURED")
@@ -782,10 +782,13 @@ class CoreProfileTests(unittest.TestCase):
     def test_guide_mode_follows_the_priority_list_only(self) -> None:
         lua, ns = self.build_runtime(weight_mode="GUIDE")
         load_addon_file(lua, ns, "Core/SV_Modifiers.lua")
+        load_addon_file(lua, ns, "Core/SV_Scoring.lua")
         profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
         self.assertEqual(self.keys(*self.GUIDE_ORDER), self.order(profile))
         self.assertIsNone(profile.secondaryWeights)
-        self.assertEqual([4.0, 3.0, 2.0, 1.0], self.base_modifiers(profile))
+        # The table shows the scoring's own base weights: rank shares of the 6.00 secondary budget.
+        for got, want in zip(self.base_modifiers(profile), [2.4, 1.8, 1.2, 0.6]):
+            self.assertAlmostEqual(want, got)
 
     def test_guide_mode_scores_exactly_like_the_no_weights_path(self) -> None:
         # Same regression promise as ScoringWeightTests.test_without_measured_weights_
@@ -917,22 +920,26 @@ class CoreProfileTests(unittest.TestCase):
             self.assertEqual(0, by_key[SECONDARY["vers"]], weight_mode)
             self.assertEqual(self.OWN_TARGETS["crit"], by_key[SECONDARY["crit"]], weight_mode)
 
-    def test_stats_the_guide_calls_equal_share_one_rank_weight_in_the_rows(self) -> None:
-        # Guide order haste, crit, mastery, vers with haste = crit tied: the rows
-        # weigh them alike (best rank of the group), like the tooltip scoring.
+    def test_stats_the_guide_calls_equal_share_their_average_in_rows_and_scoring(self) -> None:
+        # Guide order haste, crit, mastery, vers with haste = crit tied: they share the average of
+        # their ranks (4 and 3), in the table and in the scoring. The budget stays 6.00.
         build_id = now_build_id()
         targets = make_classcodex_targets(build_id)
         context = targets["profiles"]["DEATHKNIGHT_BLOOD"]["goals"]["MYTHIC_PLUS"]["heroTalents"]["sanlayn"]
         context["priorityProfiles"][0]["tiers"] = [["haste", "critical_strike"]]
         lua, ns = self.build_runtime(build_id=build_id, targets=targets)
-        ns.GlobalStatVerdictModifiers = lua.table(secondary=lua.table(4, 3, 2, 1), fallbackSecondary=1)
+        load_addon_file(lua, ns, "Core/SV_Scoring.lua")
         profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
         weight = {profile.auditTargets.rows[i].key: profile.auditTargets.rows[i].baseModifier
                   for i in range(1, len(profile.auditTargets.rows) + 1)}
-        self.assertEqual(4, weight[SECONDARY["haste"]])
-        self.assertEqual(4, weight[SECONDARY["crit"]])
-        self.assertEqual(2, weight[SECONDARY["mastery"]])
-        self.assertEqual(1, weight[SECONDARY["vers"]])
+        self.assertAlmostEqual(2.1, weight[SECONDARY["haste"]])
+        self.assertAlmostEqual(2.1, weight[SECONDARY["crit"]])
+        self.assertAlmostEqual(1.2, weight[SECONDARY["mastery"]])
+        self.assertAlmostEqual(0.6, weight[SECONDARY["vers"]])
+        self.assertAlmostEqual(6.0, sum(weight.values()))
+        _, live_haste = ns.GetScoringSecondaryWeights(profile, SECONDARY["haste"])
+        _, live_crit = ns.GetScoringSecondaryWeights(profile, SECONDARY["crit"])
+        self.assertTrue(live_haste > 0 and live_crit > 0)
 
     def test_quality_checks_still_read_our_own_targets(self) -> None:
         build_id = now_build_id()

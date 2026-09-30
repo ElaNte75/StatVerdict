@@ -497,6 +497,11 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
                 expected = 0.0
             if abs(target - expected) > 1e-6:
                 problems.append(f"{cell}: {canonical} target {target}, expected {expected}")
+        # The table shows the weights the scoring uses: the shares of the fixed 6.00 secondary budget.
+        rows = lua_list(profile.auditTargets.rows)
+        bases = [float(row.baseModifier) for row in rows if row.baseModifier is not None]
+        if bases and abs(sum(bases) - 6.0) > 1e-6:
+            problems.append(f"{cell}: table base weights add up to {sum(bases):.3f}, not the 6.00 budget")
 
 
 if __name__ == "__main__":
