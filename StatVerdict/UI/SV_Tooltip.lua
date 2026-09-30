@@ -163,6 +163,11 @@ local function AddTooltipVerdict(tooltip)
     if IsInternalStatVerdictTooltip(tooltip) then
         return
     end
+    -- Our own list rows (Ranked Trinkets) show the plain item: no verdict lines.
+    local owner = tooltip and type(tooltip.GetOwner) == "function" and tooltip:GetOwner() or nil
+    if type(owner) == "table" and owner.svNoVerdict == true then
+        return
+    end
     if not tooltip or TooltipAlreadyHasStatVerdict(tooltip) then
         return
     end

@@ -769,6 +769,71 @@ local function BuildRecommendedTooltipLines(row)
 end
 Panel.BuildRecommendedTooltipLines = BuildRecommendedTooltipLines
 
+-- The lines of the Ranked Trinkets tooltip: name, item level, upgrade level, the
+-- "+N Stat" lines and (when asked) the trinket's effect. Pure filter over the game's
+-- tooltip data lines; everything else (binding, slot, sockets, requirements, price,
+-- flavor text) is dropped, the game tooltip is one click away for that.
+-- Effect lines wrap to the tooltip's width instead of widening it.
+function Panel.FilterTrinketTooltipLines(lines, showEffect)
+    local out = {}
+    if type(lines) ~= "table" then return out end
+    local patterns = HeaderPatterns()
+    local afterEffect = false
+    for index, line in ipairs(lines) do
+        if type(line) == "table" then
+            local left = CleanTooltipText(line.leftText)
+            local right = CleanTooltipText(line.rightText)
+            local entry = { left = left, right = (right ~= "" and right) or nil, color = LineColor(line) }
+            if index == 1 then
+                if left ~= "" then out[#out + 1] = entry end
+            elseif left:find("^%+[%d,%.]+ %S") ~= nil
+                or MatchesAny(left, patterns.itemLevel)
+                or MatchesAny(left, patterns.upgrade) then
+                afterEffect = false
+                out[#out + 1] = entry
+            elseif showEffect and MatchesAny(left, patterns.effects) then
+                entry.wrap = true
+                if not afterEffect then entry.gap = TOOLTIP_SUBSECTION_GAP end
+                afterEffect = true
+                out[#out + 1] = entry
+            elseif showEffect and afterEffect and left:find("^%(.+%)$") then
+                -- "(2 Min Cooldown)" belongs to the effect above it.
+                entry.wrap = true
+                out[#out + 1] = entry
+            else
+                afterEffect = false
+            end
+        end
+    end
+    return out
+end
+
+local TRINKET_TOOLTIP_MIN_WIDTH = 260
+
+local function BuildTrinketTooltipLines(row)
+    local link = row and row.itemLink
+    local rawLines = ReadRawItemLines(link)
+    local lines = rawLines and Panel.FilterTrinketTooltipLines(rawLines, BisOptionOn("showTrinketEffect")) or nil
+    if lines and #lines == 0 then lines = nil end
+    if lines then
+        lines[1].font = "title"
+    else
+        -- No game data yet: name only, and redraw once the item arrives.
+        local itemID = row and row.itemID
+        local name, _, quality = GetItemInfoByLinkOrID(link, itemID)
+        RequestItemLoad(itemID)
+        lines = { {
+            left = GetQualityHex(quality) .. tostring(name or (itemID and ("item:" .. tostring(itemID)))
+                or "Unknown item") .. "|r",
+            color = { 1, 1, 1 },
+            font = "title",
+        } }
+    end
+    lines.minWidth = TRINKET_TOOLTIP_MIN_WIDTH
+    return lines
+end
+Panel.BuildTrinketTooltipLines = BuildTrinketTooltipLines
+
 local recommendedTooltip = nil
 local tooltipRow = nil
 
@@ -825,7 +890,7 @@ local function RenderRecommendedTooltip(row, lines)
 
     -- Pass 1: set the texts and find the width. Wrapping lines (gem / enchant names)
     -- never widen the tooltip: the item's own lines decide its width.
-    local width = TOOLTIP_MIN_WIDTH
+    local width = lines.minWidth or TOOLTIP_MIN_WIDTH
     for index, line in ipairs(lines) do
         local font = FONT_FOR[line.font] or "GameFontHighlightSmall"
         local color = line.color or TEXT_COLOR
@@ -937,8 +1002,18 @@ local function ShowItemTooltip(row)
         GameTooltip:Show()
         return
     end
-    -- Ranked Trinkets: the game's item tooltip, as before.
+    -- Ranked Trinkets: the same three choices as Best in Slot (Features drawer): our
+    -- tooltip (unset = on), the game's item tooltip (only when chosen), or nothing.
     if not row.itemLink then return end
+    if BisOptionOn("showTrinketTooltip") then
+        tooltipRow = row
+        RenderRecommendedTooltip(row, BuildTrinketTooltipLines(row))
+        return
+    end
+    if tooltipRow == row then tooltipRow = nil end
+    if recommendedTooltip then recommendedTooltip:Hide() end
+    local db = _G and _G.StatVerdictDB
+    if not (type(db) == "table" and db.trinketUseGameTooltip == true) then return end
     if not GameTooltip then return end
     GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
     GameTooltip:SetHyperlink(row.itemLink)
@@ -1463,6 +1538,7 @@ function Panel.Refresh(frame, profile)
                 SetRowOwnedLevel(row, ownedLevel)
                 SetRowItemVisual(row, display)
                 row.recommendedEntry = nil
+                row.svNoVerdict = true  -- a ranked list, not a gear comparison: no verdict lines
                 row:Show()
             else
                 row.itemLink = nil
@@ -1517,6 +1593,7 @@ function Panel.Refresh(frame, profile)
             SetRowItemVisual(row, display)
             -- Hover shows the complete recommended item (own tooltip).
             row.recommendedEntry = entry
+            row.svNoVerdict = nil
             -- The whole list and this row's place in it: the unique primary gem goes
             -- on the first socketed slot only.
             row.bisSlots = slots
@@ -1569,8 +1646,8 @@ if not refreshFrame then
         elseif ns.RequestStatAuditRefresh then
             ns.RequestStatAuditRefresh()
         end
-        -- A hovered Best in Slot tooltip fills in names that just arrived.
-        if tooltipRow and tooltipRow.recommendedEntry then
+        -- A hovered Best in Slot / Ranked Trinkets tooltip fills in names that just arrived.
+        if tooltipRow then
             ShowItemTooltip(tooltipRow)
         end
     end)

@@ -203,6 +203,13 @@ local BIS_TOOLTIP_OPTIONS = {
     { key = "showBisGemsEnchants", label = "Gems and enchants", indent = true },
     { key = "bisUseGameTooltip", label = "Use the game tooltip instead" },
 }
+-- Ranked Trinkets section: the same three choices for the Ranked Trinkets list. The
+-- effect line is a child of our tooltip (only exists inside it), like gems / enchants.
+local TRINKET_TOOLTIP_OPTIONS = {
+    { key = "showTrinketTooltip", label = "Ranked Trinkets tooltip" },
+    { key = "showTrinketEffect", label = "Trinket effect", indent = true },
+    { key = "trinketUseGameTooltip", label = "Use the game tooltip instead" },
+}
 local BIS_CHILD_INDENT = 18
 local LOCKED_ALPHA = 0.45
 
@@ -213,6 +220,12 @@ local function BisOptionState(key)
     local game = (not ours) and type(db) == "table" and db.bisUseGameTooltip == true
     if key == "showBisTooltip" then return ours, true end
     if key == "showBisGemsEnchants" then return OptionFlagOn(key), ours end
+    if key == "showTrinketTooltip" or key == "showTrinketEffect" or key == "trinketUseGameTooltip" then
+        local trinketOurs = OptionFlagOn("showTrinketTooltip")
+        if key == "showTrinketTooltip" then return trinketOurs, true end
+        if key == "showTrinketEffect" then return OptionFlagOn(key), trinketOurs end
+        return (not trinketOurs) and type(db) == "table" and db.trinketUseGameTooltip == true, true
+    end
     return game, true
 end
 
@@ -220,6 +233,8 @@ end
 local BIS_EXCLUSIVE_WITH = {
     showBisTooltip = "bisUseGameTooltip",
     bisUseGameTooltip = "showBisTooltip",
+    showTrinketTooltip = "trinketUseGameTooltip",
+    trinketUseGameTooltip = "showTrinketTooltip",
 }
 
 local function EnsureOptionCheckbox(card, option, parent)
@@ -261,14 +276,16 @@ local function SyncBagIndicatorOptionChecks(card)
         end
     end
     -- Locked options are dimmed and not clickable; their saved value is kept.
-    for _, option in ipairs(BIS_TOOLTIP_OPTIONS) do
-        local check = card.bagIndicatorChecks[option.key]
-        if check then
-            local checked, active = BisOptionState(option.key)
-            check:SetChecked(checked)
-            check.svLocked = not active
-            if active then check:Enable() else check:Disable() end
-            check:SetAlpha(active and 1 or LOCKED_ALPHA)
+    for _, list in ipairs({ BIS_TOOLTIP_OPTIONS, TRINKET_TOOLTIP_OPTIONS }) do
+        for _, option in ipairs(list) do
+            local check = card.bagIndicatorChecks[option.key]
+            if check then
+                local checked, active = BisOptionState(option.key)
+                check:SetChecked(checked)
+                check.svLocked = not active
+                if active then check:Enable() else check:Disable() end
+                check:SetAlpha(active and 1 or LOCKED_ALPHA)
+            end
         end
     end
     -- Legacy Enable All checkbox removed from UI.
@@ -469,39 +486,52 @@ function Panel.Apply(frame)
         end)
     end
 
-    -- Best in Slot section, same look as Bag Markers, below it.
-    if not card.bisTooltipTitle then
-        card.bisTooltipTitle = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        card.bisTooltipTitle:SetText("Best in Slot")
-        card.bisTooltipTitle:SetTextColor(1.0, 0.82, 0.0)
-    end
-    local bisTitleY = -70 - blockBaseH - 16
-    PlaceFeaturesTitle(card, card.bisTooltipTitle, "options.bisTooltipTitle", "Best in Slot title", CONTENT_MARGIN,
-        bisTitleY)
-    local bisBlock = EnsureBagChecksBlock(card, "bisTooltipChecksBlock")
-    local bisBlockH = math.max(BAG_CHECK_STEP, #BIS_TOOLTIP_OPTIONS * BAG_CHECK_STEP)
-    local bisBlockW = PlaceBagChecksBlock(card, bisBlock, "options.bisTooltipChecks", "Best in Slot checkboxes",
-        CONTENT_MARGIN, bisTitleY - 30, blockBaseW, bisBlockH) or blockBaseW
-    for index, option in ipairs(BIS_TOOLTIP_OPTIONS) do
-        local check = EnsureOptionCheckbox(card, option, bisBlock)
-        check:ClearAllPoints()
-        local indent = option.indent and BIS_CHILD_INDENT or 0
-        check:SetPoint("TOPLEFT", bisBlock, "TOPLEFT", indent, -((index - 1) * BAG_CHECK_STEP))
-        FitCheckLabel(check, bisBlockW, indent)
-        check:SetFrameLevel((bisBlock:GetFrameLevel() or 1) + 6)
-        check:Show()
-        check:SetScript("OnClick", function(self)
-            if self.svLocked then
+    -- Best in Slot and Ranked Trinkets sections, same look as Bag Markers, below it.
+    local sections = {
+        { list = BIS_TOOLTIP_OPTIONS, title = "Best in Slot", titleField = "bisTooltipTitle",
+          blockField = "bisTooltipChecksBlock", titleKey = "options.bisTooltipTitle",
+          titleLabel = "Best in Slot title", checksKey = "options.bisTooltipChecks",
+          checksLabel = "Best in Slot checkboxes" },
+        { list = TRINKET_TOOLTIP_OPTIONS, title = "Ranked Trinkets", titleField = "trinketTooltipTitle",
+          blockField = "trinketTooltipChecksBlock", titleKey = "options.trinketTooltipTitle",
+          titleLabel = "Ranked Trinkets title", checksKey = "options.trinketTooltipChecks",
+          checksLabel = "Ranked Trinkets checkboxes" },
+    }
+    local titleY = -70 - blockBaseH - 16
+    for _, section in ipairs(sections) do
+        if not card[section.titleField] then
+            card[section.titleField] = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            card[section.titleField]:SetText(section.title)
+            card[section.titleField]:SetTextColor(1.0, 0.82, 0.0)
+        end
+        PlaceFeaturesTitle(card, card[section.titleField], section.titleKey, section.titleLabel, CONTENT_MARGIN,
+            titleY)
+        local sectionBlock = EnsureBagChecksBlock(card, section.blockField)
+        local sectionBlockH = math.max(BAG_CHECK_STEP, #section.list * BAG_CHECK_STEP)
+        local sectionBlockW = PlaceBagChecksBlock(card, sectionBlock, section.checksKey, section.checksLabel,
+            CONTENT_MARGIN, titleY - 30, blockBaseW, sectionBlockH) or blockBaseW
+        for index, option in ipairs(section.list) do
+            local check = EnsureOptionCheckbox(card, option, sectionBlock)
+            check:ClearAllPoints()
+            local indent = option.indent and BIS_CHILD_INDENT or 0
+            check:SetPoint("TOPLEFT", sectionBlock, "TOPLEFT", indent, -((index - 1) * BAG_CHECK_STEP))
+            FitCheckLabel(check, sectionBlockW, indent)
+            check:SetFrameLevel((sectionBlock:GetFrameLevel() or 1) + 6)
+            check:Show()
+            check:SetScript("OnClick", function(self)
+                if self.svLocked then
+                    SyncBagIndicatorOptionChecks(card)
+                    return
+                end
+                _G.StatVerdictDB = _G.StatVerdictDB or {}
+                local on = self:GetChecked() and true or false
+                _G.StatVerdictDB[option.key] = on
+                local other = BIS_EXCLUSIVE_WITH[option.key]
+                if on and other then _G.StatVerdictDB[other] = false end
                 SyncBagIndicatorOptionChecks(card)
-                return
-            end
-            _G.StatVerdictDB = _G.StatVerdictDB or {}
-            local on = self:GetChecked() and true or false
-            _G.StatVerdictDB[option.key] = on
-            local other = BIS_EXCLUSIVE_WITH[option.key]
-            if on and other then _G.StatVerdictDB[other] = false end
-            SyncBagIndicatorOptionChecks(card)
-        end)
+            end)
+        end
+        titleY = titleY - 30 - sectionBlockH - 16
     end
     SyncBagIndicatorOptionChecks(card)
 

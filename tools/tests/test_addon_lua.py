@@ -1278,6 +1278,19 @@ class TooltipProvenanceTests(unittest.TestCase):
         self.assertEqual(["PVP"], self.asked)
         self.assertTrue(any("profile data unavailable" in line for line in lines))
 
+    def test_a_row_that_asks_for_no_verdict_gets_none(self) -> None:
+        # Ranked Trinkets rows show the plain item: not even the "data unavailable" notice.
+        self.ns.GetTooltipEvaluationContexts = lambda: self.lua.table(goal="PVP")
+        for flagged in (True, False, None):
+            tooltip = self.lua.execute(self.TOOLTIP)
+            owner = self.lua.table(svNoVerdict=flagged)
+            tooltip.GetOwner = self.lua.eval("function(o) return function() return o end end")(owner)
+            self.ns.ProcessTooltip(tooltip)
+            if flagged:
+                self.assertEqual(0, len(tooltip.lines))
+            else:
+                self.assertGreater(len(tooltip.lines), 0, flagged)
+
     def test_available_goal_shows_no_unavailable_notice(self) -> None:
         self.assertEqual([], self.lines(self.lua.table(goal="RAID")))
         self.assertEqual(["RAID"], self.asked)
@@ -2458,17 +2471,13 @@ class BisPanelTests(unittest.TestCase):
         self.assertEqual(GUARDIAN_HEAD_KEPT, self.hover(card.rows[1]))
 
     def test_ranked_trinkets_ignore_the_best_in_slot_options(self) -> None:
+        # The Best in Slot choices do not touch Ranked Trinkets: they have their own.
         g = self.lua.globals()
         g.StatVerdictDB.showBisTooltip = False
+        g.StatVerdictDB.bisUseGameTooltip = False
         card = self.refresh_trinkets()
-        card.rows[1].scripts.OnEnter(card.rows[1])
-        self.assertEqual([
-            ("SetOwner", "ANCHOR_RIGHT"),
-            ("SetHyperlink", "item:1003::::::::90::::1:6652"),
-            ("Show",),
-        ], self.game_tooltip_calls())
-
-    # --- Measured gear level: the items at the chosen track --------------------------
+        self.hover(card.rows[1])
+        self.assertEqual([], self.game_tooltip_calls())
 
     def use_level(self, mode, level, track_swap=True):
         """Loads the repository with the data root's trackSwap (string keys, as the
@@ -2503,8 +2512,14 @@ class BisPanelTests(unittest.TestCase):
         row.scripts.OnEnter(row)
         self.assertIn(("SetHyperlink", "item:1001::::::::90:104::0:2:8652:11"), self.game_tooltip_calls())
 
+    def use_game_trinket_tooltip(self) -> None:
+        g = self.lua.globals()
+        g.StatVerdictDB.showTrinketTooltip = False
+        g.StatVerdictDB.trinketUseGameTooltip = True
+
     def test_hero_level_swaps_the_ranked_trinket_links(self) -> None:
         self.use_level("MEASURED", "hero")
+        self.use_game_trinket_tooltip()
         card = self.refresh_trinkets()
         card.rows[1].scripts.OnEnter(card.rows[1])
         self.assertIn(("SetHyperlink", "item:1003::::::::90::::1:7652"), self.game_tooltip_calls())
@@ -2516,6 +2531,7 @@ class BisPanelTests(unittest.TestCase):
             self.assertEqual(GUARDIAN_HEAD_LINK, self.panel.BuildRecommendedItemLink(self.guardian_head(), 104),
                              (mode, level))
             self.lua.globals().TOOLTIP_CALLS = self.lua.table()
+            self.use_game_trinket_tooltip()
             card = self.refresh_trinkets()
             card.rows[1].scripts.OnEnter(card.rows[1])
             self.assertIn(("SetHyperlink", "item:1003::::::::90::::1:6652"), self.game_tooltip_calls(),
@@ -2607,8 +2623,9 @@ class BisPanelTests(unittest.TestCase):
         card = self.refresh(self.entry(item_id=1001, enchant={"id": 7961, "item_id": 777002}))
         self.assertIn(("Enchant #7961", None), self.hover(card.rows[1]))
 
-    def test_ranked_trinkets_keep_the_game_tooltip(self) -> None:
+    def test_ranked_trinkets_game_tooltip_when_chosen(self) -> None:
         self.refresh(self.guardian_head())
+        self.use_game_trinket_tooltip()
         card = self.refresh_trinkets()
         card.rows[1].scripts.OnEnter(card.rows[1])
         calls = self.lua.globals().TOOLTIP_CALLS
@@ -2619,6 +2636,94 @@ class BisPanelTests(unittest.TestCase):
         ], [tuple(calls[i][j] for j in range(1, len(calls[i]) + 1)) for i in range(1, len(calls) + 1)])
         tip = self.panel.GetRecommendedTooltip()
         self.assertTrue(tip is None or not tip._visible)
+
+    # --- Ranked Trinkets: our tooltip / effect / game tooltip / nothing ------------------
+
+    TRINKET_LINK = "item:1003::::::::90::::1:6652"
+    TRINKET_TOOLTIP = [
+        ("Ara-Kara Sacbrood", None, EPIC),
+        ("Item Level 334", None, (1, 0.82, 0)),
+        ("Upgrade Level: Myth 6/6", None, (1, 0.82, 0)),
+        ("Binds when picked up", None, (1, 1, 1)),
+        ("Trinket", None, (1, 1, 1)),
+        ("+189 Agility", None, (1, 1, 1)),
+        ("+142 Haste", None, (1, 1, 1)),
+        ("Use: Unleash a swarm that damages enemies in front of you.", None, (0.12, 1, 0)),
+        ("(2 Min Cooldown)", None, (1, 1, 1)),
+        ("Equip: Your attacks have a chance to lull your foes.", None, (0.12, 1, 0)),
+        ("Requires level 80", None, (1, 1, 1)),
+        ("Sell Price: 5g", None, (1, 1, 1)),
+    ]
+    TRINKET_STATS = [
+        ("Ara-Kara Sacbrood", None),
+        ("Item Level 334", None),
+        ("Upgrade Level: Myth 6/6", None),
+        ("+189 Agility", None),
+        ("+142 Haste", None),
+    ]
+    TRINKET_EFFECT = [
+        ("Use: Unleash a swarm that damages enemies in front of you.", None),
+        ("(2 Min Cooldown)", None),
+        ("Equip: Your attacks have a chance to lull your foes.", None),
+    ]
+
+    def test_trinket_tooltip_is_ours_by_default_with_name_level_stats_and_effect(self) -> None:
+        self.game_knows(self.TRINKET_LINK, self.TRINKET_TOOLTIP)
+        card = self.refresh_trinkets()
+        self.assertEqual(self.TRINKET_STATS + self.TRINKET_EFFECT, self.hover(card.rows[1]))
+        self.assertEqual([], self.game_tooltip_calls())
+
+    def test_trinket_effect_can_be_switched_off(self) -> None:
+        self.lua.globals().StatVerdictDB.showTrinketEffect = False
+        self.game_knows(self.TRINKET_LINK, self.TRINKET_TOOLTIP)
+        card = self.refresh_trinkets()
+        self.assertEqual(self.TRINKET_STATS, self.hover(card.rows[1]))
+
+    def test_trinket_effect_lines_wrap_and_do_not_widen_the_tooltip(self) -> None:
+        self.game_knows(self.TRINKET_LINK, self.TRINKET_TOOLTIP)
+        card = self.refresh_trinkets()
+        self.hover(card.rows[1])
+        with_effect = self.panel.GetRecommendedTooltip()._width
+        self.lua.globals().StatVerdictDB.showTrinketEffect = False
+        self.hover(self.refresh_trinkets().rows[1])
+        self.assertEqual(self.panel.GetRecommendedTooltip()._width, with_effect)
+        self.assertGreaterEqual(with_effect, 260)
+
+    def test_trinket_without_game_data_shows_its_name_and_asks_for_it(self) -> None:
+        g = self.lua.globals()
+        g.ITEM_NAMES[1003] = "Ara-Kara Sacbrood"
+        card = self.refresh_trinkets()
+        lines = self.hover(card.rows[1])
+        self.assertEqual([("Ara-Kara Sacbrood", None)], [(left.replace("|r", "").split("|c")[-1][8:] if left.startswith("|c") else left, right)
+                                                        for left, right in lines])
+        self.assertTrue(g.REQUESTED[1003])
+
+    def test_trinket_game_tooltip_only_when_chosen_and_never_with_verdict_lines(self) -> None:
+        self.use_game_trinket_tooltip()
+        card = self.refresh_trinkets()
+        row = card.rows[1]
+        self.assertIs(True, row.svNoVerdict)
+        row.scripts.OnEnter(row)
+        self.assertEqual([("SetOwner", "ANCHOR_RIGHT"), ("SetHyperlink", self.TRINKET_LINK), ("Show",)],
+                         self.game_tooltip_calls())
+        self.assertTrue(self.our_tooltip_hidden())
+
+    def test_trinket_both_off_shows_nothing(self) -> None:
+        for game_value in (None, False):
+            self.lua.globals().TOOLTIP_CALLS = self.lua.table()
+            g = self.lua.globals()
+            g.StatVerdictDB.showTrinketTooltip = False
+            g.StatVerdictDB.trinketUseGameTooltip = game_value
+            row = self.refresh_trinkets().rows[1]
+            row.scripts.OnEnter(row)
+            self.assertEqual([], self.game_tooltip_calls(), game_value)
+            self.assertTrue(self.our_tooltip_hidden(), game_value)
+
+    def test_best_in_slot_rows_still_get_their_verdict_lines(self) -> None:
+        self.refresh_trinkets()
+        self.mode = "bis"
+        card = self.refresh(self.guardian_head(), spec_id=104)
+        self.assertIsNone(card.rows[1].svNoVerdict)
 
     # --- guide gems: one unique primary gem, a secondary gem everywhere else ----------
 
@@ -2968,6 +3073,9 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
             self.assertIn(label, source)
         self.assertIn("turns the other off", source)
         self.assertNotIn("untick one to pick the other", source)
+        self.assertNotIn("Ranked Trinkets always show the game tooltip", source)
+        for label in ("Ranked Trinkets tooltip", "Trinket effect"):
+            self.assertIn(label, source)
 
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
@@ -3057,6 +3165,76 @@ class FeaturesDrawerGeometryTests(unittest.TestCase):
         for name, width in widths.items():
             source = (ADDON / "UI" / name).read_text(encoding="utf-8-sig")
             self.assertIn(f"local DRAWER_PREFERRED_WIDTH = {width}\n", source, name)
+
+
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class TrinketTooltipFeatureToggleTests(unittest.TestCase):
+    """Features → Ranked Trinkets: the same three choices as Best in Slot (our tooltip,
+    its effect line as a child of it, the game tooltip), saved under their own keys."""
+
+    OPTIONS = [
+        ("showTrinketTooltip", "Ranked Trinkets tooltip"),
+        ("showTrinketEffect", "Trinket effect"),
+        ("trinketUseGameTooltip", "Use the game tooltip instead"),
+    ]
+    setUp = BisTooltipFeatureToggleTests.setUp
+    check = BisTooltipFeatureToggleTests.check
+    click = BisTooltipFeatureToggleTests.click
+    db = BisTooltipFeatureToggleTests.db
+    active = BisTooltipFeatureToggleTests.active
+    states = BisTooltipFeatureToggleTests.states
+
+    def test_section_sits_under_best_in_slot_with_the_same_step(self) -> None:
+        checks = [self.check(key) for key, _ in self.OPTIONS]
+        self.assertEqual([label for _, label in self.OPTIONS], [c.Text.text for c in checks])
+        card = self.frame.optionsDrawerCard
+        self.assertEqual("Ranked Trinkets", card.trinketTooltipTitle.text)
+        points = [c.points[len(c.points)] for c in checks]
+        self.assertEqual([0, -24, -48], [p[5] for p in points])
+        self.assertGreater(points[1][4], points[0][4])
+        self.assertEqual(points[0][4], points[2][4])
+        self.assertEqual(72, card.trinketTooltipChecksBlock._height)
+
+    def test_section_does_not_overlap_best_in_slot_and_fits_the_card(self) -> None:
+        self.check()
+        card = self.frame.optionsDrawerCard
+        bis = card.bisTooltipChecksBlock.points[len(card.bisTooltipChecksBlock.points)]
+        trinkets = card.trinketTooltipChecksBlock.points[len(card.trinketTooltipChecksBlock.points)]
+        title = card.trinketTooltipTitle.points[len(card.trinketTooltipTitle.points)]
+        self.assertLess(title[5], bis[5] - card.bisTooltipChecksBlock._height)  # title below the BiS block
+        self.assertGreaterEqual(trinkets[5] - card.trinketTooltipChecksBlock._height, -(440 - 33 - 6 - 20 - 6))
+
+    def test_defaults_ours_on_effect_on_game_tooltip_off(self) -> None:
+        self.assertEqual([(True, True), (True, True), (False, True)], self.states())
+        self.lua.globals().StatVerdictDB = None
+        self.assertEqual([(True, True), (True, True), (False, True)], self.states())
+
+    def test_ticking_the_game_tooltip_turns_ours_off_and_locks_the_effect(self) -> None:
+        self.click("trinketUseGameTooltip", True)
+        self.assertEqual([(False, True), (True, False), (True, True)], self.states())
+        self.assertIs(False, self.db().showTrinketTooltip)
+        self.assertIs(True, self.db().trinketUseGameTooltip)
+        self.click("showTrinketTooltip", True)
+        self.assertEqual([(True, True), (True, True), (False, True)], self.states())
+        self.assertIs(False, self.db().trinketUseGameTooltip)
+
+    def test_unticking_the_active_one_leaves_both_off(self) -> None:
+        self.click("showTrinketTooltip", False)
+        self.assertEqual([(False, True), (True, False), (False, True)], self.states())
+
+    def test_effect_choice_is_kept_while_locked(self) -> None:
+        self.click("showTrinketEffect", False)
+        self.click("showTrinketTooltip", False)
+        self.assertFalse(self.click("showTrinketEffect", True).checked)  # locked: click ignored
+        self.assertIs(False, self.db().showTrinketEffect)
+        self.click("showTrinketTooltip", True)
+        self.assertEqual((False, True), self.states()[1])
+
+    def test_the_two_sections_do_not_touch_each_others_choices(self) -> None:
+        self.click("trinketUseGameTooltip", True)
+        self.click("showBisTooltip", False)
+        self.assertIs(True, self.db().trinketUseGameTooltip)
+        self.assertIsNone(self.db().bisUseGameTooltip)
 
 
 if __name__ == "__main__":
