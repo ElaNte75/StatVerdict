@@ -324,9 +324,9 @@ class CoreProfileTests(unittest.TestCase):
         ns.GetSnapshotHeroTalentName = lambda profile: "Todesbringer"
         ns.GetSnapshotHeroSubTreeID = lambda profile: 33
         bare = lua.table(specKey="DEATHKNIGHT_BLOOD", goal="MYTHIC_PLUS")
-        self.assertEqual(8, ns.GetItemReferenceInfo("item:1500", bare).bonus)
+        self.assertEqual(100, ns.GetItemReferenceInfo("item:1500", bare).bonus)
         named = lua.table(specKey="DEATHKNIGHT_BLOOD", goal="MYTHIC_PLUS", heroTalentName="San'layn", heroSubTreeID=31)
-        self.assertEqual(8, ns.GetItemReferenceInfo("item:1000", named).bonus)
+        self.assertEqual(100, ns.GetItemReferenceInfo("item:1000", named).bonus)
 
     def test_missing_hero_tree_name_guesses_the_first_key_in_sorted_order(self) -> None:
         lua, ns = self.build_runtime()
@@ -554,15 +554,15 @@ class CoreProfileTests(unittest.TestCase):
         lua, ns = self.build_runtime()
         profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
         helm = ns.GetItemReferenceInfo("item:1000", profile)
-        self.assertEqual(8, helm.bonus)
+        self.assertEqual(100, helm.bonus)
         self.assertIsNotNone(helm.bis)
         # The two S trinkets are also in the BiS list, so they get the +8 list bonus
         # on top of their tier bonus.
         alpha = ns.GetItemReferenceInfo("item:5001", profile)
         self.assertEqual("S", alpha.trinket.tier)
-        self.assertEqual(108, alpha.bonus)  # list 8 + tier 95 + rank bonus 5
+        self.assertEqual(200, alpha.bonus)  # list 100 + tier 95 + rank bonus 5
         gamma = ns.GetItemReferenceInfo("item:5003", profile)
-        self.assertEqual(107, gamma.bonus)  # list 8 + tier 95 + rank bonus 4
+        self.assertEqual(199, gamma.bonus)  # list 100 + tier 95 + rank bonus 4
         beta = ns.GetItemReferenceInfo("item:5002", profile)
         self.assertEqual("A", beta.trinket.tier)
         self.assertEqual(70, beta.bonus)  # tier 65 + rank bonus 5 (not in the BiS list)
@@ -572,17 +572,17 @@ class CoreProfileTests(unittest.TestCase):
     def test_boost_follows_the_players_hero_tree(self) -> None:
         lua, ns = self.build_runtime()
         deathbringer = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua, heroTalentName="Deathbringer"))
-        self.assertEqual(8, ns.GetItemReferenceInfo("item:1500", deathbringer).bonus)
+        self.assertEqual(100, ns.GetItemReferenceInfo("item:1500", deathbringer).bonus)
         self.assertIsNone(ns.GetItemReferenceInfo("item:1000", deathbringer))
 
     def test_boost_resolves_the_hero_tree_for_a_bare_profile(self) -> None:
         lua, ns = self.build_runtime()
         named = lua.table(specKey="DEATHKNIGHT_BLOOD", goal="MYTHIC_PLUS", heroTalentName="Deathbringer")
-        self.assertEqual(8, ns.GetItemReferenceInfo("item:1500", named).bonus)
+        self.assertEqual(100, ns.GetItemReferenceInfo("item:1500", named).bonus)
         ns.GetSnapshotHeroTalentName = lambda profile: "San'layn"
         by_spec_id = lua.table(specID=250, goal="MYTHIC_PLUS")
         ns.GetStatVerdictSpecKeyBySpecID = lua.eval("function(id) return id == 250 and 'DEATHKNIGHT_BLOOD' or nil end")
-        self.assertEqual(8, ns.GetItemReferenceInfo("item:1000", by_spec_id).bonus)
+        self.assertEqual(100, ns.GetItemReferenceInfo("item:1000", by_spec_id).bonus)
         ns.GetSnapshotHeroTalentName = lambda profile: None
         self.assertIsNone(ns.GetItemReferenceInfo("item:1000", lua.table(specKey="DEATHKNIGHT_BLOOD", goal="MYTHIC_PLUS")))
 
@@ -592,7 +592,7 @@ class CoreProfileTests(unittest.TestCase):
             profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua, goal=goal))
             info = ns.GetItemReferenceInfo("item:5001", profile)
             self.assertEqual(goal, info.goal)
-            self.assertEqual(108, info.bonus, goal)
+            self.assertEqual(200, info.bonus, goal)
             self.assertIsNone(info.catalystPath)  # no catalyst data in ClassCodex BiS lists
 
     # The game's item data: BiS Head 1000, Shoulders 1002 and Chest 1004 are set
@@ -640,11 +640,11 @@ class CoreProfileTests(unittest.TestCase):
             info = ns.GetItemReferenceInfo(link, profile)
             self.assertIsNotNone(info, link)
             self.assertIsNone(info.bis, link)
-            self.assertEqual(8, info.catalystPath.bonus, link)  # same bonus a BiS item gets
+            self.assertEqual(100, info.catalystPath.bonus, link)  # same bonus a BiS item gets
             self.assertEqual(slot, info.catalystPath.slot, link)
             self.assertEqual(target, info.catalystPath.targetItemID, link)
-            self.assertEqual(8, info.bonus, link)
-            self.assertEqual(8, ns.GetItemReferenceBonus(link, profile)[0])
+            self.assertEqual(100, info.bonus, link)
+            self.assertEqual(100, ns.GetItemReferenceBonus(link, profile)[0])
 
     def test_no_catalyst_rule_when_the_bis_piece_is_not_a_set_piece(self) -> None:
         lua, ns, profile = self.catalyst_runtime()
@@ -656,7 +656,7 @@ class CoreProfileTests(unittest.TestCase):
         info = ns.GetItemReferenceInfo("item:1000", profile)
         self.assertIsNotNone(info.bis)
         self.assertIsNone(info.catalystPath)
-        self.assertEqual(8, info.bonus)
+        self.assertEqual(100, info.bonus)
 
     def test_no_catalyst_rule_for_other_slots_or_items_without_an_upgrade_track(self) -> None:
         lua, ns, profile = self.catalyst_runtime()
@@ -680,7 +680,7 @@ class CoreProfileTests(unittest.TestCase):
         self.assertEqual(["clear", ("refresh", "full")], calls)
         info = ns.GetItemReferenceInfo("item:7005", profile)
         self.assertEqual(1006, info.catalystPath.targetItemID)
-        self.assertEqual(8, info.bonus)
+        self.assertEqual(100, info.bonus)
 
     def order(self, profile) -> list[str]:
         return [profile.secondaryOrder[i] for i in range(1, len(profile.secondaryOrder) + 1)]

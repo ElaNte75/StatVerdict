@@ -1,6 +1,8 @@
 local addonName, ns = ...
 
-local BIS_BONUS = 8
+-- An item of the guide's Best in Slot list must win whatever its stats (clearly less item level still
+-- decides against it: the Item Level Guard is stronger).
+local BIS_BONUS = 100
 local TRINKET_TIER_BONUS = {
     -- Effect-first: tier gaps must outrun dampened secondary swings on trinkets.
     S = 95,

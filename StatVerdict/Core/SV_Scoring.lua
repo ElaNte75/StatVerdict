@@ -30,17 +30,20 @@ local TARGET_NEED_SURPLUS_MIN = 0.75
 local TARGET_SECONDARY_BUDGET = 6.00
 local TARGET_ITEM_LEVEL_WEIGHT = 2.00
 local PRIMARYLESS_TRANSFER = 0.50
+-- Pieces that carry no primary stat (jewelry, and trinkets, which give the budget either as a primary stat
+-- or as secondaries): the first secondary of the guide's order is scored as the primary stat, the others
+-- keep their own weights. The rule belongs to the slot, so a swap is judged the same from both sides.
 local PRIMARYLESS_EQUIP_LOCATIONS = {
     INVTYPE_FINGER = true,
     INVTYPE_NECK = true,
+    INVTYPE_TRINKET = true,
 }
 -- Soft exception: tiny primary loss can still lose to strong #1+#2 secondaries.
 local SOFT_PRIMARY_GAP = 5
 local SOFT_PRIMARY_ILVL_SLACK = 3
 local SOFT_PRIMARY_PENALTY_KEEP = 0.55
--- Trinkets: effect/BIS dominates; raw secondaries matter much less.
-local TRINKET_SECONDARY_SCALE = 0.30
-local TRINKET_PRIMARY_SCALE = 0.50
+-- Trinkets are scored like jewelry (the list bonus, not damped stats, carries the effect); item level
+-- counts a little more on them because the whole budget of a trinket scales with it.
 local TRINKET_ITEM_LEVEL_SCALE = 1.15
 local PRISMATIC_SOCKET_STAT_KEY = "STATVERDICT_PRISMATIC_SOCKET"
 
@@ -370,11 +373,7 @@ local function GetTargetDrivenWeight(profile, statKey, equipLocation)
     end
 
     if statKey == profile.primaryStat then
-        local weight = GetFixedPrimaryWeight(profile)
-        if equipLocation == "INVTYPE_TRINKET" then
-            weight = weight * TRINKET_PRIMARY_SCALE
-        end
-        return weight
+        return GetFixedPrimaryWeight(profile)
     end
 
     if SECONDARY_TARGET_KEY[statKey] then
@@ -386,9 +385,6 @@ local function GetTargetDrivenWeight(profile, statKey, equipLocation)
         end
         if PRIMARYLESS_EQUIP_LOCATIONS[equipLocation] and GetSecondaryRank(profile, statKey) == 1 then
             weight = weight + GetPrimarylessTransferWeight(profile)
-        end
-        if equipLocation == "INVTYPE_TRINKET" then
-            weight = weight * TRINKET_SECONDARY_SCALE
         end
         return weight
     end

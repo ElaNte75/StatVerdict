@@ -301,6 +301,25 @@ class ScoringMechanismTests(unittest.TestCase):
         self.assertFalse(self.comparison("GUIDE", "mid", "chest", tiny).isUpgrade)
         self.assertTrue(self.comparison("GUIDE", "mid", "chest", real).isUpgrade)
 
+    # --- pieces without a primary stat: the first secondary counts as the primary ---
+
+    def test_a_trinket_without_primary_counts_its_first_secondary_as_primary(self) -> None:
+        worn = {"name": "worn", "ilevel": 259, "versatility_rating": 100}          # last of the order
+        first = {"name": "first", "ilevel": 259, "mastery_rating": 100}            # first of the order
+        agility = {"name": "agility", "ilevel": 259, "agility": 100}               # the primary stat
+        forward = self.between("GUIDE", STATES["mid"], "trinket1", worn, first)
+        self.assertGreater(forward, 150)       # 100 of the first stat is worth about 100 primary, not 100 Versatility
+        swap_to_primary = self.between("GUIDE", STATES["mid"], "trinket1", first, agility)
+        self.assertLess(abs(swap_to_primary), 0.25 * forward)   # the first stat and the primary are close
+
+    def test_two_trinkets_are_never_both_better_than_each_other(self) -> None:
+        a = {"name": "a", "ilevel": 259, "haste_rating": 100}
+        b = {"name": "b", "ilevel": 259, "agility": 89}
+        for mode in ("GUIDE", "MEASURED"):
+            for state in STATES:
+                forward, backward = self.pair_verdicts(mode, state, "trinket1", a, b)
+                self.assertFalse(forward > 0 and backward > 0, (mode, state, forward, backward))
+
 
 if __name__ == "__main__":
     unittest.main()

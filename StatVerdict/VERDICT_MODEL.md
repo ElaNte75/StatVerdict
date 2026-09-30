@@ -97,3 +97,8 @@ so manually copied or stale generated files fail closed.
   the verdict of piece A over piece B is exactly the opposite of B over A: two pieces are never both better than
   each other. Item level wins in both directions from 10 item levels (jewelry and trinkets excepted), and the
   small-primary forgiveness is given and taken back the same way.
+- Pieces without a primary stat (rings, necks, trinkets): the first secondary of the guide's order is scored as the
+  primary stat, the others keep their weights; a trinket's stats are no longer damped. An item of the guide's
+  Best in Slot list gets a bonus of 100 (it wins whatever its stats, unless the Item Level Guard decides
+  against it), a trinket of the list also its tier bonus (S 95, A 65, B 35, C 14, D 0) and a small one for its
+  place inside the tier. A piece the Catalyst can turn into the set piece of the list counts as that piece.
