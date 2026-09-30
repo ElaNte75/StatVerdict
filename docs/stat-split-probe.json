@@ -381,6 +381,229 @@
     "start_dps": 156720.1128647265
    },
    "spec": "PALADIN_RETRIBUTION"
+  },
+  {
+   "goal": "RAID",
+   "heroTalent": "herald-of-the-sun",
+   "result": {
+    "base_ratings": {
+     "crit": 1389.0,
+     "haste": 810.0,
+     "mastery": 1288.0,
+     "versatility": 109.0
+    },
+    "deltas": {
+     "crit": 0,
+     "haste": 150,
+     "mastery": -200,
+     "versatility": 50
+    },
+    "final_dps": 182297.11469090814,
+    "final_ratings": {
+     "crit": 1389.0,
+     "haste": 960.0,
+     "mastery": 1088.0,
+     "versatility": 159.0
+    },
+    "gain_pct": 0.2402827992134733,
+    "history": [
+     {
+      "best_gain_pct": 0.2898420949792785,
+      "dps": 181860.13606531697,
+      "round": 2,
+      "step": 200,
+      "z": 5.043863316021941
+     },
+     {
+      "best_gain_pct": -0.04106042389077383,
+      "dps": 182237.26298328533,
+      "round": 3,
+      "step": 200,
+      "z": 0.0
+     },
+     {
+      "best_gain_pct": 0.09864856089698067,
+      "dps": 182190.80948447014,
+      "round": 4,
+      "step": 100,
+      "z": 1.7183391053417105
+     },
+     {
+      "best_gain_pct": 0.14262225885718885,
+      "dps": 182179.21617215467,
+      "round": 5,
+      "step": 50,
+      "z": 2.4933186967860226
+     },
+     {
+      "best_gain_pct": 0.06826296258641236,
+      "dps": 182297.11469090814,
+      "round": 6,
+      "step": 50,
+      "z": 1.189176251398016
+     }
+    ],
+    "start_dps": 181860.13606531697
+   },
+   "spec": "PALADIN_RETRIBUTION"
+  },
+  {
+   "goal": "MYTHIC_PLUS",
+   "heroTalent": "diabolist",
+   "result": {
+    "base_ratings": {
+     "crit": 1232.0,
+     "haste": 682.0,
+     "mastery": 1269.0,
+     "versatility": 0.0
+    },
+    "deltas": {
+     "crit": 200,
+     "haste": -200,
+     "mastery": 0,
+     "versatility": 0
+    },
+    "final_dps": 161787.47883504067,
+    "final_ratings": {
+     "crit": 1432.0,
+     "haste": 482.0,
+     "mastery": 1269.0,
+     "versatility": 0.0
+    },
+    "gain_pct": 0.5420098362297404,
+    "history": [
+     {
+      "best_gain_pct": 0.48085101010233705,
+      "dps": 160915.30206982343,
+      "round": 2,
+      "step": 200,
+      "z": 8.32969749282405
+     },
+     {
+      "best_gain_pct": -0.22893376524211204,
+      "dps": 161750.28440703233,
+      "round": 3,
+      "step": 200,
+      "z": 0.0
+     },
+     {
+      "best_gain_pct": -0.054630724664019546,
+      "dps": 161864.87200831439,
+      "round": 4,
+      "step": 100,
+      "z": 0.0
+     },
+     {
+      "best_gain_pct": 0.05684686606934568,
+      "dps": 161787.47883504067,
+      "round": 5,
+      "step": 50,
+      "z": 0.9894325583044031
+     }
+    ],
+    "start_dps": 160915.30206982343
+   },
+   "spec": "WARLOCK_DESTRUCTION"
+  },
+  {
+   "goal": "RAID",
+   "heroTalent": "diabolist",
+   "result": {
+    "base_ratings": {
+     "crit": 667.0,
+     "haste": 1111.0,
+     "mastery": 1335.0,
+     "versatility": 109.0
+    },
+    "deltas": {
+     "crit": 600,
+     "haste": -1100,
+     "mastery": -100,
+     "versatility": 600
+    },
+    "final_dps": 194925.54425505528,
+    "final_ratings": {
+     "crit": 1267.0,
+     "haste": 11.0,
+     "mastery": 1235.0,
+     "versatility": 709.0
+    },
+    "gain_pct": 3.663567489271838,
+    "history": [
+     {
+      "best_gain_pct": 1.267945373166192,
+      "dps": 188036.6930987863,
+      "round": 2,
+      "step": 200,
+      "z": 22.10948102915403
+     },
+     {
+      "best_gain_pct": 0.768537059186972,
+      "dps": 190635.38068321755,
+      "round": 3,
+      "step": 200,
+      "z": 13.366883041768695
+     },
+     {
+      "best_gain_pct": 0.7669990324512436,
+      "dps": 191939.5646258713,
+      "round": 4,
+      "step": 200,
+      "z": 13.384548182617587
+     },
+     {
+      "best_gain_pct": 0.1353774887995748,
+      "dps": 193450.9065261951,
+      "round": 5,
+      "step": 200,
+      "z": 2.362457397441452
+     },
+     {
+      "best_gain_pct": 0.3328729991111311,
+      "dps": 193762.28266976253,
+      "round": 6,
+      "step": 200,
+      "z": 5.781640909096399
+     },
+     {
+      "best_gain_pct": 0.15228974969162873,
+      "dps": 194436.9501369503,
+      "round": 7,
+      "step": 200,
+      "z": 2.65227919283373
+     },
+     {
+      "best_gain_pct": -0.0910951545129133,
+      "dps": 194597.9794542698,
+      "round": 8,
+      "step": 200,
+      "z": 0.0
+     },
+     {
+      "best_gain_pct": 0.23581495449327414,
+      "dps": 194551.6045075652,
+      "round": 9,
+      "step": 100,
+      "z": 4.11501920311059
+     },
+     {
+      "best_gain_pct": 0.013344365578803608,
+      "dps": 194960.75851709145,
+      "round": 10,
+      "step": 100,
+      "z": 0.23344594960896212
+     },
+     {
+      "best_gain_pct": 0.040264020311373314,
+      "dps": 194925.54425505528,
+      "round": 11,
+      "step": 50,
+      "z": 0.7023522723349243
+     }
+    ],
+    "start_dps": 188036.6930987863
+   },
+   "spec": "WARLOCK_DESTRUCTION"
   }
  ]
 }
