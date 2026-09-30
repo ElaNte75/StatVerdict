@@ -57,6 +57,19 @@ class ReplayTests(unittest.TestCase):
         self.assertIn("OK: both say upgrade", text)
         self.assertIn("OK: both say not an upgrade", text)
 
+    def test_live_weights_follow_the_ratings_the_character_has_now(self) -> None:
+        # The heart of the addon: the same item is judged with the stats you have at this moment.
+        # A haste item is worth less once haste is well above its target.
+        def points(current_haste: int) -> float:
+            data = result()
+            data["baseline"]["stats"]["ratings"]["haste"] = current_haste
+            data["rows"] = [data["rows"][0]]
+            data["rows"][0]["gear"] = {"name": "Haste Neck", "ilevel": 246, "haste_rating": 100}
+            run = verdict.replay(data, goals=("MYTHIC_PLUS",), modes=("GUIDE",))["runs"]["MYTHIC_PLUS/GUIDE"]
+            return run["rows"][0]["addon"]["points"]
+
+        self.assertGreater(points(300), points(2400))
+
     def test_classification(self) -> None:
         self.assertEqual("MISSED: SimC says upgrade, addon does not", verdict.classify("upgrade", "not an upgrade"))
         self.assertTrue(verdict.classify("same", "upgrade").startswith("WRONG"))

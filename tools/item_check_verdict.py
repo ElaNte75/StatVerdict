@@ -129,6 +129,9 @@ def set_character(lua, ratings: dict[str, float], agility: float) -> None:
     crit, haste = ratings.get("crit", 0), ratings.get("haste", 0)
     mastery, vers = ratings.get("mastery", 0), ratings.get("versatility", 0)
     lua.execute(f"""
+    -- The game defines these rating ids; without them the addon cannot read the character's
+    -- ratings and its live weights stay neutral.
+    CR_CRIT_MELEE, CR_HASTE_MELEE, CR_MASTERY, CR_VERSATILITY_DAMAGE_DONE = 9, 18, 26, 29
     UnitClass = function() return "Shaman", "SHAMAN", 7 end
     UnitLevel = function() return 90 end
     UnitName = function() return "Tester" end
@@ -376,7 +379,7 @@ def render(data: dict[str, Any], replayed: dict[str, Any]) -> str:
             if r["addon"] and r["addon"].get("points") is not None and r["pct"] is not None and r["simc"] != "unreliable":
                 pairs.append((r["addon"]["points"], r["pct"]))
         rho = spearman(pairs)
-        lines += [f"Hero tree used: `{run['heroKey']}`. Weights the addon uses per point of each stat: "
+        lines += [f"Hero tree used: `{run['heroKey']}`. Base weights per point of each stat, before the live adjustment (the per-stat lines under a disagreement show the live weights actually used): "
                   + ", ".join(f"{k} {v:.2f}" for k, v in run["weights"].items()) + ".", ""]
         lines += [f"- {name}: **{count}**" for name, count in sorted(tally.items())]
         lines += [f"- Rank agreement (Spearman, addon points vs SimC gain, {len(pairs)} items): "
