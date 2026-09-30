@@ -1,19 +1,19 @@
 local addonName, ns = ...
 ns = ns or {}
 
-local pendingRefresh = false
-local pendingRefreshKind = "bags"
-local pendingRefreshDelay = 0.35
+-- One shared, trailing debounce for every arrow refresh (bags and all other sources):
+-- requests only mark work as pending, one timer runs it, nothing is dropped, and a
+-- refresh asked for in combat waits until combat ends.
+local pendingKind = nil
+local timerActive = false
+local waitingForCombatEnd = false
 local scanFrame
-local BAG_REFRESH_DELAY = 0.20
-local FULL_REFRESH_DELAY = 0.15
-local MIN_BAG_REFRESH_INTERVAL = 0.25
-local MIN_FULL_REFRESH_INTERVAL = 0.50
+local REFRESH_DELAY = 0.20
+local ITEM_INFO_DELAY = 0.60
+local MIN_REFRESH_INTERVAL = 0.30
 local NUM_CONTAINER_SCAN_FRAMES = NUM_TOTAL_BAG_FRAMES or NUM_CONTAINER_FRAMES or 13
-local lastBagRefreshAt = 0
-local lastFullRefreshAt = 0
+local lastRefreshAt = 0
 local clearDecisionCacheOnNextScan = false
-local activeIndicators = {}
 local indicatorSources = {}
 local bagRefreshCounter = 1
 
@@ -267,18 +267,6 @@ GetIconAnchor = function(frame)
     return frame
 end
 
-local function HideAllIndicators()
-    for indicator in pairs(activeIndicators) do
-        if indicator and type(indicator.Hide) == "function" then
-            indicator:Hide()
-        end
-    end
-end
-
-function ns.HideUpgradeIndicators()
-    HideAllIndicators()
-end
-
 local function HookIndicatorOwner(frame)
     if not frame or frame.StatVerdictIndicatorHooks or type(frame.HookScript) ~= "function" then
         return
@@ -310,7 +298,6 @@ local function EnsureIndicator(frame)
     end
     texture:Hide()
     frame.StatVerdictUpgradeIndicator = texture
-    activeIndicators[texture] = true
     HookIndicatorOwner(frame)
     return texture
 end
@@ -350,7 +337,6 @@ local function EnsureSpecValueIndicator(frame)
     text:SetText("|cff00ff00OS|r")
     text:Hide()
     frame.StatVerdictSpecValueIndicator = text
-    activeIndicators[text] = true
     HookIndicatorOwner(frame)
     return text
 end
@@ -631,7 +617,6 @@ end
 
 local function ScanBagButtons()
     local count = 0
-    bagRefreshCounter = bagRefreshCounter + 1
     if _G.ContainerFrameCombinedBags and IsFrameVisible(_G.ContainerFrameCombinedBags) then
         count = count + UpdateContainerFrameUpgradeIcons(_G.ContainerFrameCombinedBags)
     end
@@ -664,69 +649,49 @@ local function AnyKnownContainerVisible()
 end
 
 local function ScanVisibleItemFrames(kind)
-    kind = kind or "bags"
-    -- Full scans wipe everything first. Bag-only updates each visible slot in place
-    -- (empty slots clear themselves) so we avoid a hide/show storm on every BAG_UPDATE.
-    if kind == "full" then
-        HideAllIndicators()
-    end
+    -- Arrows are updated in place (each slot sets or clears its own arrow); nothing is
+    -- wiped first, so arrows never blink. Hidden windows hide their own arrows.
     if clearDecisionCacheOnNextScan and ns.ClearUpgradeIndicatorDecisionCache then
         ns.ClearUpgradeIndicatorDecisionCache()
         clearDecisionCacheOnNextScan = false
     end
 
-    local bagCount = 0
     if AnyKnownContainerVisible() then
-        bagCount = ScanBagButtons()
-    elseif kind == "bags" then
-        HideAllIndicators()
+        ScanBagButtons()
     end
 
-    local sourceCount = 0
-    -- Only scan external sources during full refresh to prevent performance issues
     if kind == "full" then
-        sourceCount = ScanRegisteredSources()
+        ScanRegisteredSources()
     end
-
 end
 
-local function UpgradeRefreshNow(kind)
+local function RunPendingRefresh()
+    timerActive = false
     if InCombatLockdown and InCombatLockdown() then
+        waitingForCombatEnd = true
         return
     end
-    local now = GetTime and GetTime() or 0
-    if kind == "full" then
-        if now > 0 and (now - lastFullRefreshAt) < MIN_FULL_REFRESH_INTERVAL then
-            return
-        end
-        lastFullRefreshAt = now
-    else
-        if now > 0 and (now - lastBagRefreshAt) < MIN_BAG_REFRESH_INTERVAL then
-            return
-        end
-        lastBagRefreshAt = now
-    end
+    local kind = pendingKind or "bags"
+    pendingKind = nil
+    lastRefreshAt = GetTime and GetTime() or 0
     ScanVisibleItemFrames(kind)
 end
 
-function ns.RefreshUpgradeIndicators(kind)
-    kind = kind == "full" and "full" or "bags"
-    if pendingRefresh then
-        if kind == "full" then
-            pendingRefreshKind = "full"
-            pendingRefreshDelay = math.min(pendingRefreshDelay or FULL_REFRESH_DELAY, FULL_REFRESH_DELAY)
-        end
+function ns.RefreshUpgradeIndicators(kind, delay)
+    if kind == "full" or pendingKind == nil then
+        pendingKind = kind == "full" and "full" or (pendingKind or "bags")
+    end
+    if timerActive then
         return
     end
-    pendingRefresh = true
-    pendingRefreshKind = kind
-    pendingRefreshDelay = kind == "full" and FULL_REFRESH_DELAY or BAG_REFRESH_DELAY
-    C_Timer.After(pendingRefreshDelay, function()
-        local refreshKind = pendingRefreshKind or "bags"
-        pendingRefresh = false
-        pendingRefreshKind = "bags"
-        UpgradeRefreshNow(refreshKind)
-    end)
+    timerActive = true
+    delay = delay or REFRESH_DELAY
+    local now = GetTime and GetTime() or 0
+    local sinceLast = now - lastRefreshAt
+    if now > 0 and sinceLast < MIN_REFRESH_INTERVAL then
+        delay = math.max(delay, MIN_REFRESH_INTERVAL - sinceLast)
+    end
+    C_Timer.After(delay, RunPendingRefresh)
 end
 
 function ns.ForceUpgradeIndicatorRefreshNow(kind)
@@ -734,11 +699,14 @@ function ns.ForceUpgradeIndicatorRefreshNow(kind)
     if ns.ClearUpgradeIndicatorDecisionCache then
         ns.ClearUpgradeIndicatorDecisionCache()
     end
-    pendingRefresh = false
-    pendingRefreshKind = "bags"
-    lastBagRefreshAt = 0
-    lastFullRefreshAt = 0
-    UpgradeRefreshNow(kind == "bags" and "bags" or "full")
+    pendingKind = nil
+    lastRefreshAt = GetTime and GetTime() or 0
+    if InCombatLockdown and InCombatLockdown() then
+        waitingForCombatEnd = true
+        pendingKind = kind == "bags" and "bags" or "full"
+        return
+    end
+    ScanVisibleItemFrames(kind == "bags" and "bags" or "full")
 end
 
 function ns.InvalidateUpgradeIndicatorDecisionCache()
@@ -746,7 +714,7 @@ function ns.InvalidateUpgradeIndicatorDecisionCache()
 end
 
 local function ScheduleRefresh(kind)
-    ns.RefreshUpgradeIndicators(kind or "bags")
+    ns.RefreshUpgradeIndicators(kind == "full" and "full" or "bags")
 end
 
 local hookedShowFrames = {}
@@ -756,8 +724,7 @@ local function HookFrameShow(frame)
         return
     end
     hookedShowFrames[frame] = true
-    frame:HookScript("OnShow", ScheduleRefresh)
-    frame:HookScript("OnHide", HideAllIndicators)
+    frame:HookScript("OnShow", function() ScheduleRefresh("bags") end)
 end
 
 local function HookKnownContainerShows()
@@ -777,30 +744,56 @@ RegisterEventSafe("PLAYER_LOGIN")
 RegisterEventSafe("PLAYER_EQUIPMENT_CHANGED")
 RegisterEventSafe("BAG_UPDATE_DELAYED")
 RegisterEventSafe("BAG_NEW_ITEMS_UPDATED")
-RegisterEventSafe("QUEST_DETAIL")
-RegisterEventSafe("QUEST_PROGRESS")
-RegisterEventSafe("QUEST_COMPLETE")
-RegisterEventSafe("QUEST_FINISHED")
 RegisterEventSafe("PLAYER_REGEN_ENABLED")
 RegisterEventSafe("GET_ITEM_INFO_RECEIVED")
+RegisterEventSafe("COMBAT_RATING_UPDATE")
+local function AnyArrowWindowVisible()
+    if AnyKnownContainerVisible() then
+        return true
+    end
+    for _, name in ipairs({ "MerchantFrame", "QuestFrame", "QuestInfoFrame", "EncounterJournal" }) do
+        if IsFrameVisible(_G[name]) then
+            return true
+        end
+    end
+    return false
+end
+
 scanFrame:SetScript("OnEvent", function(_, event)
     HookKnownContainerShows()
-    if event == "PLAYER_EQUIPMENT_CHANGED"
-        or event == "PLAYER_SPECIALIZATION_CHANGED"
-        or event == "PLAYER_TALENT_UPDATE"
-        or event == "TRAIT_CONFIG_UPDATED"
-        or event == "TRAIT_SUB_TREE_CHANGED" then
-        clearDecisionCacheOnNextScan = true
-        bagRefreshCounter = bagRefreshCounter + 1 -- Force refresh of bag items
-        -- Use delayed full refresh to prevent performance spikes
-        C_Timer.After(0.5, function()
-            ScheduleRefresh("full")
-        end)
+    if event == "PLAYER_REGEN_ENABLED" then
+        if waitingForCombatEnd then
+            waitingForCombatEnd = false
+            ScheduleRefresh(pendingKind == "full" and "full" or "bags")
+        end
         return
     end
-    if event == "PLAYER_LOGIN" or event == "GET_ITEM_INFO_RECEIVED"
-        or event == "QUEST_DETAIL" or event == "QUEST_PROGRESS" or event == "QUEST_COMPLETE" or event == "QUEST_FINISHED"
-    then
+    if event == "GET_ITEM_INFO_RECEIVED" then
+        -- Item data arrives in bursts; only care while a window with arrows is open,
+        -- and answer a whole burst with one late refresh.
+        if AnyArrowWindowVisible() then
+            clearDecisionCacheOnNextScan = true
+            bagRefreshCounter = bagRefreshCounter + 1
+            ns.RefreshUpgradeIndicators("full", ITEM_INFO_DELAY)
+        end
+        return
+    end
+    if event == "COMBAT_RATING_UPDATE" then
+        -- Flask, food, level up... change the live weights without an equipment change.
+        if AnyArrowWindowVisible() then
+            clearDecisionCacheOnNextScan = true
+            bagRefreshCounter = bagRefreshCounter + 1
+            ns.RefreshUpgradeIndicators("full", ITEM_INFO_DELAY)
+        end
+        return
+    end
+    if event == "PLAYER_EQUIPMENT_CHANGED" then
+        clearDecisionCacheOnNextScan = true
+        bagRefreshCounter = bagRefreshCounter + 1
+        ns.RefreshUpgradeIndicators("full", 0.5)
+        return
+    end
+    if event == "PLAYER_LOGIN" then
         ScheduleRefresh("full")
         return
     end

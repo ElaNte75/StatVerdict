@@ -2,7 +2,7 @@ local addonName, ns = ...
 ns = ns or {}
 
 -- Adventure Guide indicators: soft, local updates only.
--- Never call RefreshUpgradeIndicators("full") from here — that HideAllIndicators()
+-- Never call RefreshUpgradeIndicators("full") from here — that arrow wipe
 -- wipe + GET_ITEM_INFO_RECEIVED feedback loop is what made loot rows flicker
 -- and steal clicks.
 

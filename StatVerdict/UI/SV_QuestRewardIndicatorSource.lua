@@ -213,32 +213,8 @@ local function ScanQuestRewards()
 end
 
 local function RefreshSoon()
-    DebugLine("RefreshSoon: Called")
     if ns.RefreshUpgradeIndicators then
         ns.RefreshUpgradeIndicators("full")
-        DebugLine("RefreshSoon: Called ns.RefreshUpgradeIndicators(full)")
-    else
-        DebugLine("RefreshSoon: ERROR - ns.RefreshUpgradeIndicators not available")
-    end
-    if C_Timer then
-        C_Timer.After(0.20, function()
-            DebugLine("RefreshSoon: Timer 0.20s fired")
-            if ns.RefreshUpgradeIndicators then
-                ns.RefreshUpgradeIndicators("full")
-            end
-        end)
-        C_Timer.After(0.60, function()
-            DebugLine("RefreshSoon: Timer 0.60s fired")
-            if ns.RefreshUpgradeIndicators then
-                ns.RefreshUpgradeIndicators("full")
-            end
-        end)
-    end
-end
-
-local function HideIndicatorsNow()
-    if ns.HideUpgradeIndicators then
-        ns.HideUpgradeIndicators()
     end
 end
 
@@ -246,7 +222,6 @@ local function HookFrameShow(frame)
     if not frame or hookedFrames[frame] or type(frame.HookScript) ~= "function" then return end
     hookedFrames[frame] = true
     frame:HookScript("OnShow", RefreshSoon)
-    frame:HookScript("OnHide", HideIndicatorsNow)
 end
 
 local function HookScrollFrame(frame)
@@ -291,7 +266,7 @@ sourceFrame:RegisterEvent("QUEST_FINISHED")
 sourceFrame:RegisterEvent("QUEST_LOG_UPDATE")
 sourceFrame:SetScript("OnEvent", function(_, event)
     if event == "QUEST_FINISHED" then
-        HideIndicatorsNow()
+        return
     end
     InitializeQuestRewardSource()
 end)

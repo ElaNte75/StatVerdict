@@ -137,11 +137,6 @@ local function HookMerchant()
 
     if _G.MerchantFrame and type(_G.MerchantFrame.HookScript) == "function" then
         _G.MerchantFrame:HookScript("OnShow", RefreshSoon)
-        _G.MerchantFrame:HookScript("OnHide", function()
-            if ns.HideUpgradeIndicators then
-                -- Do not wipe bags/quest; only merchant buttons are cleared next scan.
-            end
-        end)
     end
 
     if hooksecurefunc then
