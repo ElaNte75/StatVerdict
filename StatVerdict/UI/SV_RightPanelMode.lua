@@ -278,37 +278,6 @@ local function ApplyChipSize(button, layoutPrefix)
     return width, height, baseWidth, DEFAULT_TOGGLE_HEIGHT
 end
 
-local function HideInactiveTitleHandles(parent, activePrefix)
-    if not parent then return end
-    local prefixes = { "bis", "trinkets", "bisTrinkets" }
-    if parent._svDevWidthHandles then
-        for key, handle in pairs(parent._svDevWidthHandles) do
-            if type(key) == "string" and handle and handle.Hide then
-                local keep = false
-                for _, prefix in ipairs(prefixes) do
-                    if prefix == activePrefix and key == (prefix .. ".title.width") then
-                        keep = true
-                        break
-                    end
-                end
-                if string.find(key, "title.width", 1, true) and not keep then
-                    handle:Hide()
-                end
-            end
-        end
-    end
-    if parent._svDevHeightHandles then
-        for key, handle in pairs(parent._svDevHeightHandles) do
-            if type(key) == "string" and handle and handle.Hide then
-                local keep = key == (activePrefix .. ".title.height")
-                if string.find(key, "title.height", 1, true) and not keep then
-                    handle:Hide()
-                end
-            end
-        end
-    end
-end
-
 -- Unified title chip (replaces gold FontString + separate Main/Off Spec toggle).
 function ns.EnsureMsOsViewTabs(parent)
     if not parent then return nil end
@@ -460,22 +429,6 @@ function ns.PlaceMsOsTitleChip(parent, _layoutPrefixIgnored, panelKind)
         -12 + y - (chipPad.top or 0)
     )
     toggle:SetFrameLevel((parent:GetFrameLevel() or 1) + 8)
-
-    HideInactiveTitleHandles(parent, layoutPrefix)
-
-    if ns.UnregisterLayoutRegion then
-        -- Drop shared key so it cannot steal hits from per-panel keys.
-        -- On the shared BiS card, only the active mode's title is registered.
-    end
-    local label = "Panel title"
-    if layoutPrefix == "bis" then
-        label = "Best in Slot title (Main/Off Spec)"
-    elseif layoutPrefix == "trinkets" then
-        label = "Ranked Trinkets title (Main/Off Spec)"
-    end
-
-    -- Outer pad (Move / Size / Padding) replaces the legacy width/height nubs.
-    HideInactiveTitleHandles(parent, "__none__")
 end
 
 -- Compat: older call sites passed (parent, anchor, gap, prefix).
@@ -487,24 +440,6 @@ function ns.HideMsOsViewTabs(parent)
     if not parent then return end
     if parent.svViewToggle then parent.svViewToggle:Hide() end
     if parent.svViewToggleHint then parent.svViewToggleHint:Hide() end
-    if parent._svDevWidthHandles then
-        for key, handle in pairs(parent._svDevWidthHandles) do
-            if type(key) == "string"
-                and (string.find(key, "viewToggle.width", 1, true) or string.find(key, "title.width", 1, true))
-                and handle and handle.Hide then
-                handle:Hide()
-            end
-        end
-    end
-    if parent._svDevHeightHandles then
-        for key, handle in pairs(parent._svDevHeightHandles) do
-            if type(key) == "string"
-                and string.find(key, "title.height", 1, true)
-                and handle and handle.Hide then
-                handle:Hide()
-            end
-        end
-    end
 end
 
 -- Visual inset padding of a right-side drawer card (does not change its
@@ -534,8 +469,8 @@ function ns.ApplyRightDrawerCard(card, key, label, widthKey, baseW)
         card:SetBackdropBorderColor(0.72, 0.74, 0.78, 0.86)
     end
     -- Drawer chrome border is always visible (not AdvDev-only).
-    if ns.UnregisterLayoutBorderEditOnly then
-        ns.UnregisterLayoutBorderEditOnly(card, 0.72, 0.74, 0.78, 0.86)
+    if ns.SetBorderColor then
+        ns.SetBorderColor(card, 0.72, 0.74, 0.78, 0.86)
     elseif card.SetBackdropBorderColor then
         card:SetBackdropBorderColor(0.72, 0.74, 0.78, 0.86)
     end

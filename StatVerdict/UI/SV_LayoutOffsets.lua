@@ -413,35 +413,9 @@ function ns.GetLayoutOffsetAbs(key)
     return type(value) == "table" and value._abs == true
 end
 
--- No-op stubs so product UI can call AdvDev helpers safely without the editor.
--- Critical: edit-only badges/borders must stay hidden when the editor is absent.
-function ns.IsLayoutEditActive()
-    return false
-end
-
-function ns.IsLayoutScreenLocked(key)
-    return true
-end
-
-function ns.UnregisterLayoutRegion() end
-function ns.RegisterLayoutEditOnly(region)
-    if region and region.Hide then
-        region:Hide()
-    end
-end
-
-function ns.RegisterLayoutBorderEditOnly(region, r, g, b, a)
-    if region and region.SetBackdropBorderColor then
-        region:SetBackdropBorderColor(0, 0, 0, 0)
-    end
-end
-
-function ns.UnregisterLayoutBorderEditOnly(region, r, g, b, a)
+-- Sets the border colour of a panel (nil colour: leave it).
+function ns.SetBorderColor(region, r, g, b, a)
     if region and region.SetBackdropBorderColor and r ~= nil then
         region:SetBackdropBorderColor(r, g, b, a)
     end
 end
-
-function ns.EnsureLayoutWidthHandle() return nil end
-function ns.EnsureLayoutHeightHandle() return nil end
-function ns.EnsureLayoutTextHitRegion() return nil end

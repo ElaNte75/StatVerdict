@@ -1123,8 +1123,8 @@ local function EnsureContentHost(card)
     if not card then return nil end
     local host = card.contentHost
     if host then
-        if ns.UnregisterLayoutBorderEditOnly then
-            ns.UnregisterLayoutBorderEditOnly(host, 0, 0, 0, 0)
+        if ns.SetBorderColor then
+            ns.SetBorderColor(host, 0, 0, 0, 0)
         end
         if host.SetBackdrop then
             host:SetBackdrop(nil)
@@ -1156,8 +1156,8 @@ local function LayoutContentHost(card)
     if not host then return end
 
     -- Content host is not an AdvDev target — orphan cyan boxes over the list.
-    if ns.UnregisterLayoutBorderEditOnly then
-        ns.UnregisterLayoutBorderEditOnly(host, 0, 0, 0, 0)
+    if ns.SetBorderColor then
+        ns.SetBorderColor(host, 0, 0, 0, 0)
     elseif host.SetBackdropBorderColor then
         host:SetBackdropBorderColor(0, 0, 0, 0)
     end
@@ -1332,12 +1332,6 @@ function Panel.Apply(frame)
     end
 
     -- Outer pad owns Size W — retire the legacy width strip and left-edge Y strip.
-    if frame.devBisWidthRegion then
-        frame.devBisWidthRegion:Hide()
-    end
-    if frame.devBisTrinketsGroupRegion then
-        frame.devBisTrinketsGroupRegion:Hide()
-    end
     if card.titleHit then
         card.titleHit:Hide()
     end

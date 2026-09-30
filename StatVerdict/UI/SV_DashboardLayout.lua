@@ -475,12 +475,8 @@ function Layout.Apply(frame, usedRows, controls)
 
     local function HideAllRightDrawers()
         if frame.bisProgressCard then frame.bisProgressCard:Hide() end
-        if frame.devBisWidthRegion then frame.devBisWidthRegion:Hide() end
-        if frame.devBisTrinketsGroupRegion then frame.devBisTrinketsGroupRegion:Hide() end
         if frame.optionsDrawerCard then frame.optionsDrawerCard:Hide() end
-        if frame.devOptionsWidthRegion then frame.devOptionsWidthRegion:Hide() end
         if frame.manualDrawerCard then frame.manualDrawerCard:Hide() end
-        if frame.devManualWidthRegion then frame.devManualWidthRegion:Hide() end
         if frame.weightsDrawerCard then frame.weightsDrawerCard:Hide() end
         -- Drop orphan AdvDev targets from inactive drawers so cyan ghosts cannot linger.
     end
@@ -495,8 +491,6 @@ function Layout.Apply(frame, usedRows, controls)
     elseif (showBis or showTrinkets) and ns.StatVerdictBisProgressPanel then
         ns.StatVerdictBisProgressPanel.Apply(frame)
         if frame.bisProgressCard then frame.bisProgressCard:Show() end
-        if frame.devBisWidthRegion then frame.devBisWidthRegion:Show() end
-        if frame.devBisTrinketsGroupRegion then frame.devBisTrinketsGroupRegion:Show() end
     else
         if ns.StatVerdictOptionsDrawerPanel and ns.StatVerdictOptionsDrawerPanel.Apply then
             ns.StatVerdictOptionsDrawerPanel.Apply(frame)
@@ -710,26 +704,7 @@ function Layout.Apply(frame, usedRows, controls)
             local colKey = "stats.column." .. key
             local widthKey = colKey .. ".width"
 
-            -- Title letters: cyan hit around the text; Move X only on the outer pad.
-            local header = frame.headers and frame.headers[key]
-            if header and ns.EnsureLayoutTextHitRegion then
-                local stringW = 0
-                if header.GetStringWidth then
-                    stringW = tonumber(header:GetStringWidth()) or 0
-                end
-                local textKey = "stats.headerText." .. key
-                local textHit = ns.EnsureLayoutTextHitRegion(frame, textKey, header, {
-                    minWidth = math.max(8, math.min(colW - 2, stringW + 4)),
-                    minHeight = 12,
-                    padding = 1,
-                    justify = "CENTER",
-                })
-            end
-
             -- Drop legacy orange width nubs — Size W lives on the outer pad now.
-            if frame._svDevWidthHandles and frame._svDevWidthHandles[widthKey] then
-                frame._svDevWidthHandles[widthKey]:Hide()
-            end
             if key == "progress" then
                 frame.devStatProgressWidthRegion = nil
             end
@@ -773,67 +748,16 @@ function Layout.Apply(frame, usedRows, controls)
     frame.devStatTableMoveGrip:SetHeight(18)
     frame.devStatTableMoveGrip:Show()
 
-    if not frame.devStatTableWidthRegion then
-        frame.devStatTableWidthRegion = CreateFrame("Frame", nil, frame)
-        frame.devStatTableWidthRegion:EnableMouse(false)
-    end
-    if ns.EnsureLayoutWidthHandle and tableAnchor then
-        frame.devStatTableWidthRegion = ns.EnsureLayoutWidthHandle(frame, "stats.table.width", tableAnchor, {
-            width = 10,
-            height = 28,
-            gap = 2,
-        })
-    else
-        frame.devStatTableWidthRegion:ClearAllPoints()
-        frame.devStatTableWidthRegion:SetPoint("TOPLEFT", frame, "TOPLEFT", tableBaseX + gridWidth + 2, tableBaseY + 8)
-        frame.devStatTableWidthRegion:SetSize(10, 28)
-        frame.devStatTableWidthRegion:Show()
-    end
-
-    local tableHeightHandle
-    if ns.EnsureLayoutHeightHandle and tableAnchor then
-        tableHeightHandle = ns.EnsureLayoutHeightHandle(frame, "stats.table.height", tableAnchor, {
-            width = 28,
-            height = 10,
-            gap = 2,
-        })
-    end
-    if tableHeightHandle then
-        frame.devStatTableHeightRegion = tableHeightHandle
-    end
-
     -- Legacy stats.table grips replaced by Screen 1 / Screen 2. Do not mass-strip
     -- stats.* — titles, columns, and screens must keep their move frames.
     if frame.devStatTableMoveGrip then frame.devStatTableMoveGrip:Hide() end
-    if frame.devStatTableWidthRegion then frame.devStatTableWidthRegion:Hide() end
-    if frame.devStatTableHeightRegion then frame.devStatTableHeightRegion:Hide() end
     if frame.devStatTableRegion then frame.devStatTableRegion:Hide() end
-    if frame.devSpecTitleWidthRegion then frame.devSpecTitleWidthRegion:Hide() end
-    if frame.devOffSpecTitleWidthRegion then frame.devOffSpecTitleWidthRegion:Hide() end
-    if frame._svDevStripRegions and frame._svDevStripRegions["stats.offTable"] then
-        frame._svDevStripRegions["stats.offTable"]:Hide()
-    end
 
     -- Main frame size/move AdvDev targets removed: window size follows Frames 1+2.
-    if frame.devDashboardMoveRegion then frame.devDashboardMoveRegion:Hide() end
-    if frame.devDashboardWidthRegion then frame.devDashboardWidthRegion:Hide() end
-    if frame.devPanelGutterRegion then frame.devPanelGutterRegion:Hide() end
     -- Panel 1 children keep their own AdvDev targets (titles / dropdowns / drawer buttons).
-    if frame.devSetupWidthRegion then frame.devSetupWidthRegion:Hide() end
-    if frame.devSetupHeightRegion then frame.devSetupHeightRegion:Hide() end
     if frame.statVerdictSetupResizeRegions then
         for _, region in pairs(frame.statVerdictSetupResizeRegions) do
             if region and region.Hide then region:Hide() end
-        end
-    end
-    if frame._svDevWidthHandles then
-        for _, handle in pairs(frame._svDevWidthHandles) do
-            if handle and handle.Hide then handle:Hide() end
-        end
-    end
-    if frame._svDevHeightHandles then
-        for _, handle in pairs(frame._svDevHeightHandles) do
-            if handle and handle.Hide then handle:Hide() end
         end
     end
     -- Keep Average Progress / header text hit boxes selectable — do not mass-hide them.

@@ -24,46 +24,10 @@ local function Padding(key)
     return { top = 0, bottom = 0, left = 0, right = 0 }
 end
 
-local function EnsureScreenBadge(screen, text)
-    if not screen then return end
-    if not screen.screenIndexBadge then
-        screen.screenIndexBadge = screen:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        screen.screenIndexBadge:SetPoint("BOTTOMRIGHT", screen, "BOTTOMRIGHT", -6, 4)
-        screen.screenIndexBadge:SetJustifyH("RIGHT")
-        screen.screenIndexBadge:SetTextColor(0.85, 0.78, 0.35)
-    end
-    screen.screenIndexBadge:SetText(text or "")
-    if ns.RegisterLayoutEditOnly then
-        ns.RegisterLayoutEditOnly(screen.screenIndexBadge)
-    end
-    if not (ns.IsLayoutEditActive and ns.IsLayoutEditActive()) then
-        screen.screenIndexBadge:Hide()
-    end
-end
-
-local function ApplyDevOnlyBorder(region, r, g, b, a)
-    if not (region and region.SetBackdropBorderColor) then return end
-    r = r or 0.72
-    g = g or 0.74
-    b = b or 0.78
-    a = a or 0.86
-    if ns.RegisterLayoutBorderEditOnly then
-        ns.RegisterLayoutBorderEditOnly(region, r, g, b, a)
-    elseif ns.IsLayoutEditActive and ns.IsLayoutEditActive() then
-        region:SetBackdropBorderColor(r, g, b, a)
-    else
+-- These boxes only structure the layout: their border stays clear.
+local function ClearBorder(region)
+    if region and region.SetBackdropBorderColor then
         region:SetBackdropBorderColor(0, 0, 0, 0)
-    end
-end
-
-local function ApplyDevOnlyBadge(fontString, text)
-    if not fontString then return end
-    if text then fontString:SetText(text) end
-    if ns.RegisterLayoutEditOnly then
-        ns.RegisterLayoutEditOnly(fontString)
-    end
-    if not (ns.IsLayoutEditActive and ns.IsLayoutEditActive()) then
-        fontString:Hide()
     end
 end
 
@@ -83,22 +47,13 @@ local function EnsureOSCardTextbox(frame, screen)
         })
         box:SetBackdropColor(0.018, 0.022, 0.030, 0.85)
         box:SetBackdropBorderColor(0, 0, 0, 0)
-        box.boxBadge = box:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        box.boxBadge:SetPoint("BOTTOMRIGHT", box, "BOTTOMRIGHT", -6, 4)
-        box.boxBadge:SetJustifyH("RIGHT")
-        box.boxBadge:SetTextColor(0.85, 0.78, 0.35)
-        box.boxBadge:SetText("box 1")
         frame.svOSCardTextbox1 = box
     end
     if box.GetParent and box:GetParent() ~= screen then
         box:SetParent(screen)
     end
     box:SetFrameLevel(math.max(4, (screen:GetFrameLevel() or 1) + 2))
-    -- Border only while AdvDev edit mode is on.
-    ApplyDevOnlyBorder(box, 0.72, 0.74, 0.78, 0.86)
-    if box.boxBadge then
-        ApplyDevOnlyBadge(box.boxBadge, "box 1")
-    end
+    ClearBorder(box)
     return box
 end
 
@@ -205,14 +160,7 @@ local function EnsureMSStatsBox(frame, screen)
     })
     box:SetBackdropColor(0, 0, 0, 0)
     box:SetFrameLevel(math.max(4, (screen:GetFrameLevel() or 1) + 2))
-    ApplyDevOnlyBorder(box, 0.72, 0.74, 0.78, 0.86)
-    if not box.boxBadge then
-        box.boxBadge = box:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        box.boxBadge:SetPoint("BOTTOMRIGHT", box, "BOTTOMRIGHT", -6, 4)
-        box.boxBadge:SetJustifyH("RIGHT")
-        box.boxBadge:SetTextColor(0.85, 0.78, 0.35)
-    end
-    ApplyDevOnlyBadge(box.boxBadge, "ms stats")
+    ClearBorder(box)
     return box
 end
 
@@ -247,14 +195,7 @@ local function EnsureOSStatsBox(frame, screen)
     })
     box:SetBackdropColor(0, 0, 0, 0)
     box:SetFrameLevel(math.max(4, (screen:GetFrameLevel() or 1) + 2))
-    ApplyDevOnlyBorder(box, 0.72, 0.74, 0.78, 0.86)
-    if not box.boxBadge then
-        box.boxBadge = box:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        box.boxBadge:SetPoint("BOTTOMRIGHT", box, "BOTTOMRIGHT", -6, 4)
-        box.boxBadge:SetJustifyH("RIGHT")
-        box.boxBadge:SetTextColor(0.85, 0.78, 0.35)
-    end
-    ApplyDevOnlyBadge(box.boxBadge, "os stats")
+    ClearBorder(box)
     return box
 end
 
@@ -426,12 +367,6 @@ local function EnsureCard(frame)
     -- "Stat Progress" title retired — Panel 2 needs no card label.
 
     -- Corner index so we can say "Frame 2" unambiguously.
-    card.frameIndexBadge = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    card.frameIndexBadge:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -8, 6)
-    card.frameIndexBadge:SetJustifyH("RIGHT")
-    card.frameIndexBadge:SetTextColor(0.85, 0.78, 0.35)
-    card.frameIndexBadge:SetText("Panel 2")
-    card.frameIndexBadge:Hide()
 
     frame.statProgressCard = card
     return card
@@ -615,14 +550,6 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
     if card and card.SetClipsChildren then
         card:SetClipsChildren(false)
     end
-    if not card.frameIndexBadge then
-        card.frameIndexBadge = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        card.frameIndexBadge:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -8, 6)
-        card.frameIndexBadge:SetJustifyH("RIGHT")
-        card.frameIndexBadge:SetTextColor(0.85, 0.78, 0.35)
-    end
-    card.frameIndexBadge:SetText("Panel 2")
-    ApplyDevOnlyBadge(card.frameIndexBadge, "Panel 2")
     if card.SetBackdrop then
         card:SetBackdrop({
             bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
@@ -660,17 +587,9 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
     end
 
     -- Whole Stat Progress card: click empty space inside to select. One border turns yellow when selected.
-    if frame._svDevStripRegions and frame._svDevStripRegions["stats.card"] then
-        frame._svDevStripRegions["stats.card"]:Hide()
-    end
-    if frame._svDevRimRegions and frame._svDevRimRegions["stats.card"] then
-        for _, edge in pairs(frame._svDevRimRegions["stats.card"]) do
-            if edge and edge.Hide then edge:Hide() end
-        end
-    end
     -- Panel chrome border is always visible (not AdvDev-only).
-    if ns.UnregisterLayoutBorderEditOnly then
-        ns.UnregisterLayoutBorderEditOnly(card, 0.72, 0.74, 0.78, 0.86)
+    if ns.SetBorderColor then
+        ns.SetBorderColor(card, 0.72, 0.74, 0.78, 0.86)
     elseif card.SetBackdropBorderColor then
         card:SetBackdropBorderColor(0.72, 0.74, 0.78, 0.86)
     end
@@ -685,15 +604,10 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
     end
 
     -- Size/move are pad-only now — no floating width/height nubs on this card.
-    if frame.devStatsWidthRegion then
-        frame.devStatsWidthRegion:Hide()
-    end
 
     -- Character Summary moved to the right-side Summary drawer.
     SetCardVisible(summaryCard, false)
     if frame.summaryTitle then frame.summaryTitle:Hide() end
-    if frame.devSummaryWidthRegion then frame.devSummaryWidthRegion:Hide() end
-    if frame.devSummaryHeightRegion then frame.devSummaryHeightRegion:Hide() end
 
     if frame.subtitle then
         local x, y = Offset("stats.specTitle")
@@ -740,7 +654,6 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
         Panel.FitSpecTitle(frame)
 
         -- Outer pad owns Size W — hide legacy width nub.
-        if frame.devSpecTitleWidthRegion then frame.devSpecTitleWidthRegion:Hide() end
     end
     if frame.secondarySubtitle then
         frame.secondarySubtitle:SetJustifyH("LEFT")
@@ -773,8 +686,8 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
         mainScreen:SetBackdropColor(0.018, 0.022, 0.030, 0.72)
         -- Screen chrome is part of the product look (always visible).
         mainScreen:SetBackdropBorderColor(0.72, 0.74, 0.78, 0.86)
-        if ns.UnregisterLayoutBorderEditOnly then
-            ns.UnregisterLayoutBorderEditOnly(mainScreen, 0.72, 0.74, 0.78, 0.86)
+        if ns.SetBorderColor then
+            ns.SetBorderColor(mainScreen, 0.72, 0.74, 0.78, 0.86)
         end
     end
 
@@ -836,7 +749,6 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
     frame.svStatScreenHeight = tableH
 
     -- Edit-only: "screen 1" badge (Lock/Unlock is on the AdvDev pad only).
-    EnsureScreenBadge(mainScreen, "screen 1")
 
 
     -- Average Progress: child of MS stats (moves with Screen 1 → MS stats).
@@ -989,15 +901,12 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
         offScreen:SetBackdropColor(0.018, 0.022, 0.030, 0.72)
         -- Screen chrome is part of the product look (always visible).
         offScreen:SetBackdropBorderColor(0.72, 0.74, 0.78, 0.86)
-        if ns.UnregisterLayoutBorderEditOnly then
-            ns.UnregisterLayoutBorderEditOnly(offScreen, 0.72, 0.74, 0.78, 0.86)
+        if ns.SetBorderColor then
+            ns.SetBorderColor(offScreen, 0.72, 0.74, 0.78, 0.86)
         end
     end
 
     EnsureOffSpecEmptyHint(frame)
-    if frame._svDevStripRegions and frame._svDevStripRegions["stats.offTable"] then
-        frame._svDevStripRegions["stats.offTable"]:Hide()
-    end
 
     -- Off Spec title: independent AdvDev target on Panel 2.
     if frame.secondarySubtitle then
@@ -1044,7 +953,6 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
         Panel.FitOffSpecTitle(frame)
 
 
-        if frame.devOffSpecTitleWidthRegion then frame.devOffSpecTitleWidthRegion:Hide() end
     end
 
     offScreen:ClearAllPoints()
@@ -1052,7 +960,6 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
     offScreen:SetSize(offVisW, offVisH)
     offScreen:Show()
 
-    EnsureScreenBadge(offScreen, "screen 2")
 
     -- OS stats: child of Screen 2 (mirrors MS stats under Screen 1).
     local offHost = EnsureOSStatsBox(frame, offScreen)

@@ -28,10 +28,6 @@ local function Padding(key)
 end
 
 
-local function IsLocked(key)
-    return ns.IsLayoutScreenLocked and ns.IsLayoutScreenLocked(key)
-end
-
 -- TOPLEFT of child relative to TOPLEFT of parent (UI units).
 -- Returns nil, nil if layout has not resolved yet (GetLeft/GetTop unavailable).
 local function RelTopLeft(child, parent)
@@ -47,9 +43,7 @@ local function RelTopLeft(child, parent)
     return (cl * cs - pl * ps) / ps, (ct * cs - pt * ps) / ps
 end
 
--- Place a Panel 1 child with the shared AdvDev pad (Move / Size / Padding).
--- Locked  → child of Panel 1 (moves with the panel).
--- Unlocked → child of the main frame (independent absolute placement).
+-- Place a Panel 1 child: a child of Panel 1 (it moves with the panel), with its saved move / size / padding.
 local function PlaceSetupChild(frame, card, region, spec)
     if not (frame and card and region and spec and spec.key) then return end
     local key = spec.key
@@ -57,113 +51,46 @@ local function PlaceSetupChild(frame, card, region, spec)
     local defaultY = spec.defaultY or 0
     local baseW = spec.baseW or 100
     local baseH = spec.baseH or 26
-    local locked = IsLocked(key)
     local pad = Padding(key .. ".pad")
     local dx, dy = Offset(key)
-    local isAbs = ns.GetLayoutOffsetAbs and ns.GetLayoutOffsetAbs(key)
 
-    if locked then
-        if isAbs and ns.WriteLayoutOffset then
-            local cx, cy = RelTopLeft(card, frame)
-            if cx ~= nil and cy ~= nil then
-                ns.WriteLayoutOffset(key, (dx or 0) - cx - defaultX, (dy or 0) - cy - defaultY, { _abs = false })
-                dx, dy = Offset(key)
-            end
+    -- An offset saved as absolute (older builds) is turned into one relative to the card, once.
+    if ns.GetLayoutOffsetAbs and ns.GetLayoutOffsetAbs(key) and ns.WriteLayoutOffset then
+        local cx, cy = RelTopLeft(card, frame)
+        if cx ~= nil and cy ~= nil then
+            ns.WriteLayoutOffset(key, (dx or 0) - cx - defaultX, (dy or 0) - cy - defaultY, { _abs = false })
+            dx, dy = Offset(key)
         end
-        if region.GetParent and region:GetParent() ~= card then
-            region:SetParent(card)
-        end
-        local w = baseW + SizeDelta(key .. ".width")
-        local h = baseH + HeightDelta(key .. ".height")
-        if w < (spec.minW or 20) then w = spec.minW or 20 end
-        if h < (spec.minH or 10) then h = spec.minH or 10 end
-        if spec.maxW and w > spec.maxW then w = spec.maxW end
-        if spec.maxH and h > spec.maxH then h = spec.maxH end
-        -- Padding is a visual inset: the logical footprint (w/h) stays intact.
-        w = math.max(10, w - (pad.left or 0) - (pad.right or 0))
-        h = math.max(10, h - (pad.top or 0) - (pad.bottom or 0))
-        region:ClearAllPoints()
-        region:SetPoint(
-            "TOPLEFT",
-            card,
-            "TOPLEFT",
-            defaultX + (dx or 0) + (pad.left or 0),
-            defaultY + (dy or 0) - (pad.top or 0)
-        )
-        if region.SetSize then
-            region:SetSize(w, h)
-        else
-            if region.SetWidth then region:SetWidth(w) end
-            if region.SetHeight then region:SetHeight(h) end
-        end
+    end
+    if region.GetParent and region:GetParent() ~= card then
+        region:SetParent(card)
+    end
+    local w = baseW + SizeDelta(key .. ".width")
+    local h = baseH + HeightDelta(key .. ".height")
+    if w < (spec.minW or 20) then w = spec.minW or 20 end
+    if h < (spec.minH or 10) then h = spec.minH or 10 end
+    if spec.maxW and w > spec.maxW then w = spec.maxW end
+    if spec.maxH and h > spec.maxH then h = spec.maxH end
+    -- Padding is a visual inset: the logical footprint (w/h) stays intact.
+    w = math.max(10, w - (pad.left or 0) - (pad.right or 0))
+    h = math.max(10, h - (pad.top or 0) - (pad.bottom or 0))
+    region:ClearAllPoints()
+    region:SetPoint(
+        "TOPLEFT",
+        card,
+        "TOPLEFT",
+        defaultX + (dx or 0) + (pad.left or 0),
+        defaultY + (dy or 0) - (pad.top or 0)
+    )
+    if region.SetSize then
+        region:SetSize(w, h)
     else
-        if (not isAbs) and ns.WriteLayoutOffset then
-            local cx, cy = RelTopLeft(card, frame)
-            if cx ~= nil and cy ~= nil then
-                ns.WriteLayoutOffset(key, cx + defaultX + (dx or 0), cy + defaultY + (dy or 0), { _abs = true })
-                dx, dy = Offset(key)
-            else
-                -- Layout not ready: stay card-relative until the next refresh resolves coords.
-                if region.GetParent and region:GetParent() ~= card then
-                    region:SetParent(card)
-                end
-                local w = baseW + SizeDelta(key .. ".width")
-                local h = baseH + HeightDelta(key .. ".height")
-                if w < (spec.minW or 20) then w = spec.minW or 20 end
-                if h < (spec.minH or 10) then h = spec.minH or 10 end
-                if spec.maxW and w > spec.maxW then w = spec.maxW end
-                if spec.maxH and h > spec.maxH then h = spec.maxH end
-                w = math.max(10, w - (pad.left or 0) - (pad.right or 0))
-                h = math.max(10, h - (pad.top or 0) - (pad.bottom or 0))
-                region:ClearAllPoints()
-                region:SetPoint(
-                    "TOPLEFT",
-                    card,
-                    "TOPLEFT",
-                    defaultX + (dx or 0) + (pad.left or 0),
-                    defaultY + (dy or 0) - (pad.top or 0)
-                )
-                if region.SetSize then
-                    region:SetSize(w, h)
-                else
-                    if region.SetWidth then region:SetWidth(w) end
-                    if region.SetHeight then region:SetHeight(h) end
-                end
-                region:SetFrameLevel((card:GetFrameLevel() or 1) + (spec.levelBoost or 6))
-                region:Show()
-                return
-            end
-        end
-        if region.GetParent and region:GetParent() ~= frame then
-            region:SetParent(frame)
-        end
-        local w = baseW + SizeDelta(key .. ".width")
-        local h = baseH + HeightDelta(key .. ".height")
-        if w < (spec.minW or 20) then w = spec.minW or 20 end
-        if h < (spec.minH or 10) then h = spec.minH or 10 end
-        if spec.maxW and w > spec.maxW then w = spec.maxW end
-        if spec.maxH and h > spec.maxH then h = spec.maxH end
-        w = math.max(10, w - (pad.left or 0) - (pad.right or 0))
-        h = math.max(10, h - (pad.top or 0) - (pad.bottom or 0))
-        region:ClearAllPoints()
-        region:SetPoint(
-            "TOPLEFT",
-            frame,
-            "TOPLEFT",
-            (dx or 0) + (pad.left or 0),
-            (dy or 0) - (pad.top or 0)
-        )
-        if region.SetSize then
-            region:SetSize(w, h)
-        else
-            if region.SetWidth then region:SetWidth(w) end
-            if region.SetHeight then region:SetHeight(h) end
-        end
+        if region.SetWidth then region:SetWidth(w) end
+        if region.SetHeight then region:SetHeight(h) end
     end
 
     region:SetFrameLevel((card:GetFrameLevel() or 1) + (spec.levelBoost or 6))
     region:Show()
-
 end
 
 local function EnsureTitleHost(card, storeKey, fontString, text)
@@ -220,12 +147,6 @@ local function EnsureCard(frame)
     card.optionsTitle:SetTextColor(1.0, 0.82, 0.0)
 
     -- Corner index so we can say "Frame 1" unambiguously.
-    card.frameIndexBadge = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    card.frameIndexBadge:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -8, 6)
-    card.frameIndexBadge:SetJustifyH("RIGHT")
-    card.frameIndexBadge:SetTextColor(0.85, 0.78, 0.35)
-    card.frameIndexBadge:SetText("Panel 1")
-    card.frameIndexBadge:Hide()
 
     frame.settingsCard = card
     return card
@@ -416,9 +337,6 @@ local function PositionPanelToggleButtons(frame, card)
             maxH = 48,
         })
 
-        if frame._svDevWidthHandles and frame._svDevWidthHandles[spec.layoutKey .. ".width"] then
-            frame._svDevWidthHandles[spec.layoutKey .. ".width"]:Hide()
-        end
         if frame.statVerdictSetupResizeRegions and frame.statVerdictSetupResizeRegions[spec.layoutKey .. ".width"] then
             frame.statVerdictSetupResizeRegions[spec.layoutKey .. ".width"]:Hide()
         end
@@ -429,19 +347,6 @@ function Panel.Apply(frame, controls)
     local card = EnsureCard(frame)
     -- Existing cards from older builds may still sit behind the window chrome.
     card:SetFrameLevel(math.max(2, frame:GetFrameLevel() + 2))
-    if not card.frameIndexBadge then
-        card.frameIndexBadge = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        card.frameIndexBadge:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -8, 6)
-        card.frameIndexBadge:SetJustifyH("RIGHT")
-        card.frameIndexBadge:SetTextColor(0.85, 0.78, 0.35)
-    end
-    card.frameIndexBadge:SetText("Panel 1")
-    if ns.RegisterLayoutEditOnly then
-        ns.RegisterLayoutEditOnly(card.frameIndexBadge)
-    end
-    if not (ns.IsLayoutEditActive and ns.IsLayoutEditActive()) then
-        card.frameIndexBadge:Hide()
-    end
     if card.SetBackdrop then
         card:SetBackdrop({
             bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
@@ -470,14 +375,9 @@ function Panel.Apply(frame, controls)
     end
 
     -- Whole card is the move target (Panel 1).
-    if frame._svDevStripRegions and frame._svDevStripRegions["setup.card"] then
-        frame._svDevStripRegions["setup.card"]:Hide()
-    end
-    if frame.devSetupWidthRegion then frame.devSetupWidthRegion:Hide() end
-    if frame.devSetupHeightRegion then frame.devSetupHeightRegion:Hide() end
     -- Panel chrome border is always visible (not AdvDev-only).
-    if ns.UnregisterLayoutBorderEditOnly then
-        ns.UnregisterLayoutBorderEditOnly(card, 0.72, 0.74, 0.78, 0.86)
+    if ns.SetBorderColor then
+        ns.SetBorderColor(card, 0.72, 0.74, 0.78, 0.86)
     elseif card.SetBackdropBorderColor then
         card:SetBackdropBorderColor(0.72, 0.74, 0.78, 0.86)
     end

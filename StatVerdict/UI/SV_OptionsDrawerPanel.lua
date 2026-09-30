@@ -45,7 +45,7 @@ local function Clamp(value, minValue, maxValue)
     return value
 end
 
--- Place a Features text title with AdvDev Move / Size / Padding (hit region tracks glyphs).
+-- Place a Features text title at its saved position.
 local function PlaceFeaturesTitle(card, fontString, layoutKey, label, defaultX, defaultY)
     if not (card and fontString and layoutKey) then return end
     local ox, oy = Offset(layoutKey)
@@ -59,36 +59,9 @@ local function PlaceFeaturesTitle(card, fontString, layoutKey, label, defaultX, 
         defaultY + (oy or 0) - (pad.top or 0)
     )
     fontString:Show()
-
-    local baseW = 80
-    local baseH = 18
-    if fontString.GetStringWidth then
-        baseW = math.max(40, (fontString:GetStringWidth() or 0) + 8)
-    end
-    if fontString.GetStringHeight then
-        baseH = math.max(14, (fontString:GetStringHeight() or 0) + 4)
-    end
-    local logicalW = baseW + SizeDelta(layoutKey .. ".width")
-    local logicalH = baseH + HeightDelta(layoutKey .. ".height")
-    if logicalW < 24 then logicalW = 24 end
-    if logicalH < 12 then logicalH = 12 end
-
-    local hit = nil
-    if ns.EnsureLayoutTextHitRegion then
-        hit = ns.EnsureLayoutTextHitRegion(card, layoutKey, fontString, {
-            padding = 2,
-            minWidth = 24,
-            minHeight = 12,
-        })
-    end
-    if hit and hit.SetSize then
-        local visW = math.max(16, logicalW - (pad.left or 0) - (pad.right or 0))
-        local visH = math.max(10, logicalH - (pad.top or 0) - (pad.bottom or 0))
-        hit:SetSize(visW, visH)
-    end
 end
 
--- Checkbox group: tight AdvDev box around the marker toggles only.
+-- Checkbox group: a box around the marker toggles at its saved position and size.
 local function PlaceBagChecksBlock(card, block, layoutKey, label, defaultX, defaultY, baseW, baseH)
     if not (card and block and layoutKey) then return end
     local ox, oy = Offset(layoutKey)
@@ -113,8 +86,8 @@ local function PlaceBagChecksBlock(card, block, layoutKey, label, defaultX, defa
     block:SetSize(visW, visH)
     block:Show()
     if block.SetBackdrop then
-        if ns.UnregisterLayoutBorderEditOnly then
-            ns.UnregisterLayoutBorderEditOnly(block, 0, 0, 0, 0)
+        if ns.SetBorderColor then
+            ns.SetBorderColor(block, 0, 0, 0, 0)
         end
         if block.SetBackdropBorderColor then
             block:SetBackdropBorderColor(0, 0, 0, 0)
@@ -396,7 +369,6 @@ function Panel.Apply(frame)
     if not frame then return end
     if not Panel.IsOpen() then
         if frame.optionsDrawerCard then frame.optionsDrawerCard:Hide() end
-        if frame.devOptionsWidthRegion then frame.devOptionsWidthRegion:Hide() end
         return
     end
 
@@ -435,9 +407,6 @@ function Panel.Apply(frame)
     end
 
     -- Outer pad owns Size W — retire the legacy right-edge width strip.
-    if frame.devOptionsWidthRegion then
-        frame.devOptionsWidthRegion:Hide()
-    end
 
     PlaceFeaturesTitle(card, card.title, "options.title", "Features title", CONTENT_MARGIN, -12)
     PlaceFeaturesTitle(card, card.bagMarkersTitle, "options.bagMarkersTitle", "Bag Markers title", CONTENT_MARGIN, -40)

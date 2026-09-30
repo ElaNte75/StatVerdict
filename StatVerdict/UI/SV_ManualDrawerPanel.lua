@@ -193,7 +193,6 @@ function Panel.Apply(frame)
     if not frame then return end
     if not Panel.IsOpen() then
         if frame.manualDrawerCard then frame.manualDrawerCard:Hide() end
-        if frame.devManualWidthRegion then frame.devManualWidthRegion:Hide() end
         return
     end
 
@@ -235,9 +234,6 @@ function Panel.Apply(frame)
     -- Manual body text is not AdvDev-editable — drop any leftover title/content ghosts.
 
     -- Outer pad owns Size W — retire the legacy right-edge width strip.
-    if frame.devManualWidthRegion then
-        frame.devManualWidthRegion:Hide()
-    end
 
     local titleX, titleY = Offset("manual.title")
     card.title:ClearAllPoints()
