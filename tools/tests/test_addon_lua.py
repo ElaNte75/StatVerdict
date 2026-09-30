@@ -1405,7 +1405,8 @@ class PanelModeTests(unittest.TestCase):
     def test_manual_describes_the_weights_button(self) -> None:
         source = (ADDON / "UI" / "SV_ManualDrawerPanel.lua").read_text(encoding="utf-8-sig")
         self.assertIn("Mode — choose how stat priorities and targets are decided: Guide (from the guides, "
-                      "recommended) or Measured (our own measurement).", source)
+                      "recommended) or Measured (our own measurement of your DPS; tank specs are measured for damage, "
+                      "not survivability).", source)
         self.assertIn("With Guide you also pick a stat target difficulty: Tier 3, Tier 2 or Tier 1 "
                       "(the most demanding).", source)
         self.assertIn("With Measured you pick a gear level instead: Champion, Hero or Myth (the most "
@@ -1549,7 +1550,7 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         self.assertEqual("MEASURED", self.lua.globals().StatVerdictDB.weightMode)
         self.assertEqual("MEASURED", self.ns.ProfileRepository.GetWeightMode())
         self.assertEqual([False, True], [card.modeRows[i].check.checked for i in (1, 2)])
-        self.assertIn("simulations", card.about.text)
+        self.assertIn("simulation", card.about.text)
         self.assertGreaterEqual(self.refreshes, 1)
         card.modeRows[1].scripts.OnClick()
         self.assertEqual("GUIDE", self.lua.globals().StatVerdictDB.weightMode)
