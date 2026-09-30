@@ -15,7 +15,7 @@ You are a fresh local Claude Code session on the owner's Windows PC (project fol
 3. Owner language: simple Greek, short, no code in the main explanation (see HANDOFF section 1).
 
 ## Where things stand (all on `main`)
-- Data pipeline, addon wiring, Mode drawer (Guide / Measured; Tier 3/2/1 in Guide, Champion/Hero/Myth gear level in
+- Data pipeline, addon wiring, Mode drawer (Guide / Measured; Tier 1/2/3 in Guide, Champion/Hero/Myth gear level in
   Measured), own Best-in-Slot tooltip with gems/enchants (unique gem once), 3 tooltip options in Features, Catalyst rule,
   fixed Mode-drawer layout, wider Features drawer: done and tested (471 tests). Raider.IO is completely removed.
 - Not verified in the game yet: Catalyst/set detection, Shaman hero subTreeIDs 54-56, non-English clients.
@@ -46,7 +46,7 @@ You are a fresh local Claude Code session on the owner's Windows PC (project fol
 - Versatility row missing in Measured mode for Enhancement Shaman (rank numbers 1,3,4); order wrong. (Overnight cloud job was asked to fix — verify.)
 - Guide ties ("Mastery / Haste" roughly equal): check ranking/weights treat them as roughly equal.
 - Gear-level cards a bit wider, all equal.
-- Later: premium restyle of older panels; better names than Tier 3/2/1; layout-jump items (BiS/Trinket auto-width, row pitch,
+- Later: premium restyle of older panels; better names than Tier 1/2/3; layout-jump items (BiS/Trinket auto-width, row pitch,
   drawer widths) need an owner decision; owner asked Myth = 334 (6/6) or 344? (keep 334 unless told).
 - Owner still has to delete the old GitHub repos `Scraper` and `farmerassistant`.
 
@@ -85,7 +85,7 @@ Cloud credits are almost used up (they expire 2026-11-05): do not start expensiv
    owner's local ClassCodex was only data staleness (his installed copy was 2 days old).
 4. **Never show data-source names** in the UI ("From guides" / "Our own measurement"): owner does not want users to see where
    the data comes from.
-5. **Difficulty levels.** Guide: Tier 3/2/1 (= u.gg top80/50/20; Easy/Normal/Hard felt like a game difficulty; owner may find a
+5. **Difficulty levels.** Guide: Tier 1/2/3 (= u.gg top80/50/20; Easy/Normal/Hard felt like a game difficulty; owner may find a
    better name later). Measured: the same 3 cards become Champion/Hero/Myth *gear level* (our SimC at that upgrade track and the
    BiS/trinket items at that track). Myth 6/6 is item level 334 per game DB2 and the owner's own tooltip; 344 is a Myth extension
    rank; Hero 6/6 = 321, Champion 6/6 = 308.

@@ -136,4 +136,5 @@ Raid 0.75 (was 0.73); Measured M+ 0.80 (was 0.89), Raid 0.84 (was 0.89). The Mea
 little while the upgrade / not upgrade agreement stayed at 16 of 17 for M+; this is one character and should be
 watched.
 
-The stat target cards now read Tier 1, Tier 2, Tier 3 from left to right (saved keys unchanged).
+The stat target cards read Tier 1 (easiest, u.gg top80), Tier 2 (top50), Tier 3 (hardest, top20; the default) from
+left to right. Saved keys unchanged.

@@ -132,13 +132,13 @@ class WeightModeCoreTests(unittest.TestCase):
 
     def test_three_difficulties_from_easy_to_hard(self) -> None:
         bins = self.ns.GetStatTargetBins()
-        # Saved keys stay top20/50/80, shown Tier 1 to Tier 3; Tier 1 (top20) is the default.
+        # Saved keys stay top20/50/80, shown Tier 1 (top80, easiest) to Tier 3 (top20, hardest); Tier 3 (top20) is the default.
         self.assertEqual(3, len(bins))
-        self.assertEqual(["top20", "top50", "top80"], [bins[i].key for i in (1, 2, 3)])
+        self.assertEqual(["top80", "top50", "top20"], [bins[i].key for i in (1, 2, 3)])
         self.assertEqual(["Tier 1", "Tier 2", "Tier 3"], [bins[i].label for i in (1, 2, 3)])
-        self.assertEqual(["Tier 1: the stats the best-equipped players reach. The most demanding goal.",
+        self.assertEqual(["Tier 1: stat targets that most players reach. A comfortable goal.",
                           "Tier 2: the stats of a typical player. A solid, realistic goal.",
-                          "Tier 3: stat targets that most players reach. A comfortable goal."],
+                          "Tier 3: the stats the best-equipped players reach. The most demanding goal."],
                          [bins[i].about for i in (1, 2, 3)])
         self.assertEqual("top20", self.ns.GetStatTargetBin())
 
@@ -205,7 +205,7 @@ class WeightModeCoreTests(unittest.TestCase):
         self.lua.globals().StatVerdictDB.gearLevel = "champion"
         guide = self.ns.GetTargetChoice("GUIDE")
         self.assertEqual("Stat targets", guide.title)
-        self.assertEqual(["top20", "top50", "top80"], [guide.options[i].key for i in (1, 2, 3)])
+        self.assertEqual(["top80", "top50", "top20"], [guide.options[i].key for i in (1, 2, 3)])
         self.assertEqual("top50", guide.selected)
         measured = self.ns.GetTargetChoice("MEASURED")
         self.assertEqual("Gear level", measured.title)
@@ -1406,8 +1406,8 @@ class PanelModeTests(unittest.TestCase):
         self.assertIn("Mode — choose how stat priorities and targets are decided: Guide (from the guides, "
                       "recommended) or Measured (our own measurement of your DPS; tank specs are measured for damage, "
                       "not survivability; healers are not measured and use the guide).", source)
-        self.assertIn("With Guide you also pick a stat target difficulty: Tier 1 (the most "
-                      "demanding), Tier 2 or Tier 3.", source)
+        self.assertIn("With Guide you also pick a stat target difficulty: Tier 1, Tier 2 or Tier 3 "
+                      "(the most demanding).", source)
         self.assertIn("With Measured you pick a gear level instead: Champion, Hero or Myth (the most "
                       "demanding); Best in Slot, trinkets and targets follow it.", source)
         for word in ("Easy", "Hard"):
@@ -1520,9 +1520,9 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         self.ns.StatVerdictWeightsDrawerPanel.Apply(self.frame)
         return self.frame.weightsDrawerCard
 
-    EASY = "Tier 3: stat targets that most players reach. A comfortable goal."
+    EASY = "Tier 1: stat targets that most players reach. A comfortable goal."
     NORMAL = "Tier 2: the stats of a typical player. A solid, realistic goal."
-    HARD = "Tier 1: the stats the best-equipped players reach. The most demanding goal."
+    HARD = "Tier 3: the stats the best-equipped players reach. The most demanding goal."
     CHAMPION = "Best in Slot, trinkets and targets at Champion-track gear. A comfortable goal."
     HERO = "Best in Slot, trinkets and targets at Hero-track gear. A solid, realistic goal."
     MYTH = "Best in Slot, trinkets and targets at Myth-track gear. The most demanding goal."
@@ -1639,19 +1639,19 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         card = self.card()
         self.assertEqual("Stat targets", card.binTitle.text)
         self.assertEqual(3, len(card.binRows))
-        self.assertEqual(["top20", "top50", "top80"], [card.binRows[i].key for i in (1, 2, 3)])
+        self.assertEqual(["top80", "top50", "top20"], [card.binRows[i].key for i in (1, 2, 3)])
         self.assertEqual(["Tier 1", "Tier 2", "Tier 3"], [card.binRows[i].label.text for i in (1, 2, 3)])
         # Side by side, left to right.
         xs = [card.binRows[i].points[1][4] for i in (1, 2, 3)]
         self.assertEqual(sorted(xs), xs)
         self.assertEqual(len(set(xs)), 3)
-        # Default: Tier 1 (top20), explained under the options, starting with its name.
-        self.assertEqual([True, False, False], self.bin_checks(card))
+        # Default: Tier 3 (top20), explained under the options, starting with its name.
+        self.assertEqual([False, False, True], self.bin_checks(card))
         self.assertEqual(self.HARD, card.binNote.text)
-        self.assertTrue(card.binNote.text.startswith("Tier 1: "))
+        self.assertTrue(card.binNote.text.startswith("Tier 3: "))
 
     def test_stat_target_group_shows_the_saved_difficulty(self) -> None:
-        for key, checks, note in (("top80", [False, False, True], self.EASY),
+        for key, checks, note in (("top80", [True, False, False], self.EASY),
                                   ("top50", [False, True, False], self.NORMAL)):
             self.lua.globals().StatVerdictDB.statTargetBin = key
             card = self.card()
@@ -1661,7 +1661,7 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
     def test_invalid_saved_bin_shows_hard(self) -> None:
         self.lua.globals().StatVerdictDB.statTargetBin = "top99"
         card = self.card()
-        self.assertEqual([True, False, False], self.bin_checks(card))
+        self.assertEqual([False, False, True], self.bin_checks(card))
         self.assertEqual(self.HARD, card.binNote.text)
 
     def test_clicking_a_difficulty_sets_it_and_refreshes(self) -> None:
@@ -1672,9 +1672,9 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         self.assertEqual([False, True, False], self.bin_checks(card))
         self.assertEqual(self.NORMAL, card.binNote.text)
         self.assertGreaterEqual(self.refreshes, 1)
-        card.binRows[3].scripts.OnClick()
+        card.binRows[1].scripts.OnClick()
         self.assertEqual("top80", self.lua.globals().StatVerdictDB.statTargetBin)
-        self.assertEqual([False, False, True], self.bin_checks(card))
+        self.assertEqual([True, False, False], self.bin_checks(card))
         self.assertEqual(self.EASY, card.binNote.text)
         # The weight mode is left alone.
         self.assertEqual("GUIDE", self.ns.GetWeightMode())
@@ -1727,14 +1727,14 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         card = self.card()
         self.assertEqual("Stat targets", card.binTitle.text)
         self.assertEqual(["Tier 1", "Tier 2", "Tier 3"], self.labels(card))
-        self.assertEqual([False, False, True], self.bin_checks(card))
+        self.assertEqual([True, False, False], self.bin_checks(card))
         self.assertEqual(self.EASY, card.binNote.text)
         card.modeRows[2].scripts.OnClick()
         self.assertEqual([False, True, False], self.bin_checks(card))
         self.assertEqual(self.HERO, card.binNote.text)
         card.modeRows[1].scripts.OnClick()
         self.assertEqual(["Tier 1", "Tier 2", "Tier 3"], self.labels(card))
-        self.assertEqual([False, False, True], self.bin_checks(card))
+        self.assertEqual([True, False, False], self.bin_checks(card))
         self.assertEqual(self.EASY, card.binNote.text)
         self.assertEqual(("top80", "hero"), (db.statTargetBin, db.gearLevel))
 
@@ -1791,7 +1791,7 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
 
     def test_hovering_a_chip_lights_its_border(self) -> None:
         card = self.card()
-        chip = card.binRows[3]
+        chip = card.binRows[1]
         resting = self.border(chip)
         chip.scripts.OnEnter(chip)
         self.assertNotEqual(resting, self.border(chip))
@@ -1799,8 +1799,8 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         chip.scripts.OnLeave(chip)
         self.assertEqual(resting, self.border(chip))
         # The selected chip stays gold while hovered.
-        card.binRows[1].scripts.OnEnter(card.binRows[1])
-        self.assertEqual(self.GOLD_BORDER, self.border(card.binRows[1]))
+        card.binRows[3].scripts.OnEnter(card.binRows[3])
+        self.assertEqual(self.GOLD_BORDER, self.border(card.binRows[3]))
 
     def test_stat_target_group_has_room_to_breathe(self) -> None:
         card = self.card()

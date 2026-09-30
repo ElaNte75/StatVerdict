@@ -52,7 +52,7 @@ Data flow:
 
 ## 3. Player-visible features (all agreed with the owner)
 - **Mode drawer** (button "Mode"): rows **Guide** (default, pure copy of the guide: priority + u.gg target bin) and
-  **Measured** (our own SimC targets + measured weights). The 3 cards below mean: in Guide "Tier 3/2/1" (= u.gg
+  **Measured** (our own SimC targets + measured weights). The 3 cards below mean: in Guide "Tier 1/2/3" (= u.gg
   top80/top50/top20, `StatVerdictDB.statTargetBin`); in Measured "Champion/Hero/Myth" (gear level,
   `StatVerdictDB.gearLevel`, swaps upgrade-track bonus ids in Best in Slot / Ranked Trinkets and picks `targets.levels`).
   Hidden slash command `/svweights guide|measured`.
@@ -104,7 +104,7 @@ Dispatch a workflow: `gh workflow run <file>.yml`.
 - Not verified in game: the Catalyst/set detection, Shaman hero subTreeIDs (54-56), non-English clients, healers
   (Holy Paladin, Restoration Shaman, Mistweaver, Holy/Discipline Priest, Restoration Druid, Preservation) have no measured
   weights (they use the guide priority) and their targets come from Wowhead gear totals.
-- Later: restyle the older panels in the premium look of the Mode drawer; pick a better name than "Tier 3/2/1" if the owner
+- Later: restyle the older panels in the premium look of the Mode drawer; pick a better name than "Tier 1/2/3" if the owner
   proposes one; delete old repos `Scraper` / `farmerassistant` (owner must do it on GitHub).
 - Version shown in the window (1.0.7 in `StatVerdict.lua`) differs from the `.toc` (1.0.8): owner's decision.
 

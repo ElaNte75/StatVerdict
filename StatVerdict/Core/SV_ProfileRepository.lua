@@ -505,7 +505,7 @@ function Repository.SetWeightMode(mode)
     return true
 end
 
--- Saves the guide target bin (Mode drawer: Tier 3/2/1) and drops the cached
+-- Saves the guide target bin (Mode drawer: Tier 1/2/3) and drops the cached
 -- provider views. false (nothing saved) for an unknown bin.
 function Repository.SetStatTargetBin(bin)
     if type(bin) ~= "string" or not VALID_STAT_TARGET_BINS[bin] then return false end

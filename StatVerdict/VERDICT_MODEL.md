@@ -19,8 +19,8 @@ percentages.
   piece is a tier-set piece (the Catalyst rule).
 - **Stat weights** follow the guides' priority by default (Guide mode; stats the
   guide calls roughly equal weigh alike); the Mode drawer can switch to Measured,
-  our own simulated values. Guide stat targets come in three tiers (Tier 3 / Tier 2
-  / Tier 1, the default being the most demanding); Measured targets come from
+  our own simulated values. Guide stat targets come in three tiers (Tier 1 / Tier 2
+  / Tier 3, the default being the most demanding); Measured targets come from
   best-in-slot gear at a chosen gear level (Champion / Hero / Myth). A stat with
   no target keeps its row with target 0.
 - **Diminishing returns.** A swap is judged by what it really adds to the stats you have now:
