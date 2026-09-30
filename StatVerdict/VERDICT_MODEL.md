@@ -85,9 +85,14 @@ so manually copied or stale generated files fail closed.
 - Measured secondary shares are proportional to the measured weights; Guide uses rank shares from the guide order.
 - The live weights read the character's ratings when gear, spec, talents, level or login change, not on every
   buff: a flask, food or combat buff does not move the verdicts of the moment.
-- Live secondary weights: each stat's fixed share is scaled by its distance from the target (same limits for
-  every stat, no rank-based limits), then all four are brought back to the fixed budget in proportion; ties in
-  the guide stay equal for equal needs.
+- Live secondary weights: the guide's order becomes starting shares of the fixed 6.00 budget (places worth
+  1.4 : 1.25 : 1.1 : 1, stats the guide calls equal share the average). Each share is then scaled by the
+  stat's need: rating missing, counted in points (a gap a gem or enchant can close counts for nothing, the full
+  +25% from about 400 points), only as far as the stats above it in the order have got to their own targets
+  (the gate: the top of the order is filled first, the stats below take over as it gets there), and down to
+  0.75x for rating over the target. The four are brought back to the budget in proportion, so nobody is drained
+  first and ties stay equal for equal needs. The Weight cell's tooltip shows the starting and the current value.
+- A piece counts as an upgrade from 1% of the score of the piece it replaces (item level 10 or more excepted).
 - A swap is judged with the live weights read at the MIDDLE of the swap (rating now plus half of the change), so
   the verdict of piece A over piece B is exactly the opposite of B over A: two pieces are never both better than
   each other. Item level wins in both directions from 10 item levels (jewelry and trinkets excepted), and the

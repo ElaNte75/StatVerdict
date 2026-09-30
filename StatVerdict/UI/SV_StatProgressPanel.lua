@@ -1203,9 +1203,11 @@ UpdateBarVisual = function(bar)
     bar.text:SetTextColor(1, 1, 1)
 
     local fontSize = (width < 165 or longestDigits >= 5) and 9 or 10
-    local currentWidth = (longestDigits >= 4) and 38 or (width < 185 and 30 or 36)
+    -- The widths depend only on the bar, never on the digits of one row: the slash then sits at the same
+    -- place in every row, the current values end at it and the targets start at it.
+    local currentWidth = width < 185 and 34 or 38
     local slashWidth = 8
-    local targetWidth = (longestDigits >= 4) and 40 or (width < 185 and 30 or 34)
+    local targetWidth = width < 185 and 36 or 40
     local pairWidth = currentWidth + slashWidth + targetWidth + 2
     local pairRight = markerX - 4
     local pairLeft = pairRight - pairWidth

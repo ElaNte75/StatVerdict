@@ -138,3 +138,14 @@ watched.
 
 The stat target cards read Tier 1 (easiest, u.gg top80), Tier 2 (top50), Tier 3 (hardest, top20; the default) from
 left to right. Saved keys unchanged.
+
+## 8. Live weights, second version (2026-09-30, owner's logic)
+
+The owner's rule: the top of the guide's order is filled first; as it gets near its target the stats below take
+over; rating is found by pieces, so a gap a gem or enchant can close should not steer the choice of a piece.
+Implemented for both modes through the same mechanism (Measured: its measured shares are the starting shares):
+starting shares 1.4 : 1.25 : 1.1 : 1 of the budget (was 4 : 3 : 2 : 1, too steep: the top place had to win a
+trade with twice the amount; now about 1.3 to 1.75 times), need counted in rating points (60 to 400), a gate by
+the progress of the stats ranked above, surplus down to 0.75x, proportional return to the fixed budget. Also: a
+gain below 1% of the replaced piece is not an upgrade; the Weight cell has a tooltip with the starting and the
+current weight; the numbers of the Progress column line up on the slash. To be judged in use.

@@ -788,7 +788,7 @@ class CoreProfileTests(unittest.TestCase):
         self.assertEqual(self.keys(*self.GUIDE_ORDER), self.order(profile))
         self.assertIsNone(profile.secondaryWeights)
         # The table shows the scoring's own base weights: rank shares of the 6.00 secondary budget.
-        for got, want in zip(self.base_modifiers(profile), [2.4, 1.8, 1.2, 0.6]):
+        for got, want in zip(self.base_modifiers(profile), [6 * 1.4 / 4.75, 6 * 1.25 / 4.75, 6 * 1.1 / 4.75, 6 * 1.0 / 4.75]):
             self.assertAlmostEqual(want, got)
 
     def test_guide_mode_scores_exactly_like_the_no_weights_path(self) -> None:
@@ -923,7 +923,8 @@ class CoreProfileTests(unittest.TestCase):
 
     def test_stats_the_guide_calls_equal_share_their_average_in_rows_and_scoring(self) -> None:
         # Guide order haste, crit, mastery, vers with haste = crit tied: they share the average of
-        # their ranks (4 and 3), in the table and in the scoring. The budget stays 6.00.
+        # their ranks, in the table and in the scoring. The budget stays 6.00. (Rank places are worth
+        # 1.4 : 1.25 : 1.1 : 1 of the budget.)
         build_id = now_build_id()
         targets = make_classcodex_targets(build_id)
         context = targets["profiles"]["DEATHKNIGHT_BLOOD"]["goals"]["MYTHIC_PLUS"]["heroTalents"]["sanlayn"]
@@ -933,10 +934,10 @@ class CoreProfileTests(unittest.TestCase):
         profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
         weight = {profile.auditTargets.rows[i].key: profile.auditTargets.rows[i].baseModifier
                   for i in range(1, len(profile.auditTargets.rows) + 1)}
-        self.assertAlmostEqual(2.1, weight[SECONDARY["haste"]])
-        self.assertAlmostEqual(2.1, weight[SECONDARY["crit"]])
-        self.assertAlmostEqual(1.2, weight[SECONDARY["mastery"]])
-        self.assertAlmostEqual(0.6, weight[SECONDARY["vers"]])
+        self.assertAlmostEqual(6 * (1.4 + 1.25) / 2 / 4.75, weight[SECONDARY["haste"]])
+        self.assertAlmostEqual(6 * (1.4 + 1.25) / 2 / 4.75, weight[SECONDARY["crit"]])
+        self.assertAlmostEqual(6 * 1.1 / 4.75, weight[SECONDARY["mastery"]])
+        self.assertAlmostEqual(6 * 1.0 / 4.75, weight[SECONDARY["vers"]])
         self.assertAlmostEqual(6.0, sum(weight.values()))
         _, live_haste = ns.GetScoringSecondaryWeights(profile, SECONDARY["haste"])
         _, live_crit = ns.GetScoringSecondaryWeights(profile, SECONDARY["crit"])

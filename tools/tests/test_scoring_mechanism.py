@@ -97,8 +97,9 @@ class ScoringMechanismTests(unittest.TestCase):
         profile = verdict.build_profile(lua, ns, "MYTHIC_PLUS", "GUIDE")
         self.assertIsNone(profile.secondaryWeights)
         order = [str(profile.secondaryOrder[i]) for i in range(1, 5)]
-        # The guide has a Mastery = Haste tie tier, so those two share the average of ranks 1 and 2.
-        expected = {order[0]: 2.1, order[1]: 2.1, order[2]: 1.2, order[3]: 0.6}
+        # The guide has a Mastery = Haste tie tier, so those two share the average of ranks 1 and 2 (places are
+        # worth 1.4 : 1.25 : 1.1 : 1 of the 6.00 budget).
+        expected = {order[0]: 6 * 1.325 / 4.75, order[1]: 6 * 1.325 / 4.75, order[2]: 6 * 1.1 / 4.75, order[3]: 6 * 1.0 / 4.75}
         self.assertEqual(order[:2], ["ITEM_MOD_MASTERY_RATING_SHORT", "ITEM_MOD_HASTE_RATING_SHORT"])
         for key, share in expected.items():
             self.assertAlmostEqual(share, ns.GetScoringSecondaryWeights(profile, key)[0], msg=key)
@@ -246,6 +247,59 @@ class ScoringMechanismTests(unittest.TestCase):
                 # Measured follows our own measurements (Versatility is worth more there): it may decide
                 # the other way, but never both ways.
                 self.assertFalse(low_over_high > 0 and high_over_low > 0, mode)
+
+    # --- need in rating points, gated by the guide's order ---
+
+    SCREENSHOT = {"ITEM_MOD_MASTERY_RATING_SHORT": 677 / 1215, "ITEM_MOD_HASTE_RATING_SHORT": 663 / 1044,
+                  "ITEM_MOD_CRIT_RATING_SHORT": 261 / 950, "ITEM_MOD_VERSATILITY": 97 / 139}
+
+    def test_the_top_of_the_order_is_boosted_first_and_the_stat_nearly_there_gives(self) -> None:
+        # The Enhancement Totemic state of a real character: Mastery = Haste first, Crit third and
+        # furthest behind, Versatility last and nearly at its target.
+        _, weights = self.live("GUIDE", lambda key: self.SCREENSHOT[key])
+        mastery, haste = weights["ITEM_MOD_MASTERY_RATING_SHORT"], weights["ITEM_MOD_HASTE_RATING_SHORT"]
+        crit, vers = weights["ITEM_MOD_CRIT_RATING_SHORT"], weights["ITEM_MOD_VERSATILITY"]
+        self.assertGreater(mastery[1], mastery[0])  # the top two are above their starting weight
+        self.assertGreater(haste[1], haste[0])
+        self.assertLess(vers[1], vers[0])           # the last stat, 42 rating short, gives back
+        # Crit is far behind but ranks below the top two that are still far from their targets:
+        # it is not boosted above them, it stays near its own starting weight.
+        self.assertLess(abs(crit[1] / crit[0] - 1), 0.05)
+        self.assertGreater(mastery[1], crit[1])
+
+    def test_a_gap_a_gem_or_enchant_can_close_counts_for_nothing(self) -> None:
+        # Every stat only 40 rating short of its target: no stat is boosted, the weights are the shares.
+        _, weights = self.live_points("GUIDE", 40)
+        for key, (base, live) in weights.items():
+            self.assertAlmostEqual(base, live, places=6, msg=key)
+
+    def test_lower_stats_take_over_as_the_top_ones_get_there(self) -> None:
+        # Mastery and Haste at their targets, Crit and Versatility far behind: now Crit is boosted.
+        fractions = {"ITEM_MOD_MASTERY_RATING_SHORT": 1.0, "ITEM_MOD_HASTE_RATING_SHORT": 1.0,
+                     "ITEM_MOD_CRIT_RATING_SHORT": 0.3, "ITEM_MOD_VERSATILITY": 0.3}
+        _, weights = self.live("GUIDE", lambda key: fractions[key])
+        crit = weights["ITEM_MOD_CRIT_RATING_SHORT"]
+        self.assertGreater(crit[1], crit[0])
+
+    def live_points(self, mode: str, missing: float) -> tuple:
+        lua, ns = self.lua, self.ns
+        verdict.set_character(lua, STATES["mid"], 1600)
+        profile = verdict.build_profile(lua, ns, "MYTHIC_PLUS", mode)
+        targets = self.targets(profile)
+        ratings = {}
+        for name, key in (("crit", "ITEM_MOD_CRIT_RATING_SHORT"), ("haste", "ITEM_MOD_HASTE_RATING_SHORT"),
+                          ("mastery", "ITEM_MOD_MASTERY_RATING_SHORT"), ("versatility", "ITEM_MOD_VERSATILITY")):
+            ratings[name] = targets[key] - missing
+        verdict.set_character(lua, ratings, 1600)
+        profile = verdict.build_profile(lua, ns, "MYTHIC_PLUS", mode)
+        keys = [str(profile.secondaryOrder[i]) for i in range(1, 5)]
+        return profile, {k: ns.GetScoringSecondaryWeights(profile, k) for k in keys}
+
+    def test_a_gain_of_a_few_points_is_not_an_upgrade(self) -> None:
+        tiny = {**base_item("chest"), "name": "tiny", "mastery_rating": 81}     # +1 Mastery
+        real = {**base_item("chest"), "name": "real", "mastery_rating": 100}    # +20 Mastery
+        self.assertFalse(self.comparison("GUIDE", "mid", "chest", tiny).isUpgrade)
+        self.assertTrue(self.comparison("GUIDE", "mid", "chest", real).isUpgrade)
 
 
 if __name__ == "__main__":

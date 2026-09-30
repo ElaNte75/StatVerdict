@@ -9,15 +9,24 @@ local addonName, ns = ...
 --   armor/weapons — primary + ilvl dominate; secondaries share one live budget
 --   rings/neck    — primaryless transfer onto top secondary
 --   trinkets      — BIS tier/rank first; secondaries heavily dampened (effect > stats)
-local TARGET_SECONDARY_BASE = { 4.00, 3.00, 2.00, 1.00 }
--- How the character's current rating against a stat's target scales that stat's share. The same
--- rule for every stat (never by its rank): the further below the target, the more a point is
--- worth (a stat with nothing yet counts 1.50x); above the target a point counts less, down to
--- 0.65x at 60% or more over it. The scaled shares are then brought back to the fixed budget in
--- proportion, so nobody is drained first and equal shares stay equal for equal needs.
-local TARGET_NEED_DEFICIT_MAX = 0.50
+-- How the guide's order becomes numbers: the guide gives only an order, so each place is worth a little less
+-- than the one before (about 1.4 : 1.25 : 1.1 : 1). A stat the top place beats a lower one when it brings
+-- about twice the amount, not when it brings any. Stats the guide calls equal share the average.
+local TARGET_SECONDARY_BASE = { 1.40, 1.25, 1.10, 1.00 }
+-- How the character's rating against a stat's target scales that stat's share (then all four are brought
+-- back to the fixed budget in proportion, so nobody is drained first and equal shares stay equal).
+--   Missing rating: counted in rating points, because it is pieces (not percent) that have to be found. A gap
+--   of up to about a gem or an enchant (TARGET_NEED_SMALL_GAP) counts for nothing; it grows to the full boost
+--   (TARGET_NEED_DEFICIT_MAX, +25%) at about several pieces (TARGET_NEED_FULL_GAP).
+--   Priority: a stat only gets its boost as far as the stats above it in the guide's order have got to their
+--   own targets (the gate), so the top of the order is filled first and, as it gets there, the stats below
+--   take over. Stats in the same tie do not gate each other.
+--   Rating over the target counts less, down to 0.75x at 60% or more over it.
+local TARGET_NEED_DEFICIT_MAX = 0.25
+local TARGET_NEED_SMALL_GAP = 60
+local TARGET_NEED_FULL_GAP = 400
 local TARGET_NEED_SURPLUS_RANGE = 0.60
-local TARGET_NEED_SURPLUS_MIN = 0.65
+local TARGET_NEED_SURPLUS_MIN = 0.75
 local TARGET_SECONDARY_BUDGET = 6.00
 local TARGET_ITEM_LEVEL_WEIGHT = 2.00
 local PRIMARYLESS_TRANSFER = 0.50
@@ -164,7 +173,7 @@ local function EndSwapRatings()
     ratingOverride = nil
 end
 
-local function GetTargetLiveMultiplier(profile, statKey)
+local function GetTargetLiveMultiplier(profile, statKey, gate)
     local sanitizer = ns.SanitizeStatVerdictNumber
     local target = GetTargetForStat(profile, statKey)
     local current = GetCurrentRatingForScoring(profile, statKey)
@@ -177,11 +186,13 @@ local function GetTargetLiveMultiplier(profile, statKey)
         return 1.00
     end
 
-    local ratio = current / target
-    if ratio < 1 then
-        return 1 + TARGET_NEED_DEFICIT_MAX * (1 - math.max(0, ratio))
+    if current < target then
+        local missing = target - current
+        local fraction = (missing - TARGET_NEED_SMALL_GAP) / (TARGET_NEED_FULL_GAP - TARGET_NEED_SMALL_GAP)
+        fraction = math.max(0, math.min(1, fraction))
+        return 1 + TARGET_NEED_DEFICIT_MAX * fraction * (gate or 1)
     end
-    local over = math.min(1, (ratio - 1) / TARGET_NEED_SURPLUS_RANGE)
+    local over = math.min(1, (current / target - 1) / TARGET_NEED_SURPLUS_RANGE)
     return 1 - (1 - TARGET_NEED_SURPLUS_MIN) * over
 end
 
@@ -296,9 +307,26 @@ local function BuildAllocatedSecondaryWeights(profile)
         return {}
     end
 
+    -- The progress (0 to 1) of every stat towards its target, for the gate.
+    local progress = {}
+    for i, statKey in ipairs(keys) do
+        local target = GetTargetForStat(profile, statKey)
+        local current = GetCurrentRatingForScoring(profile, statKey)
+        if target and target > 0 and type(current) == "number" then
+            progress[i] = math.max(0, math.min(1, current / target))
+        end
+    end
+
     local sumDesired = 0
     for i, statKey in ipairs(keys) do
-        desired[i] = shareByKey[statKey] * GetTargetLiveMultiplier(profile, statKey)
+        -- Gate: the least-finished stat among those the guide ranks strictly above this one.
+        local gate = 1
+        for j, otherKey in ipairs(keys) do
+            if progress[j] and shareByKey[otherKey] > shareByKey[statKey] * (1 + 1e-9) then
+                gate = math.min(gate, progress[j])
+            end
+        end
+        desired[i] = shareByKey[statKey] * GetTargetLiveMultiplier(profile, statKey, gate)
         sumDesired = sumDesired + desired[i]
     end
 

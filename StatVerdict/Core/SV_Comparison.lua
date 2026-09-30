@@ -42,6 +42,20 @@ local function GetCompatibleEquippedLink(slotID, profile)
     return itemLink
 end
 
+-- A piece counts as an upgrade only when it is worth at least this percent of the piece it replaces:
+-- a gain of a few points is a sidegrade, not a reason to show an arrow.
+local MIN_UPGRADE_PERCENT = 1.0
+
+-- Clearly more item level (the Item Level Guard lifted the verdict) is an upgrade whatever its size in points.
+local function IsLiftedByItemLevel(deltaRows)
+    for _, row in ipairs(deltaRows or {}) do
+        if type(row) == "table" and row.statKey == "STATVERDICT_ITEM_LEVEL_GUARD" and (tonumber(row.signedPoints) or 0) > 0 then
+            return true
+        end
+    end
+    return false
+end
+
 local function GetMaxDisplayPercent()
     return ns.GlobalStatVerdictModifiers
         and ns.GlobalStatVerdictModifiers.percent
@@ -186,7 +200,7 @@ function ns.BuildComparison(itemLink, profile)
             rawPercent = rawPercent,
             rawIsUpgrade = delta > 0,
             percent = rawPercent,
-            isUpgrade = delta > 0,
+            isUpgrade = delta > 0 and (rawPercent >= MIN_UPGRADE_PERCENT or IsLiftedByItemLevel(deltaRows)),
             deltaRows = deltaRows,
             setComparison = true,
         }
@@ -226,7 +240,7 @@ function ns.BuildComparison(itemLink, profile)
                     rawPercent = rawPercent,
                     rawIsUpgrade = delta > 0,
                     percent = rawPercent,
-                    isUpgrade = effectiveDelta > 0,
+                    isUpgrade = effectiveDelta > 0 and (rawPercent >= MIN_UPGRADE_PERCENT or IsLiftedByItemLevel(deltaRows)),
                     deltaRows = deltaRows,
                 }
                 comparisons[#comparisons + 1] = comparison

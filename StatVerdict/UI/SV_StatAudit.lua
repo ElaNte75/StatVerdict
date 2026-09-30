@@ -2113,6 +2113,20 @@ local function RefreshAspectDropdowns(context)
     LastDropdownSelectionSignature = BuildDropdownSelectionSignature(selection)
 end
 
+-- The tooltip of a Weight cell: where the weight started and where it has got to.
+local function BuildWeightTooltip(base, live)
+    if not (base and live) then return nil end
+    return {
+        title = "Weight",
+        body = string.format(
+            "Starting weight %.2f: this stat's share of the fixed secondary budget, from the guide's order "
+                .. "(stats the guide calls equal share equally).\n"
+                .. "Now %.2f: it goes up for the stats at the top of the order that are still far from their "
+                .. "target, and down for a stat that is nearly there or above its target.",
+            base, live),
+    }
+end
+
 local function SetRow(frame, rowIndex, values, rowsStore, bars)
     local rows = rowsStore or frame.rows
     local row = rows and rows[rowIndex]
@@ -2782,6 +2796,7 @@ local function FillOffSpecProgressTable(frame, selection, secondaryContext)
                 liveTrend = liveTrend,
                 currentValue = current,
                 targetValue = targetValue,
+                cellTooltips = scoringBase and { liveModifier = BuildWeightTooltip(baseModifier, liveModifier) } or nil,
                 colors = {
                     progress = progressColor,
                 },
@@ -3127,6 +3142,9 @@ UpdateFrame = function()
         local displayDiff = diffText
         local displayProgress = progressText
         local cellTooltips = nil
+        if scoringBase then
+            cellTooltips = { liveModifier = BuildWeightTooltip(baseModifier, liveModifier) }
+        end
         if row.unboundedTarget then
             displayTarget = "^"
             displayDiff = "-"
