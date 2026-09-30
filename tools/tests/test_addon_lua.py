@@ -105,8 +105,9 @@ class WeightModeCoreTests(unittest.TestCase):
         self.assertEqual(["From guides", "Our own measurement"], [modes[i].meaning for i in (1, 2)])
         self.assertEqual("Stat priority and stat targets taken straight from the guides. Recommended.",
                          modes[1].about)
-        self.assertEqual("Our own simulation: stat targets from best-in-slot gear with recommended gems "
-                         "and enchants, and stat values measured by our simulations.", modes[2].about)
+        self.assertEqual("Our own simulation of your DPS: targets from best-in-slot gear with gems and "
+                         "enchants, and measured stat values. For tank specs it measures damage, not "
+                         "survivability.", modes[2].about)
         self.assertEqual("Measured", self.ns.GetWeightModeInfo("MEASURED").label)
         self.assertEqual("Guide", self.ns.GetWeightModeInfo("junk").label)
         self.assertEqual("Guide", self.ns.GetWeightModeInfo("BLEND").label)
