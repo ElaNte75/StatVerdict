@@ -148,14 +148,6 @@ function ns.RenderTooltipVerdict(tooltip, context, comparison, isSecondary, show
         local verdictLine = c.white .. verdictLabel .. valueColor .. verdictScoreText
         AddLine(tooltip, verdictLine .. c.reset, 1, 1, 1)
     end
-    AddLine(tooltip, "|cff9d9d9dHeuristic comparison; not simulated DPS or healing.|r", 0.62, 0.62, 0.62)
-    local provenance = ns.ProfileRepository
-        and ns.ProfileRepository.GetDataProvenance
-        and ns.ProfileRepository.GetDataProvenance(context.profile and context.profile.goal)
-    if provenance and provenance.scrape then
-        AddLine(tooltip, "|cff9d9d9dProfile source: " .. tostring(provenance.sourceName or "bundled data")
-            .. " · " .. tostring(provenance.scrape) .. "|r", 0.62, 0.62, 0.62)
-    end
     if selected.ruleReason then
         AddLine(tooltip, c.yellow .. "Reason: " .. selected.ruleReason .. c.reset, 1, 0.85, 0.2)
     end
