@@ -113,3 +113,22 @@ Dispatch a workflow: `gh workflow run <file>.yml`.
 - Do not hand-edit `StatVerdict/Data/Generated/*.lua`; regenerate through the workflows.
 - Do not add UI text that names a source, and do not restyle panels other than the one you are asked to change.
 - Long jobs: shard them; a failed shard must not lose the others.
+
+## Next phase: our own Best in Slot for tank specs played for damage (started 2026-09-30, not built)
+
+Goal (owner): for the 6 tank specs, our own measurement of the gear that gives the most DPS (tanks measured for
+damage, not survivability; healers stay on the guide).
+
+What exists: SimC builds and scale-factor runs (`tools/classcodex_weights.py`, `tools/tank_survival_probe.py`),
+a stat-split search (`tools/stat_split_probe.py`: same total rating, best split, head to head check with fresh
+seeds; DPS specs only so far, second stricter run was stopped half way), the guide's own "Damage" stat priority for
+Guardian Druid, Brewmaster Monk and Protection Paladin (none for Blood, Vengeance, Protection Warrior).
+
+What is missing: the pool of real items per slot with sources and tracks, and a search over it.
+Plan: Blizzard Game Data API (journal instance / encounter loot; needs `BLIZZARD_CLIENT_ID` and
+`BLIZZARD_CLIENT_SECRET` as environment secrets and the hosts `oauth.battle.net`, `us.api.blizzard.com` /
+`eu.api.blizzard.com` allowed in the environment's network access) for the item pool; SimC for the real stats at a
+given item level and for the evaluation; a stepwise search per spec. First try on one tank, then judge.
+Also pending: the `ClassCodex live data refresh` with the fixed selection code (run it, then
+`python tools/guide_fidelity_check.py` must show no bis / priority / targets differences), the stricter stat split
+run, the open question of the primary stat on trinkets (half or full weight of the first secondary).
