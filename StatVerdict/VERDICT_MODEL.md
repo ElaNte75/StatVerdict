@@ -85,3 +85,6 @@ so manually copied or stale generated files fail closed.
 - Measured secondary shares are proportional to the measured weights; Guide uses rank shares from the guide order.
 - The live weights read the character's ratings when gear, spec, talents, level or login change, not on every
   buff: a flask, food or combat buff does not move the verdicts of the moment.
+- Live secondary weights: each stat's fixed share is scaled by its distance from the target (same limits for
+  every stat, no rank-based limits), then all four are brought back to the fixed budget in proportion; ties in
+  the guide stay equal for equal needs.

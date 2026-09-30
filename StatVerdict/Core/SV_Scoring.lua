@@ -6,16 +6,19 @@ local addonName, ns = ...
 -- inside a small, capped budget so target pressure cannot overpower large ilvl/primary gaps.
 --
 -- Slot rules:
---   armor/weapons — primary + ilvl dominate; secondaries use donor-order live budget
+--   armor/weapons — primary + ilvl dominate; secondaries share one live budget
 --   rings/neck    — primaryless transfer onto top secondary
 --   trinkets      — BIS tier/rank first; secondaries heavily dampened (effect > stats)
 local TARGET_SECONDARY_BASE = { 4.00, 3.00, 2.00, 1.00 }
-local TARGET_SECONDARY_MAX = { 1.35, 1.25, 1.15, 1.05 }
-local TARGET_SECONDARY_MIN = { 0.80, 0.75, 0.70, 0.60 }
-local TARGET_SECONDARY_GAP_RANGE = 0.60
+-- How the character's current rating against a stat's target scales that stat's share. The same
+-- rule for every stat (never by its rank): the further below the target, the more a point is
+-- worth (a stat with nothing yet counts 1.50x); above the target a point counts less, down to
+-- 0.65x at 60% or more over it. The scaled shares are then brought back to the fixed budget in
+-- proportion, so nobody is drained first and equal shares stay equal for equal needs.
+local TARGET_NEED_DEFICIT_MAX = 0.50
+local TARGET_NEED_SURPLUS_RANGE = 0.60
+local TARGET_NEED_SURPLUS_MIN = 0.65
 local TARGET_SECONDARY_BUDGET = 6.00
-local TARGET_SECONDARY_FLOOR_RATIO = 0.55
-local TARGET_SECONDARY_CEIL_RATIO = 1.40
 local TARGET_ITEM_LEVEL_WEIGHT = 2.00
 local PRIMARYLESS_TRANSFER = 0.50
 local PRIMARYLESS_EQUIP_LOCATIONS = {
@@ -132,7 +135,7 @@ local function GetCurrentRatingForScoring(profile, statKey)
     return ns.GetCurrentStatRating and ns.GetCurrentStatRating(statKey) or nil
 end
 
-local function GetTargetLiveMultiplier(profile, statKey, rank)
+local function GetTargetLiveMultiplier(profile, statKey)
     local sanitizer = ns.SanitizeStatVerdictNumber
     local target = GetTargetForStat(profile, statKey)
     local current
@@ -151,16 +154,11 @@ local function GetTargetLiveMultiplier(profile, statKey, rank)
     end
 
     local ratio = current / target
-    local range = TARGET_SECONDARY_GAP_RANGE
     if ratio < 1 then
-        local gap = math.min(range, math.max(0, 1 - ratio)) / range
-        local ceiling = TARGET_SECONDARY_MAX[rank] or 1.10
-        return 1 + ((ceiling - 1) * gap)
+        return 1 + TARGET_NEED_DEFICIT_MAX * (1 - math.max(0, ratio))
     end
-
-    local over = math.min(range, math.max(0, ratio - 1)) / range
-    local floor = TARGET_SECONDARY_MIN[rank] or 0.70
-    return 1 - ((1 - floor) * over)
+    local over = math.min(1, (ratio - 1) / TARGET_NEED_SURPLUS_RANGE)
+    return 1 - (1 - TARGET_NEED_SURPLUS_MIN) * over
 end
 
 -- The fixed share of the secondary budget of each stat, in the profile's order.
@@ -226,12 +224,12 @@ local function GetRawTargetSecondaryWeight(profile, statKey)
     if not rank then return nil end
 
     local base = GetSecondaryBaseWeight(rank)
-    local live = GetTargetLiveMultiplier(profile, statKey, rank)
+    local live = GetTargetLiveMultiplier(profile, statKey)
     return base * live
 end
 
--- Live secondary budget with ordered donors: when #1 needs a boost, take from
--- #4 first, then #3, then #2 — never zero a lower secondary (floor ratio).
+-- Live secondary budget: each stat's share scaled by how far the character is from its target,
+-- then all brought back to the fixed budget in proportion.
 local cachedSecondaryWeights = nil
 local cachedSecondaryToken = nil
 
@@ -270,7 +268,7 @@ local function BuildAllocatedSecondaryWeights(profile)
         return {}
     end
 
-    local keys, shares, desired = {}, {}, {}
+    local keys, desired = {}, {}
     for _, statKey in ipairs(order) do
         if SECONDARY_TARGET_KEY[statKey] then keys[#keys + 1] = statKey end
     end
@@ -281,38 +279,13 @@ local function BuildAllocatedSecondaryWeights(profile)
 
     local sumDesired = 0
     for i, statKey in ipairs(keys) do
-        local share = shareByKey[statKey]
-        shares[i] = share
-        local live = GetTargetLiveMultiplier(profile, statKey, GetSecondaryRank(profile, statKey) or i)
-        desired[i] = share * live
+        desired[i] = shareByKey[statKey] * GetTargetLiveMultiplier(profile, statKey)
         sumDesired = sumDesired + desired[i]
     end
 
     local weights = {}
     for i = 1, #keys do
-        weights[i] = desired[i]
-    end
-
-    if sumDesired > TARGET_SECONDARY_BUDGET then
-        local need = sumDesired - TARGET_SECONDARY_BUDGET
-        for donor = #keys, 1, -1 do
-            if need <= 0 then break end
-            local floor = shares[donor] * TARGET_SECONDARY_FLOOR_RATIO
-            local canTake = math.max(0, weights[donor] - floor)
-            local take = math.min(need, canTake)
-            weights[donor] = weights[donor] - take
-            need = need - take
-        end
-    elseif sumDesired < TARGET_SECONDARY_BUDGET then
-        local need = TARGET_SECONDARY_BUDGET - sumDesired
-        for recv = 1, #keys do
-            if need <= 0 then break end
-            local ceiling = shares[recv] * TARGET_SECONDARY_CEIL_RATIO
-            local canAdd = math.max(0, ceiling - weights[recv])
-            local add = math.min(need, canAdd)
-            weights[recv] = weights[recv] + add
-            need = need - add
-        end
+        weights[i] = sumDesired > 0 and desired[i] * (TARGET_SECONDARY_BUDGET / sumDesired) or desired[i]
     end
 
     local byKey = {}

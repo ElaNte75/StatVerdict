@@ -120,6 +120,58 @@ class ScoringMechanismTests(unittest.TestCase):
         self.assertIsNone(re.search(r"scoringBase, scoringLive\s*=\s*ns\.GetScoringSecondaryWeights\s+and", source))
         self.assertEqual(2, source.count("scoringBase, scoringLive = ns.GetScoringSecondaryWeights("))
 
+    # --- the live weights (how far each stat is from its target) ---
+
+    def targets(self, profile) -> dict:
+        rows = profile.auditTargets.rows
+        return {str(rows[i].key): float(rows[i].target) for i in range(1, len(rows) + 1)}
+
+    def live(self, mode: str, fraction_of_target) -> tuple:
+        """(profile, {stat: live weight}) when the character holds `fraction_of_target[stat]` of each target."""
+        lua, ns = self.lua, self.ns
+        verdict.set_character(lua, STATES["mid"], 1600)
+        profile = verdict.build_profile(lua, ns, "MYTHIC_PLUS", mode)
+        targets = self.targets(profile)
+        ratings = {}
+        for name, key in (("crit", "ITEM_MOD_CRIT_RATING_SHORT"), ("haste", "ITEM_MOD_HASTE_RATING_SHORT"),
+                          ("mastery", "ITEM_MOD_MASTERY_RATING_SHORT"), ("versatility", "ITEM_MOD_VERSATILITY")):
+            ratings[name] = targets[key] * fraction_of_target(key)
+        verdict.set_character(lua, ratings, 1600)
+        profile = verdict.build_profile(lua, ns, "MYTHIC_PLUS", mode)
+        keys = [str(profile.secondaryOrder[i]) for i in range(1, 5)]
+        return profile, {k: ns.GetScoringSecondaryWeights(profile, k) for k in keys}
+
+    def test_live_weights_always_add_up_to_the_budget(self) -> None:
+        for mode in ("GUIDE", "MEASURED"):
+            for fraction in (0.0, 0.4, 1.0, 2.5):
+                _, weights = self.live(mode, lambda key: fraction)
+                self.assertAlmostEqual(6.0, sum(live for _, live in weights.values()), places=6, msg=(mode, fraction))
+
+    def test_the_last_stat_is_not_drained_when_everything_is_missing(self) -> None:
+        # Every stat 60% short: nobody is drained to a floor; each keeps at least 80% of its share.
+        for mode in ("GUIDE", "MEASURED"):
+            _, weights = self.live(mode, lambda key: 0.4)
+            for key, (base, live) in weights.items():
+                self.assertGreater(live, 0.8 * base, (mode, key))
+
+    def test_equal_shares_and_equal_needs_give_equal_weights(self) -> None:
+        profile, weights = self.live("GUIDE", lambda key: 0.5)
+        groups = profile.equalGroups
+        self.assertIsNotNone(groups)  # the Totemic guide has a tie tier
+        order = [str(profile.secondaryOrder[i]) for i in range(1, 5)]
+        for group in groups.values():
+            keys = [order[int(position) - 1] for position in group.values()]
+            for key in keys[1:]:
+                self.assertAlmostEqual(weights[keys[0]][1], weights[key][1], places=9)
+
+    def test_a_bigger_deficit_and_a_surplus_move_a_weight_the_right_way(self) -> None:
+        _, near = self.live("MEASURED", lambda key: 0.9)
+        _, far = self.live("MEASURED", lambda key: 0.9 if key != "ITEM_MOD_HASTE_RATING_SHORT" else 0.3)
+        _, over = self.live("MEASURED", lambda key: 0.9 if key != "ITEM_MOD_HASTE_RATING_SHORT" else 1.8)
+        haste = "ITEM_MOD_HASTE_RATING_SHORT"
+        self.assertGreater(far[haste][1], near[haste][1])
+        self.assertLess(over[haste][1], near[haste][1])
+
 
 if __name__ == "__main__":
     unittest.main()

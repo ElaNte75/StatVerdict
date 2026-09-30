@@ -117,3 +117,23 @@ mechanism changed, not the data:
 - **Diminishing returns** now also apply in the equipped-set comparison.
 - Tests: `tools/tests/test_scoring_mechanism.py`. Item check re-run: see `docs/item-check/enhancement_shaman_verdict.md`
   (Guide M+ rank agreement 0.68 in the first table; the Guide is not tuned toward SimC by design).
+
+## 7. Live weights redone (2026-09-30, after in-game tests)
+
+In-game screenshots (Guardian Druid and Blood Death Knight) showed three faults of the old live allocation:
+saturating limits (a stat 40% or more short got the same boost whether 500 or 776 rating short), limits that
+depended on the stat's rank (the last-ranked stat could gain at most +5%), and a "last first" donor order that
+drained the last stat to a floor whenever every stat was short (Blood: Haste 42% short but weight 0.33, ten
+times below Crit). A guide tie (Mastery = Versatility) also turned into a 2:1 split.
+
+New rule, the same for Guide and Measured: each stat's fixed share is scaled by its distance from the target
+(up to 1.5x with nothing yet, down to 0.65x at 60% or more over the target, same limits for every stat), then
+all four are brought back to the fixed 6.00 budget in proportion. Ties stay equal for equal needs; nobody is
+drained first. Guide data (order, ties) and Measured data (SimC weights) are unchanged.
+
+Item check after the change (Enhancement Shaman, 17 items): Guide rank agreement with SimC M+ 0.75 (was 0.74),
+Raid 0.75 (was 0.73); Measured M+ 0.80 (was 0.89), Raid 0.84 (was 0.89). The Measured order agreement fell a
+little while the upgrade / not upgrade agreement stayed at 16 of 17 for M+; this is one character and should be
+watched.
+
+The stat target cards now read Tier 1, Tier 2, Tier 3 from left to right (saved keys unchanged).
