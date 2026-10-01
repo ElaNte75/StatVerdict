@@ -456,13 +456,9 @@ local function CoveredShare(targetValues, ratings)
     return covered / total
 end
 
--- { level, shownTier, progress } for one spec; progress is the share of the shown
--- tier's targets covered, nil when the stats are not known yet (then the
--- remembered level stands).
-local function ResolveAutoTier(specKey, targets, specID)
-    local db = _G.StatVerdictDB
-    local remembered = type(db) == "table" and type(db.autoTier) == "table" and tonumber(db.autoTier[specKey]) or 0
-    remembered = math.max(0, math.min(3, math.floor(remembered)))
+-- The share of each tier's rating targets the stats cover: { [1] = Tier 1, [2] = Tier 2, [3] = Tier 3 }
+-- and whether the stats are known (loaded). Shown for a fixed tier too: how far the next one is.
+local function TierShares(targets, specID)
     local ratings, sum = {}, 0
     for _, statKey in ipairs(AUTO_STATS) do
         local value = tonumber(ReadRating(specID, statKey))
@@ -474,7 +470,18 @@ local function ResolveAutoTier(specKey, targets, specID)
         local values = SelectTargetValues(targets, bin)
         shares[tier] = CoveredShare(values, ratings)
     end
-    if sum < AUTO_MIN_RATING_SUM or not (shares[1] and shares[2] and shares[3]) then
+    local known = sum >= AUTO_MIN_RATING_SUM and shares[1] ~= nil and shares[2] ~= nil and shares[3] ~= nil
+    return shares, known
+end
+
+-- { level, shownTier, progress } for one spec; progress is the share of the shown
+-- tier's targets covered, nil when the stats are not known yet (then the
+-- remembered level stands).
+local function ResolveAutoTier(specKey, shares, known)
+    local db = _G.StatVerdictDB
+    local remembered = type(db) == "table" and type(db.autoTier) == "table" and tonumber(db.autoTier[specKey]) or 0
+    remembered = math.max(0, math.min(3, math.floor(remembered)))
+    if not known then
         local shown = math.min(remembered + 1, 3)
         return { level = remembered, shownTier = shown, progress = nil }
     end
@@ -606,8 +613,9 @@ function Repository.BuildRuntimeProfile(context)
     local equalGroups = BuildEqualGroups(priority, secondaryOrder)
     local statTargetBin = Repository.GetStatTargetBin(specKey)
     local effectiveBin, autoInfo = statTargetBin, nil
+    local tierShares, sharesKnown = TierShares(generatedContext.targets, context.specID)
     if statTargetBin == "auto" then
-        autoInfo = ResolveAutoTier(specKey, generatedContext.targets, context.specID)
+        autoInfo = ResolveAutoTier(specKey, tierShares, sharesKnown)
         effectiveBin = TIER_BINS[autoInfo.shownTier]
     end
     effectiveBinBySpec[specKey] = effectiveBin
@@ -669,6 +677,7 @@ function Repository.BuildRuntimeProfile(context)
         statTargetBin = statTargetBin,
         effectiveBin = effectiveBin,
         autoInfo = autoInfo,
+        tierProgress = sharesKnown and tierShares or nil,
         guideTargetsMissing = guideTargetsMissing,
         generatedContext = invalidGeneratedContext and nil or generatedContext,
         invalidGeneratedContext = invalidGeneratedContext,

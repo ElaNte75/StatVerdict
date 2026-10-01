@@ -104,15 +104,6 @@ local function SelectedChoice()
     return ns.GetTargetChoice(ActiveSpecKey()).selected
 end
 
--- "Blood Death Knight" for a build's profile.
-local function SpecName(profile)
-    if type(profile) ~= "table" then return nil end
-    local parts = {}
-    if profile.specName and profile.specName ~= "" then parts[#parts + 1] = tostring(profile.specName) end
-    if profile.className and profile.className ~= "" then parts[#parts + 1] = tostring(profile.className) end
-    return #parts > 0 and table.concat(parts, " ") or nil
-end
-
 local function EnsureTierRow(card, index)
     card.binRows = card.binRows or {}
     if card.binRows[index] then return card.binRows[index] end
@@ -219,9 +210,9 @@ function Panel.Sync(card)
     if not card then return end
 
     local choice = ns.GetTargetChoice(ActiveSpecKey())
-    -- Which spec the choice is for.
-    local specName = SpecName(ActiveProfile())
-    card.binTitle:SetText(specName and (choice.title .. " · " .. specName) or choice.title)
+    -- Which build the choice is for: Main Spec or Off Spec (the checkbox in the main window).
+    local view = ns.GetStatAuditActiveView and ns.GetStatAuditActiveView() or "MAIN"
+    card.binTitle:SetText(ns.GetTargetChoiceTitle(view))
     for index, row in ipairs(card.binRows or {}) do
         local info = choice.options[index] or {}
         row.key = info.key

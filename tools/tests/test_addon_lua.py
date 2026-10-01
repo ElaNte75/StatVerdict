@@ -142,22 +142,43 @@ class WeightModeCoreTests(unittest.TestCase):
         # A fixed tier is named plainly, and says nothing of Auto.
         for key, label in (("top80", "Tier 1"), ("top50", "Tier 2"), ("top20", "Tier 3")):
             self.assertIsNone(self.ns.GetAutoTierSummary(profile(bin_key=key)))
-            self.assertEqual(label, self.ns.GetTierTitleLabel(profile(bin_key=key)))
+            self.assertEqual(label, self.ns.GetTierTitleLabel(profile(bin_key=key)))  # no progress known: the name
         self.assertIsNone(self.ns.GetTierTitleLabel(None))
 
-    def test_spec_titles_carry_one_radio_mark_when_an_off_spec_is_set_up(self) -> None:
-        on, off = "UI-RadioButton:16:16:0:0:64:16:16:32:0:16|t ", "UI-RadioButton:16:16:0:0:64:16:0:16:0:16|t "
-        main = self.ns.SpecTitleText("Blood Death Knight / Deathbringer", "MAIN", "MAIN", True)
-        other = self.ns.SpecTitleText("Frost Death Knight / Rider", "OFF", "MAIN", True)
-        self.assertIn(on + "Blood Death Knight / Deathbringer", main)
-        self.assertIn(off + "Frost Death Knight / Rider", other)
-        # The view moves to the Off Spec: the marks swap, still exactly one on.
-        main = self.ns.SpecTitleText("A", "MAIN", "OFF", True)
-        other = self.ns.SpecTitleText("B", "OFF", "OFF", True)
-        self.assertIn(off + "A", main)
-        self.assertIn(on + "B", other)
-        # No Off Spec: no mark, the plain title.
+    def test_spec_titles_carry_a_checkbox_when_an_off_spec_is_set_up(self) -> None:
+        box = "|TInterface\\Buttons\\UI-CheckBox-Up:20:20:0:0|t "
+        self.assertEqual(box + "Blood Death Knight / Deathbringer",
+                         self.ns.SpecTitleText("Blood Death Knight / Deathbringer", "MAIN", "MAIN", True))
+        self.assertEqual(box + "Frost Death Knight", self.ns.SpecTitleText("Frost Death Knight", "OFF", "MAIN", True))
+        # No Off Spec: no checkbox, the plain title.
         self.assertEqual("Blood Death Knight", self.ns.SpecTitleText("Blood Death Knight", "MAIN", "MAIN", False))
+
+    def test_exactly_one_spec_is_ticked(self) -> None:
+        for view in ("MAIN", "OFF"):
+            ticks = [self.ns.IsSpecViewTicked(which, view, True) for which in ("MAIN", "OFF")]
+            self.assertEqual([view == "MAIN", view == "OFF"], ticks, view)
+            self.assertEqual(1, sum(1 for t in ticks if t))
+        # Main Spec is the default view; with no Off Spec nothing is ticked (there is no checkbox).
+        self.assertFalse(self.ns.IsSpecViewTicked("MAIN", "MAIN", False))
+
+    def test_the_guide_title_says_main_or_off_spec(self) -> None:
+        self.assertEqual("Stat targets · Main Spec", self.ns.GetTargetChoiceTitle("MAIN"))
+        self.assertEqual("Stat targets · Off Spec", self.ns.GetTargetChoiceTitle("OFF"))
+        self.assertEqual("Stat targets · Main Spec", self.ns.GetTargetChoiceTitle(None))
+
+    def test_a_fixed_tier_says_how_far_the_next_one_is(self) -> None:
+        def profile(bin_key, shares):
+            table = self.lua.table(statTargetBin=bin_key, specKey="MAGE_FIRE")
+            if shares:
+                table.tierProgress = self.lua.table(*shares)
+            return table
+        shares = (0.95, 0.68, 0.30)
+        self.assertEqual("Tier 1 · 68% to Tier 2", self.ns.GetTierTitleLabel(profile("top80", shares)))
+        self.assertEqual("Tier 2 · 30% to Tier 3", self.ns.GetTierTitleLabel(profile("top50", shares)))
+        self.assertEqual("Tier 3 · 30% of targets", self.ns.GetTierTitleLabel(profile("top20", shares)))
+        self.assertEqual("Tier 3 · 100% of targets", self.ns.GetTierTitleLabel(profile("top20", (1, 1, 1.4))))
+        # The stats are not known yet: just the tier.
+        self.assertEqual("Tier 2", self.ns.GetTierTitleLabel(profile("top50", None)))
 
     def test_the_spec_titles_are_clickable_and_switch_only_the_view(self) -> None:
         audit = (ADDON / "UI" / "SV_StatAudit.lua").read_text(encoding="utf-8-sig")
@@ -883,6 +904,17 @@ class CoreProfileTests(unittest.TestCase):
         self.assertEqual(1, ns.ProfileRepository.GetAutoNotice("DEATHKNIGHT_BLOOD"))
         self.assertIsNone(ns.ProfileRepository.GetAutoNotice("MAGE_FIRE"))
 
+    def test_every_profile_knows_the_progress_to_each_tier_even_under_a_fixed_tier(self) -> None:
+        lua, ns = self.auto_runtime(0.9, tier="top80")
+        profile = self.auto(lua, ns)
+        self.assertIsNone(profile.autoInfo)
+        shares = [profile.tierProgress[i] for i in (1, 2, 3)]
+        self.assertAlmostEqual(0.9, shares[0])      # 90% of Tier 1
+        self.assertAlmostEqual(2205 / 2750, shares[1])  # and of Tier 2
+        self.assertLess(shares[2], shares[1])
+        lua, ns = self.auto_runtime(None, tier="top80")  # stats not known yet
+        self.assertIsNone(self.auto(lua, ns).tierProgress)
+
     def test_auto_does_not_flip_back_for_one_swapped_piece(self) -> None:
         lua, ns = self.auto_runtime(0.92)
         self.assertEqual(1, self.auto(lua, ns).autoInfo.level)
@@ -1231,6 +1263,13 @@ class PanelModeTests(unittest.TestCase):
         for gone in ("SV_Benchmark.lua", "SV_BenchmarkDrawerPanel.lua", "SV_CharacterSummaryDrawerPanel.lua"):
             self.assertNotIn(gone, names)
 
+    def test_features_and_manual_sit_apart_from_the_three_guide_buttons(self) -> None:
+        source = (ADDON / "UI" / "SV_SettingsPanel.lua").read_text(encoding="utf-8-sig")
+        ys = {m.group(1): int(m.group(2)) for m in re.finditer(r'layoutKey = "setup\.(\w+)Button",\s*defaultY = (-?\d+)', source)}
+        self.assertEqual({"bis": -318, "trinkets": -346, "summary": -374, "options": -410, "manual": -438}, ys)
+        steps = [ys["trinkets"] - ys["bis"], ys["summary"] - ys["trinkets"], ys["options"] - ys["summary"], ys["manual"] - ys["options"]]
+        self.assertEqual([-28, -28, -36, -28], steps)  # the one wider step sits between the groups
+
     def test_weights_button_is_never_locked(self) -> None:
         source = (ADDON / "UI" / "SV_SettingsPanel.lua").read_text(encoding="utf-8-sig")
         self.assertIn('label = "Guide"', source)
@@ -1251,7 +1290,7 @@ class PanelModeTests(unittest.TestCase):
         self.assertIn("Guide — the stat priorities, Best in Slot lists and stat targets are copied from the "
                       "guides, unchanged. Pick Auto (the default: the tier follows your own stats and moves up when "
                       "you cover about 90% of it) or one fixed tier: Tier 1, Tier 2 or Tier 3 (the most demanding). "
-                      "Main Spec and Off Spec each keep their own choice: with an Off Spec set up, click the circle in front of "
+                      "Main Spec and Off Spec each keep their own choice: with an Off Spec set up, click the checkbox in front of "
                       "a spec's name in the main window to look at that spec (this changes the view only, never your "
                       "game spec). The tier in use is shown in the title bar; "
                       "Best in Slot and trinkets follow it.", source)
@@ -1411,7 +1450,7 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
 
     def test_the_choice_says_which_spec_it_is_for(self) -> None:
         card = self.card()
-        self.assertEqual("Stat targets · Blood Death Knight", card.binTitle.text)  # the spec the window shows
+        self.assertEqual("Stat targets · Main Spec", card.binTitle.text)  # the build the window shows
         self.assertIsNone(card.specRows)  # the choice of Main Spec / Off Spec is in the main window now
 
     def test_auto_is_the_default_and_the_only_one_ticked_and_gold(self) -> None:

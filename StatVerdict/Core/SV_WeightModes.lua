@@ -56,6 +56,8 @@ end
 -- What Auto says about the character (profile.autoInfo, set by the repository):
 -- the line under "Auto" in the Guide drawer, the short label in the window title
 -- bar, and the one-off notice after a move up. Fixed tiers say only their name.
+local TIER_OF_BIN = { top80 = 1, top50 = 2, top20 = 3 }
+
 local function Percent(progress)
     return math.max(0, math.min(99, math.floor((tonumber(progress) or 0) * 100)))
 end
@@ -82,12 +84,17 @@ function ns.GetTierTitleLabel(profile)
         if level <= 0 then return string.format("Auto · Starting · %d%% to Tier 1", Percent(info.progress)) end
         return string.format("Auto · Tier %d · %d%% to Tier %d", level, Percent(info.progress), level + 1)
     end
-    for index, option in ipairs(STAT_TARGET_BINS) do
-        if option.key == profile.statTargetBin and not option.auto then
-            return option.label
-        end
+    -- A fixed tier: its name and how far the next tier is (Tier 3: how much of its own targets is covered).
+    local tier = TIER_OF_BIN[profile.statTargetBin]
+    if not tier then return nil end
+    local shares = profile.tierProgress
+    if type(shares) ~= "table" then return "Tier " .. tier end
+    if tier >= 3 then
+        if shares[3] == nil then return "Tier 3" end
+        return string.format("Tier 3 · %d%% of targets", math.max(0, math.min(100, math.floor(shares[3] * 100))))
     end
-    return nil
+    if shares[tier + 1] == nil then return "Tier " .. tier end
+    return string.format("Tier %d · %d%% to Tier %d", tier, Percent(shares[tier + 1]), tier + 1)
 end
 
 function ns.GetAutoTierNotice(profile)
@@ -126,15 +133,24 @@ function ns.GetReferenceWording(goal)
     }
 end
 
--- The title of a spec in the main window. With an Off Spec set up (`choosable`), a radio mark
--- comes first: exactly one of Main Spec ("MAIN") and Off Spec ("OFF") is on, the one equal to
--- `view`, the build the whole window and the Guide drawer show. The mark is an inline texture
--- of the game's own radio button (four 16px cells: off, on, ...).
-local RADIO_MARK = "|TInterface\\Buttons\\UI-RadioButton:16:16:0:0:64:16:%d:%d:0:16|t "
+-- The title of a spec in the main window. With an Off Spec set up (`choosable`), a checkbox
+-- comes first: exactly one of Main Spec ("MAIN") and Off Spec ("OFF") is ticked, the one equal to
+-- `view`, the build the whole window and the Guide drawer show. The box is an inline texture of
+-- the game's own checkbox; the tick is drawn over it by the window (ns.SetSpecTitle).
+local CHECKBOX_MARK = "|TInterface\\Buttons\\UI-CheckBox-Up:20:20:0:0|t "
 
 function ns.SpecTitleText(text, which, view, choosable)
     text = tostring(text or "")
     if not choosable then return text end
-    if view == which then return string.format(RADIO_MARK, 16, 32) .. text end
-    return string.format(RADIO_MARK, 0, 16) .. text
+    return CHECKBOX_MARK .. text
+end
+
+-- Whether the spec's checkbox is ticked.
+function ns.IsSpecViewTicked(which, view, choosable)
+    return choosable == true and view == which
+end
+
+-- "Stat targets · Main Spec": the Guide's choice says which build it is for.
+function ns.GetTargetChoiceTitle(view)
+    return "Stat targets · " .. (view == "OFF" and "Off Spec" or "Main Spec")
 end

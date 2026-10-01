@@ -268,14 +268,14 @@ local PANEL_TOGGLE_BUTTONS = {
         field = "optionsDrawerButton",
         label = "Features",
         layoutKey = "setup.optionsButton",
-        defaultY = -402,
+        defaultY = -410,  -- 8px further down than a plain step: Features and Manual are the addon's own, apart from the three guide buttons above
     },
     {
         mode = "manual",
         field = "manualDrawerButton",
         label = "Manual",
         layoutKey = "setup.manualButton",
-        defaultY = -430,
+        defaultY = -438,
     },
 }
 

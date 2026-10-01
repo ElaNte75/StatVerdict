@@ -2635,6 +2635,7 @@ local function SetSpecTitle(frame, which, text)
         if button then button:Hide() end
         return
     end
+    local ticked = ns.IsSpecViewTicked(which, view, choosable)
     local parent = (fs.GetParent and fs:GetParent()) or frame
     if not button then
         button = CreateFrame("Button", nil, parent)
@@ -2652,11 +2653,18 @@ local function SetSpecTitle(frame, which, text)
         button:SetScript("OnLeave", function()
             if GameTooltip then GameTooltip:Hide() end
         end)
+        -- The tick, drawn over the inline checkbox that starts the title.
+        button.tick = button:CreateTexture(nil, "OVERLAY")
+        button.tick:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
+        button.tick:SetSize(20, 20)
+        button.tick:SetPoint("LEFT", button, "LEFT", 2, 0)
         specSelectButtons[which] = button
     elseif button.GetParent and button:GetParent() ~= parent then
         button:SetParent(parent)
     end
     button.svWhich = which
+    button.svTicked = ticked
+    if ticked then button.tick:Show() else button.tick:Hide() end
     button:SetFrameLevel((parent.GetFrameLevel and parent:GetFrameLevel() or 1) + 12)
     button:ClearAllPoints()
     button:SetPoint("TOPLEFT", fs, "TOPLEFT", -2, 3)

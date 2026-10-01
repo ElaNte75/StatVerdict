@@ -85,7 +85,7 @@ Keywords: gear, upgrade, bis, offspec, mythic+, loot, stats, trinket, priority
 1.1.0
 New
 - Guide drawer: Auto (the default) follows your own stats and moves you up to the next tier of targets once you cover about 90% of the current one. Or pick Tier 1, 2 or 3 yourself. The tier in use, and your progress to the next one, are shown in the title bar.
-- Main Spec and Off Spec each keep their own tier choice (a circle in front of each spec's name in the main window switches the view; the Guide shows that spec's choice).
+- Main Spec and Off Spec each keep their own tier choice (a checkbox in front of each spec's name in the main window switches the view; the Guide shows that spec's choice).
 - Best in Slot and Ranked Trinkets follow the tier: Tier 1 shows Champion-track items, Tier 2 Hero, Tier 3 Myth 6/6, so an easier goal never shows gear only the best can have.
 - Best in Slot and Ranked Trinkets tooltips: more room, clearer labels, and a "Where to find" line (dungeon or raid and boss) for items the Adventure Journal lists.
 - New look for the Features drawer: three clear blocks (Bag Markers, Best in Slot, Ranked Trinkets).
