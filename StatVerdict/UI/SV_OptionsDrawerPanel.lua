@@ -8,18 +8,28 @@ local DROPDOWN_LABEL_FONT_SIZE = 10
 local DROPDOWN_SCALE = 0.92
 local CHECKBOX_LABEL_FONT_SIZE = 11
 local BAG_CHECK_LABEL_GAP = 5
--- Every option is a premium row like the Guide drawer's tier rows: a bordered
--- card with the tick and the label; the ticked row is gold, a locked one dims.
-local ROW_HEIGHT = 24
-local BAG_CHECK_STEP = 26              -- row height + 2px gap
-local ROW_PAD = 6                      -- row edge > tick, and label > row edge
-local ROW_BACKDROP = {
+-- Three blocks (Bag Markers, Best in Slot, Ranked Trinkets), each a bordered card
+-- like the Guide drawer's choices: a gold title, then its options as rows that
+-- are tinted gold when ticked and separated by a hairline. Every block has the
+-- same padding and the same gap to the next, so nothing looks hand placed.
+local ROW_HEIGHT = 22
+local BAG_CHECK_STEP = 24              -- row height + 2px gap
+local ROW_PAD = 4                      -- row edge > tick, and label > row edge
+local BLOCK_PAD = 10                   -- block edge > its title and rows
+local BLOCK_TITLE_TOP = 8              -- block top > title
+local BLOCK_TITLE_HEIGHT = 12
+local BLOCK_TITLE_GAP = 6              -- title > first row
+local BLOCK_BOTTOM_PAD = 8
+local BLOCK_GAP = 8                    -- block > next block
+local FIRST_BLOCK_TOP = -46            -- under the title hairline
+local BLOCK_BACKDROP = {
     bgFile = "Interface\\Buttons\\WHITE8X8",
     edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
     tile = false,
     edgeSize = 12,
     insets = { left = 3, right = 3, top = 3, bottom = 3 },
 }
+local ROW_BACKDROP = { bgFile = "Interface\\Buttons\\WHITE8X8" }
 local GOLD = { 1.0, 0.82, 0.0 }
 local LOCKED_ALPHA = 0.45
 local LINE = { 0.72, 0.74, 0.78, 0.30 }
@@ -170,18 +180,24 @@ local function PaintOptionRow(check)
     local row = check and check.svRow
     if not row then return end
     local selected = check.svSelected == true
-    row:SetBackdropColor(selected and 0.16 or 0.05, selected and 0.13 or 0.06, selected and 0.03 or 0.08, 0.92)
     if selected then
-        row:SetBackdropBorderColor(GOLD[1], GOLD[2], GOLD[3], 0.95)
+        row:SetBackdropColor(0.16, 0.13, 0.03, 0.85)
     elseif row.hovered and not check.svLocked then
-        row:SetBackdropBorderColor(0.62, 0.64, 0.70, 0.90)
+        row:SetBackdropColor(0.12, 0.13, 0.17, 0.85)
     else
-        row:SetBackdropBorderColor(0.32, 0.34, 0.40, 0.85)
+        row:SetBackdropColor(0, 0, 0, 0)
+    end
+    if check.Text then
+        if selected then
+            check.Text:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+        else
+            check.Text:SetTextColor(1, 1, 1)
+        end
     end
     row:SetAlpha(check.svLocked and LOCKED_ALPHA or 1)
 end
 
-local function EnsureOptionRow(check, parent)
+local function EnsureOptionRow(check, parent, withLine)
     local row = check.svRow
     if not row then
         row = CreateFrame("Button", nil, parent, "BackdropTemplate")
@@ -203,10 +219,20 @@ local function EnsureOptionRow(check, parent)
         end)
         check:EnableMouse(false)
         check.svRow = row
+        -- A hairline in the gap above every row but the first.
+        row.line = row:CreateTexture(nil, "ARTWORK")
+        row.line:SetColorTexture(LINE[1], LINE[2], LINE[3], LINE[4])
+        row.line:SetHeight(1)
+        row.line:SetPoint("BOTTOMLEFT", row, "TOPLEFT", 0, 1)
+        row.line:SetPoint("BOTTOMRIGHT", row, "TOPRIGHT", 0, 1)
     else
         row:SetParent(parent)
     end
     row:SetHeight(ROW_HEIGHT)
+    row.svHasLine = withLine and true or false
+    if row.line then
+        if withLine then row.line:Show() else row.line:Hide() end
+    end
     return row
 end
 
@@ -361,6 +387,34 @@ local function EnsureBagChecksBlock(card, field)
     return block
 end
 
+-- The three blocks, top to bottom. Layout keys and fields keep their old names so saved positions carry over.
+local OPTION_SECTIONS = {
+    { list = BAG_INDICATOR_OPTIONS, bags = true, title = "Bag Markers", titleField = "bagMarkersTitle",
+      blockField = "bagChecksBlock", panelField = "bagMarkersPanel", titleKey = "options.bagMarkersTitle",
+      titleLabel = "Bag Markers title", checksKey = "options.bagChecks", checksLabel = "Bag marker checkboxes" },
+    { list = BIS_TOOLTIP_OPTIONS, title = "Best in Slot", titleField = "bisTooltipTitle",
+      blockField = "bisTooltipChecksBlock", panelField = "bisTooltipPanel", titleKey = "options.bisTooltipTitle",
+      titleLabel = "Best in Slot title", checksKey = "options.bisTooltipChecks",
+      checksLabel = "Best in Slot checkboxes" },
+    { list = TRINKET_TOOLTIP_OPTIONS, title = "Ranked Trinkets", titleField = "trinketTooltipTitle",
+      blockField = "trinketTooltipChecksBlock", panelField = "trinketTooltipPanel",
+      titleKey = "options.trinketTooltipTitle", titleLabel = "Ranked Trinkets title",
+      checksKey = "options.trinketTooltipChecks", checksLabel = "Ranked Trinkets checkboxes" },
+}
+
+local function EnsureBlockPanel(card, field)
+    local panel = card[field]
+    if panel then return panel end
+    panel = CreateFrame("Frame", nil, card, "BackdropTemplate")
+    panel:EnableMouse(false)
+    panel:SetBackdrop(BLOCK_BACKDROP)
+    panel:SetBackdropColor(0.05, 0.06, 0.08, 0.92)
+    panel:SetBackdropBorderColor(0.32, 0.34, 0.40, 0.85)
+    panel:SetFrameLevel(math.max(1, (card:GetFrameLevel() or 1) + 1))
+    card[field] = panel
+    return panel
+end
+
 local function EnsureCard(frame)
     if frame.optionsDrawerCard then
         HideLegacyTitleFontUi(frame.optionsDrawerCard)
@@ -478,7 +532,6 @@ function Panel.Apply(frame)
     -- Outer pad owns Size W — retire the legacy right-edge width strip.
 
     PlaceFeaturesTitle(card, card.title, "options.title", "Features title", CONTENT_MARGIN, -14)
-    PlaceFeaturesTitle(card, card.bagMarkersTitle, "options.bagMarkersTitle", "Bag Markers title", CONTENT_MARGIN, -48)
 
     -- Hint about quest / Adventure Guide removed — bags-only is already the behavior.
     if card.hint then
@@ -486,12 +539,7 @@ function Panel.Apply(frame)
         card.hint:SetText("")
     end
 
-    local block = EnsureBagChecksBlock(card)
-    local count = #BAG_INDICATOR_OPTIONS
-    -- Groups span the card's inner width minus CONTENT_MARGIN on both sides.
-    local blockBaseW = math.max(160, innerWidth - 2 * CONTENT_MARGIN)
-    local blockBaseH = math.max(ROW_HEIGHT, count * BAG_CHECK_STEP - (BAG_CHECK_STEP - ROW_HEIGHT))
-    -- Migrate older per-checkbox XY into the group once, if the group was never nudged.
+    -- Legacy per-checkbox XY is migrated into the Bag Markers group once, if it was never nudged.
     do
         local bx, by = Offset("options.bagChecks")
         if (not bx or bx == 0) and (not by or by == 0) and ns.GetLayoutOffset and ns.WriteLayoutOffset then
@@ -504,71 +552,59 @@ function Panel.Apply(frame)
             end
         end
     end
-    local blockW = PlaceBagChecksBlock(card, block, "options.bagChecks", "Bag marker checkboxes", CONTENT_MARGIN, -72,
-        blockBaseW, blockBaseH) or blockBaseW
 
-    -- Per-checkbox AdvDev keys retired — the group owns Move / Size / Padding.
+    -- Groups span the card's inner width minus the margin and the block padding on both sides.
+    local blockBaseW = math.max(160, innerWidth - 2 * (CONTENT_MARGIN + BLOCK_PAD))
+    local y = FIRST_BLOCK_TOP
+    for _, section in ipairs(OPTION_SECTIONS) do
+        local count = #section.list
+        local blockBaseH = count * BAG_CHECK_STEP - (BAG_CHECK_STEP - ROW_HEIGHT)
+        local panelHeight = BLOCK_TITLE_TOP + BLOCK_TITLE_HEIGHT + BLOCK_TITLE_GAP + blockBaseH + BLOCK_BOTTOM_PAD
 
-    for index, option in ipairs(BAG_INDICATOR_OPTIONS) do
-        local check = EnsureOptionCheckbox(card, option, block)
-        local row = EnsureOptionRow(check, block)
-        row:ClearAllPoints()
-        row:SetPoint("TOPLEFT", block, "TOPLEFT", 0, -((index - 1) * BAG_CHECK_STEP))
-        row:SetPoint("TOPRIGHT", block, "TOPRIGHT", 0, -((index - 1) * BAG_CHECK_STEP))
-        row:SetFrameLevel((block:GetFrameLevel() or 1) + 1)
-        row:Show()
-        check:ClearAllPoints()
-        check:SetPoint("TOPLEFT", block, "TOPLEFT", ROW_PAD, -((index - 1) * BAG_CHECK_STEP) - 1)
-        FitCheckLabel(check, blockW, 0)
-        check:SetFrameLevel((block:GetFrameLevel() or 1) + 6)
-        check:Show()
-        check:SetScript("OnClick", function(self)
-            _G.StatVerdictDB = _G.StatVerdictDB or {}
-            _G.StatVerdictDB[option.key] = self:GetChecked() and true or false
-            SyncBagIndicatorOptionChecks(card)
-            RefreshBagIndicatorsSoon()
-        end)
-    end
+        -- The bordered block behind the title and the rows.
+        local panel = EnsureBlockPanel(card, section.panelField)
+        panel:ClearAllPoints()
+        panel:SetPoint("TOPLEFT", card, "TOPLEFT", CONTENT_MARGIN, y)
+        panel:SetPoint("TOPRIGHT", card, "TOPRIGHT", -CONTENT_MARGIN, y)
+        panel:SetHeight(panelHeight)
+        panel:Show()
 
-    -- Best in Slot and Ranked Trinkets sections, same look as Bag Markers, below it.
-    local sections = {
-        { list = BIS_TOOLTIP_OPTIONS, title = "Best in Slot", titleField = "bisTooltipTitle",
-          blockField = "bisTooltipChecksBlock", titleKey = "options.bisTooltipTitle",
-          titleLabel = "Best in Slot title", checksKey = "options.bisTooltipChecks",
-          checksLabel = "Best in Slot checkboxes" },
-        { list = TRINKET_TOOLTIP_OPTIONS, title = "Ranked Trinkets", titleField = "trinketTooltipTitle",
-          blockField = "trinketTooltipChecksBlock", titleKey = "options.trinketTooltipTitle",
-          titleLabel = "Ranked Trinkets title", checksKey = "options.trinketTooltipChecks",
-          checksLabel = "Ranked Trinkets checkboxes" },
-    }
-    local titleY = -72 - blockBaseH - 14
-    for _, section in ipairs(sections) do
         if not card[section.titleField] then
             card[section.titleField] = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
             card[section.titleField]:SetText(section.title)
-            card[section.titleField]:SetTextColor(1.0, 0.82, 0.0)
+            card[section.titleField]:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
         end
-        PlaceFeaturesTitle(card, card[section.titleField], section.titleKey, section.titleLabel, CONTENT_MARGIN,
-            titleY)
-        local sectionBlock = EnsureBagChecksBlock(card, section.blockField)
-        local sectionBlockH = #section.list * BAG_CHECK_STEP - (BAG_CHECK_STEP - ROW_HEIGHT)
-        local sectionBlockW = PlaceBagChecksBlock(card, sectionBlock, section.checksKey, section.checksLabel,
-            CONTENT_MARGIN, titleY - 24, blockBaseW, sectionBlockH) or blockBaseW
+        PlaceFeaturesTitle(card, card[section.titleField], section.titleKey, section.titleLabel,
+            CONTENT_MARGIN + BLOCK_PAD, y - BLOCK_TITLE_TOP)
+
+        local block = EnsureBagChecksBlock(card, section.blockField)
+        local blockW = PlaceBagChecksBlock(card, block, section.checksKey, section.checksLabel,
+            CONTENT_MARGIN + BLOCK_PAD, y - BLOCK_TITLE_TOP - BLOCK_TITLE_HEIGHT - BLOCK_TITLE_GAP,
+            blockBaseW, blockBaseH) or blockBaseW
+
         for index, option in ipairs(section.list) do
-            local check = EnsureOptionCheckbox(card, option, sectionBlock)
+            local check = EnsureOptionCheckbox(card, option, block)
             local indent = option.indent and BIS_CHILD_INDENT or 0
-            local row = EnsureOptionRow(check, sectionBlock)
+            local rowY = -((index - 1) * BAG_CHECK_STEP)
+            local row = EnsureOptionRow(check, block, index > 1)
             row:ClearAllPoints()
-            row:SetPoint("TOPLEFT", sectionBlock, "TOPLEFT", indent, -((index - 1) * BAG_CHECK_STEP))
-            row:SetPoint("TOPRIGHT", sectionBlock, "TOPRIGHT", 0, -((index - 1) * BAG_CHECK_STEP))
-            row:SetFrameLevel((sectionBlock:GetFrameLevel() or 1) + 1)
+            row:SetPoint("TOPLEFT", block, "TOPLEFT", indent, rowY)
+            row:SetPoint("TOPRIGHT", block, "TOPRIGHT", 0, rowY)
+            row:SetFrameLevel((block:GetFrameLevel() or 1) + 1)
             row:Show()
             check:ClearAllPoints()
-            check:SetPoint("TOPLEFT", sectionBlock, "TOPLEFT", indent + ROW_PAD, -((index - 1) * BAG_CHECK_STEP) - 1)
-            FitCheckLabel(check, sectionBlockW, indent)
-            check:SetFrameLevel((sectionBlock:GetFrameLevel() or 1) + 6)
+            check:SetPoint("TOPLEFT", block, "TOPLEFT", indent + ROW_PAD, rowY)
+            FitCheckLabel(check, blockW, indent)
+            check:SetFrameLevel((block:GetFrameLevel() or 1) + 6)
             check:Show()
             check:SetScript("OnClick", function(self)
+                if section.bags then
+                    _G.StatVerdictDB = _G.StatVerdictDB or {}
+                    _G.StatVerdictDB[option.key] = self:GetChecked() and true or false
+                    SyncBagIndicatorOptionChecks(card)
+                    RefreshBagIndicatorsSoon()
+                    return
+                end
                 if self.svLocked then
                     SyncBagIndicatorOptionChecks(card)
                     return
@@ -581,7 +617,7 @@ function Panel.Apply(frame)
                 SyncBagIndicatorOptionChecks(card)
             end)
         end
-        titleY = titleY - 24 - sectionBlockH - 14
+        y = y - panelHeight - BLOCK_GAP
     end
     SyncBagIndicatorOptionChecks(card)
 

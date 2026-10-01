@@ -2349,15 +2349,15 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
         self.assertEqual("Best in Slot", self.frame.optionsDrawerCard.bisTooltipTitle.text)
         points = [c.points[len(c.points)] for c in checks]
         xs, ys = [p[4] for p in points], [p[5] for p in points]
-        self.assertEqual([-1, -27, -53], ys)  # the same step as the Bag Markers rows (row 24 + gap 2), 1px into its row
+        self.assertEqual([0, -24, -48], ys)  # the same step as the Bag Markers rows (row 22 + gap 2)
         self.assertGreater(xs[1], xs[0])  # gems and enchants sits under the tooltip option
         self.assertEqual(xs[0], xs[2])
 
     def test_block_fits_all_three_rows(self) -> None:
         self.check()
         card = self.frame.optionsDrawerCard
-        self.assertEqual(3 * 26 - 2, card.bisTooltipChecksBlock._height)
-        self.assertEqual(2 * 26 - 2, card.bagChecksBlock._height)
+        self.assertEqual(3 * 24 - 2, card.bisTooltipChecksBlock._height)
+        self.assertEqual(2 * 24 - 2, card.bagChecksBlock._height)
 
     def states(self):
         """(checked, active) for options 1, 2, 3."""
@@ -2446,29 +2446,55 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
         for key in ("showUpgradeArrow", "showMsOsLabels"):
             self.assertTrue(self.active(card.bagIndicatorChecks[key]), key)
 
-    GOLD_BORDER = (1.0, 0.82, 0.0)
-
     def row_of(self, key):
         return self.check(key).svRow
 
-    def border(self, row):
-        return tuple(round(row._border[i], 2) for i in (1, 2, 3))
+    def tint(self, row):
+        return tuple(round(row._bg[i], 2) for i in (1, 2, 3, 4))
 
-    def test_every_option_is_a_premium_row_like_the_guide_tiers(self) -> None:
+    def test_options_are_rows_inside_three_bordered_blocks(self) -> None:
+        self.check()
+        card = self.frame.optionsDrawerCard
+        for field in ("bagMarkersPanel", "bisTooltipPanel", "trinketTooltipPanel"):
+            panel = getattr(card, field)
+            self.assertEqual("BackdropTemplate", panel._frameTemplate, field)
+            self.assertEqual("Interface\\Tooltips\\UI-Tooltip-Border", panel._backdrop.edgeFile, field)
         for key in ("showUpgradeArrow", "showMsOsLabels", "showBisTooltip", "showBisGemsEnchants",
                     "bisUseGameTooltip", "showTrinketTooltip", "showTrinketEffect", "trinketUseGameTooltip"):
             row = self.row_of(key)
-            self.assertEqual("BackdropTemplate", row._frameTemplate, key)
-            self.assertEqual("Interface\\Tooltips\\UI-Tooltip-Border", row._backdrop.edgeFile, key)
-            self.assertEqual(24, row._height, key)
+            self.assertEqual(22, row._height, key)
             self.assertFalse(self.check(key)._mouse, key)  # the whole row is the click target
 
-    def test_ticked_rows_are_gold_and_unticked_rows_rest(self) -> None:
-        self.assertEqual(self.GOLD_BORDER, self.border(self.row_of("showBisTooltip")))
-        self.assertEqual((0.32, 0.34, 0.4), self.border(self.row_of("bisUseGameTooltip")))
+    def test_blocks_have_the_same_padding_and_the_same_gap(self) -> None:
+        self.check()
+        card = self.frame.optionsDrawerCard
+        panels = [card.bagMarkersPanel, card.bisTooltipPanel, card.trinketTooltipPanel]
+        titles = [card.bagMarkersTitle, card.bisTooltipTitle, card.trinketTooltipTitle]
+        blocks = [card.bagChecksBlock, card.bisTooltipChecksBlock, card.trinketTooltipChecksBlock]
+        last = lambda region: region.points[len(region.points)]
+        tops = [last(panel)[5] for panel in panels]
+        gaps = [tops[i] - panels[i]._height - tops[i + 1] for i in (0, 1)]
+        self.assertEqual(gaps[0], gaps[1])
+        self.assertGreaterEqual(gaps[0], 6)
+        for panel, title, block in zip(panels, titles, blocks):
+            top = last(panel)[5]
+            self.assertEqual(8, top - last(title)[5])  # same distance from the block's top edge to its title
+            self.assertEqual(8 + 12 + 6, top - last(block)[5])  # ... and to its first row
+            self.assertEqual(8, last(block)[5] - block._height - (top - panel._height))  # same padding below
+            self.assertEqual(14, last(panel)[4])
+        self.assertEqual(-46, tops[0])  # under the title hairline
+        self.assertGreaterEqual(tops[2] - panels[2]._height, -(440 - 33 - 6 - 20 - 6))  # inside the card
+
+    def test_a_ticked_row_is_tinted_gold_and_an_unticked_one_is_clear(self) -> None:
+        self.assertEqual((0.16, 0.13, 0.03, 0.85), self.tint(self.row_of("showBisTooltip")))
+        self.assertEqual((0, 0, 0, 0), self.tint(self.row_of("bisUseGameTooltip")))
         self.click("bisUseGameTooltip", True)
-        self.assertEqual(self.GOLD_BORDER, self.border(self.row_of("bisUseGameTooltip")))
-        self.assertEqual((0.32, 0.34, 0.4), self.border(self.row_of("showBisTooltip")))
+        self.assertEqual((0.16, 0.13, 0.03, 0.85), self.tint(self.row_of("bisUseGameTooltip")))
+        self.assertEqual((0, 0, 0, 0), self.tint(self.row_of("showBisTooltip")))
+
+    def test_only_rows_after_the_first_have_a_hairline(self) -> None:
+        shown = [self.row_of(k).svHasLine for k in ("showBisTooltip", "showBisGemsEnchants", "bisUseGameTooltip")]
+        self.assertEqual([False, True, True], [bool(v) for v in shown])
 
     def test_a_locked_row_is_dimmed_and_does_not_react_to_a_click(self) -> None:
         self.click("showBisTooltip", False)
@@ -2477,7 +2503,6 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
         before = self.db().showBisGemsEnchants
         row.scripts.OnClick(row)
         self.assertEqual(before, self.db().showBisGemsEnchants)
-        self.assertEqual(1, self.row_of("showBisTooltip")._alpha or 1)
 
     def test_clicking_a_row_toggles_its_option(self) -> None:
         row = self.row_of("showUpgradeArrow")
@@ -2510,7 +2535,8 @@ class FeaturesDrawerGeometryTests(unittest.TestCase):
     CHECK = 22
     GAP = 5
     INDENT = 18
-    ROW_PAD = 6  # row edge > tick, and label > row edge
+    ROW_PAD = 4  # row edge > tick, and label > row edge
+    BLOCK_PAD = 10  # block edge > its title and rows
     CHAR_W = 6.5  # generous per-character width of the 11pt checkbox label font
     LABELS = {
         "showUpgradeArrow": "Upgrade Arrow",
@@ -2547,14 +2573,15 @@ class FeaturesDrawerGeometryTests(unittest.TestCase):
         self.assertEqual(self.WIDTH, self.card._width)
 
     def test_titles_and_groups_share_the_left_margin(self) -> None:
-        for region in (self.card.title, self.card.bagMarkersTitle, self.card.bisTooltipTitle,
-                       self.card.bagChecksBlock, self.card.bisTooltipChecksBlock):
-            self.assertEqual(self.MARGIN, self.last_point(region)[4])
+        self.assertEqual(self.MARGIN, self.last_point(self.card.title)[4])
+        for region in (self.card.bagMarkersTitle, self.card.bisTooltipTitle, self.card.trinketTooltipTitle,
+                       self.card.bagChecksBlock, self.card.bisTooltipChecksBlock, self.card.trinketTooltipChecksBlock):
+            self.assertEqual(self.MARGIN + self.BLOCK_PAD, self.last_point(region)[4])
 
     def test_groups_keep_the_same_margin_on_the_right(self) -> None:
-        for block in (self.card.bagChecksBlock, self.card.bisTooltipChecksBlock):
+        for block in (self.card.bagChecksBlock, self.card.bisTooltipChecksBlock, self.card.trinketTooltipChecksBlock):
             left = self.last_point(block)[4]
-            self.assertEqual(self.MARGIN, self.card._width - (left + block._width))
+            self.assertEqual(self.MARGIN + self.BLOCK_PAD, self.card._width - (left + block._width))
 
     def test_every_label_fits_with_the_right_margin(self) -> None:
         checks = self.card.bagIndicatorChecks
@@ -2566,13 +2593,13 @@ class FeaturesDrawerGeometryTests(unittest.TestCase):
             self.assertEqual((self.INDENT if key == "showBisGemsEnchants" else 0) + self.ROW_PAD, indent, key)
             label_left = self.last_point(block)[4] + indent + self.CHECK + self.GAP
             label_right = label_left + check.Text._width
-            self.assertEqual(self.MARGIN + self.ROW_PAD, self.card._width - label_right, key)  # right padding
+            self.assertEqual(self.MARGIN + self.BLOCK_PAD + self.ROW_PAD, self.card._width - label_right, key)  # right padding
             self.assertGreaterEqual(check.Text._width, len(label) * self.CHAR_W, key)  # not cut off
 
     def test_longest_label_has_room_on_both_sides(self) -> None:
         longest = max(self.LABELS.values(), key=len)
         self.assertEqual("Use the game tooltip instead", longest)
-        text_right = self.MARGIN + self.ROW_PAD + self.CHECK + self.GAP + len(longest) * self.CHAR_W
+        text_right = self.MARGIN + self.BLOCK_PAD + self.ROW_PAD + self.CHECK + self.GAP + len(longest) * self.CHAR_W
         self.assertGreaterEqual(self.card._width - text_right, 3 * self.MARGIN)
 
     def test_window_grows_with_the_drawer_and_keeps_its_edge(self) -> None:
@@ -2613,10 +2640,10 @@ class TrinketTooltipFeatureToggleTests(unittest.TestCase):
         card = self.frame.optionsDrawerCard
         self.assertEqual("Ranked Trinkets", card.trinketTooltipTitle.text)
         points = [c.points[len(c.points)] for c in checks]
-        self.assertEqual([-1, -27, -53], [p[5] for p in points])
+        self.assertEqual([0, -24, -48], [p[5] for p in points])
         self.assertGreater(points[1][4], points[0][4])
         self.assertEqual(points[0][4], points[2][4])
-        self.assertEqual(3 * 26 - 2, card.trinketTooltipChecksBlock._height)
+        self.assertEqual(3 * 24 - 2, card.trinketTooltipChecksBlock._height)
 
     def test_section_does_not_overlap_best_in_slot_and_fits_the_card(self) -> None:
         self.check()
