@@ -39,7 +39,8 @@ DB2_TABLES = ("ItemBonus", "ItemBonusListGroupEntry", "ItemScalingConfig")
 # families (608-612 and 614-618) in ascending item-level order.
 TRACK_CODES: dict[int, str] = {971: "adventurer", 972: "veteran", 973: "champion", 974: "hero", 978: "myth"}
 TRACK_ORDER: tuple[str, ...] = ("adventurer", "veteran", "champion", "hero", "myth")
-# The tracks the addon's Mode selector can swap BiS items down to.
+# The lower tracks BiS items can be moved down to (the stat-target level pipeline
+# in classcodex_targets.py runs once per target).
 SWAP_TARGETS: tuple[str, ...] = ("hero", "champion")
 
 ITEM_BONUS_TRACK = 34
@@ -171,41 +172,59 @@ def _is_above(track: str | None, target: str) -> bool:
     return track in TRACK_ORDER and TRACK_ORDER.index(track) > TRACK_ORDER.index(target)
 
 
+# The tracks whose items a tier moves to that tier's 6/6 (best rank): a tier never
+# raises an item above the track it is listed on (a Hero-track item cannot become
+# Myth), but every rank, extension rank and older-season family of the listed
+# tracks lands on the current season's 6/6, so a tier shows one level.
+TIER_SOURCE_TRACKS: dict[str, tuple[str, ...]] = {
+    "myth": ("myth",),
+    "hero": ("hero", "myth"),
+    "champion": ("champion", "hero", "myth"),
+}
+
+
 def build_track_swap(observed_ids: Iterable[int], groups: dict[int, TrackGroup]) -> TrackSwap:
-    """The swap table for every observed bonus id that sits on a track above
-    Hero (for "hero") or above Champion (for "champion")."""
+    """swap[target]: every observed bonus id on a source track of that target
+    (TIER_SOURCE_TRACKS) -> the current season's 6/6 bonus id of the target
+    track, for the targets myth, hero and champion. Ids already at that 6/6
+    are left out. The current season is the Myth group with the highest 6/6
+    item level; its Hero / Champion groups are walked down one verified track at
+    a time."""
     group_of_bonus: dict[int, TrackGroup] = {}
     for group in groups.values():
         for rank in group.ranks.values():
             group_of_bonus[rank.bonus_id] = group
-    swap: dict[str, dict[int, int]] = {target: {} for target in SWAP_TARGETS}
+    myth_groups = [group for group in groups.values()
+                   if group.track == "myth" and group.max_item_level is not None]
+    current: dict[str, TrackGroup] = {}
+    if myth_groups:
+        myth = max(myth_groups, key=lambda group: group.max_item_level or 0)
+        current["myth"] = myth
+        for target in SWAP_TARGETS:
+            destination = family_group(groups, myth, target)
+            if destination is not None:
+                current[target] = destination
+
+    swap: dict[str, dict[int, int]] = {target: {} for target in TIER_SOURCE_TRACKS}
     unmapped: dict[str, list[int]] = {target: [] for target in SWAP_TARGETS}
     track_of: dict[int, str] = {}
-    myth_groups: list[TrackGroup] = []
     for bonus_id in sorted(set(observed_ids)):
         group = group_of_bonus.get(bonus_id)
         if group is None or group.track is None:
             continue
         track_of[bonus_id] = group.track
-        if group.track == "myth" and group.max_item_level is not None:
-            myth_groups.append(group)
-        for target in SWAP_TARGETS:
-            if not _is_above(group.track, target):
+        for target, sources in TIER_SOURCE_TRACKS.items():
+            if group.track not in sources:
                 continue
-            destination = family_group(groups, group, target)
+            destination = current.get(target)
             if destination is not None and destination.max_bonus_id is not None:
-                swap[target][bonus_id] = destination.max_bonus_id
-            else:
+                if bonus_id != destination.max_bonus_id:
+                    swap[target][bonus_id] = destination.max_bonus_id
+            elif target in unmapped:
                 unmapped[target].append(bonus_id)
 
-    item_levels: dict[str, int] = {}
-    if myth_groups:
-        myth = max(myth_groups, key=lambda group: group.max_item_level or 0)
-        item_levels["myth"] = myth.max_item_level
-        for target in SWAP_TARGETS:
-            destination = family_group(groups, myth, target)
-            if destination is not None and destination.max_item_level is not None:
-                item_levels[target] = destination.max_item_level
+    item_levels = {target: group.max_item_level for target, group in current.items()
+                   if group.max_item_level is not None}
     return TrackSwap(swap, item_levels, unmapped, track_of)
 
 

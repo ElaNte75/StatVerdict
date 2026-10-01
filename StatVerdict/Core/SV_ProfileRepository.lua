@@ -320,14 +320,17 @@ end
 
 -- The upgrade track the Best in Slot / trinket items are shown at follows the
 -- stat target tier: a comfortable target must not show gear only the best can
--- have. Tier 3 (top20) is the guide's own list (Myth track, nothing swapped);
--- Tier 2 shows the Hero track, Tier 1 the Champion track, through the data root's
--- trackSwap[track] (Myth bonus id -> that track's bonus id). Old data has no swap:
+-- have. Tier 3 (top20) shows every item at the Myth 6/6 of its listing (an
+-- extension rank or an older id lands on 6/6), Tier 2 at Hero 6/6, Tier 1 at
+-- Champion 6/6, through the data root's trackSwap[track] (source bonus id -> that
+-- track's 6/6 bonus id). A tier never raises an item above the track it is
+-- listed on. PvP gear has no tracks and is never swapped. Old data has no swap:
 -- the items then show as listed. Keys may be numbers or, as the generated file
 -- writes them, strings.
-local TRACK_OF_BIN = { top50 = "hero", top80 = "champion" }
+local TRACK_OF_BIN = { top20 = "myth", top50 = "hero", top80 = "champion" }
 
 function Repository.GetActiveTrackSwap()
+    if ns.GetStatAuditGoalMode and ns.GetStatAuditGoalMode() == "PVP" then return nil end
     local track = TRACK_OF_BIN[Repository.GetStatTargetBin()]
     if not track then return nil end
     local root = ns.ClassCodexTargets

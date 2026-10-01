@@ -1874,8 +1874,17 @@ class BisPanelTests(unittest.TestCase):
     HERO_HEAD_LINK = ("item:271528:7961:240983:240894:::::90:104::0:7:"
                       "14334:7652:13696:13847:13692:13698:12854")
 
-    def test_tier_3_shows_the_items_as_listed(self) -> None:
+    def test_tier_3_lands_every_myth_rank_on_six_of_six(self) -> None:
         self.use_level("top20")
+        root = self.ns.ClassCodexTargets
+        root.trackSwap.myth = self.lua.eval('{ ["13848"] = 12854 }')
+        entry = self.entry(item_id=1001, bonus_ids=[13848, 11])  # a Myth 9/9 id (344)
+        self.assertEqual("item:1001::::::::90:104::0:2:12854:11", self.panel.BuildRecommendedItemLink(entry, 104))
+        self.assertEqual(GUARDIAN_HEAD_LINK, self.panel.BuildRecommendedItemLink(self.guardian_head(), 104))  # 6/6 stays
+
+    def test_pvp_gear_is_never_swapped(self) -> None:
+        self.use_level("top80")
+        self.ns.GetStatAuditGoalMode = lambda: "PVP"
         self.assertEqual(GUARDIAN_HEAD_LINK, self.panel.BuildRecommendedItemLink(self.guardian_head(), 104))
 
     def test_tier_2_shows_the_hero_track_in_our_tooltip(self) -> None:
@@ -1900,7 +1909,7 @@ class BisPanelTests(unittest.TestCase):
         g.StatVerdictDB.trinketUseGameTooltip = True
 
     def test_myth_tier_and_old_data_keep_the_items_as_listed(self) -> None:
-        for tier, track_swap in (("top20", True), ("top50", False), ("top80", False)):
+        for tier, track_swap in (("top20", False), ("top50", False), ("top80", False)):
             self.use_level(tier, track_swap)
             self.assertEqual(GUARDIAN_HEAD_LINK, self.panel.BuildRecommendedItemLink(self.guardian_head(), 104), tier)
             self.lua.globals().TOOLTIP_CALLS = self.lua.table()

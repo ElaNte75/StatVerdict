@@ -50,11 +50,11 @@ class ParseTrackGroupsTests(unittest.TestCase):
     def test_a_group_without_item_levels_has_none(self) -> None:
         self.assertIsNone(GROUPS[630].ranks[1].item_level)
 
-    def test_a_myth_id_of_a_family_without_item_levels_is_unmapped(self) -> None:
+    def test_a_myth_id_of_a_family_without_item_levels_lands_on_the_current_season(self) -> None:
         swap = build_track_swap({12897}, GROUPS)
-        self.assertEqual({"hero": {}, "champion": {}}, swap.swap)
-        self.assertEqual({"hero": [12897], "champion": [12897]}, swap.unmapped)
-        self.assertEqual({}, swap.item_levels)
+        self.assertEqual({"myth": {12897: 12854}, "hero": {12897: 12846}, "champion": {12897: 12838}}, swap.swap)
+        self.assertEqual({"hero": [], "champion": []}, swap.unmapped)
+        self.assertEqual({"myth": 334, "hero": 321, "champion": 308}, swap.item_levels)
 
     def test_max_rank_levels_of_each_season_two_track(self) -> None:
         self.assertEqual(
@@ -64,43 +64,46 @@ class ParseTrackGroupsTests(unittest.TestCase):
 
 
 class BuildTrackSwapTests(unittest.TestCase):
-    def test_myth_ids_map_to_the_same_familys_hero_and_champion_six_of_six(self) -> None:
+    def test_every_myth_rank_lands_on_the_six_of_six_of_each_tier(self) -> None:
         swap = build_track_swap({12854, 13848, 12850}, GROUPS)
+        # Tier 3 (myth): the extension rank (344) and a 2/6 id both become 6/6; 6/6 itself needs no entry.
+        self.assertEqual({13848: 12854, 12850: 12854}, swap.swap["myth"])
         self.assertEqual({12854: 12846, 13848: 12846, 12850: 12846}, swap.swap["hero"])
         self.assertEqual({12854: 12838, 13848: 12838, 12850: 12838}, swap.swap["champion"])
         self.assertEqual({"myth": 334, "hero": 321, "champion": 308}, swap.item_levels)
         self.assertEqual({"hero": [], "champion": []}, swap.unmapped)
 
-    def test_season_one_ids_stay_in_their_own_family(self) -> None:
+    def test_season_one_ids_land_on_the_current_season(self) -> None:
         swap = build_track_swap({12806, 13654}, GROUPS)
-        self.assertEqual({12806: 12798, 13654: 12798}, swap.swap["hero"])
-        self.assertEqual({12806: 12790, 13654: 12790}, swap.swap["champion"])
+        self.assertEqual({12806: 12854, 13654: 12854}, swap.swap["myth"])
+        self.assertEqual({12806: 12846, 13654: 12846}, swap.swap["hero"])
+        self.assertEqual({12806: 12838, 13654: 12838}, swap.swap["champion"])
 
-    def test_hero_ids_swap_down_to_champion_only(self) -> None:
-        swap = build_track_swap({12846}, GROUPS)
-        self.assertEqual({}, swap.swap["hero"])
-        self.assertEqual({12846: 12838}, swap.swap["champion"])
+    def test_a_tier_never_raises_an_item_above_its_listed_track(self) -> None:
+        swap = build_track_swap({12846, 12841}, GROUPS)  # Hero 6/6 and Hero 1/6
+        self.assertEqual({}, swap.swap["myth"])
+        self.assertEqual({12841: 12846}, swap.swap["hero"])
+        self.assertEqual({12846: 12838, 12841: 12838}, swap.swap["champion"])
 
-    def test_lower_tracks_and_non_track_ids_are_never_swapped(self) -> None:
+    def test_lower_tracks_and_non_track_ids_are_not_raised(self) -> None:
         swap = build_track_swap({12838, 12833, 6652, 8960}, GROUPS)
-        self.assertEqual({"hero": {}, "champion": {}}, swap.swap)
+        self.assertEqual({"myth": {}, "hero": {}, "champion": {12833: 12838}}, swap.swap)
         self.assertEqual({"hero": [], "champion": []}, swap.unmapped)
 
-    def test_item_levels_come_from_the_highest_observed_myth_family(self) -> None:
-        swap = build_track_swap({12806, 12854}, GROUPS)
-        self.assertEqual({"myth": 334, "hero": 321, "champion": 308}, swap.item_levels)
-        season_one = build_track_swap({12806}, GROUPS)
-        self.assertEqual({"myth": 289, "hero": 276, "champion": 263}, season_one.item_levels)
+    def test_item_levels_are_the_current_season(self) -> None:
+        for observed in ({12806, 12854}, {12806}):
+            self.assertEqual({"myth": 334, "hero": 321, "champion": 308}, build_track_swap(observed, GROUPS).item_levels)
 
     def test_a_family_whose_levels_do_not_overlap_is_left_unmapped(self) -> None:
         groups = parse_track_groups(rows("ItemBonus"), rows("ItemBonusListGroupEntry"), rows("ItemScalingConfig"))
         # Break the Hero track's item levels: the pairing check must refuse it.
         for rank in groups[617].ranks.values():
             rank.item_level = (rank.item_level or 0) + 1
-        swap = build_track_swap({12854}, groups)
+        swap = build_track_swap({12854, 13848}, groups)
+        self.assertEqual({13848: 12854}, swap.swap["myth"])  # Myth needs no pairing
         self.assertEqual({}, swap.swap["hero"])
         self.assertEqual({}, swap.swap["champion"])
-        self.assertEqual({"hero": [12854], "champion": [12854]}, swap.unmapped)
+        self.assertEqual({"hero": [12854, 13848], "champion": [12854, 13848]}, swap.unmapped)
         self.assertEqual({"myth": 334}, swap.item_levels)
 
 
