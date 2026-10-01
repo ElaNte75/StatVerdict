@@ -2261,6 +2261,7 @@ local function HideOffSpecTable(frame)
         frame.secondarySubtitle:SetText("Off Spec")
         frame.secondarySubtitle:SetTextColor(0.85, 0.85, 0.88)
         frame.secondarySubtitle:Show()
+        if ns.HideSpecSelectButton then ns.HideSpecSelectButton("OFF") end
     end
     if frame.offAvgProgressText then
         frame.offAvgProgressText:SetText("")
@@ -2615,6 +2616,61 @@ local function HideIncompleteBuildMessage(frame)
     if frame.avgProgressText then frame.avgProgressText:Show() end
 end
 
+-- The radio mark in front of a spec's title when an Off Spec is set up (see ns.SpecTitleText):
+-- clicking the mark or the title switches the view only, never the game's spec; the click is a
+-- button over the title.
+local specSelectButtons = {}
+
+-- Sets a spec title ("MAIN" / "OFF") with its mark, and lines the click button up with it.
+local function SetSpecTitle(frame, which, text)
+    local fs = which == "OFF" and frame.secondarySubtitle or frame.subtitle
+    if not fs then return end
+    local selection = GetSavedSelection()
+    local choosable = type(selection) == "table" and selection.secondaryEnabled == true
+    local view = (ns.GetStatAuditActiveView and ns.GetStatAuditActiveView()) or "MAIN"
+    fs:SetText(ns.SpecTitleText(text, which, view, choosable))
+    fs.svSpecChoosable = choosable
+    local button = specSelectButtons[which]
+    if not choosable then
+        if button then button:Hide() end
+        return
+    end
+    local parent = (fs.GetParent and fs:GetParent()) or frame
+    if not button then
+        button = CreateFrame("Button", nil, parent)
+        button:SetScript("OnClick", function()
+            if ns.SetStatAuditActiveView then ns.SetStatAuditActiveView(which) end
+        end)
+        button:SetScript("OnEnter", function(self)
+            if GameTooltip then
+                GameTooltip:SetOwner(self, "ANCHOR_TOP")
+                GameTooltip:SetText(which == "OFF" and "Off Spec" or "Main Spec", 1, 0.82, 0)
+                GameTooltip:AddLine("Show this spec: its Best in Slot, trinkets and Guide choice. Changes the view only, not your game spec.", 0.85, 0.85, 0.85, true)
+                GameTooltip:Show()
+            end
+        end)
+        button:SetScript("OnLeave", function()
+            if GameTooltip then GameTooltip:Hide() end
+        end)
+        specSelectButtons[which] = button
+    elseif button.GetParent and button:GetParent() ~= parent then
+        button:SetParent(parent)
+    end
+    button.svWhich = which
+    button:SetFrameLevel((parent.GetFrameLevel and parent:GetFrameLevel() or 1) + 12)
+    button:ClearAllPoints()
+    button:SetPoint("TOPLEFT", fs, "TOPLEFT", -2, 3)
+    local width = (fs.GetStringWidth and tonumber(fs:GetStringWidth())) or 200
+    local height = (fs.GetHeight and tonumber(fs:GetHeight())) or 18
+    button:SetSize(math.max(24, width + 6), math.max(14, height + 4))
+    button:Show()
+end
+ns.SetSpecTitle = SetSpecTitle
+function ns.HideSpecSelectButton(which)
+    local button = specSelectButtons[which]
+    if button then button:Hide() end
+end
+
 local function BuildSpecDisplayTitle(context, profile)
     local specName = (context and context.specName) or (profile and profile.specName) or "Unknown Spec"
     local className = (context and context.className) or (profile and profile.className) or "Unknown Class"
@@ -2651,12 +2707,13 @@ local function FillOffSpecProgressTable(frame, selection, secondaryContext)
     local offCustom = GetCustomBucket(offProfileID)
 
     if frame.secondarySubtitle then
-        frame.secondarySubtitle:SetText(BuildSpecDisplayTitle(offContext, offProfile))
+        SetSpecTitle(frame, "OFF", BuildSpecDisplayTitle(offContext, offProfile))
         frame.secondarySubtitle:SetTextColor(GetClassColor(offContext))
         frame.secondarySubtitle:Show()
         if ns.StatVerdictStatProgressPanel and ns.StatVerdictStatProgressPanel.FitOffSpecTitle then
             ns.StatVerdictStatProgressPanel.FitOffSpecTitle(frame)
         end
+        SetSpecTitle(frame, "OFF", BuildSpecDisplayTitle(offContext, offProfile))  -- again: now the title has its final size
     end
 
     for index = 1, #(frame.offRows or {}) do
@@ -2920,11 +2977,12 @@ UpdateFrame = function()
     local specName = (titleContext and titleContext.specName) or (profile and profile.specName) or "Unknown Spec"
     local className = (titleContext and titleContext.className) or (profile and profile.className) or "Unknown Class"
     local subtitle = BuildSpecDisplayTitle(titleContext or context, profile)
-    frame.subtitle:SetText(subtitle)
+    SetSpecTitle(frame, "MAIN", subtitle)
     frame.subtitle:SetTextColor(GetClassColor(context))
     if ns.StatVerdictStatProgressPanel and ns.StatVerdictStatProgressPanel.FitSpecTitle then
         ns.StatVerdictStatProgressPanel.FitSpecTitle(frame)
     end
+    SetSpecTitle(frame, "MAIN", subtitle)  -- again: now the title has its final size
     if ns.StatVerdictStatProgressPanel and ns.StatVerdictStatProgressPanel.SetModeBadge then
         ns.StatVerdictStatProgressPanel.SetModeBadge(frame, GetGoalDisplayLabel(context and context.goal))
     end

@@ -77,22 +77,17 @@ local function AddText(card, template, y, justify)
     return text
 end
 
--- Two blocks of premium rows. First the spec the choice is for: Main Spec or Off Spec
--- (a radio pair, the build the whole window shows; it changes the view only, never
--- the game's spec). Then, for that spec, Auto and the stat target tiers, least to most
--- demanding (a radio group: exactly one is ticked, shown gold, never two), each with its
--- name, a hint on the right and a short meaning under the name. The whole row is the click
--- target. Auto's meaning line tells where the character stands. Each spec keeps its own
--- choice.
-local SPEC_ROW_HEIGHT = 24
-local SPEC_ROW_STEP = 26
-local SPEC_TITLE_Y = -76
-local SPEC_ROWS_TOP = -92
+-- Auto, then the stat target tiers: four premium rows, least to most demanding (a
+-- radio group: exactly one is ticked, shown gold, never two), each with its name,
+-- a hint on the right and a short meaning under the name. The whole row is the
+-- click target. Auto's meaning line tells where the character stands. The choice is
+-- for the spec the main window shows (its radio mark in front of the spec name picks
+-- Main Spec or Off Spec); each spec keeps its own.
 local ROW_COUNT = 4
-local ROW_HEIGHT = 38
-local ROW_STEP = 42
-local TITLE_Y = -152
-local ROWS_TOP = -170
+local ROW_HEIGHT = 50
+local ROW_STEP = 56
+local TITLE_Y = -78
+local ROWS_TOP = -96
 local INTRO_HEIGHT = 2 * 10 + 2
 local STATUS_SPACING = 2
 -- Nothing may move when the tier or the status changes: the status line gets the
@@ -118,64 +113,6 @@ local function SpecName(profile)
     return #parts > 0 and table.concat(parts, " ") or nil
 end
 
--- The Main Spec / Off Spec builds: { main = name, off = name or nil, view = "MAIN" | "OFF" }.
-local function SpecChoice()
-    local primary, secondary
-    if ns.GetTooltipEvaluationContexts then primary, secondary = ns.GetTooltipEvaluationContexts() end
-    local offReady = type(secondary) == "table" and type(secondary.profile) == "table"
-    local view = ns.GetStatAuditActiveView and ns.GetStatAuditActiveView() or "MAIN"
-    if view ~= "OFF" or not offReady then view = "MAIN" end
-    return {
-        main = SpecName(type(primary) == "table" and primary.profile or nil),
-        off = offReady and SpecName(secondary.profile) or nil,
-        offReady = offReady,
-        view = view,
-    }
-end
-
-local function EnsureSpecRow(card, index, view, label)
-    card.specRows = card.specRows or {}
-    if card.specRows[index] then return card.specRows[index] end
-
-    local row = CreateFrame("Button", nil, card, "BackdropTemplate")
-    row.view = view
-    row:SetHeight(SPEC_ROW_HEIGHT)
-    row:SetBackdrop(ROW_BACKDROP)
-
-    row.check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
-    row.check:SetSize(20, 20)
-    row.check:SetPoint("LEFT", row, "LEFT", 6, 0)
-    row.check:EnableMouse(false)
-    if row.check.Text then row.check.Text:Hide() end
-
-    row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.label:SetPoint("LEFT", row.check, "RIGHT", 4, 0)
-    row.label:SetText(label)
-
-    row.hint = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.hint:SetPoint("RIGHT", row, "RIGHT", -10, 0)
-    row.hint:SetJustifyH("RIGHT")
-    row.hint:SetTextColor(GREY[1], GREY[2], GREY[3])
-
-    row:SetScript("OnEnter", function(self)
-        self.hovered = true
-        PaintRow(self, self.selected == true, not self.disabled)
-    end)
-    row:SetScript("OnLeave", function(self)
-        self.hovered = false
-        PaintRow(self, self.selected == true, false)
-    end)
-    row:SetScript("OnClick", function(self)
-        if self.disabled then return end
-        if ns.SetStatAuditActiveView then ns.SetStatAuditActiveView(self.view) end
-        if ns.RequestStatAuditRefresh then ns.RequestStatAuditRefresh() end
-        Panel.Sync(card)
-    end)
-
-    card.specRows[index] = row
-    return row
-end
-
 local function EnsureTierRow(card, index)
     card.binRows = card.binRows or {}
     if card.binRows[index] then return card.binRows[index] end
@@ -192,15 +129,15 @@ local function EnsureTierRow(card, index)
     if row.check.Text then row.check.Text:Hide() end
 
     row.label = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    row.label:SetPoint("TOPLEFT", row, "TOPLEFT", 42, -6)
+    row.label:SetPoint("TOPLEFT", row, "TOPLEFT", 42, -9)
 
     row.hint = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.hint:SetPoint("TOPRIGHT", row, "TOPRIGHT", -12, -8)
+    row.hint:SetPoint("TOPRIGHT", row, "TOPRIGHT", -12, -11)
     row.hint:SetJustifyH("RIGHT")
     row.hint:SetTextColor(GREY[1], GREY[2], GREY[3])
 
     row.meaning = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.meaning:SetPoint("TOPLEFT", row.label, "BOTTOMLEFT", 0, -3)
+    row.meaning:SetPoint("TOPLEFT", row.label, "BOTTOMLEFT", 0, -4)
     row.meaning:SetJustifyH("LEFT")
     row.meaning:SetTextColor(GREY[1], GREY[2], GREY[3])
 
@@ -251,19 +188,6 @@ local function EnsureCard(frame)
     card.intro:SetTextColor(GREY[1], GREY[2], GREY[3])
     card.intro:SetText(guide.intro)
 
-    card.specTitle = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    card.specTitle:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, SPEC_TITLE_Y)
-    card.specTitle:SetJustifyH("LEFT")
-    card.specTitle:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
-    card.specTitle:SetText("Spec")
-
-    for index, info in ipairs({ { "MAIN", "Main Spec" }, { "OFF", "Off Spec" } }) do
-        local row = EnsureSpecRow(card, index, info[1], info[2])
-        local y = SPEC_ROWS_TOP - ((index - 1) * SPEC_ROW_STEP)
-        row:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, y)
-        row:SetPoint("TOPRIGHT", card, "TOPRIGHT", -MARGIN, y)
-    end
-
     card.binTitle = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     card.binTitle:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, TITLE_Y)
     card.binTitle:SetJustifyH("LEFT")
@@ -294,22 +218,10 @@ end
 function Panel.Sync(card)
     if not card then return end
 
-    -- Which build is shown: the radio pair of Main Spec / Off Spec.
-    local specs = SpecChoice()
-    for _, row in ipairs(card.specRows or {}) do
-        local isOff = row.view == "OFF"
-        local name = specs.main
-        if isOff then name = specs.off end
-        row.disabled = isOff and not specs.offReady
-        row.selected = (not row.disabled) and specs.view == row.view
-        row.hint:SetText(name or (isOff and "Not set up" or ""))
-        row.check:SetChecked(row.selected)
-        PaintRow(row, row.selected, row.hovered == true and not row.disabled)
-        row:SetAlpha(row.disabled and 0.45 or 1)
-    end
-
     local choice = ns.GetTargetChoice(ActiveSpecKey())
-    card.binTitle:SetText(choice.title)
+    -- Which spec the choice is for.
+    local specName = SpecName(ActiveProfile())
+    card.binTitle:SetText(specName and (choice.title .. " · " .. specName) or choice.title)
     for index, row in ipairs(card.binRows or {}) do
         local info = choice.options[index] or {}
         row.key = info.key

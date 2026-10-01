@@ -145,6 +145,27 @@ class WeightModeCoreTests(unittest.TestCase):
             self.assertEqual(label, self.ns.GetTierTitleLabel(profile(bin_key=key)))
         self.assertIsNone(self.ns.GetTierTitleLabel(None))
 
+    def test_spec_titles_carry_one_radio_mark_when_an_off_spec_is_set_up(self) -> None:
+        on, off = "UI-RadioButton:16:16:0:0:64:16:16:32:0:16|t ", "UI-RadioButton:16:16:0:0:64:16:0:16:0:16|t "
+        main = self.ns.SpecTitleText("Blood Death Knight / Deathbringer", "MAIN", "MAIN", True)
+        other = self.ns.SpecTitleText("Frost Death Knight / Rider", "OFF", "MAIN", True)
+        self.assertIn(on + "Blood Death Knight / Deathbringer", main)
+        self.assertIn(off + "Frost Death Knight / Rider", other)
+        # The view moves to the Off Spec: the marks swap, still exactly one on.
+        main = self.ns.SpecTitleText("A", "MAIN", "OFF", True)
+        other = self.ns.SpecTitleText("B", "OFF", "OFF", True)
+        self.assertIn(off + "A", main)
+        self.assertIn(on + "B", other)
+        # No Off Spec: no mark, the plain title.
+        self.assertEqual("Blood Death Knight", self.ns.SpecTitleText("Blood Death Knight", "MAIN", "MAIN", False))
+
+    def test_the_spec_titles_are_clickable_and_switch_only_the_view(self) -> None:
+        audit = (ADDON / "UI" / "SV_StatAudit.lua").read_text(encoding="utf-8-sig")
+        self.assertIn('SetSpecTitle(frame, "MAIN", subtitle)', audit)
+        self.assertIn('SetSpecTitle(frame, "OFF", BuildSpecDisplayTitle(offContext, offProfile))', audit)
+        self.assertIn("ns.SetStatAuditActiveView(which)", audit)
+        self.assertIn("Changes the view only, not your game spec.", audit)
+
     def test_the_title_bar_names_the_tier_in_use(self) -> None:
         chrome = (ADDON / "UI" / "SV_WindowChrome.lua").read_text(encoding="utf-8-sig")
         self.assertIn("frame.tierLabel", chrome)
@@ -1230,8 +1251,9 @@ class PanelModeTests(unittest.TestCase):
         self.assertIn("Guide — the stat priorities, Best in Slot lists and stat targets are copied from the "
                       "guides, unchanged. Pick Auto (the default: the tier follows your own stats and moves up when "
                       "you cover about 90% of it) or one fixed tier: Tier 1, Tier 2 or Tier 3 (the most demanding). "
-                      "Main Spec and Off Spec each keep their own choice: pick which one you are looking at in the Spec rows "
-                      "(this changes the view only, never your game spec). The tier in use is shown in the title bar; "
+                      "Main Spec and Off Spec each keep their own choice: with an Off Spec set up, click the circle in front of "
+                      "a spec's name in the main window to look at that spec (this changes the view only, never your "
+                      "game spec). The tier in use is shown in the title bar; "
                       "Best in Slot and trinkets follow it.", source)
         self.assertNotIn("Measured", source)
         for word in ("Easy", "Hard"):
@@ -1334,20 +1356,12 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         self.has_profile = True
         self.auto_info = None  # (level, progress) of the active build under Auto
         self.notice = None
-        self.view = "MAIN"
-        self.off_spec = None  # the Off Spec's name, or None when none is set up
-        self.view_calls = []
-        self.ns.GetTooltipEvaluationContexts = lambda: (
-            self.lua.table(profile=self.lua.table(specName="Blood", className="Death Knight")),
-            self.lua.table(profile=self.lua.table(specName=self.off_spec[0], className=self.off_spec[1]))
-            if self.off_spec else None)
-        self.ns.GetStatAuditActiveView = lambda: self.view
-        self.ns.SetStatAuditActiveView = lambda view: (self.view_calls.append(view), setattr(self, "view", view))[1]
         self.ns.SetRightPanelMode("weights")
         self.ns.ProfileRepository.GetAutoNotice = lambda spec_key: self.notice
 
     def card(self):
-        profile = self.lua.table(specKey="SPEC", guideTargetsMissing=not self.guide_targets,
+        profile = self.lua.table(specKey="SPEC", specName="Blood", className="Death Knight",
+                                 guideTargetsMissing=not self.guide_targets,
                                  statTargetBin=self.lua.globals().StatVerdictDB.statTargetBin or "auto")
         if self.auto_info is not None:
             profile.autoInfo = self.lua.table(level=self.auto_info[0], progress=self.auto_info[1])
@@ -1378,7 +1392,7 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
 
     def test_auto_and_three_premium_tier_rows(self) -> None:
         card = self.card()
-        self.assertEqual("Stat targets", card.binTitle.text)
+        self.assertTrue(card.binTitle.text.startswith("Stat targets"))
         self.assertEqual(4, len(card.binRows))
         rows = [card.binRows[i] for i in (1, 2, 3, 4)]
         self.assertEqual(["auto", "top80", "top50", "top20"], [r.key for r in rows])
@@ -1387,54 +1401,18 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         self.assertEqual(["Follows your stats"] + self.MEANINGS, [r.meaning.text for r in rows])
         for row in rows:
             self.assertEqual("BackdropTemplate", row._frameTemplate)
-            self.assertEqual(38, row._height)
+            self.assertEqual(50, row._height)
         # Stacked top to bottom, evenly spaced, spanning the card's text width.
         ys = [row.points[1][5] for row in rows]
         self.assertEqual(sorted(ys, reverse=True), ys)
         self.assertEqual(1, len({ys[i] - ys[i + 1] for i in (0, 1, 2)}))
-        self.assertGreaterEqual(ys[0] - ys[1], 38 + 4)
+        self.assertGreaterEqual(ys[0] - ys[1], 50 + 4)
         self.assertEqual("TOPRIGHT", rows[0].points[2][1])
 
-    def spec_checks(self, card):
-        return [card.specRows[i].check.checked for i in (1, 2)]
-
-    def test_main_and_off_spec_rows_name_the_builds(self) -> None:
+    def test_the_choice_says_which_spec_it_is_for(self) -> None:
         card = self.card()
-        self.assertEqual("Spec", card.specTitle.text)
-        rows = [card.specRows[i] for i in (1, 2)]
-        self.assertEqual(["Main Spec", "Off Spec"], [r.label.text for r in rows])
-        self.assertEqual(["Blood Death Knight", "Not set up"], [r.hint.text for r in rows])
-        self.assertEqual([True, False], self.spec_checks(card))
-        self.off_spec = ("Frost", "Death Knight")
-        card = self.card()
-        self.assertEqual(["Blood Death Knight", "Frost Death Knight"], [r.hint.text for r in rows])
-        for row in rows:
-            self.assertEqual(24, row._height)
-        # Above the tier rows, never overlapping them.
-        self.assertGreater(rows[1].points[1][5] - 24, card.binRows[1].points[1][5] + 24)
-
-    def test_one_spec_at_a_time_and_off_spec_only_when_it_is_set_up(self) -> None:
-        card = self.card()
-        card.specRows[2].scripts.OnClick(card.specRows[2])  # no Off Spec: nothing happens
-        self.assertEqual([], self.view_calls)
-        self.assertEqual([True, False], self.spec_checks(card))
-        self.assertLess(card.specRows[2]._alpha, 1)
-        self.off_spec = ("Frost", "Death Knight")
-        card = self.card()
-        card.specRows[2].scripts.OnClick(card.specRows[2])
-        self.assertEqual(["OFF"], self.view_calls)
-        self.assertEqual([False, True], self.spec_checks(self.card()))
-        card.specRows[1].scripts.OnClick(card.specRows[1])
-        self.assertEqual(["OFF", "MAIN"], self.view_calls)
-        self.assertEqual([True, False], self.spec_checks(self.card()))
-        self.assertGreaterEqual(self.refreshes, 2)
-
-    def test_the_gold_follows_the_selected_spec(self) -> None:
-        self.off_spec = ("Frost", "Death Knight")
-        self.view = "OFF"
-        card = self.card()
-        self.assertEqual(self.GOLD_BORDER, self.border(card.specRows[2]))
-        self.assertEqual(self.RESTING_BORDER, self.border(card.specRows[1]))
+        self.assertEqual("Stat targets · Blood Death Knight", card.binTitle.text)  # the spec the window shows
+        self.assertIsNone(card.specRows)  # the choice of Main Spec / Off Spec is in the main window now
 
     def test_auto_is_the_default_and_the_only_one_ticked_and_gold(self) -> None:
         card = self.card()
@@ -1611,8 +1589,7 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         return self.region_left(card, relative) + x
 
     def layout_snapshot(self, card):
-        regions = {"title": card.title, "intro": card.intro, "spec title": card.specTitle,
-                   "main spec": card.specRows[1], "off spec": card.specRows[2], "group title": card.binTitle,
+        regions = {"title": card.title, "intro": card.intro, "group title": card.binTitle,
                    "auto": card.binRows[1], "tier 1": card.binRows[2], "tier 2": card.binRows[3],
                    "tier 3": card.binRows[4],
                    "status line": card.status}

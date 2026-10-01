@@ -125,3 +125,16 @@ function ns.GetReferenceWording(goal)
         tag = "BIS",
     }
 end
+
+-- The title of a spec in the main window. With an Off Spec set up (`choosable`), a radio mark
+-- comes first: exactly one of Main Spec ("MAIN") and Off Spec ("OFF") is on, the one equal to
+-- `view`, the build the whole window and the Guide drawer show. The mark is an inline texture
+-- of the game's own radio button (four 16px cells: off, on, ...).
+local RADIO_MARK = "|TInterface\\Buttons\\UI-RadioButton:16:16:0:0:64:16:%d:%d:0:16|t "
+
+function ns.SpecTitleText(text, which, view, choosable)
+    text = tostring(text or "")
+    if not choosable then return text end
+    if view == which then return string.format(RADIO_MARK, 16, 32) .. text end
+    return string.format(RADIO_MARK, 0, 16) .. text
+end
