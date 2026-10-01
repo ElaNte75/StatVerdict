@@ -12,7 +12,12 @@ Limits of the pilot: armor slots, jewelry, trinkets and one-hand weapons with an
 the class's armor type and weapon types are listed below; trinket effects SimC does not know count only as
 their stats; set bonuses count through the items' own set ids.
 
+Tanks: the same search for three goals, `--objective dps` (full damage), `--objective survival` (least damage
+taken per second) and `--objective balance` (the best damage dealt for the damage taken, the two counted as
+the same percentage each). All the metrics come from one SimC run.
+
   python tools/gear_search.py --simc-bin .simc-build/simc --spec MAGE_FIRE [--goal MYTHIC_PLUS] [--hero frostfire]
+  python tools/gear_search.py --simc-bin .simc-build/simc --spec DEATHKNIGHT_BLOOD --objective balance
 """
 from __future__ import annotations
 
@@ -63,27 +68,61 @@ ARMOR_TYPE = {
     "hunter": "Mail", "shaman": "Mail", "evoker": "Mail",
     "warrior": "Plate", "paladin": "Plate", "death-knight": "Plate",
 }
-# One-hand weapon types per class for the pilot (only the classes tried so far).
-ONE_HAND_TYPES = {"mage": {"Dagger", "Sword"}}
-# Journal slot -> the simc slot tokens of the pilot.
+# The weapons each spec may use, per simc slot: (journal slot types, weapon types or None for any).
+# A slot a spec does not use (a two-hander has no off-hand) is simply absent. Specs not listed here are not searched.
+WEAPON_RULES: dict[str, dict[str, tuple[set[str], set[str] | None]]] = {
+    "MAGE_FIRE": {"MAIN_HAND": ({"WEAPON"}, {"Dagger", "Sword"}), "OFF_HAND": ({"HOLDABLE"}, None)},
+    "DEATHKNIGHT_BLOOD": {"MAIN_HAND": ({"TWOHWEAPON"}, {"Axe", "Mace", "Sword", "Polearm"})},
+    "DEMONHUNTER_VENGEANCE": {"MAIN_HAND": ({"WEAPON"}, {"Warglaives"}), "OFF_HAND": ({"WEAPON"}, {"Warglaives"})},
+    "DRUID_GUARDIAN": {"MAIN_HAND": ({"TWOHWEAPON"}, {"Staff", "Polearm"})},
+    "MONK_BREWMASTER": {"MAIN_HAND": ({"TWOHWEAPON"}, {"Staff", "Polearm"})},
+    "PALADIN_PROTECTION": {"MAIN_HAND": ({"WEAPON"}, {"Axe", "Mace", "Sword"}), "OFF_HAND": ({"SHIELD"}, None)},
+    "WARRIOR_PROTECTION": {"MAIN_HAND": ({"WEAPON"}, {"Axe", "Mace", "Sword"}), "OFF_HAND": ({"SHIELD"}, None)},
+}
+# Journal slot -> the simc slot tokens of the search.
 POOL_SLOTS = {
     "HEAD": ["HEAD"], "NECK": ["NECK"], "SHOULDER": ["SHOULDER"], "CLOAK": ["BACK"], "CHEST": ["CHEST"],
     "ROBE": ["CHEST"], "WRIST": ["WRIST"], "HAND": ["HANDS"], "WAIST": ["WAIST"], "LEGS": ["LEGS"],
     "FEET": ["FEET"], "FINGER": ["FINGER_1", "FINGER_2"], "TRINKET": ["TRINKET_1", "TRINKET_2"],
-    "WEAPON": ["MAIN_HAND"], "HOLDABLE": ["OFF_HAND"],
+    "WEAPON": ["MAIN_HAND", "OFF_HAND"], "TWOHWEAPON": ["MAIN_HAND"], "SHIELD": ["OFF_HAND"], "HOLDABLE": ["OFF_HAND"],
 }
 PAIRED = {"FINGER_1": "FINGER_2", "FINGER_2": "FINGER_1", "TRINKET_1": "TRINKET_2", "TRINKET_2": "TRINKET_1"}
 SEARCH_FIGHT = ()  # Patchwerk, one target
 FIGHTS = {"single target": (), "three targets": ("desired_targets=3",), "dungeon slice": ("fight_style=DungeonSlice",)}
+METRIC_NAMES = {"Damage per Second": "dps", "Damage Taken per Second": "dtps"}
 Z_NEEDED = 2.0
 MAX_ROUNDS = 6
+
+
+def objective_value(objective: str, metrics: dict[str, tuple[float, float]]) -> tuple[float, float]:
+    """(value, standard error): bigger is better. `metrics` is {"dps": (mean, se), "dtps": (mean, se)}.
+    dps: the damage. survival: minus the damage taken per second. balance: ln(dps) - ln(dtps), the two
+    counted as the same percentage (a 1% better dps is worth a 1% lower damage taken)."""
+    dps, dps_se = metrics["dps"]
+    if objective == "dps":
+        return dps, dps_se
+    dtps, dtps_se = metrics["dtps"]
+    if objective == "survival":
+        return -dtps, dtps_se
+    if objective == "balance":
+        return math.log(dps) - math.log(dtps), math.hypot(dps_se / dps, dtps_se / dtps)
+    raise ValueError(f"unknown objective {objective!r}")
+
+
+def objective_gain_percent(objective: str, base: dict[str, tuple[float, float]], other: dict[str, tuple[float, float]]) -> float:
+    """How much better `other` is than `base` for the objective, in percent (damage taken: how much lower)."""
+    if objective == "dps":
+        return 100 * (other["dps"][0] - base["dps"][0]) / base["dps"][0]
+    if objective == "survival":
+        return 100 * (base["dtps"][0] - other["dtps"][0]) / base["dtps"][0]
+    return 100 * (math.exp(objective_value("balance", other)[0] - objective_value("balance", base)[0]) - 1)
 
 
 def candidate_items(spec, pool: dict[str, Any], guide_entries: list[dict[str, Any]], baseline: dict[str, dict[str, Any]],
                     levels: dict[str, float]) -> dict[str, list[dict[str, Any]]]:
     """Per simc slot the candidate item dicts (itemId plus itemLevel or bonusIds), baseline excluded."""
     armor = ARMOR_TYPE[spec.class_name]
-    one_hand = ONE_HAND_TYPES[spec.class_name]
+    rules = WEAPON_RULES[spec.key]
     out: dict[str, dict[int, dict[str, Any]]] = {slot: {} for slot in baseline}
 
     def level_for(slot: str) -> int | None:
@@ -100,11 +139,11 @@ def candidate_items(spec, pool: dict[str, Any], guide_entries: list[dict[str, An
             continue
         if slot_type == "CLOAK" and subclass != "Cloth":
             continue
-        if slot_type == "WEAPON" and subclass not in one_hand:
-            continue
-        if slot_type == "HOLDABLE" and item_class != "Armor":
-            continue
         for slot in slots:
+            if slot in ("MAIN_HAND", "OFF_HAND"):
+                rule = rules.get(slot)
+                if rule is None or slot_type not in rule[0] or (rule[1] is not None and subclass not in rule[1]):
+                    continue
             if slot in out and level_for(slot):
                 out[slot][int(item_id)] = {"itemId": int(item_id), "itemLevel": level_for(slot)}
     for entry in guide_entries:  # the guide's own items keep their upgrade bonus ids
@@ -138,27 +177,36 @@ class Sim:
 
     def run(self, loadout: dict[str, dict[str, Any]], variants: dict[str, dict[str, dict[str, Any]]], fight=(),
             target_error=0.15, iterations=12000, seed=None):
-        """Simulate `loadout` (name 'base') and each variant (name -> {slot: item}) in one SimC run."""
+        """Simulate `loadout` and each variant (name -> {slot: item}) in one SimC run. Returns
+        ({name: {"dps": (mean, se), "dtps": (mean, se)}}, player); the loadout itself is "base"."""
         from tools.simc_stat_engine import render_item
         lines = []
-        for name, changes in variants.items():
+        # The loadout is also a profileset (its first item put on again) so that every metric of
+        # every entry is read the same way.
+        first_slot = next(iter(loadout))
+        for name, changes in {"base": {first_slot: loadout[first_slot]}, **variants}.items():
             for slot, item in changes.items():
                 lines.append(f'profileset."{name}"+={render_item(slot, item)}')
         text, _ = render_profiles(
             self.spec, [{"race": "human", "runTalentLoadout": self.talents, "items": loadout, "level": 90}],
             iterations=iterations, max_time=300, fixed_time=1, target_error=target_error, seed=seed,
-            global_lines=tuple(fight), extra_lines=tuple(lines), talents_optional=True,
+            global_lines=tuple(fight) + ("profileset_metric=dps,dtps",), extra_lines=tuple(lines),
+            talents_optional=True,
         )
         stats, report = run_simc(self.simc_bin, text, timeout_seconds=7200, threads=self.threads)
         player = report["sim"]["players"][0]
-        base = player["collected_data"]["dps"]
-        results = {"base": (float(base["mean"]), float(base["mean_std_dev"]))}
+        results: dict[str, dict[str, tuple[float, float]]] = {}
         for entry in (report["sim"].get("profilesets") or {}).get("results", []):
-            results[entry["name"]] = (float(entry["mean"]), float(entry["mean_stddev"]))
+            metrics = {"dps": (float(entry["mean"]), float(entry["mean_stddev"]))}
+            for extra in entry.get("additional_metrics") or []:
+                short = METRIC_NAMES.get(extra.get("metric"))
+                if short:
+                    metrics[short] = (float(extra["mean"]), float(extra["mean_stddev"]))
+            results[entry["name"]] = metrics
         return results, player
 
 
-def search(sim: Sim, baseline, candidates, gems, log=print):
+def search(sim: Sim, baseline, candidates, gems, objective="dps", log=print):
     loadout = {slot: dict(item) for slot, item in baseline.items()}
     history = []
     for round_number in range(1, MAX_ROUNDS + 1):
@@ -171,12 +219,13 @@ def search(sim: Sim, baseline, candidates, gems, log=print):
                 variants[name] = {slot: decorate(slot, item, baseline, gems)}
                 meta[name] = (slot, item)
         results, _player = sim.run(loadout, variants)
-        base_mean, base_se = results["base"]
+        base_value, base_se = objective_value(objective, results["base"])
         best_by_slot: dict[str, tuple[float, str]] = {}
-        for name, (mean, se) in results.items():
+        for name, metrics in results.items():
             if name == "base":
                 continue
-            gain = mean - base_mean
+            value, se = objective_value(objective, metrics)
+            gain = value - base_value
             z = gain / math.hypot(se, base_se)
             slot = meta[name][0]
             if z >= Z_NEEDED and (slot not in best_by_slot or gain > best_by_slot[slot][0]):
@@ -197,14 +246,17 @@ def search(sim: Sim, baseline, candidates, gems, log=print):
         single_name = ordered[0][1][1]
         together = {slot: item for changes in combined.values() for slot, item in changes.items()}
         check_results, _ = sim.run(loadout, {"single": variants[single_name], "together": together})
-        single, joint = check_results["single"][0], check_results["together"][0]
+        base_check = objective_value(objective, check_results["base"])[0]
+        single = objective_value(objective, check_results["single"])[0]
+        joint = objective_value(objective, check_results["together"])[0]
         chosen = together if joint >= single else variants[single_name]
         for slot, item in chosen.items():
             loadout[slot] = {k: v for k, v in item.items()}
-        history.append({"round": round_number, "base": base_mean, "gain_single": single - check_results["base"][0],
-                        "gain_together": joint - check_results["base"][0],
-                        "taken": {slot: item["itemId"] for slot, item in chosen.items()}})
-        log(f"round {round_number}: taken {history[-1]['taken']}  (+{max(single, joint) - check_results['base'][0]:.0f} dps)")
+        better = check_results["together"] if joint >= single else check_results["single"]
+        percent = objective_gain_percent(objective, check_results["base"], better)
+        history.append({"round": round_number, "gain_single": single - base_check, "gain_together": joint - base_check,
+                        "taken": {slot: item["itemId"] for slot, item in chosen.items()}, "gain_percent": percent})
+        log(f"round {round_number}: taken {history[-1]['taken']}  ({percent:+.2f}% {objective})")
     return loadout, history
 
 
@@ -216,8 +268,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--hero")
     parser.add_argument("--threads", type=int, default=4)
     parser.add_argument("--pool", type=Path, default=Path("tools/data/blizzard_item_pool.json"))
-    parser.add_argument("--out", type=Path, default=Path("docs/gear-search"))
+    parser.add_argument("--objective", choices=("dps", "survival", "balance"), default="dps")
+    parser.add_argument("--out", type=Path, default=None, help="default: docs/gear-search/<spec>-<goal>-<objective>")
     args = parser.parse_args(argv)
+    if args.out is None:
+        args.out = Path("docs/gear-search") / f"{args.spec.lower()}-{args.goal.lower()}-{args.objective}"
 
     spec = SPEC_BY_KEY[args.spec]
     pool = json.loads(args.pool.read_text(encoding="utf-8"))["items"]
@@ -243,16 +298,22 @@ def main(argv: list[str] | None = None) -> int:
     levels = parse_gear_item_levels(player)
     candidates = candidate_items(spec, pool, guide_entries, baseline, levels)
     print("candidates per slot:", {slot: len(items) for slot, items in candidates.items()}, flush=True)
-    found, history = search(sim, baseline, candidates, upgrades)
+    found, history = search(sim, baseline, candidates, upgrades, args.objective)
 
     comparison = {}
     for name, fight in FIGHTS.items():
         results, _p = sim.run(baseline, {"found": {slot: item for slot, item in found.items() if item != baseline.get(slot)}},
                               fight=fight, target_error=0.04, iterations=40000)
-        guide_mean, guide_se = results["base"]
-        found_mean, found_se = results["found"]
-        comparison[name] = {"guide": guide_mean, "found": found_mean, "gain_pct": 100 * (found_mean - guide_mean) / guide_mean,
-                            "error_pct": 100 * math.hypot(guide_se, found_se) * 1.96 / guide_mean}
+        guide, found_metrics = results["base"], results["found"]
+        value, se = objective_value(args.objective, found_metrics)
+        base_value, base_se = objective_value(args.objective, guide)
+        comparison[name] = {
+            "guide": {k: v[0] for k, v in guide.items()}, "found": {k: v[0] for k, v in found_metrics.items()},
+            "dps_change_pct": 100 * (found_metrics["dps"][0] / guide["dps"][0] - 1),
+            "damage_taken_change_pct": 100 * (found_metrics["dtps"][0] / guide["dtps"][0] - 1),
+            "objective_gain_pct": objective_gain_percent(args.objective, guide, found_metrics),
+            "z": (value - base_value) / math.hypot(se, base_se),
+        }
     _r, found_player = sim.run(found, {}, target_error=0.1)
     _r, guide_player = sim.run(baseline, {}, target_error=0.1)
 
@@ -260,7 +321,7 @@ def main(argv: list[str] | None = None) -> int:
         return {slot: {"name": g.get("name"), "ilevel": g.get("ilevel")} for slot, g in (player_doc.get("gear") or {}).items()
                 if isinstance(g, dict)}
 
-    result = {"spec": args.spec, "goal": args.goal, "hero": hero, "buildId": fetched.build_id, "history": history,
+    result = {"spec": args.spec, "goal": args.goal, "hero": hero, "objective": args.objective, "buildId": fetched.build_id, "history": history,
               "comparison": comparison, "guide_gear": gear_names(guide_player), "found_gear": gear_names(found_player)}
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.with_suffix(".json").write_text(json.dumps(result, indent=1, sort_keys=True), encoding="utf-8")
