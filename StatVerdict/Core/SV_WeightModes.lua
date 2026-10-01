@@ -6,22 +6,20 @@ local addonName, ns = ...
 -- target tier choice, which the profile repository keeps and applies
 -- (StatVerdictDB.statTargetBin).
 --
--- The only player-visible strings allowed to name a data source live here (the
--- NoDataSourceNamesShownTests test lists this file as the one exception), so a
--- player can see whose guide the addon copies.
+-- The one player-visible line allowed to name the data sources lives here (the
+-- NoDataSourceNamesShownTests test lists this file as the one exception).
 local GUIDE = {
     title = "Guide",
-    intro = "Stat priorities, Best in Slot lists and stat targets are copied from the guides, unchanged.",
-    about = "Stat priority, Best in Slot, trinkets, gems and enchants: Icy Veins. Stat targets and all PvP data: u.gg.",
+    intro = "All guide information comes from Icy Veins and u.gg.",
 }
 
 -- Which guide stat target level is used. Kept by the repository
 -- (StatVerdictDB.statTargetBin). The saved keys stay top20/top50/top80; the
 -- player sees a tier, listed Tier 1 to Tier 3 (Tier 3 is the most demanding).
 local STAT_TARGET_BINS = {
-    { key = "top80", label = "Tier 1", about = "Tier 1: stat targets that most players reach. A comfortable goal." },
-    { key = "top50", label = "Tier 2", about = "Tier 2: the stats of a typical player. A solid, realistic goal." },
-    { key = "top20", label = "Tier 3", about = "Tier 3: the stats the best-equipped players reach. The most demanding goal." },
+    { key = "top80", label = "Tier 1", hint = "Comfortable", meaning = "Targets most players reach" },
+    { key = "top50", label = "Tier 2", hint = "Realistic", meaning = "The stats of a typical player" },
+    { key = "top20", label = "Tier 3", hint = "Demanding", meaning = "The best-equipped players" },
 }
 local DEFAULT_STAT_TARGET_BIN = "top20"
 

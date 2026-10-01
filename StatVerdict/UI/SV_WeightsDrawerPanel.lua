@@ -5,9 +5,8 @@ ns.StatVerdictWeightsDrawerPanel = Panel
 
 local DRAWER_PREFERRED_WIDTH = 300
 local MARGIN = 14
-local ROWS_TOP = -72
 
--- The stat target cards use this look.
+-- The tier rows use this look.
 local ROW_BACKDROP = {
     bgFile = "Interface\\Buttons\\WHITE8X8",
     edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -78,98 +77,66 @@ local function AddText(card, template, y, justify)
     return text
 end
 
--- Choice group under the guide text: title, three small cards in one row, least to
--- most demanding (a radio group: exactly one is ticked), then the selected card's
--- explanation under them (two lines). The cards are the guide's stat target tier
--- (ns.GetTargetChoice). Never dimmed.
-local DESCRIPTION_SPACING = 4
-local SEPARATOR_GAP = 8           -- status line > separator
-local BIN_GROUP_GAP = 16          -- separator > group
-local BIN_CHIP_TOP = -22          -- title (10px) + 12px
-local BIN_CHIP_HEIGHT = 26
-local BIN_CHIP_GAP = 8            -- between the cards
-local BIN_CHIP_CHECK = 20
-local BIN_NOTE_GAP = 8            -- cards > explanation
-local BIN_NOTE_HEIGHT = 2 * 10 + DESCRIPTION_SPACING + 2
-local BIN_BOTTOM_MARGIN = 4
-local BIN_NOTE_TOP = BIN_CHIP_TOP - BIN_CHIP_HEIGHT - BIN_NOTE_GAP
-local BIN_GROUP_HEIGHT = -BIN_NOTE_TOP + BIN_NOTE_HEIGHT + BIN_BOTTOM_MARGIN
--- Nothing may move when the card or the status changes, so the guide text and
--- the status line get the room of their longest text for good (the guide text:
--- four lines; a status: two lines); a shorter or empty text just leaves space
--- under it.
+-- The stat target tiers: three premium rows, least to most demanding (a radio
+-- group: exactly one is ticked, shown gold), each with its name, a hint on the
+-- right and a short meaning under the name. The whole row is the click target.
+local ROW_HEIGHT = 50
+local ROW_STEP = 56
+local TITLE_Y = -78
+local ROWS_TOP = -96
+local INTRO_HEIGHT = 2 * 10 + 2
 local STATUS_SPACING = 2
-local ABOUT_HEIGHT = 4 * 10 + 3 * DESCRIPTION_SPACING
+-- Nothing may move when the tier or the status changes: the status line gets the
+-- room of its longest text (two lines) for good; an empty status just leaves space.
 local STATUS_HEIGHT = 2 * 10 + 1 * STATUS_SPACING
 
--- The key of the card ticked now.
 local function SelectedChoice()
     return ns.GetTargetChoice().selected
 end
 
--- Three equal cards filling the given width, with even gaps between them.
-local function LayoutBinChips(card, width)
-    local chipWidth = (width - 2 * BIN_CHIP_GAP) / 3
-    for index, chip in ipairs(card.binRows or {}) do
-        chip:ClearAllPoints()
-        chip:SetSize(chipWidth, BIN_CHIP_HEIGHT)
-        chip:SetPoint("TOPLEFT", card.binGroup, "TOPLEFT", (index - 1) * (chipWidth + BIN_CHIP_GAP), BIN_CHIP_TOP)
-    end
-end
+local function EnsureTierRow(card, index)
+    card.binRows = card.binRows or {}
+    if card.binRows[index] then return card.binRows[index] end
 
-local function EnsureBinGroup(card, above)
-    local group = CreateFrame("Frame", nil, card)
-    group:SetPoint("TOPLEFT", above, "BOTTOMLEFT", 0, -BIN_GROUP_GAP)
-    group:SetPoint("TOPRIGHT", above, "BOTTOMRIGHT", 0, -BIN_GROUP_GAP)
-    group:SetHeight(BIN_GROUP_HEIGHT)
-    card.binGroup = group
+    local row = CreateFrame("Button", nil, card, "BackdropTemplate")
+    row:SetHeight(ROW_HEIGHT)
+    row:SetBackdrop(ROW_BACKDROP)
 
-    card.binTitle = group:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    card.binTitle:SetPoint("TOPLEFT", group, "TOPLEFT", 0, 0)
-    card.binTitle:SetJustifyH("LEFT")
-    card.binTitle:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+    -- Only shows the tick; the whole row is the click target.
+    row.check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
+    row.check:SetSize(24, 24)
+    row.check:SetPoint("LEFT", row, "LEFT", 8, 0)
+    row.check:EnableMouse(false)
+    if row.check.Text then row.check.Text:Hide() end
 
-    card.binNote = group:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    card.binNote:SetPoint("TOPLEFT", group, "TOPLEFT", 0, BIN_NOTE_TOP)
-    card.binNote:SetPoint("TOPRIGHT", group, "TOPRIGHT", 0, BIN_NOTE_TOP)
-    card.binNote:SetHeight(BIN_NOTE_HEIGHT)
-    card.binNote:SetJustifyH("LEFT")
-    card.binNote:SetJustifyV("TOP")
-    card.binNote:SetWordWrap(true)
-    card.binNote:SetSpacing(DESCRIPTION_SPACING)
-    card.binNote:SetTextColor(0.85, 0.85, 0.85)
+    row.label = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    row.label:SetPoint("TOPLEFT", row, "TOPLEFT", 42, -9)
 
-    -- Keys, labels and the title are filled in by Panel.Sync.
-    card.binRows = {}
-    for index = 1, 3 do
-        local option = CreateFrame("Button", nil, group, "BackdropTemplate")
-        option:SetBackdrop(ROW_BACKDROP)
+    row.hint = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.hint:SetPoint("TOPRIGHT", row, "TOPRIGHT", -12, -11)
+    row.hint:SetJustifyH("RIGHT")
+    row.hint:SetTextColor(GREY[1], GREY[2], GREY[3])
 
-        -- The whole card is the click target; the tick only shows the choice.
-        option.check = CreateFrame("CheckButton", nil, option, "UICheckButtonTemplate")
-        option.check:SetSize(BIN_CHIP_CHECK, BIN_CHIP_CHECK)
-        option.check:SetPoint("LEFT", option, "LEFT", 4, 0)
-        option.check:EnableMouse(false)
-        if option.check.Text then option.check.Text:Hide() end
+    row.meaning = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.meaning:SetPoint("TOPLEFT", row.label, "BOTTOMLEFT", 0, -4)
+    row.meaning:SetJustifyH("LEFT")
+    row.meaning:SetTextColor(GREY[1], GREY[2], GREY[3])
 
-        option.label = option:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        option.label:SetPoint("LEFT", option.check, "RIGHT", 1, 0)
+    row:SetScript("OnEnter", function(self)
+        self.hovered = true
+        PaintRow(self, SelectedChoice() == self.key, true)
+    end)
+    row:SetScript("OnLeave", function(self)
+        self.hovered = false
+        PaintRow(self, SelectedChoice() == self.key, false)
+    end)
+    row:SetScript("OnClick", function()
+        ns.GetTargetChoice().set(row.key)
+        Panel.Sync(card)
+    end)
 
-        option:SetScript("OnEnter", function(self)
-            self.hovered = true
-            PaintRow(self, SelectedChoice() == self.key, true)
-        end)
-        option:SetScript("OnLeave", function(self)
-            self.hovered = false
-            PaintRow(self, SelectedChoice() == self.key, false)
-        end)
-        option:SetScript("OnClick", function()
-            ns.GetTargetChoice().set(option.key)
-            Panel.Sync(card)
-        end)
-        card.binRows[index] = option
-    end
-    return group  -- the cards are sized to the drawer width in Panel.Apply
+    card.binRows[index] = row
+    return row
 end
 
 local function EnsureCard(frame)
@@ -197,39 +164,33 @@ local function EnsureCard(frame)
     AddLine(card, -36)
 
     card.intro = AddText(card, "GameFontHighlightSmall", -46)
+    card.intro:SetHeight(INTRO_HEIGHT)
+    card.intro:SetJustifyV("TOP")
     card.intro:SetTextColor(GREY[1], GREY[2], GREY[3])
     card.intro:SetText(guide.intro)
 
-    -- Everything below hangs from the element above it: the guide's sources >
-    -- status line (empty when all is well) > separator > stat target group (with the
-    -- card's explanation). Each block has a fixed height, so nothing moves on a click.
-    card.about = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    card.about:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, ROWS_TOP)
-    card.about:SetPoint("TOPRIGHT", card, "TOPRIGHT", -MARGIN, ROWS_TOP)
-    card.about:SetHeight(ABOUT_HEIGHT)
-    card.about:SetJustifyH("LEFT")
-    card.about:SetJustifyV("TOP")
-    card.about:SetWordWrap(true)
-    card.about:SetSpacing(DESCRIPTION_SPACING)
-    card.about:SetTextColor(0.85, 0.85, 0.85)
-    card.about:SetText(guide.about)
+    card.binTitle = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    card.binTitle:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, TITLE_Y)
+    card.binTitle:SetJustifyH("LEFT")
+    card.binTitle:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+
+    local lastRow
+    for index = 1, 3 do
+        local row = EnsureTierRow(card, index)
+        local y = ROWS_TOP - ((index - 1) * ROW_STEP)
+        row:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, y)
+        row:SetPoint("TOPRIGHT", card, "TOPRIGHT", -MARGIN, y)
+        lastRow = row
+    end
 
     card.status = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    card.status:SetPoint("TOPLEFT", card.about, "BOTTOMLEFT", 0, -4)
-    card.status:SetPoint("TOPRIGHT", card.about, "BOTTOMRIGHT", 0, -4)
+    card.status:SetPoint("TOPLEFT", lastRow, "BOTTOMLEFT", 0, -8)
+    card.status:SetPoint("TOPRIGHT", lastRow, "BOTTOMRIGHT", 0, -8)
     card.status:SetHeight(STATUS_HEIGHT)
     card.status:SetJustifyH("LEFT")
     card.status:SetJustifyV("TOP")
     card.status:SetWordWrap(true)
     card.status:SetSpacing(STATUS_SPACING)
-
-    card.separator = card:CreateTexture(nil, "ARTWORK")
-    card.separator:SetColorTexture(LINE[1], LINE[2], LINE[3], LINE[4])
-    card.separator:SetHeight(1)
-    card.separator:SetPoint("TOPLEFT", card.status, "BOTTOMLEFT", 0, -SEPARATOR_GAP)
-    card.separator:SetPoint("TOPRIGHT", card.status, "BOTTOMRIGHT", 0, -SEPARATOR_GAP)
-
-    EnsureBinGroup(card, card.separator)
 
     frame.weightsDrawerCard = card
     return card
@@ -240,17 +201,16 @@ function Panel.Sync(card)
 
     local choice = ns.GetTargetChoice()
     card.binTitle:SetText(choice.title)
-    local binAbout = ""
-    for index, option in ipairs(card.binRows or {}) do
+    for index, row in ipairs(card.binRows or {}) do
         local info = choice.options[index] or {}
-        option.key = info.key
-        option.label:SetText(info.label or "")
+        row.key = info.key
+        row.label:SetText(info.label or "")
+        row.hint:SetText(info.hint or "")
+        row.meaning:SetText(info.meaning or "")
         local checked = info.key ~= nil and info.key == choice.selected
-        option.check:SetChecked(checked)
-        if checked then binAbout = info.about or "" end
-        PaintRow(option, checked, option.hovered == true)
+        row.check:SetChecked(checked)
+        PaintRow(row, checked, row.hovered == true)
     end
-    card.binNote:SetText(binAbout)
 
     local status = ""
     if MissingGuideTargets() then
@@ -329,10 +289,6 @@ function Panel.Apply(frame)
     end
     local innerWidth = math.max(120, cardWidth - (cardPad.left or 0) - (cardPad.right or 0))
     card:SetWidth(innerWidth)
-    if card.binChipsWidth ~= innerWidth then
-        card.binChipsWidth = innerWidth
-        LayoutBinChips(card, innerWidth - 2 * MARGIN)
-    end
     card:Show()
     if ns.ApplyRightDrawerCard then
         ns.ApplyRightDrawerCard(card, "weights.card", "Guide drawer", "weights.width", DRAWER_PREFERRED_WIDTH)

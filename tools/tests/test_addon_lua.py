@@ -96,11 +96,8 @@ class WeightModeCoreTests(unittest.TestCase):
         # The one place the addon may name a source: the player sees whose guide is copied 1:1.
         guide = self.ns.GetGuideInfo()
         self.assertEqual("Guide", guide.title)
-        self.assertEqual("Stat priorities, Best in Slot lists and stat targets are copied from the guides, unchanged.",
-                         guide.intro)
-        self.assertEqual("Stat priority, Best in Slot, trinkets, gems and enchants: Icy Veins. "
-                         "Stat targets and all PvP data: u.gg.", guide.about)
-        self.assertLessEqual(len(guide.about), 300)
+        self.assertEqual("All guide information comes from Icy Veins and u.gg.", guide.intro)
+        self.assertIsNone(guide.about)
 
     def test_the_mode_choice_is_gone(self) -> None:
         for name in ("GetWeightModes", "GetWeightModeInfo", "GetWeightMode", "SetWeightMode",
@@ -121,10 +118,9 @@ class WeightModeCoreTests(unittest.TestCase):
         self.assertEqual(3, len(bins))
         self.assertEqual(["top80", "top50", "top20"], [bins[i].key for i in (1, 2, 3)])
         self.assertEqual(["Tier 1", "Tier 2", "Tier 3"], [bins[i].label for i in (1, 2, 3)])
-        self.assertEqual(["Tier 1: stat targets that most players reach. A comfortable goal.",
-                          "Tier 2: the stats of a typical player. A solid, realistic goal.",
-                          "Tier 3: the stats the best-equipped players reach. The most demanding goal."],
-                         [bins[i].about for i in (1, 2, 3)])
+        self.assertEqual(["Comfortable", "Realistic", "Demanding"], [bins[i].hint for i in (1, 2, 3)])
+        self.assertEqual(["Targets most players reach", "The stats of a typical player", "The best-equipped players"],
+                         [bins[i].meaning for i in (1, 2, 3)])
         self.assertEqual("top20", self.ns.GetStatTargetBin())
 
     def test_set_stat_target_bin_saves_it_and_refreshes(self) -> None:
@@ -1015,9 +1011,9 @@ class PanelModeTests(unittest.TestCase):
 
     def test_manual_describes_the_weights_button(self) -> None:
         source = (ADDON / "UI" / "SV_ManualDrawerPanel.lua").read_text(encoding="utf-8-sig")
-        self.assertIn("Guide — shows whose guides the stat priorities, Best in Slot lists and stat targets are "
-                      "copied from (unchanged), and lets you pick a stat target difficulty: Tier 1, Tier 2 or "
-                      "Tier 3 (the most demanding).", source)
+        self.assertIn("Guide — the stat priorities, Best in Slot lists and stat targets are copied from the "
+                      "guides, unchanged. Pick a stat target tier: Tier 1, Tier 2 or Tier 3 (the most demanding).",
+                      source)
         self.assertNotIn("Measured", source)
         for word in ("Easy", "Hard"):
             self.assertNotIn(word, source)
@@ -1097,8 +1093,7 @@ end
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
 class WeightsDrawerSmokeTests(unittest.TestCase):
     NO_GUIDE_TARGETS = "No guide targets for this build: our own are used."
-    INTRO = "Stat priorities, Best in Slot lists and stat targets are copied from the guides, unchanged."
-    ABOUT = "Stat priority, Best in Slot, trinkets, gems and enchants: Icy Veins. Stat targets and all PvP data: u.gg."
+    INTRO = "All guide information comes from Icy Veins and u.gg."
 
     def setUp(self) -> None:
         self.lua = new_runtime()
@@ -1127,185 +1122,97 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         self.ns.StatVerdictWeightsDrawerPanel.Apply(self.frame)
         return self.frame.weightsDrawerCard
 
-    EASY = "Tier 1: stat targets that most players reach. A comfortable goal."
-    NORMAL = "Tier 2: the stats of a typical player. A solid, realistic goal."
-    HARD = "Tier 3: the stats the best-equipped players reach. The most demanding goal."
+    GOLD_BORDER = (1.0, 0.82, 0.0)
+    RESTING_BORDER = (0.32, 0.34, 0.40)
+    SELECTED_BG = (0.16, 0.13, 0.03)
+    RESTING_BG = (0.05, 0.06, 0.08)
+    MEANINGS = ["Targets most players reach", "The stats of a typical player", "The best-equipped players"]
 
-    def test_title_intro_and_sources(self) -> None:
+    def checks(self, card):
+        return [card.binRows[i].check.checked for i in (1, 2, 3)]
+
+    def border(self, region):
+        return tuple(round(region._border[i], 2) for i in (1, 2, 3))
+
+    def test_title_and_the_one_source_line(self) -> None:
         card = self.card()
         self.assertEqual("Guide", card.title.text)
         self.assertEqual(self.INTRO, card.intro.text)
-        self.assertEqual(self.ABOUT, card.about.text)
-        self.assertIn("Icy Veins", card.about.text)
-        self.assertIn("u.gg", card.about.text)
         self.assertIsNone(card.modeRows)  # no mode choice any more
+        self.assertIsNone(card.about)
+        self.assertIsNone(card.binNote)
 
-    def test_sources_sit_under_the_intro_then_status_separator_and_targets(self) -> None:
+    def test_three_premium_tier_rows(self) -> None:
         card = self.card()
-        rawequal = self.lua.eval("rawequal")
-        # Where the mode rows used to start: hanging from the card itself.
-        self.assertEqual("TOPLEFT", card.about.points[1][1])
-        self.assertTrue(rawequal(card, card.about.points[1][2]))
-        self.assertEqual(-72, card.about.points[1][5])
-        self.assertIsNone(card.aboutTitle)
-        # Then the status line, the separator and the stat target group, in that order.
-        self.assertTrue(rawequal(card.about, card.status.points[1][2]))
-        self.assertTrue(rawequal(card.status, card.separator.points[1][2]))
-        self.assertTrue(rawequal(card.separator, card.binGroup.points[1][2]))
+        self.assertEqual("Stat targets", card.binTitle.text)
+        self.assertEqual(3, len(card.binRows))
+        rows = [card.binRows[i] for i in (1, 2, 3)]
+        self.assertEqual(["top80", "top50", "top20"], [r.key for r in rows])
+        self.assertEqual(["Tier 1", "Tier 2", "Tier 3"], [r.label.text for r in rows])
+        self.assertEqual(["Comfortable", "Realistic", "Demanding"], [r.hint.text for r in rows])
+        self.assertEqual(self.MEANINGS, [r.meaning.text for r in rows])
+        for row in rows:
+            self.assertEqual("BackdropTemplate", row._frameTemplate)
+            self.assertEqual(50, row._height)
+        # Stacked top to bottom, least to most demanding, evenly spaced, spanning the card's text width.
+        ys = [row.points[1][5] for row in rows]
+        self.assertEqual(sorted(ys, reverse=True), ys)
+        self.assertEqual(ys[0] - ys[1], ys[1] - ys[2])
+        self.assertGreaterEqual(ys[0] - ys[1], 50 + 4)
+        self.assertEqual("TOPRIGHT", rows[0].points[2][1])
 
-    def test_description_lines_have_extra_spacing(self) -> None:
+    def test_default_is_tier_3_ticked_and_gold(self) -> None:
         card = self.card()
-        self.assertGreaterEqual(card.about.spacing, 3)
-        self.assertEqual(card.about._template, card.binNote._template)
-        self.assertEqual(card.about.spacing, card.binNote.spacing)
+        self.assertEqual([False, False, True], self.checks(card))
+        self.assertEqual(self.GOLD_BORDER, self.border(card.binRows[3]))
+        self.assertEqual(self.SELECTED_BG, tuple(round(card.binRows[3]._bg[i], 2) for i in (1, 2, 3)))
+        self.assertEqual(self.RESTING_BORDER, self.border(card.binRows[1]))
+        self.assertEqual(self.RESTING_BG, tuple(round(card.binRows[1]._bg[i], 2) for i in (1, 2, 3)))
 
-    def test_no_current_data_block_any_more(self) -> None:
+    def test_the_saved_tier_is_shown(self) -> None:
+        for key, checks in (("top80", [True, False, False]), ("top50", [False, True, False]),
+                            ("top99", [False, False, True])):
+            self.lua.globals().StatVerdictDB.statTargetBin = key
+            self.assertEqual(checks, self.checks(self.card()), key)
+
+    def test_clicking_a_tier_sets_it_and_refreshes(self) -> None:
         card = self.card()
-        self.assertIsNone(card.dataRows)
-        self.assertIsNone(card.infoTitle)
+        card.binRows[2].scripts.OnClick()
+        self.assertEqual("top50", self.lua.globals().StatVerdictDB.statTargetBin)
+        self.assertEqual("top50", self.ns.ProfileRepository.GetStatTargetBin())
+        self.assertEqual([False, True, False], self.checks(card))
+        self.assertGreaterEqual(self.refreshes, 1)
+        card.binRows[1].scripts.OnClick()
+        self.assertEqual("top80", self.lua.globals().StatVerdictDB.statTargetBin)
+        self.assertEqual([True, False, False], self.checks(card))
 
-    def test_status_is_empty_without_an_active_build(self) -> None:
-        self.has_profile = False
+    def test_hovering_lights_the_border_but_the_selected_row_stays_gold(self) -> None:
+        card = self.card()
+        row = card.binRows[1]
+        resting = self.border(row)
+        row.scripts.OnEnter(row)
+        self.assertNotEqual(resting, self.border(row))
+        row.scripts.OnLeave(row)
+        self.assertEqual(resting, self.border(row))
+        card.binRows[3].scripts.OnEnter(card.binRows[3])
+        self.assertEqual(self.GOLD_BORDER, self.border(card.binRows[3]))
+
+    def test_status_is_empty_when_all_is_well_and_without_a_build(self) -> None:
         self.assertEqual("", self.card().status.text)
-
-    def test_status_is_empty_when_all_is_well(self) -> None:
+        self.has_profile = False
         self.assertEqual("", self.card().status.text)
 
     def test_status_says_our_targets_are_used_without_guide_targets(self) -> None:
         self.guide_targets = False
         self.assertEqual(self.NO_GUIDE_TARGETS, self.card().status.text)
-        # An old saved Measured choice changes nothing.
-        self.lua.globals().StatVerdictDB.weightMode = "MEASURED"
+        self.lua.globals().StatVerdictDB.weightMode = "MEASURED"  # an old saved choice changes nothing
         self.assertEqual(self.NO_GUIDE_TARGETS, self.card().status.text)
 
     def test_no_raider_io_or_measured_wording_left(self) -> None:
         source = (ADDON / "UI" / "SV_WeightsDrawerPanel.lua").read_text(encoding="utf-8-sig")
-        for word in ("MythicPlusBenchmarks", "confidence", "sample", "Mythic+", "top 25", "Blend", "BLEND", "Tier",
-                     "Measured", "MEASURED", "measured", "Mode drawer", "gear level"):
+        for word in ("MythicPlusBenchmarks", "confidence", "sample", "Mythic+", "top 25", "Blend", "BLEND",
+                     "Measured", "MEASURED", "measured", "Mode drawer", "gear level", "Icy", "u.gg", "ClassCodex"):
             self.assertNotIn(word, source)
-
-    def bin_checks(self, card):
-        return [card.binRows[i].check.checked for i in (1, 2, 3)]
-
-    def test_stat_target_group_is_a_difficulty_from_easy_to_hard(self) -> None:
-        card = self.card()
-        self.assertEqual("Stat targets", card.binTitle.text)
-        self.assertEqual(3, len(card.binRows))
-        self.assertEqual(["top80", "top50", "top20"], [card.binRows[i].key for i in (1, 2, 3)])
-        self.assertEqual(["Tier 1", "Tier 2", "Tier 3"], [card.binRows[i].label.text for i in (1, 2, 3)])
-        # Side by side, left to right.
-        xs = [card.binRows[i].points[1][4] for i in (1, 2, 3)]
-        self.assertEqual(sorted(xs), xs)
-        self.assertEqual(len(set(xs)), 3)
-        # Default: Tier 3 (top20), explained under the options, starting with its name.
-        self.assertEqual([False, False, True], self.bin_checks(card))
-        self.assertEqual(self.HARD, card.binNote.text)
-        self.assertTrue(card.binNote.text.startswith("Tier 3: "))
-
-    def test_stat_target_group_shows_the_saved_difficulty(self) -> None:
-        for key, checks, note in (("top80", [True, False, False], self.EASY),
-                                  ("top50", [False, True, False], self.NORMAL)):
-            self.lua.globals().StatVerdictDB.statTargetBin = key
-            card = self.card()
-            self.assertEqual(checks, self.bin_checks(card), key)
-            self.assertEqual(note, card.binNote.text, key)
-
-    def test_invalid_saved_bin_shows_hard(self) -> None:
-        self.lua.globals().StatVerdictDB.statTargetBin = "top99"
-        card = self.card()
-        self.assertEqual([False, False, True], self.bin_checks(card))
-        self.assertEqual(self.HARD, card.binNote.text)
-
-    def test_clicking_a_difficulty_sets_it_and_refreshes(self) -> None:
-        card = self.card()
-        card.binRows[2].scripts.OnClick()
-        self.assertEqual("top50", self.lua.globals().StatVerdictDB.statTargetBin)
-        self.assertEqual("top50", self.ns.ProfileRepository.GetStatTargetBin())
-        self.assertEqual([False, True, False], self.bin_checks(card))
-        self.assertEqual(self.NORMAL, card.binNote.text)
-        self.assertGreaterEqual(self.refreshes, 1)
-        card.binRows[1].scripts.OnClick()
-        self.assertEqual("top80", self.lua.globals().StatVerdictDB.statTargetBin)
-        self.assertEqual([True, False, False], self.bin_checks(card))
-        self.assertEqual(self.EASY, card.binNote.text)
-
-    def labels(self, card):
-        return [card.binRows[i].label.text for i in (1, 2, 3)]
-
-    def assert_never_dimmed(self, card):
-        for i in (1, 2, 3):
-            option = card.binRows[i]
-            self.assertFalse(option.dimmed, i)
-            self.assertNotEqual(False, option._mouse, i)
-            self.assertIn(option._alpha, (None, 1), i)
-
-    # --- Difficulty chips: the look the mode rows had ----------------------------
-    GOLD_BORDER = (1.0, 0.82, 0.0)
-    RESTING_BORDER = (0.32, 0.34, 0.40)
-    SELECTED_BG = (0.16, 0.13, 0.03)
-    RESTING_BG = (0.05, 0.06, 0.08)
-
-    def border(self, region):
-        return tuple(round(region._border[i], 2) for i in (1, 2, 3))
-
-    def test_difficulties_are_equal_chips_in_one_row(self) -> None:
-        card = self.card()
-        chips = [card.binRows[i] for i in (1, 2, 3)]
-        for chip in chips:
-            # Same frame and backdrop style the mode rows had.
-            self.assertEqual("BackdropTemplate", chip._frameTemplate)
-            self.assertEqual("Interface\\Tooltips\\UI-Tooltip-Border", chip._backdrop.edgeFile)
-            self.assertEqual("Interface\\Buttons\\WHITE8X8", chip._backdrop.bgFile)
-            self.assertEqual("TOPLEFT", chip.points[1][1])
-        self.assertEqual(1, len({chip._width for chip in chips}))
-        self.assertEqual(1, len({chip._height for chip in chips}))
-        self.assertEqual(1, len({chip.points[1][5] for chip in chips}))  # one row
-        width = chips[0]._width
-        xs = [chip.points[1][4] for chip in chips]
-        self.assertEqual(0, xs[0])
-        gaps = [xs[i + 1] - xs[i] - width for i in (0, 1)]
-        self.assertEqual(gaps[0], gaps[1])
-        self.assertGreaterEqual(gaps[0], 6)
-        # The row spans the drawer's text width exactly.
-        self.assertAlmostEqual(self.DRAWER_TEXT_WIDTH, xs[2] + width, delta=0.01)
-
-    def test_selected_chip_is_gold_and_ticked(self) -> None:
-        self.lua.globals().StatVerdictDB.statTargetBin = "top50"
-        card = self.card()
-        selected, other = card.binRows[2], card.binRows[1]
-        self.assertTrue(selected.check.checked)
-        self.assertFalse(other.check.checked)
-        self.assertEqual(self.GOLD_BORDER, self.border(selected))
-        self.assertEqual(self.RESTING_BORDER, self.border(other))
-        self.assertEqual(self.SELECTED_BG, tuple(round(selected._bg[i], 2) for i in (1, 2, 3)))
-        self.assertEqual(self.RESTING_BG, tuple(round(other._bg[i], 2) for i in (1, 2, 3)))
-
-    def test_hovering_a_chip_lights_its_border(self) -> None:
-        card = self.card()
-        chip = card.binRows[1]
-        resting = self.border(chip)
-        chip.scripts.OnEnter(chip)
-        self.assertNotEqual(resting, self.border(chip))
-        self.assertEqual(self.RESTING_BORDER, resting)
-        chip.scripts.OnLeave(chip)
-        self.assertEqual(resting, self.border(chip))
-        # The selected chip stays gold while hovered.
-        card.binRows[3].scripts.OnEnter(card.binRows[3])
-        self.assertEqual(self.GOLD_BORDER, self.border(card.binRows[3]))
-
-    def test_stat_target_group_has_room_to_breathe(self) -> None:
-        card = self.card()
-        group = card.binGroup
-        self.assertLessEqual(group.points[1][5], -16)  # margin under the separator
-        title_bottom = self.region_top(card, card.binTitle) - self.text_height(card.binTitle, 252)
-        chip = card.binRows[1]
-        chip_top = self.region_top(card, group) + chip.points[1][5]
-        self.assertGreaterEqual(title_bottom - chip_top, 12)  # the cards never crowd the title
-        self.assertGreaterEqual(chip._height, 26)
-        note_top = self.region_top(card, card.binNote)
-        self.assertGreaterEqual(chip_top - chip._height - note_top, 8)
-        group_bottom = self.region_top(card, group) - group._height
-        self.assertGreaterEqual(note_top - card.binNote._height - group_bottom, 4)
 
     # --- Geometry: the whole drawer must fit the card ---------------------------
     # The drawer card spans the Stat Progress card: frame height 440 minus the title
@@ -1347,30 +1254,33 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
             return region._height
         return self.text_height(region, self.DRAWER_TEXT_WIDTH)
 
-    def lowest_bottom(self, card) -> float:
+    def _unused_lowest_bottom(self, card) -> float:
         return self.region_top(card, card.binGroup) - self.region_height(card.binGroup)
 
+    def lowest_bottom(self, card) -> float:
+        return self.region_top(card, card.status) - card.status._height
+
     def test_whole_drawer_fits_the_card_in_every_state(self) -> None:
-        worst = 0
         for guide_targets in (True, False):
             self.guide_targets = guide_targets
             card = self.card()
             bottom = self.lowest_bottom(card)
-            worst = min(worst, bottom)
             self.assertGreaterEqual(bottom, -(self.CARD_HEIGHT - self.BOTTOM_BORDER), guide_targets)
-            # Every card label fits its card beside the tick, with room to spare.
+            # Every row's texts fit beside the tick (name) and under it (meaning), hint on the right.
+            width = self.DRAWER_TEXT_WIDTH
             for i in (1, 2, 3):
-                chip = card.binRows[i]
-                label_width = len(chip.label.text) * self.FONTS["GameFontHighlightSmall"][1]
-                self.assertLessEqual(4 + 20 + 1 + label_width + 4, chip._width, chip.label.text)
-                self.assertGreaterEqual(chip._width - (4 + 20 + 1 + label_width + 4), 10, chip.label.text)
-        # Every tier explanation fits its reserved space (two lines).
-        abouts = [bin.about for bin in self.ns.GetStatTargetBins().values()]
-        self.assertEqual(3, len(abouts))
-        for about in abouts:
-            card.binNote.text = about
-            self.assertLessEqual(self.text_height(card.binNote, self.DRAWER_TEXT_WIDTH), card.binNote._height, about)
-        print(f"\n[weights drawer] content bottom {-worst:.0f}px of {self.CARD_HEIGHT - self.BOTTOM_BORDER}px")
+                row = card.binRows[i]
+                meaning = len(row.meaning.text) * self.FONTS["GameFontHighlightSmall"][1]
+                self.assertLessEqual(42 + meaning + 12, width, row.meaning.text)
+                name = len(row.label.text) * self.FONTS["GameFontNormal"][1]
+                hint = len(row.hint.text) * self.FONTS["GameFontHighlightSmall"][1]
+                self.assertLessEqual(42 + name + 8 + hint + 12, width, row.label.text)
+        # The source line fits its two reserved lines.
+        self.assertLessEqual(self.text_height(card.intro, self.DRAWER_TEXT_WIDTH), card.intro._height)
+        card.status.text = self.NO_GUIDE_TARGETS
+        self.assertLessEqual(self.text_height(card.status, self.DRAWER_TEXT_WIDTH), card.status._height)
+        for text in (card.intro, card.status):
+            self.assertEqual("TOP", text._justifyV)
 
     # --- Nothing moves: every element keeps its place and size in every state ------
     def region_left(self, card, region) -> float:
@@ -1381,24 +1291,15 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         return self.region_left(card, relative) + x
 
     def layout_snapshot(self, card):
-        regions = {"title": card.title, "intro": card.intro,
-                   "sources": card.about, "status line": card.status,
-                   "separator": card.separator, "group": card.binGroup, "group title": card.binTitle,
-                   "card 1": card.binRows[1], "card 2": card.binRows[2], "card 3": card.binRows[3],
-                   "card explanation": card.binNote}
+        regions = {"title": card.title, "intro": card.intro, "group title": card.binTitle,
+                   "tier 1": card.binRows[1], "tier 2": card.binRows[2], "tier 3": card.binRows[3],
+                   "status line": card.status}
         snapshot = {}
         for name, region in regions.items():
-            if name.startswith("card ") and name != "card explanation":
-                top = self.region_top(card, card.binGroup) + region.points[1][5]
-                left = self.region_left(card, card.binGroup) + region.points[1][4]
-                height, width = region._height, region._width
-            else:
-                top, left = self.region_top(card, region), self.region_left(card, region)
-                # Width follows the anchors: the right edge's anchor and offset.
-                points = region.points
-                height = self.region_height(region)
-                width = None if points[2] is None else (points[2][3], points[2][4])
-            snapshot[name] = (round(top, 3), round(left, 3), round(height, 3), width)
+            top, left = self.region_top(card, region), self.region_left(card, region)
+            points = region.points
+            width = None if points[2] is None else (points[2][3], points[2][4])
+            snapshot[name] = (round(top, 3), round(left, 3), round(self.region_height(region), 3), width)
         return snapshot
 
     def test_nothing_moves_or_resizes_in_any_state(self) -> None:
@@ -1409,25 +1310,14 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
                 for has_profile in (True, False):
                     db.statTargetBin = tier
                     self.guide_targets, self.has_profile = guide_targets, has_profile
-                    state = (tier, guide_targets, has_profile)
                     snapshot = self.layout_snapshot(self.card())
                     states += 1
                     if reference is None:
                         reference = snapshot
                         continue
                     for name, value in snapshot.items():
-                        self.assertEqual(reference[name], value, (name, state))
+                        self.assertEqual(reference[name], value, (name, tier, guide_targets, has_profile))
         self.assertEqual(12, states)
-
-    def test_reserved_blocks_hold_their_longest_text(self) -> None:
-        card = self.card()
-        self.assertLessEqual(self.text_height(card.about, self.DRAWER_TEXT_WIDTH), card.about._height)
-        self.assertLessEqual(self.text_height(card.intro, self.DRAWER_TEXT_WIDTH), 26)  # at most two lines above the sources
-        card.status.text = self.NO_GUIDE_TARGETS
-        self.assertLessEqual(self.text_height(card.status, self.DRAWER_TEXT_WIDTH), card.status._height)
-        # Shorter texts start at the top of their block and leave the space below empty.
-        for text in (card.about, card.status, card.binNote):
-            self.assertEqual("TOP", text._justifyV)
 
     def test_card_padding_copies_the_features_drawer(self) -> None:
         # The layout key stays "weights.card" so saved drawer positions carry over.
@@ -2775,8 +2665,7 @@ class NoDataSourceNamesShownTests(unittest.TestCase):
     def test_only_the_guide_source_line_names_the_sources(self) -> None:
         named = [text for _, text in self.shown_strings_of(self.ALLOWED_FILE.read_text(encoding="utf-8-sig"))
                  if any(word in text.lower() for word in self.FORBIDDEN)]
-        self.assertEqual(["Stat priority, Best in Slot, trinkets, gems and enchants: Icy Veins. "
-                          "Stat targets and all PvP data: u.gg."], named)
+        self.assertEqual(["All guide information comes from Icy Veins and u.gg."], named)
 
     def shown_strings_of(self, source):
         for number, line in enumerate(source.splitlines(), 1):
