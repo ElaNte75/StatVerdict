@@ -2349,14 +2349,15 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
         self.assertEqual("Best in Slot", self.frame.optionsDrawerCard.bisTooltipTitle.text)
         points = [c.points[len(c.points)] for c in checks]
         xs, ys = [p[4] for p in points], [p[5] for p in points]
-        self.assertEqual([0, -24, -48], ys)  # the same step as the Bag Markers rows (row 22 + gap 2)
+        # The same step as the Bag Markers rows (row 22 + gap 2); the separate game tooltip option sits further down.
+        self.assertEqual([0, -24, -54], ys)
         self.assertGreater(xs[1], xs[0])  # gems and enchants sits under the tooltip option
         self.assertEqual(xs[0], xs[2])
 
     def test_block_fits_all_three_rows(self) -> None:
         self.check()
         card = self.frame.optionsDrawerCard
-        self.assertEqual(3 * 24 - 2, card.bisTooltipChecksBlock._height)
+        self.assertEqual(3 * 24 - 2 + 6, card.bisTooltipChecksBlock._height)
         self.assertEqual(2 * 24 - 2, card.bagChecksBlock._height)
 
     def states(self):
@@ -2465,25 +2466,45 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
             self.assertEqual(22, row._height, key)
             self.assertFalse(self.check(key)._mouse, key)  # the whole row is the click target
 
-    def test_blocks_have_the_same_padding_and_the_same_gap(self) -> None:
+    def test_blocks_have_the_same_height_gap_and_title_distance(self) -> None:
         self.check()
         card = self.frame.optionsDrawerCard
         panels = [card.bagMarkersPanel, card.bisTooltipPanel, card.trinketTooltipPanel]
         titles = [card.bagMarkersTitle, card.bisTooltipTitle, card.trinketTooltipTitle]
         blocks = [card.bagChecksBlock, card.bisTooltipChecksBlock, card.trinketTooltipChecksBlock]
         last = lambda region: region.points[len(region.points)]
+        # All three blocks are as high as the tallest group needs (3 rows + the separate option's gap).
+        self.assertEqual([5 + 76 + 5] * 3, [panel._height for panel in panels])
         tops = [last(panel)[5] for panel in panels]
-        gaps = [tops[i] - panels[i]._height - tops[i + 1] for i in (0, 1)]
+        # The same gap from one block to the next block's title.
+        gaps = [last(titles[i + 1])[5] - (tops[i] - panels[i]._height) for i in (0, 1)]
         self.assertEqual(gaps[0], gaps[1])
-        self.assertGreaterEqual(gaps[0], 6)
-        for panel, title, block in zip(panels, titles, blocks):
-            top = last(panel)[5]
-            self.assertEqual(8, top - last(title)[5])  # same distance from the block's top edge to its title
-            self.assertEqual(8 + 12 + 6, top - last(block)[5])  # ... and to its first row
-            self.assertEqual(8, last(block)[5] - block._height - (top - panel._height))  # same padding below
+        self.assertEqual(-8, gaps[0])
+        for panel, title in zip(panels, titles):
+            self.assertEqual(16, last(title)[5] - last(panel)[5])  # the title sits 16px above its block
             self.assertEqual(14, panel.points[1][4])
-        self.assertEqual(-46, tops[0])  # under the title hairline
+        # The rows of a group are inside its block, centred when the group is shorter.
+        for panel, block in zip(panels, blocks):
+            gap_top = last(panel)[5] - last(block)[5]
+            gap_bottom = last(block)[5] - block._height - (last(panel)[5] - panel._height)
+            self.assertLessEqual(abs(gap_top - gap_bottom), 1)
+            self.assertGreaterEqual(gap_top, 5)
+        self.assertEqual(-46, last(titles[0])[5])  # under the title hairline
         self.assertGreaterEqual(tops[2] - panels[2]._height, -(440 - 33 - 6 - 20 - 6))  # inside the card
+
+    def test_group_titles_are_white_and_sit_above_their_blocks(self) -> None:
+        source = (ADDON / "UI" / "SV_OptionsDrawerPanel.lua").read_text(encoding="utf-8-sig")
+        self.assertIn("card[section.titleField]:SetTextColor(1, 1, 1)", source)
+        self.assertIn('card.bagMarkersTitle:SetTextColor(1, 1, 1)', source)
+        # The title is placed at the block's top minus its own height: above the block, not inside it.
+        self.assertIn("local panelTop = y - TITLE_HEIGHT", source)
+
+    def test_the_game_tooltip_option_is_set_apart_by_a_wider_gap(self) -> None:
+        card = self.frame.optionsDrawerCard
+        self.check()
+        rows = [self.row_of(k) for k in ("showBisTooltip", "showBisGemsEnchants", "bisUseGameTooltip")]
+        self.assertEqual([0, 2, 8], [r.svGapAbove for r in rows])
+        self.assertEqual([False, True, True], [r.svHasLine for r in rows])
 
     def test_a_ticked_row_is_tinted_gold_and_an_unticked_one_is_clear(self) -> None:
         self.assertEqual((0.16, 0.13, 0.03, 0.85), self.tint(self.row_of("showBisTooltip")))
@@ -2573,9 +2594,11 @@ class FeaturesDrawerGeometryTests(unittest.TestCase):
         self.assertEqual(self.WIDTH, self.card._width)
 
     def test_titles_and_groups_share_the_left_margin(self) -> None:
-        self.assertEqual(self.MARGIN, self.last_point(self.card.title)[4])
-        for region in (self.card.bagMarkersTitle, self.card.bisTooltipTitle, self.card.trinketTooltipTitle,
-                       self.card.bagChecksBlock, self.card.bisTooltipChecksBlock, self.card.trinketTooltipChecksBlock):
+        # Titles sit above their block at the block's left edge; the rows are padded inside the block.
+        for region in (self.card.title, self.card.bagMarkersTitle, self.card.bisTooltipTitle,
+                       self.card.trinketTooltipTitle):
+            self.assertEqual(self.MARGIN, self.last_point(region)[4])
+        for region in (self.card.bagChecksBlock, self.card.bisTooltipChecksBlock, self.card.trinketTooltipChecksBlock):
             self.assertEqual(self.MARGIN + self.BLOCK_PAD, self.last_point(region)[4])
 
     def test_groups_keep_the_same_margin_on_the_right(self) -> None:
@@ -2640,10 +2663,10 @@ class TrinketTooltipFeatureToggleTests(unittest.TestCase):
         card = self.frame.optionsDrawerCard
         self.assertEqual("Ranked Trinkets", card.trinketTooltipTitle.text)
         points = [c.points[len(c.points)] for c in checks]
-        self.assertEqual([0, -24, -48], [p[5] for p in points])
+        self.assertEqual([0, -24, -54], [p[5] for p in points])
         self.assertGreater(points[1][4], points[0][4])
         self.assertEqual(points[0][4], points[2][4])
-        self.assertEqual(3 * 24 - 2, card.trinketTooltipChecksBlock._height)
+        self.assertEqual(3 * 24 - 2 + 6, card.trinketTooltipChecksBlock._height)
 
     def test_section_does_not_overlap_best_in_slot_and_fits_the_card(self) -> None:
         self.check()

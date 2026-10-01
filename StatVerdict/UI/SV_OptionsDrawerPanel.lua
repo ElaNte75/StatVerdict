@@ -9,19 +9,19 @@ local DROPDOWN_SCALE = 0.92
 local CHECKBOX_LABEL_FONT_SIZE = 11
 local BAG_CHECK_LABEL_GAP = 5
 -- Three blocks (Bag Markers, Best in Slot, Ranked Trinkets), each a bordered card
--- like the Guide drawer's choices: a gold title, then its options as rows that
--- are tinted gold when ticked and separated by a hairline. Every block has the
--- same padding and the same gap to the next, so nothing looks hand placed.
+-- like the Guide drawer's choices, under its white title: the options as rows that
+-- are tinted gold when ticked, separated by a hairline. A separate extra option
+-- (the game tooltip) sits further down, behind a wider gap. All three blocks have
+-- the same height (that of the tallest); a shorter group is centred in it.
 local ROW_HEIGHT = 22
 local BAG_CHECK_STEP = 24              -- row height + 2px gap
+local SEPARATED_EXTRA = 6              -- extra gap above a separate option
 local ROW_PAD = 4                      -- row edge > tick, and label > row edge
-local BLOCK_PAD = 10                   -- block edge > its title and rows
-local BLOCK_TITLE_TOP = 8              -- block top > title
-local BLOCK_TITLE_HEIGHT = 12
-local BLOCK_TITLE_GAP = 6              -- title > first row
-local BLOCK_BOTTOM_PAD = 8
-local BLOCK_GAP = 8                    -- block > next block
-local FIRST_BLOCK_TOP = -46            -- under the title hairline
+local BLOCK_PAD = 10                   -- block edge > rows, left and right
+local BLOCK_VPAD = 5                   -- block edge > rows, top and bottom
+local TITLE_HEIGHT = 16                -- title (12px) + 4px, above the block
+local BLOCK_GAP = 8                    -- block > next title
+local FIRST_TITLE_TOP = -46            -- under the title hairline
 local BLOCK_BACKDROP = {
     bgFile = "Interface\\Buttons\\WHITE8X8",
     edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -197,7 +197,7 @@ local function PaintOptionRow(check)
     row:SetAlpha(check.svLocked and LOCKED_ALPHA or 1)
 end
 
-local function EnsureOptionRow(check, parent, withLine)
+local function EnsureOptionRow(check, parent, gapAbove)
     local row = check.svRow
     if not row then
         row = CreateFrame("Button", nil, parent, "BackdropTemplate")
@@ -219,19 +219,22 @@ local function EnsureOptionRow(check, parent, withLine)
         end)
         check:EnableMouse(false)
         check.svRow = row
-        -- A hairline in the gap above every row but the first.
         row.line = row:CreateTexture(nil, "ARTWORK")
         row.line:SetColorTexture(LINE[1], LINE[2], LINE[3], LINE[4])
         row.line:SetHeight(1)
-        row.line:SetPoint("BOTTOMLEFT", row, "TOPLEFT", 0, 1)
-        row.line:SetPoint("BOTTOMRIGHT", row, "TOPRIGHT", 0, 1)
     else
         row:SetParent(parent)
     end
     row:SetHeight(ROW_HEIGHT)
-    row.svHasLine = withLine and true or false
+    -- A hairline in the middle of the gap above every row but the first.
+    row.svGapAbove = gapAbove or 0
+    row.svHasLine = (gapAbove or 0) > 0
     if row.line then
-        if withLine then row.line:Show() else row.line:Hide() end
+        row.line:ClearAllPoints()
+        local up = math.floor((gapAbove or 0) / 2)
+        row.line:SetPoint("BOTTOMLEFT", row, "TOPLEFT", 0, up)
+        row.line:SetPoint("BOTTOMRIGHT", row, "TOPRIGHT", 0, up)
+        if row.svHasLine then row.line:Show() else row.line:Hide() end
     end
     return row
 end
@@ -258,14 +261,14 @@ local BAG_INDICATOR_OPTIONS = {
 local BIS_TOOLTIP_OPTIONS = {
     { key = "showBisTooltip", label = "Best in Slot tooltip" },
     { key = "showBisGemsEnchants", label = "Gems and enchants", indent = true },
-    { key = "bisUseGameTooltip", label = "Use the game tooltip instead" },
+    { key = "bisUseGameTooltip", label = "Use the game tooltip instead", separated = true },
 }
 -- Ranked Trinkets section: the same three choices for the Ranked Trinkets list. The
 -- effect line is a child of our tooltip (only exists inside it), like gems / enchants.
 local TRINKET_TOOLTIP_OPTIONS = {
     { key = "showTrinketTooltip", label = "Ranked Trinkets tooltip" },
     { key = "showTrinketEffect", label = "Trinket effect", indent = true },
-    { key = "trinketUseGameTooltip", label = "Use the game tooltip instead" },
+    { key = "trinketUseGameTooltip", label = "Use the game tooltip instead", separated = true },
 }
 local BIS_CHILD_INDENT = 18
 
@@ -387,6 +390,24 @@ local function EnsureBagChecksBlock(card, field)
     return block
 end
 
+-- Row tops (positive, down from the block's top) of one block's options: one step
+-- apart, a separate option with an extra gap above it; and the block's height.
+local function SectionRowOffsets(list)
+    local offsets, y = {}, 0
+    for index, option in ipairs(list) do
+        if index > 1 then
+            y = y + BAG_CHECK_STEP + (option.separated and SEPARATED_EXTRA or 0)
+        end
+        offsets[index] = y
+    end
+    return offsets
+end
+
+local function SectionArea(list)
+    local offsets = SectionRowOffsets(list)
+    return (offsets[#list] or 0) + ROW_HEIGHT
+end
+
 -- The three blocks, top to bottom. Layout keys and fields keep their old names so saved positions carry over.
 local OPTION_SECTIONS = {
     { list = BAG_INDICATOR_OPTIONS, bags = true, title = "Bag Markers", titleField = "bagMarkersTitle",
@@ -448,7 +469,7 @@ local function EnsureCard(frame)
 
     card.bagMarkersTitle = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     card.bagMarkersTitle:SetText("Bag Markers")
-    card.bagMarkersTitle:SetTextColor(1.0, 0.82, 0.0)
+    card.bagMarkersTitle:SetTextColor(1, 1, 1)
 
     card.hint = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     card.hint:SetTextColor(0.72, 0.72, 0.72)
@@ -555,38 +576,43 @@ function Panel.Apply(frame)
 
     -- Groups span the card's inner width minus the margin and the block padding on both sides.
     local blockBaseW = math.max(160, innerWidth - 2 * (CONTENT_MARGIN + BLOCK_PAD))
-    local y = FIRST_BLOCK_TOP
+    local maxArea = 0
     for _, section in ipairs(OPTION_SECTIONS) do
-        local count = #section.list
-        local blockBaseH = count * BAG_CHECK_STEP - (BAG_CHECK_STEP - ROW_HEIGHT)
-        local panelHeight = BLOCK_TITLE_TOP + BLOCK_TITLE_HEIGHT + BLOCK_TITLE_GAP + blockBaseH + BLOCK_BOTTOM_PAD
+        maxArea = math.max(maxArea, SectionArea(section.list))
+    end
+    local panelHeight = maxArea + 2 * BLOCK_VPAD
+    local y = FIRST_TITLE_TOP
+    for _, section in ipairs(OPTION_SECTIONS) do
+        local area = SectionArea(section.list)
+        local panelTop = y - TITLE_HEIGHT
 
-        -- The bordered block behind the title and the rows.
-        local panel = EnsureBlockPanel(card, section.panelField)
-        panel:ClearAllPoints()
-        panel:SetPoint("TOPLEFT", card, "TOPLEFT", CONTENT_MARGIN, y)
-        panel:SetPoint("TOPRIGHT", card, "TOPRIGHT", -CONTENT_MARGIN, y)
-        panel:SetHeight(panelHeight)
-        panel:Show()
-
+        -- The white title above its block.
         if not card[section.titleField] then
             card[section.titleField] = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
             card[section.titleField]:SetText(section.title)
-            card[section.titleField]:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
         end
-        PlaceFeaturesTitle(card, card[section.titleField], section.titleKey, section.titleLabel,
-            CONTENT_MARGIN + BLOCK_PAD, y - BLOCK_TITLE_TOP)
+        card[section.titleField]:SetTextColor(1, 1, 1)
+        PlaceFeaturesTitle(card, card[section.titleField], section.titleKey, section.titleLabel, CONTENT_MARGIN, y)
+
+        -- The bordered block behind the rows.
+        local panel = EnsureBlockPanel(card, section.panelField)
+        panel:ClearAllPoints()
+        panel:SetPoint("TOPLEFT", card, "TOPLEFT", CONTENT_MARGIN, panelTop)
+        panel:SetPoint("TOPRIGHT", card, "TOPRIGHT", -CONTENT_MARGIN, panelTop)
+        panel:SetHeight(panelHeight)
+        panel:Show()
 
         local block = EnsureBagChecksBlock(card, section.blockField)
+        local blockTop = panelTop - BLOCK_VPAD - math.floor((maxArea - area) / 2)
         local blockW = PlaceBagChecksBlock(card, block, section.checksKey, section.checksLabel,
-            CONTENT_MARGIN + BLOCK_PAD, y - BLOCK_TITLE_TOP - BLOCK_TITLE_HEIGHT - BLOCK_TITLE_GAP,
-            blockBaseW, blockBaseH) or blockBaseW
+            CONTENT_MARGIN + BLOCK_PAD, blockTop, blockBaseW, area) or blockBaseW
 
+        local offsets = SectionRowOffsets(section.list)
         for index, option in ipairs(section.list) do
             local check = EnsureOptionCheckbox(card, option, block)
             local indent = option.indent and BIS_CHILD_INDENT or 0
-            local rowY = -((index - 1) * BAG_CHECK_STEP)
-            local row = EnsureOptionRow(check, block, index > 1)
+            local rowY = -offsets[index]
+            local row = EnsureOptionRow(check, block, index > 1 and (option.separated and 2 + SEPARATED_EXTRA or 2) or 0)
             row:ClearAllPoints()
             row:SetPoint("TOPLEFT", block, "TOPLEFT", indent, rowY)
             row:SetPoint("TOPRIGHT", block, "TOPRIGHT", 0, rowY)
@@ -617,7 +643,7 @@ function Panel.Apply(frame)
                 SyncBagIndicatorOptionChecks(card)
             end)
         end
-        y = y - panelHeight - BLOCK_GAP
+        y = panelTop - panelHeight - BLOCK_GAP
     end
     SyncBagIndicatorOptionChecks(card)
 
