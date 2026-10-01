@@ -3,6 +3,13 @@
 Read this file first, then `git log --oneline -40` on `main`. Everything described here is already on `main`
 (GitHub `ElaNte75/StatVerdict`, public repo, so GitHub Actions minutes are free).
 
+
+## How to talk to the owner (standing rule, 2026-10-01)
+
+The owner is not a programmer and reads on a phone. Every answer: short, in simple Greek, no technical terms,
+no long analyses. Say what can be done, how likely it is to work (e.g. "yes, about 80%") and where it may fail;
+go deeper only when asked. Ask for a decision only when it is really needed.
+
 ## 1. Who the owner is and how to work with them
 - The owner is not a programmer: **product owner**. Talk to them in **simple Greek**, short, no code or stack traces in the
   main explanation. Reports: what happened, what it means, what is left. Ask only for real product decisions.
