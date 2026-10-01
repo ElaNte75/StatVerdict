@@ -2481,7 +2481,7 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
             self.assertEqual(8, top - last(title)[5])  # same distance from the block's top edge to its title
             self.assertEqual(8 + 12 + 6, top - last(block)[5])  # ... and to its first row
             self.assertEqual(8, last(block)[5] - block._height - (top - panel._height))  # same padding below
-            self.assertEqual(14, last(panel)[4])
+            self.assertEqual(14, panel.points[1][4])
         self.assertEqual(-46, tops[0])  # under the title hairline
         self.assertGreaterEqual(tops[2] - panels[2]._height, -(440 - 33 - 6 - 20 - 6))  # inside the card
 
