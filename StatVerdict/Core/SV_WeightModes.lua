@@ -68,7 +68,7 @@ function ns.GetAutoTierSummary(profile)
     local level = tonumber(info.level) or 0
     if info.progress == nil then return "Follows your stats" end
     if level >= 3 then return "Tier 3 reached · top targets met" end
-    if level <= 0 then return string.format("Getting started · %d%% to Tier 1", Percent(info.progress)) end
+    if level <= 0 then return string.format("Starter · %d%% to Tier 1", Percent(info.progress)) end
     return string.format("Tier %d reached · %d%% to Tier %d", level, Percent(info.progress), level + 1)
 end
 
@@ -81,7 +81,7 @@ function ns.GetTierTitleLabel(profile)
         local level = tonumber(info.level) or 0
         if info.progress == nil then return "Auto" end
         if level >= 3 then return "Auto · Tier 3 · top targets met" end
-        if level <= 0 then return string.format("Auto · Starting · %d%% to Tier 1", Percent(info.progress)) end
+        if level <= 0 then return string.format("Auto · Starter · %d%% to Tier 1", Percent(info.progress)) end
         return string.format("Auto · Tier %d · %d%% to Tier %d", level, Percent(info.progress), level + 1)
     end
     -- A fixed tier: its name and how far the next tier is (Tier 3: how much of its own targets is covered).

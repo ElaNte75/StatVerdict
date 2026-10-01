@@ -130,7 +130,7 @@ class WeightModeCoreTests(unittest.TestCase):
                 table.autoInfo = self.lua.table(level=level, progress=progress)
             return table
         cases = (
-            (profile(0, 0.404), "Getting started · 40% to Tier 1", "Auto · Starting · 40% to Tier 1"),
+            (profile(0, 0.404), "Starter · 40% to Tier 1", "Auto · Starter · 40% to Tier 1"),
             (profile(1, 0.8), "Tier 1 reached · 80% to Tier 2", "Auto · Tier 1 · 80% to Tier 2"),
             (profile(2, 0.999), "Tier 2 reached · 99% to Tier 3", "Auto · Tier 2 · 99% to Tier 3"),
             (profile(3, 1.0), "Tier 3 reached · top targets met", "Auto · Tier 3 · top targets met"),
@@ -1495,7 +1495,7 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         self.assertEqual([True, False, False, False], self.checks(card))
 
     def test_auto_tells_where_the_character_stands(self) -> None:
-        for level, progress, text in ((0, 0.40, "Getting started · 40% to Tier 1"),
+        for level, progress, text in ((0, 0.40, "Starter · 40% to Tier 1"),
                                       (1, 0.80, "Tier 1 reached · 80% to Tier 2"),
                                       (2, 0.87, "Tier 2 reached · 87% to Tier 3"),
                                       (3, 1.0, "Tier 3 reached · top targets met"),
