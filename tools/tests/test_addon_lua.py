@@ -898,8 +898,8 @@ class CoreProfileTests(unittest.TestCase):
         profile = self.auto(lua, ns)
         self.assertEqual((1, 2, "top50"), (profile.autoInfo.level, profile.autoInfo.shownTier, profile.effectiveBin))
         self.assertEqual({"crit": 900.0, "haste": 1000.0, "mastery": 600.0, "vers": 250.0}, self.named_targets(profile))
-        # 720 + 810 + 495 + 180 of 900 + 1000 + 600 + 250
-        self.assertAlmostEqual(2205 / 2750, profile.autoInfo.progress)
+        # 720/900, 810/1000, 495/600 and 180/250 of Tier 2, averaged like the main window's Average Progress
+        self.assertAlmostEqual((0.8 + 0.81 + 0.825 + 0.72) / 4, profile.autoInfo.progress)
         self.assertEqual(1, lua.globals().StatVerdictDB.autoTier["DEATHKNIGHT_BLOOD"])
         self.assertEqual(1, ns.ProfileRepository.GetAutoNotice("DEATHKNIGHT_BLOOD"))
         self.assertIsNone(ns.ProfileRepository.GetAutoNotice("MAGE_FIRE"))
@@ -910,10 +910,21 @@ class CoreProfileTests(unittest.TestCase):
         self.assertIsNone(profile.autoInfo)
         shares = [profile.tierProgress[i] for i in (1, 2, 3)]
         self.assertAlmostEqual(0.9, shares[0])      # 90% of Tier 1
-        self.assertAlmostEqual(2205 / 2750, shares[1])  # and of Tier 2
+        self.assertAlmostEqual((0.8 + 0.81 + 0.825 + 0.72) / 4, shares[1])  # and of Tier 2
         self.assertLess(shares[2], shares[1])
         lua, ns = self.auto_runtime(None, tier="top80")  # stats not known yet
         self.assertIsNone(self.auto(lua, ns).tierProgress)
+
+    def test_the_progress_is_the_main_windows_average_progress(self) -> None:
+        # Tier 1 targets 800 / 900 / 550 / 200. Seen in the game: a stat far past its target (Versatility) counts as
+        # 100%, not for its size, so the number matches the "Average Progress" of the window (54.3%, not 41%).
+        lua, ns = self.auto_runtime(None)
+        values = {SECONDARY["crit"]: 360.8, SECONDARY["haste"]: 304.2, SECONDARY["mastery"]: 210.1, SECONDARY["vers"]: 330.0}
+        ns.GetCurrentStatRating = lambda stat_key: values.get(stat_key, 0)
+        profile = self.auto(lua, ns)
+        expected = (360.8 / 800 + 304.2 / 900 + 210.1 / 550 + 1.0) / 4
+        self.assertAlmostEqual(expected, profile.autoInfo.progress)
+        self.assertAlmostEqual(0.5430, profile.autoInfo.progress, places=3)
 
     def test_auto_does_not_flip_back_for_one_swapped_piece(self) -> None:
         lua, ns = self.auto_runtime(0.92)

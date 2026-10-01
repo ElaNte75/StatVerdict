@@ -424,8 +424,8 @@ local function SelectTargetValues(targets, bin)
 end
 
 -- Auto: the tier follows the character's own stats. The progress to a tier is
--- the share of that tier's rating targets the stats already cover (a stat past
--- its target counts only up to the target). `level` is the highest tier whose
+-- the average of each stat's progress to that tier's target (a stat past its
+-- target counts as 100%), as in the main window's "Average Progress". `level` is the highest tier whose
 -- targets are covered (0 to 3): it moves up at AUTO_UP_AT of the next tier and
 -- back down only below AUTO_DOWN_BELOW of its own, and is remembered per spec
 -- (StatVerdictDB.autoTier) so it does not flip back and forth. The targets and
@@ -443,17 +443,19 @@ local function ReadRating(specID, statKey)
     return ns.GetCurrentStatRating and ns.GetCurrentStatRating(statKey) or nil
 end
 
+-- The progress to a tier: the average of each stat's progress to its target, a stat past its
+-- target counting as 100% -- the very number the main window shows as "Average Progress".
 local function CoveredShare(targetValues, ratings)
-    local covered, total = 0, 0
+    local sum, count = 0, 0
     for _, statKey in ipairs(AUTO_STATS) do
         local target = targetValues[statKey]
         if target and target > 0 then
-            total = total + target
-            covered = covered + math.min(ratings[statKey] or 0, target)
+            sum = sum + math.min(1, (ratings[statKey] or 0) / target)
+            count = count + 1
         end
     end
-    if total <= 0 then return nil end
-    return covered / total
+    if count == 0 then return nil end
+    return sum / count
 end
 
 -- The share of each tier's rating targets the stats cover: { [1] = Tier 1, [2] = Tier 2, [3] = Tier 3 }
