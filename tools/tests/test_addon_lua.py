@@ -365,8 +365,28 @@ class CoreProfileTests(unittest.TestCase):
         lua, ns = self.build_runtime(build_id=build_id, targets=data)
         self.assertTrue(ns.ProfileRepository.BuildRuntimeProfile(self.context(lua)).invalidGeneratedContext)
 
+    def test_data_is_good_for_two_months(self) -> None:
+        lua, ns = self.build_runtime(build_id=now_build_id(days_ago=45))
+        self.assertIsNotNone(ns.ProfileRepository.BuildRuntimeProfile(self.context(lua)))
+        self.assertTrue(ns.ProfileRepository.GetDataProvenance("MYTHIC_PLUS").available)
+
+    def test_the_out_of_date_message_says_to_update(self) -> None:
+        tooltip = (ADDON / "UI" / "SV_Tooltip.lua").read_text(encoding="utf-8-sig")
+        self.assertIn("update StatVerdict to the latest version", tooltip)
+        manual = (ADDON / "UI" / "SV_ManualDrawerPanel.lua").read_text(encoding="utf-8-sig")
+        self.assertIn("update StatVerdict to the latest version to get new data", manual)
+
+    def test_the_version_is_the_same_everywhere(self) -> None:
+        toc = (ADDON / "StatVerdict.toc").read_text(encoding="utf-8-sig")
+        main = (ADDON / "StatVerdict.lua").read_text(encoding="utf-8-sig")
+        toc_version = re.search(r"^## Version:\s*(\S+)", toc, re.M).group(1)
+        lua_version = re.search(r'ns\.VERSION = "([^"]+)"', main).group(1)
+        self.assertEqual(toc_version, lua_version)
+        self.assertEqual("1.1.0", toc_version)
+        self.assertIn(f"(v{toc_version})", (ADDON / "STORE.md").read_text(encoding="utf-8"))
+
     def test_stale_data_fails_closed(self) -> None:
-        lua, ns = self.build_runtime(build_id=now_build_id(days_ago=40))
+        lua, ns = self.build_runtime(build_id=now_build_id(days_ago=70))
         self.assertIsNone(ns.ProfileRepository.BuildRuntimeProfile(self.context(lua)))
         self.assertIsNone(ns.ProfileRepository.GetContext("DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "sanlayn"))
         self.assertFalse(ns.ProfileRepository.GetDataProvenance("MYTHIC_PLUS").available)
@@ -406,10 +426,10 @@ class CoreProfileTests(unittest.TestCase):
         self.assertLessEqual(abs(ns.ProfileRepository.ParseBuildTime(now_build_id()) - now), 5)
 
     def test_freshness_does_not_shift_with_the_time_zone(self) -> None:
-        # 29 days 20 hours old: fresh everywhere. Read as local time at UTC+10 it
-        # would look 30 days 6 hours old and be dropped as stale.
+        # 59 days 20 hours old: fresh everywhere. Read as local time at UTC+10 it
+        # would look 60 days 6 hours old and be dropped as stale.
         build = datetime(2026, 9, 29, 6, 49, 54, tzinfo=timezone.utc)
-        now = int((build + timedelta(days=29, hours=20)).timestamp())
+        now = int((build + timedelta(days=59, hours=20)).timestamp())
         lua, ns = self.build_runtime(build_id=build.strftime("%Y%m%d%H%M%S") + "-6702fd4-878715d1")
         lua.eval("function(src, offset, now) assert(loadstring(src))(offset, now) end")(self.FIXED_ZONE, 36000, now)
         self.assertTrue(ns.ProfileRepository.GetDataProvenance("MYTHIC_PLUS").available)
@@ -485,7 +505,7 @@ class CoreProfileTests(unittest.TestCase):
         lua, ns = self.build_runtime()
         view = ns.ProfileRepository.RefreshProviderView("MYTHIC_PLUS")
         self.assertIsNotNone(view["DEATHKNIGHT"])
-        ns.ClassCodexTargets.buildId = now_build_id(days_ago=40)
+        ns.ClassCodexTargets.buildId = now_build_id(days_ago=70)
         self.assertIsNone(ns.ProfileRepository.RefreshProviderView("MYTHIC_PLUS")["DEATHKNIGHT"])
 
     def test_provenance_uses_the_classcodex_build_date(self) -> None:

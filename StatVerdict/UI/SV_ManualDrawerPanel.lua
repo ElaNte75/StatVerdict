@@ -50,6 +50,7 @@ local MANUAL_LINES = {
     { text = "Best in Slot — the best-in-slot items for the active build (Mythic+, Raid or PvP), with your progress." },
     { text = "Hover a Best in Slot item to see it at its recommended item level, with the recommended gems and enchant." },
     { text = "Features → Best in Slot chooses what that hover shows. Best in Slot tooltip: our compact tooltip; under it, Gems and enchants adds the recommended gems and enchant. Use the game tooltip instead: the game's own item tooltip. Only one of the two tooltips can be on: ticking one turns the other off. With both unticked, hovering shows nothing. Features → Ranked Trinkets works the same way for the trinket list: Ranked Trinkets tooltip is our compact tooltip (name, level, stats), and under it Trinket effect adds the trinket's effect; or Use the game tooltip instead." },
+    { text = "The Best in Slot and Ranked Trinkets tooltips end with Where to find: the dungeon or raid and the boss the item drops from, when the game's Adventure Journal lists it. Crafted items, the Great Vault and the Catalyst are not listed." },
     { text = "Ranked Trinkets — ranked trinket list for the active build." },
     { text = "Features — toggles for bag markers (Upgrade Arrow, MS/OS Labels)." },
     { text = "Guide — the stat priorities, Best in Slot lists and stat targets are copied from the guides, unchanged. Pick Auto (the default: the tier follows your own stats and moves up when you cover about 90% of it) or one fixed tier: Tier 1, Tier 2 or Tier 3 (the most demanding). The tier in use is shown in the title bar; Best in Slot and trinkets follow it." },
@@ -65,7 +66,7 @@ local MANUAL_LINES = {
     { title = true, text = "Limits and data" },
     { text = "StatVerdict models item level, primary and secondary stats, actual gem stats, physical weapon DPS, tank armor/stamina, and validated goal-specific references." },
     { text = "It does not model encounter mechanics, execution, most procs/on-use effects, embellishment power, tertiary value, set-bonus magnitude, or upgrade-currency cost." },
-    { text = "Bundled profile data has freshness and quality checks. If it is stale, incomplete, or mismatched to your goal, StatVerdict shows an unavailable state instead of guessing." },
+    { text = "Bundled profile data has freshness and quality checks. After about two months without an update it counts as out of date, and if it is also incomplete or mismatched to your goal, StatVerdict shows an unavailable state instead of guessing: update StatVerdict to the latest version to get new data." },
 }
 
 local function EnsureCard(frame)

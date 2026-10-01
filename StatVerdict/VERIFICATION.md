@@ -59,3 +59,12 @@ For Mythic+, Raid, and PvP:
 - Quest rewards, merchants, and Adventure Guide may still show upgrade arrows.
 - Manual, tooltip, and store copy must describe the same behavior.
 - The TOC, runtime version, changelog, and release archive version must match.
+
+### Guide, tiers and tooltips (1.1.0)
+
+1. Guide drawer: exactly one of Auto / Tier 1 / Tier 2 / Tier 3 is ticked, whatever you click.
+2. Auto: the title bar names the tier and the progress to the next; the Auto row says the same.
+3. Best in Slot: Tier 1 shows 308 (Champion), Tier 2 321 (Hero), Tier 3 334 (Myth 6/6); PvP is unchanged.
+4. Hover a Best in Slot item and a ranked trinket: roomy tooltip, "Gems" / "Enchant" labels, and "Where to find" for a dungeon or raid item.
+5. Features drawer: three blocks with white titles, the game tooltip option set apart; every option still works.
+

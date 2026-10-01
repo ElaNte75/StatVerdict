@@ -75,7 +75,7 @@ local function NormalizeToken(value)
     return value:lower():gsub("[^%a%d]+", "")
 end
 
-local MAX_GENERATED_AGE_DAYS = 30
+local MAX_GENERATED_AGE_DAYS = 60
 local MIN_CONTEXT_ITEMS = 10
 local MAX_LOW_ITEM_RATIO = 0.25
 

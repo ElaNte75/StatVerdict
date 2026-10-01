@@ -1,4 +1,4 @@
-# StatVerdict — store & launch copy (v1.0.7)
+# StatVerdict — store & launch copy (v1.1.0)
 
 Use this on CurseForge / Wago / Discord. Edit tone freely; keep the audience clear.
 
@@ -79,7 +79,26 @@ Keywords: gear, upgrade, bis, offspec, mythic+, loot, stats, trinket, priority
 
 ---
 
-## Changelog stub (1.0.7)
+## Changelog (1.1.0) — paste into CurseForge
+
+```
+1.1.0
+New
+- Guide drawer: Auto (the default) follows your own stats and moves you up to the next tier of targets once you cover about 90% of the current one. Or pick Tier 1, 2 or 3 yourself. The tier in use, and your progress to the next one, are shown in the title bar.
+- Best in Slot and Ranked Trinkets follow the tier: Tier 1 shows Champion-track items, Tier 2 Hero, Tier 3 Myth 6/6, so an easier goal never shows gear only the best can have.
+- Best in Slot and Ranked Trinkets tooltips: more room, clearer labels, and a "Where to find" line (dungeon or raid and boss) for items the Adventure Journal lists.
+- New look for the Features drawer: three clear blocks (Bag Markers, Best in Slot, Ranked Trinkets).
+Improved
+- Upgrade arrows refresh faster and more reliably, and no longer flicker; buffs no longer move the verdicts.
+- Verdicts are the same from both sides: two items can never both be better than each other, and 10 or more item levels always wins.
+- Trinkets, rings and necks are compared fairly.
+- Stat priorities, Best in Slot lists and stat targets are a 1:1 copy of the guides (Icy Veins and u.gg). The Measured mode has been removed.
+- Guide data is now good for 60 days before it counts as out of date, and the message tells you to update.
+```
+
+---
+
+## Older changelog (1.0.7)
 
 ```
 1.0.7

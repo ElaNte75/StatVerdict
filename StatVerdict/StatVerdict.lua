@@ -1,6 +1,6 @@
 ﻿local addonName, ns = ...
 
-ns.VERSION = "1.0.7"
+ns.VERSION = "1.1.0"
 
 local frame = CreateFrame("Frame")
 ns.Frame = frame

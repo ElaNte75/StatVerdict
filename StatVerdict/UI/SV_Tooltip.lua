@@ -200,7 +200,7 @@ local function AddTooltipVerdict(tooltip)
                 renderedDataUnavailable = true
                 tooltip:AddLine(" ")
                 tooltip:AddLine("|cffff8000StatVerdict:|r profile data unavailable", 1, 0.5, 0, true)
-                tooltip:AddLine("Bundled profile data is missing, stale, or failed quality checks.", 0.92, 0.82, 0.45, true)
+                tooltip:AddLine("The bundled guide data is out of date or incomplete: update StatVerdict to the latest version.", 0.92, 0.82, 0.45, true)
                 tooltip:AddLine("No gear verdict was produced.", 0.92, 0.82, 0.45, true)
                 tooltip:Show()
                 return true
