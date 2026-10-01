@@ -130,10 +130,10 @@ class WeightModeCoreTests(unittest.TestCase):
                 table.autoInfo = self.lua.table(level=level, progress=progress)
             return table
         cases = (
-            (profile(0, 0.404), "Getting started · 40% to Tier 1", "Auto · Starting"),
-            (profile(1, 0.8), "Tier 1 reached · 80% to Tier 2", "Auto · Tier 1"),
-            (profile(2, 0.999), "Tier 2 reached · 99% to Tier 3", "Auto · Tier 2"),
-            (profile(3, 1.0), "Tier 3 reached · top targets met", "Auto · Tier 3"),
+            (profile(0, 0.404), "Getting started · 40% to Tier 1", "Auto · Starting · 40% to Tier 1"),
+            (profile(1, 0.8), "Tier 1 reached · 80% to Tier 2", "Auto · Tier 1 · 80% to Tier 2"),
+            (profile(2, 0.999), "Tier 2 reached · 99% to Tier 3", "Auto · Tier 2 · 99% to Tier 3"),
+            (profile(3, 1.0), "Tier 3 reached · top targets met", "Auto · Tier 3 · top targets met"),
             (profile(2, None), "Follows your stats", "Auto"),
         )
         for table, summary, label in cases:

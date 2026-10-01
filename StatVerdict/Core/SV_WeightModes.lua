@@ -70,15 +70,17 @@ function ns.GetAutoTierSummary(profile)
     return string.format("Tier %d reached · %d%% to Tier %d", level, Percent(info.progress), level + 1)
 end
 
--- The tier named in the title bar: Auto's reached tier, or the fixed tier chosen.
+-- The tier named in the title bar: Auto's reached tier and how far to the next one, or the
+-- fixed tier chosen.
 function ns.GetTierTitleLabel(profile)
     if type(profile) ~= "table" then return nil end
     local info = profile.autoInfo
     if type(info) == "table" then
         local level = tonumber(info.level) or 0
         if info.progress == nil then return "Auto" end
-        if level <= 0 then return "Auto · Starting" end
-        return "Auto · Tier " .. level
+        if level >= 3 then return "Auto · Tier 3 · top targets met" end
+        if level <= 0 then return string.format("Auto · Starting · %d%% to Tier 1", Percent(info.progress)) end
+        return string.format("Auto · Tier %d · %d%% to Tier %d", level, Percent(info.progress), level + 1)
     end
     for index, option in ipairs(STAT_TARGET_BINS) do
         if option.key == profile.statTargetBin and not option.auto then
