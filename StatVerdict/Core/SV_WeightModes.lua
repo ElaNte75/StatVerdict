@@ -34,20 +34,20 @@ function ns.GetStatTargetBins()
     return STAT_TARGET_BINS
 end
 
-function ns.GetStatTargetBin()
+function ns.GetStatTargetBin(specKey)
     local repository = ns.ProfileRepository
     if repository and repository.GetStatTargetBin then
-        return repository.GetStatTargetBin()
+        return repository.GetStatTargetBin(specKey)
     end
     return DEFAULT_STAT_TARGET_BIN
 end
 
 -- Saves the stat target tier through the repository (which drops its cached
 -- views), then redraws the audit and the bag markers. false for an unknown tier.
-function ns.SetStatTargetBin(key)
+function ns.SetStatTargetBin(key, specKey)
     local repository = ns.ProfileRepository
     if not (repository and repository.SetStatTargetBin) then return false end
-    if not repository.SetStatTargetBin(key) then return false end
+    if not repository.SetStatTargetBin(key, specKey) then return false end
     if ns.RequestStatAuditRefresh then ns.RequestStatAuditRefresh() end
     if ns.RefreshUpgradeIndicators then ns.RefreshUpgradeIndicators() end
     return true
@@ -101,12 +101,14 @@ end
 
 -- The cards under the guide text: Auto, then the guide's stat target tiers.
 -- { title, options, selected, set(key) }.
-function ns.GetTargetChoice()
+-- The choice is the spec's own (Main Spec and Off Spec choose apart): `specKey` is the spec
+-- of the build the drawer shows.
+function ns.GetTargetChoice(specKey)
     return {
         title = "Stat targets",
         options = STAT_TARGET_BINS,
-        selected = ns.GetStatTargetBin(),
-        set = ns.SetStatTargetBin,
+        selected = ns.GetStatTargetBin(specKey),
+        set = function(key) return ns.SetStatTargetBin(key, specKey) end,
     }
 end
 

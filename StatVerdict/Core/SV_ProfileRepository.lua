@@ -323,8 +323,14 @@ local function BuildSecondaryOrderFromTargets(targets, fallbackPriority)
     return {}
 end
 
-function Repository.GetStatTargetBin()
+-- The choice of one spec (Main Spec and Off Spec choose apart): the spec's own saved
+-- choice, else the one saved before choices were per spec (statTargetBin), else Auto.
+function Repository.GetStatTargetBin(specKey)
     local db = _G.StatVerdictDB
+    if type(db) == "table" and specKey and type(db.specTargetBin) == "table" then
+        local own = db.specTargetBin[specKey]
+        if type(own) == "string" and VALID_STAT_TARGET_BINS[own] then return own end
+    end
     local bin = type(db) == "table" and db.statTargetBin or nil
     if type(bin) == "string" and VALID_STAT_TARGET_BINS[bin] then return bin end
     return DEFAULT_STAT_TARGET_BIN
@@ -341,12 +347,20 @@ end
 -- writes them, strings.
 local TRACK_OF_BIN = { top20 = "myth", top50 = "hero", top80 = "champion" }
 
--- The tier whose targets are shown now: the fixed tier, or what Auto chose for
--- the character's active spec at the last profile build (Tier 3 until it chose).
-function Repository.GetEffectiveStatTargetBin()
-    local bin = Repository.GetStatTargetBin()
-    if bin == "auto" then return Repository.activeAutoBin or "top20" end
-    return bin
+-- The tier whose targets are shown for a spec: its fixed tier, or what Auto chose at the
+-- spec's last profile build (Tier 3 until it chose). Without a spec: the one the Guide
+-- shows now (the active Main / Off Spec view), else the last one built.
+local effectiveBinBySpec = {}
+local lastEffectiveBin = nil
+
+function Repository.GetEffectiveStatTargetBin(specKey)
+    if not specKey and ns.GetActivePanelContext then
+        local context = ns.GetActivePanelContext()
+        specKey = context and context.profile and context.profile.specKey or nil
+    end
+    local bin = Repository.GetStatTargetBin(specKey)
+    if bin ~= "auto" then return bin end
+    return (specKey and effectiveBinBySpec[specKey]) or lastEffectiveBin or "top20"
 end
 
 function Repository.GetActiveTrackSwap()
@@ -495,10 +509,16 @@ end
 
 -- Saves the guide target bin (Guide drawer: Auto or Tier 1/2/3) and drops the cached
 -- provider views. false (nothing saved) for an unknown bin.
-function Repository.SetStatTargetBin(bin)
+function Repository.SetStatTargetBin(bin, specKey)
     if type(bin) ~= "string" or not VALID_STAT_TARGET_BINS[bin] then return false end
     _G.StatVerdictDB = type(_G.StatVerdictDB) == "table" and _G.StatVerdictDB or {}
-    _G.StatVerdictDB.statTargetBin = bin
+    if specKey then
+        local db = _G.StatVerdictDB
+        db.specTargetBin = type(db.specTargetBin) == "table" and db.specTargetBin or {}
+        db.specTargetBin[specKey] = bin
+    else
+        _G.StatVerdictDB.statTargetBin = bin
+    end
     Repository.InvalidateProviderViews()
     return true
 end
@@ -584,16 +604,14 @@ function Repository.BuildRuntimeProfile(context)
     local priority = GetPriority(generatedContext)
     local secondaryOrder = BuildSecondaryOrderFromTargets(generatedContext.targets, priority)
     local equalGroups = BuildEqualGroups(priority, secondaryOrder)
-    local statTargetBin = Repository.GetStatTargetBin()
+    local statTargetBin = Repository.GetStatTargetBin(specKey)
     local effectiveBin, autoInfo = statTargetBin, nil
     if statTargetBin == "auto" then
         autoInfo = ResolveAutoTier(specKey, generatedContext.targets, context.specID)
         effectiveBin = TIER_BINS[autoInfo.shownTier]
-        local pseudo = { specID = context.specID }
-        if not (context.specID and ns.ShouldUseEquipmentSnapshot and ns.ShouldUseEquipmentSnapshot(pseudo)) then
-            Repository.activeAutoBin = effectiveBin
-        end
     end
+    effectiveBinBySpec[specKey] = effectiveBin
+    lastEffectiveBin = effectiveBin
     local targetValues, guideTargetsMissing, targetItemLevel =
         SelectTargetValues(generatedContext.targets, effectiveBin)
     local primaryStat = STAT_KEY[generatedProfile.primaryStat]
@@ -702,7 +720,7 @@ local function BuildProviderViewSignature(goal)
         tostring(type(ns.ClassCodexTargets) == "table" and ns.ClassCodexTargets.buildId or nil),
         tostring(root ~= nil),
         tostring(ns.GlobalStatVerdictModifiers),
-        Repository.GetStatTargetBin(),
+        Repository.GetStatTargetBin(),  -- the choice saved before choices were per spec
     }
     if root then
         for specKey in pairs(root.profiles or {}) do
@@ -711,8 +729,9 @@ local function BuildProviderViewSignature(goal)
             signatureContext.specID = specID
             local heroName = ns.GetSnapshotHeroTalentName and ns.GetSnapshotHeroTalentName(signatureContext)
             local heroID = ns.GetSnapshotHeroSubTreeID and ns.GetSnapshotHeroSubTreeID(signatureContext)
-            parts[#parts + 1] = tostring(specKey) .. "=" .. tostring(heroID) .. ":" .. tostring(heroName)
-            if Repository.GetStatTargetBin() == "auto" then
+            local bin = Repository.GetStatTargetBin(specKey)
+            parts[#parts + 1] = tostring(specKey) .. "=" .. tostring(heroID) .. ":" .. tostring(heroName) .. ":" .. bin
+            if bin == "auto" then
                 -- Auto follows the stats: a new rating is a new input.
                 local stamp = {}
                 for _, statKey in ipairs(AUTO_STATS) do

@@ -919,6 +919,61 @@ class CoreProfileTests(unittest.TestCase):
         self.assertEqual("top50", repo.GetEffectiveStatTargetBin())
         self.assertEqual(12846, repo.ApplyTrackSwap(lua.table(12854))[1])
 
+    # --- Each spec keeps its own choice (Main Spec and Off Spec) ----------------
+    def test_each_spec_has_its_own_choice(self) -> None:
+        lua, ns = self.guide_runtime(tier=None)
+        self.set_ratings(ns, 0.5)
+        repo = ns.ProfileRepository
+        self.assertEqual("auto", repo.GetStatTargetBin("DEATHKNIGHT_BLOOD"))
+        self.assertTrue(repo.SetStatTargetBin("top50", "DEATHKNIGHT_BLOOD"))
+        self.assertEqual("top50", lua.globals().StatVerdictDB.specTargetBin.DEATHKNIGHT_BLOOD)
+        self.assertEqual("top50", repo.GetStatTargetBin("DEATHKNIGHT_BLOOD"))
+        self.assertEqual("auto", repo.GetStatTargetBin("MAGE_FIRE"))  # the other spec is untouched
+        self.assertEqual("auto", repo.GetStatTargetBin())
+        profile = repo.BuildRuntimeProfile(self.context(lua))
+        self.assertEqual(("top50", "top50"), (profile.statTargetBin, profile.effectiveBin))
+        self.assertEqual({"crit": 900.0, "haste": 1000.0, "mastery": 600.0, "vers": 250.0}, self.named_targets(profile))
+        self.assertFalse(repo.SetStatTargetBin("top99", "DEATHKNIGHT_BLOOD"))
+
+    def test_a_choice_saved_before_choices_were_per_spec_still_applies_to_every_spec(self) -> None:
+        lua, ns = self.guide_runtime(tier="top80")  # the old, global key
+        repo = ns.ProfileRepository
+        self.assertEqual("top80", repo.GetStatTargetBin("DEATHKNIGHT_BLOOD"))
+        self.assertEqual("top80", repo.GetStatTargetBin("MAGE_FIRE"))
+        repo.SetStatTargetBin("top20", "DEATHKNIGHT_BLOOD")  # one spec chooses: only that one changes
+        self.assertEqual("top20", repo.GetStatTargetBin("DEATHKNIGHT_BLOOD"))
+        self.assertEqual("top80", repo.GetStatTargetBin("MAGE_FIRE"))
+
+    def test_a_spec_that_picks_its_tier_rebuilds_the_cached_provider_view(self) -> None:
+        lua, ns = self.guide_runtime(tier=None)
+        ns.GetSnapshotHeroTalentName = lambda context: "San'layn"
+        self.set_ratings(ns, 0.5)
+        repo = ns.ProfileRepository
+        first = repo.RefreshProviderView("MYTHIC_PLUS")
+        self.assertEqual(800.0, self.named_targets(first["DEATHKNIGHT"][250].default)["crit"])
+        lua.globals().StatVerdictDB.specTargetBin = lua.table(DEATHKNIGHT_BLOOD="top20")
+        second = repo.RefreshProviderView("MYTHIC_PLUS")
+        self.assertFalse(lua.eval("rawequal")(first, second))
+        self.assertEqual(1000.0, self.named_targets(second["DEATHKNIGHT"][250].default)["crit"])
+
+    def test_best_in_slot_follows_the_tier_of_the_spec_shown(self) -> None:
+        lua, ns = self.guide_runtime(tier=None)
+        repo = ns.ProfileRepository
+        ns.ClassCodexTargets.trackSwap = lua.eval('{ champion = { ["12854"] = 12838 }, hero = { ["12854"] = 12846 } }')
+        repo.SetStatTargetBin("top50", "DEATHKNIGHT_BLOOD")  # the Main Spec: Tier 2
+        repo.SetStatTargetBin("top80", "MONK_BREWMASTER")    # the Off Spec: Tier 1
+        for spec_key in ("DEATHKNIGHT_BLOOD", "MONK_BREWMASTER"):
+            repo.BuildRuntimeProfile(self.context(lua, specKey=spec_key, specID=250 if spec_key == "DEATHKNIGHT_BLOOD" else 268,
+                                                  heroTalentName="San'layn" if spec_key == "DEATHKNIGHT_BLOOD" else "Master of Harmony"))
+        self.assertEqual("top50", repo.GetEffectiveStatTargetBin("DEATHKNIGHT_BLOOD"))
+        self.assertEqual("top80", repo.GetEffectiveStatTargetBin("MONK_BREWMASTER"))
+        # The spec the window shows decides the item levels of the Best in Slot list.
+        shown = {"profile": {"specKey": "DEATHKNIGHT_BLOOD"}}
+        ns.GetActivePanelContext = lambda: lua.table(profile=lua.table(specKey=shown["profile"]["specKey"]))
+        self.assertEqual(12846, repo.ApplyTrackSwap(lua.table(12854))[1])
+        shown["profile"]["specKey"] = "MONK_BREWMASTER"
+        self.assertEqual(12838, repo.ApplyTrackSwap(lua.table(12854))[1])
+
     def test_old_saved_mode_and_gear_level_change_nothing(self) -> None:
         # Saved variables of the removed Measured mode: the guide's tier is still what is shown.
         lua, ns = self.guide_runtime()
@@ -1175,7 +1230,9 @@ class PanelModeTests(unittest.TestCase):
         self.assertIn("Guide — the stat priorities, Best in Slot lists and stat targets are copied from the "
                       "guides, unchanged. Pick Auto (the default: the tier follows your own stats and moves up when "
                       "you cover about 90% of it) or one fixed tier: Tier 1, Tier 2 or Tier 3 (the most demanding). "
-                      "The tier in use is shown in the title bar; Best in Slot and trinkets follow it.", source)
+                      "Main Spec and Off Spec each keep their own choice: pick which one you are looking at in the Spec rows "
+                      "(this changes the view only, never your game spec). The tier in use is shown in the title bar; "
+                      "Best in Slot and trinkets follow it.", source)
         self.assertNotIn("Measured", source)
         for word in ("Easy", "Hard"):
             self.assertNotIn(word, source)
@@ -1277,6 +1334,15 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         self.has_profile = True
         self.auto_info = None  # (level, progress) of the active build under Auto
         self.notice = None
+        self.view = "MAIN"
+        self.off_spec = None  # the Off Spec's name, or None when none is set up
+        self.view_calls = []
+        self.ns.GetTooltipEvaluationContexts = lambda: (
+            self.lua.table(profile=self.lua.table(specName="Blood", className="Death Knight")),
+            self.lua.table(profile=self.lua.table(specName=self.off_spec[0], className=self.off_spec[1]))
+            if self.off_spec else None)
+        self.ns.GetStatAuditActiveView = lambda: self.view
+        self.ns.SetStatAuditActiveView = lambda view: (self.view_calls.append(view), setattr(self, "view", view))[1]
         self.ns.SetRightPanelMode("weights")
         self.ns.ProfileRepository.GetAutoNotice = lambda spec_key: self.notice
 
@@ -1321,13 +1387,54 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         self.assertEqual(["Follows your stats"] + self.MEANINGS, [r.meaning.text for r in rows])
         for row in rows:
             self.assertEqual("BackdropTemplate", row._frameTemplate)
-            self.assertEqual(50, row._height)
+            self.assertEqual(38, row._height)
         # Stacked top to bottom, evenly spaced, spanning the card's text width.
         ys = [row.points[1][5] for row in rows]
         self.assertEqual(sorted(ys, reverse=True), ys)
         self.assertEqual(1, len({ys[i] - ys[i + 1] for i in (0, 1, 2)}))
-        self.assertGreaterEqual(ys[0] - ys[1], 50 + 4)
+        self.assertGreaterEqual(ys[0] - ys[1], 38 + 4)
         self.assertEqual("TOPRIGHT", rows[0].points[2][1])
+
+    def spec_checks(self, card):
+        return [card.specRows[i].check.checked for i in (1, 2)]
+
+    def test_main_and_off_spec_rows_name_the_builds(self) -> None:
+        card = self.card()
+        self.assertEqual("Spec", card.specTitle.text)
+        rows = [card.specRows[i] for i in (1, 2)]
+        self.assertEqual(["Main Spec", "Off Spec"], [r.label.text for r in rows])
+        self.assertEqual(["Blood Death Knight", "Not set up"], [r.hint.text for r in rows])
+        self.assertEqual([True, False], self.spec_checks(card))
+        self.off_spec = ("Frost", "Death Knight")
+        card = self.card()
+        self.assertEqual(["Blood Death Knight", "Frost Death Knight"], [r.hint.text for r in rows])
+        for row in rows:
+            self.assertEqual(24, row._height)
+        # Above the tier rows, never overlapping them.
+        self.assertGreater(rows[1].points[1][5] - 24, card.binRows[1].points[1][5] + 24)
+
+    def test_one_spec_at_a_time_and_off_spec_only_when_it_is_set_up(self) -> None:
+        card = self.card()
+        card.specRows[2].scripts.OnClick(card.specRows[2])  # no Off Spec: nothing happens
+        self.assertEqual([], self.view_calls)
+        self.assertEqual([True, False], self.spec_checks(card))
+        self.assertLess(card.specRows[2]._alpha, 1)
+        self.off_spec = ("Frost", "Death Knight")
+        card = self.card()
+        card.specRows[2].scripts.OnClick(card.specRows[2])
+        self.assertEqual(["OFF"], self.view_calls)
+        self.assertEqual([False, True], self.spec_checks(self.card()))
+        card.specRows[1].scripts.OnClick(card.specRows[1])
+        self.assertEqual(["OFF", "MAIN"], self.view_calls)
+        self.assertEqual([True, False], self.spec_checks(self.card()))
+        self.assertGreaterEqual(self.refreshes, 2)
+
+    def test_the_gold_follows_the_selected_spec(self) -> None:
+        self.off_spec = ("Frost", "Death Knight")
+        self.view = "OFF"
+        card = self.card()
+        self.assertEqual(self.GOLD_BORDER, self.border(card.specRows[2]))
+        self.assertEqual(self.RESTING_BORDER, self.border(card.specRows[1]))
 
     def test_auto_is_the_default_and_the_only_one_ticked_and_gold(self) -> None:
         card = self.card()
@@ -1360,12 +1467,14 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
     def test_clicking_a_row_sets_it_and_refreshes(self) -> None:
         card = self.card()
         card.binRows[3].scripts.OnClick()
-        self.assertEqual("top50", self.lua.globals().StatVerdictDB.statTargetBin)
-        self.assertEqual("top50", self.ns.ProfileRepository.GetStatTargetBin())
+        self.assertEqual("top50", self.lua.globals().StatVerdictDB.specTargetBin.SPEC)  # saved for this spec
+        self.assertIsNone(self.lua.globals().StatVerdictDB.statTargetBin)
+        self.assertEqual("top50", self.ns.ProfileRepository.GetStatTargetBin("SPEC"))
+        self.assertEqual("auto", self.ns.ProfileRepository.GetStatTargetBin("OTHER"))  # another spec is untouched
         self.assertEqual([False, False, True, False], self.checks(card))
         self.assertGreaterEqual(self.refreshes, 1)
         card.binRows[1].scripts.OnClick()
-        self.assertEqual("auto", self.lua.globals().StatVerdictDB.statTargetBin)
+        self.assertEqual("auto", self.lua.globals().StatVerdictDB.specTargetBin.SPEC)
         self.assertEqual([True, False, False, False], self.checks(card))
 
     def test_auto_tells_where_the_character_stands(self) -> None:
@@ -1502,7 +1611,8 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         return self.region_left(card, relative) + x
 
     def layout_snapshot(self, card):
-        regions = {"title": card.title, "intro": card.intro, "group title": card.binTitle,
+        regions = {"title": card.title, "intro": card.intro, "spec title": card.specTitle,
+                   "main spec": card.specRows[1], "off spec": card.specRows[2], "group title": card.binTitle,
                    "auto": card.binRows[1], "tier 1": card.binRows[2], "tier 2": card.binRows[3],
                    "tier 3": card.binRows[4],
                    "status line": card.status}

@@ -67,4 +67,4 @@ For Mythic+, Raid, and PvP:
 3. Best in Slot: Tier 1 shows 308 (Champion), Tier 2 321 (Hero), Tier 3 334 (Myth 6/6); PvP is unchanged.
 4. Hover a Best in Slot item and a ranked trinket: roomy tooltip, "Gems" / "Enchant" labels, and "Where to find" for a dungeon or raid item.
 5. Features drawer: three blocks with white titles, the game tooltip option set apart; every option still works.
-
+6. With an Off Spec set up: the Guide's Spec rows switch the view (never the game spec); each spec keeps its own tier.
