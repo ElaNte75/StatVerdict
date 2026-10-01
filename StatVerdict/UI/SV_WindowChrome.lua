@@ -169,11 +169,22 @@ function ns.ApplyStatVerdictWindowChrome(frame, options)
     frame.versionLabel:SetFont(font, VERSION_FONT_SIZE, "")
     frame.versionLabel:ClearAllPoints()
     frame.versionLabel:SetPoint("LEFT", frame.title, "RIGHT", 8, 0)
-    if frame.CloseButton then
-        frame.versionLabel:SetPoint("RIGHT", frame.CloseButton, "LEFT", -10, 0)
-    else
-        frame.versionLabel:SetPoint("RIGHT", titleBar, "RIGHT", -12, 0)
+
+    -- The tier in use ("Auto · Tier 2") sits at the right end of the title bar.
+    if not frame.tierLabel then
+        frame.tierLabel = titleBar:CreateFontString(nil, "OVERLAY")
     end
+    frame.tierLabel:SetFont(font, VERSION_FONT_SIZE, "")
+    frame.tierLabel:ClearAllPoints()
+    if frame.CloseButton then
+        frame.tierLabel:SetPoint("RIGHT", frame.CloseButton, "LEFT", -10, 0)
+    else
+        frame.tierLabel:SetPoint("RIGHT", titleBar, "RIGHT", -12, 0)
+    end
+    frame.tierLabel:SetJustifyH("RIGHT")
+    frame.tierLabel:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+    frame.tierLabel:SetText("")
+    frame.versionLabel:SetPoint("RIGHT", frame.tierLabel, "LEFT", -8, 0)
     frame.versionLabel:SetJustifyH("LEFT")
     frame.versionLabel:SetText(versionText ~= "" and versionText or "")
     frame.versionLabel:SetTextColor(VERSION_COLOR[1], VERSION_COLOR[2], VERSION_COLOR[3])

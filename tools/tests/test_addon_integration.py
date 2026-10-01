@@ -379,7 +379,7 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
         context.targets.guideTargets = lua.table(top20=top20)
         self.cells_with_guide_targets = set()
         try:
-            profile = self.build_profile(spec, "MYTHIC_PLUS", hero)
+            profile = self.build_profile(spec, "MYTHIC_PLUS", hero, "top20")
             problems: list[str] = []
             self.check_targets("cell", context, profile, problems)
             self.assertEqual([], problems)
@@ -391,13 +391,20 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
         finally:
             context.targets.guideTargets = saved
 
-    def build_profile(self, spec, goal, hero):
+    def build_profile(self, spec, goal, hero, tier: str | None = None):
+        """The profile under Auto (the default) or, with `tier`, a fixed tier (top80/top50/top20)."""
         ns, lua = self.ns, self.lua
-        return ns.ProfileRepository.BuildRuntimeProfile(lua.table(
-            specKey=spec.key, goal=goal, heroTalentName=hero,
-            specID=ns.GetStatVerdictSpecIDByKey(spec.key),
-            role={"tank": "TANK", "healer": "HEALER"}.get(spec.role, "DAMAGER"),
-        ))
+        db = lua.globals().StatVerdictDB
+        saved = db.statTargetBin
+        db.statTargetBin = tier
+        try:
+            return ns.ProfileRepository.BuildRuntimeProfile(lua.table(
+                specKey=spec.key, goal=goal, heroTalentName=hero,
+                specID=ns.GetStatVerdictSpecIDByKey(spec.key),
+                role={"tank": "TANK", "healer": "HEALER"}.get(spec.role, "DAMAGER"),
+            ))
+        finally:
+            db.statTargetBin = saved
 
     def check_cell(self, spec, goal, hero, problems: list[str]) -> str:
         ns, lua = self.ns, self.lua
@@ -413,7 +420,7 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
             problems.append(f"{cell}: invalid targets ({reason})")
             return "INVALID"
 
-        profile = self.build_profile(spec, goal, hero)
+        profile = self.build_profile(spec, goal, hero, "top20")
         if profile is None:
             problems.append(f"{cell}: BuildRuntimeProfile returned nothing")
             return "NOPROFILE"
@@ -431,11 +438,20 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
             weight = ns.GetDefaultStatWeight(profile, stat_key)
             if not isinstance(weight, (int, float)) or weight <= 0:
                 problems.append(f"{cell}: no scoring weight for {stat_key}")
-        self.check_targets(cell, context, profile, problems)
+        self.check_targets(cell, context, profile, problems, "top20")
+        for tier in ("top50", "top80"):
+            fixed = self.build_profile(spec, goal, hero, tier)
+            self.check_targets(f"{cell} [{tier}]", context, fixed, problems, tier)
+        # Auto (the default): a tier from the character's stats (none are known in this fake game: Tier 1).
+        auto = self.build_profile(spec, goal, hero)
+        if auto.statTargetBin != "auto" or auto.autoInfo is None or auto.effectiveBin not in ("top80", "top50", "top20"):
+            problems.append(f"{cell}: Auto did not choose a tier")
+        else:
+            self.check_targets(f"{cell} [auto]", context, auto, problems, auto.effectiveBin)
         return "ok"
 
-    def check_targets(self, cell: str, context, profile, problems: list[str]) -> None:
-        """The audit rows show the guide's (u.gg) top20 targets when the data has them, else our own.
+    def check_targets(self, cell: str, context, profile, problems: list[str], tier: str = "top20") -> None:
+        """The audit rows show the guide's (u.gg) targets of the tier when the data has them, else our own.
         A stat missing on one side uses the other side's target; a secondary with no
         target at all keeps its row with target 0 (never dropped)."""
         def positive(table, key):
@@ -444,7 +460,7 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
 
         own = context.targets.statTargets.stats
         guide_root = context.targets.guideTargets
-        guide = guide_root.top20 if guide_root is not None else None
+        guide = guide_root[tier] if guide_root is not None else None
         if guide is not None:
             self.cells_with_guide_targets.add(cell.rsplit(" [", 1)[0])
         for row in lua_list(profile.auditTargets.rows):

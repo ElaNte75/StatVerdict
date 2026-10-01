@@ -75,12 +75,12 @@ class OddCharacterRepositoryTests(unittest.TestCase):
         self.assertFalse(repo.SetStatTargetBin(None))
         self.assertFalse(repo.SetStatTargetBin(5))
         self.assertFalse(repo.SetStatTargetBin(lua.table()))
-        self.assertEqual("top20", repo.GetStatTargetBin())
+        self.assertEqual("auto", repo.GetStatTargetBin())
 
     def test_missing_or_garbage_saved_variables_use_the_defaults(self) -> None:
         for saved in ("'garbage'", "{weightMode = 5, gearLevel = {}, statTargetBin = 7}", "nil"):
             self.lua.execute(f"StatVerdictDB = {saved}")
-            self.assertEqual("top20", self.repo.GetStatTargetBin(), saved)
+            self.assertEqual("auto", self.repo.GetStatTargetBin(), saved)
             self.assertIsNotNone(self.profile(), saved)
         self.assertTrue(self.repo.SetStatTargetBin("top50"))  # recreates the table after nil
 

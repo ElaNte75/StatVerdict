@@ -18,14 +18,26 @@ local DEFAULT_GOAL = "MYTHIC_PLUS"
 -- Older saved variables (weightMode, gearLevel) are ignored.
 
 -- Which u.gg bin of the guide targets is shown (the ClassCodex addon's default
--- is the top 20%). StatVerdictDB.statTargetBin overrides it.
-local DEFAULT_STAT_TARGET_BIN = "top20"
+-- is the top 20%). StatVerdictDB.statTargetBin overrides it: exactly one of
+--   auto   the tier follows the character's own stats (see ResolveAutoTier): the
+--          default
+--   top80 / top50 / top20   a fixed tier (Tier 1 / 2 / 3).
+local DEFAULT_STAT_TARGET_BIN = "auto"
 local VALID_STAT_TARGET_BINS = {
+    auto = true,
     top20 = true,
     top50 = true,
     top80 = true,
 }
 Repository.DEFAULT_STAT_TARGET_BIN = DEFAULT_STAT_TARGET_BIN
+-- The tiers from the easiest (Tier 1) to the most demanding (Tier 3).
+local TIER_BINS = { "top80", "top50", "top20" }
+-- Auto moves up to the next tier once the stats cover this much of the current
+-- tier's targets, and back down only below the lower mark, so one piece of
+-- gear swapped in or out never makes it flip back and forth.
+local AUTO_UP_AT = 0.90
+local AUTO_DOWN_BELOW = 0.80
+local AUTO_MIN_RATING_SUM = 100  -- ratings that are not loaded yet read as 0: never judge on them
 
 local MIN_VALID_MAX_LEVEL_TARGET_ILVL = 250
 local STAT_KEY = {
@@ -329,9 +341,17 @@ end
 -- writes them, strings.
 local TRACK_OF_BIN = { top20 = "myth", top50 = "hero", top80 = "champion" }
 
+-- The tier whose targets are shown now: the fixed tier, or what Auto chose for
+-- the character's active spec at the last profile build (Tier 3 until it chose).
+function Repository.GetEffectiveStatTargetBin()
+    local bin = Repository.GetStatTargetBin()
+    if bin == "auto" then return Repository.activeAutoBin or "top20" end
+    return bin
+end
+
 function Repository.GetActiveTrackSwap()
     if ns.GetStatAuditGoalMode and ns.GetStatAuditGoalMode() == "PVP" then return nil end
-    local track = TRACK_OF_BIN[Repository.GetStatTargetBin()]
+    local track = TRACK_OF_BIN[Repository.GetEffectiveStatTargetBin()]
     if not track then return nil end
     local root = ns.ClassCodexTargets
     local swaps = type(root) == "table" and root.trackSwap or nil
@@ -389,7 +409,91 @@ local function SelectTargetValues(targets, bin)
     return selected, guideMissing, averageItemLevel
 end
 
--- Saves the guide target bin (Guide drawer: Tier 1/2/3) and drops the cached
+-- Auto: the tier follows the character's own stats. The progress to a tier is
+-- the share of that tier's rating targets the stats already cover (a stat past
+-- its target counts only up to the target). `level` is the highest tier whose
+-- targets are covered (0 to 3): it moves up at AUTO_UP_AT of the next tier and
+-- back down only below AUTO_DOWN_BELOW of its own, and is remembered per spec
+-- (StatVerdictDB.autoTier) so it does not flip back and forth. The targets and
+-- Best in Slot shown are those of the next tier (the goal), Tier 3 at the top.
+local AUTO_STATS = {
+    "ITEM_MOD_CRIT_RATING_SHORT", "ITEM_MOD_HASTE_RATING_SHORT",
+    "ITEM_MOD_MASTERY_RATING_SHORT", "ITEM_MOD_VERSATILITY",
+}
+
+local function ReadRating(specID, statKey)
+    local pseudo = { specID = specID }
+    if specID and ns.ShouldUseEquipmentSnapshot and ns.ShouldUseEquipmentSnapshot(pseudo) then
+        return ns.GetSnapshotStatValue and ns.GetSnapshotStatValue(pseudo, statKey) or nil
+    end
+    return ns.GetCurrentStatRating and ns.GetCurrentStatRating(statKey) or nil
+end
+
+local function CoveredShare(targetValues, ratings)
+    local covered, total = 0, 0
+    for _, statKey in ipairs(AUTO_STATS) do
+        local target = targetValues[statKey]
+        if target and target > 0 then
+            total = total + target
+            covered = covered + math.min(ratings[statKey] or 0, target)
+        end
+    end
+    if total <= 0 then return nil end
+    return covered / total
+end
+
+-- { level, shownTier, progress } for one spec; progress is the share of the shown
+-- tier's targets covered, nil when the stats are not known yet (then the
+-- remembered level stands).
+local function ResolveAutoTier(specKey, targets, specID)
+    local db = _G.StatVerdictDB
+    local remembered = type(db) == "table" and type(db.autoTier) == "table" and tonumber(db.autoTier[specKey]) or 0
+    remembered = math.max(0, math.min(3, math.floor(remembered)))
+    local ratings, sum = {}, 0
+    for _, statKey in ipairs(AUTO_STATS) do
+        local value = tonumber(ReadRating(specID, statKey))
+        ratings[statKey] = value
+        sum = sum + (value or 0)
+    end
+    local shares = {}
+    for tier, bin in ipairs(TIER_BINS) do
+        local values = SelectTargetValues(targets, bin)
+        shares[tier] = CoveredShare(values, ratings)
+    end
+    if sum < AUTO_MIN_RATING_SUM or not (shares[1] and shares[2] and shares[3]) then
+        local shown = math.min(remembered + 1, 3)
+        return { level = remembered, shownTier = shown, progress = nil }
+    end
+    local level = remembered
+    while level < 3 and shares[level + 1] >= AUTO_UP_AT do level = level + 1 end
+    while level > 0 and shares[level] < AUTO_DOWN_BELOW do level = level - 1 end
+    if level ~= remembered and type(db) == "table" then
+        db.autoTier = type(db.autoTier) == "table" and db.autoTier or {}
+        db.autoTier[specKey] = level
+        if level > remembered then
+            db.autoNotice = { specKey = specKey, level = level }
+        end
+    end
+    local shown = math.min(level + 1, 3)
+    return { level = level, shownTier = shown, progress = shares[shown] }
+end
+
+-- The tier Auto moved the spec up to, for a one-off notice, or nil.
+function Repository.GetAutoNotice(specKey)
+    local db = _G.StatVerdictDB
+    local notice = type(db) == "table" and db.autoNotice or nil
+    if type(notice) == "table" and notice.specKey == specKey and tonumber(notice.level) then
+        return math.floor(tonumber(notice.level))
+    end
+    return nil
+end
+
+function Repository.ClearAutoNotice()
+    local db = _G.StatVerdictDB
+    if type(db) == "table" then db.autoNotice = nil end
+end
+
+-- Saves the guide target bin (Guide drawer: Auto or Tier 1/2/3) and drops the cached
 -- provider views. false (nothing saved) for an unknown bin.
 function Repository.SetStatTargetBin(bin)
     if type(bin) ~= "string" or not VALID_STAT_TARGET_BINS[bin] then return false end
@@ -481,8 +585,17 @@ function Repository.BuildRuntimeProfile(context)
     local secondaryOrder = BuildSecondaryOrderFromTargets(generatedContext.targets, priority)
     local equalGroups = BuildEqualGroups(priority, secondaryOrder)
     local statTargetBin = Repository.GetStatTargetBin()
+    local effectiveBin, autoInfo = statTargetBin, nil
+    if statTargetBin == "auto" then
+        autoInfo = ResolveAutoTier(specKey, generatedContext.targets, context.specID)
+        effectiveBin = TIER_BINS[autoInfo.shownTier]
+        local pseudo = { specID = context.specID }
+        if not (context.specID and ns.ShouldUseEquipmentSnapshot and ns.ShouldUseEquipmentSnapshot(pseudo)) then
+            Repository.activeAutoBin = effectiveBin
+        end
+    end
     local targetValues, guideTargetsMissing, targetItemLevel =
-        SelectTargetValues(generatedContext.targets, statTargetBin)
+        SelectTargetValues(generatedContext.targets, effectiveBin)
     local primaryStat = STAT_KEY[generatedProfile.primaryStat]
     if not primaryStat then return nil end
     local role = context.role
@@ -536,6 +649,8 @@ function Repository.BuildRuntimeProfile(context)
             invalidReason = invalidReason or "Generated profile data failed quality checks.",
         } or BuildAuditTargets(targetItemLevel, targetValues, secondaryOrder, equalGroups),
         statTargetBin = statTargetBin,
+        effectiveBin = effectiveBin,
+        autoInfo = autoInfo,
         guideTargetsMissing = guideTargetsMissing,
         generatedContext = invalidGeneratedContext and nil or generatedContext,
         invalidGeneratedContext = invalidGeneratedContext,
@@ -597,6 +712,14 @@ local function BuildProviderViewSignature(goal)
             local heroName = ns.GetSnapshotHeroTalentName and ns.GetSnapshotHeroTalentName(signatureContext)
             local heroID = ns.GetSnapshotHeroSubTreeID and ns.GetSnapshotHeroSubTreeID(signatureContext)
             parts[#parts + 1] = tostring(specKey) .. "=" .. tostring(heroID) .. ":" .. tostring(heroName)
+            if Repository.GetStatTargetBin() == "auto" then
+                -- Auto follows the stats: a new rating is a new input.
+                local stamp = {}
+                for _, statKey in ipairs(AUTO_STATS) do
+                    stamp[#stamp + 1] = tostring(ReadRating(specID, statKey))
+                end
+                parts[#parts + 1] = table.concat(stamp, ",")
+            end
         end
     end
     return table.concat(parts, "|")

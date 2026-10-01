@@ -110,18 +110,46 @@ class WeightModeCoreTests(unittest.TestCase):
         # Old saved choices are ignored, never an error.
         db = self.lua.globals().StatVerdictDB
         db.weightMode, db.gearLevel, db.benchmarkLevel = "MEASURED", "hero", "ELITE"
-        self.assertEqual("top20", self.ns.GetStatTargetBin())
+        self.assertEqual("auto", self.ns.GetStatTargetBin())
 
-    def test_three_difficulties_from_easy_to_hard(self) -> None:
+    def test_auto_then_three_difficulties_from_easy_to_hard(self) -> None:
         bins = self.ns.GetStatTargetBins()
-        # Saved keys stay top20/50/80, shown Tier 1 (top80, easiest) to Tier 3 (top20, hardest); Tier 3 (top20) is the default.
-        self.assertEqual(3, len(bins))
-        self.assertEqual(["top80", "top50", "top20"], [bins[i].key for i in (1, 2, 3)])
-        self.assertEqual(["Tier 1", "Tier 2", "Tier 3"], [bins[i].label for i in (1, 2, 3)])
-        self.assertEqual(["Comfortable", "Realistic", "Demanding"], [bins[i].hint for i in (1, 2, 3)])
-        self.assertEqual(["Targets most players reach", "The stats of a typical player", "The best-equipped players"],
-                         [bins[i].meaning for i in (1, 2, 3)])
-        self.assertEqual("top20", self.ns.GetStatTargetBin())
+        # Saved keys stay top20/50/80, shown Tier 1 (top80, easiest) to Tier 3 (top20, hardest); Auto comes first and is the default.
+        self.assertEqual(4, len(bins))
+        self.assertEqual(["auto", "top80", "top50", "top20"], [bins[i].key for i in (1, 2, 3, 4)])
+        self.assertEqual(["Auto", "Tier 1", "Tier 2", "Tier 3"], [bins[i].label for i in (1, 2, 3, 4)])
+        self.assertEqual(["Recommended", "Comfortable", "Realistic", "Demanding"], [bins[i].hint for i in (1, 2, 3, 4)])
+        self.assertEqual(["Follows your stats", "Targets most players reach", "The stats of a typical player",
+                          "The best-equipped players"], [bins[i].meaning for i in (1, 2, 3, 4)])
+        self.assertEqual("auto", self.ns.GetStatTargetBin())
+
+    def test_auto_summary_and_title_label(self) -> None:
+        def profile(level=None, progress=None, bin_key="auto"):
+            table = self.lua.table(statTargetBin=bin_key, specKey="MAGE_FIRE")
+            if level is not None:
+                table.autoInfo = self.lua.table(level=level, progress=progress)
+            return table
+        cases = (
+            (profile(0, 0.404), "Getting started · 40% to Tier 1", "Auto · Starting"),
+            (profile(1, 0.8), "Tier 1 reached · 80% to Tier 2", "Auto · Tier 1"),
+            (profile(2, 0.999), "Tier 2 reached · 99% to Tier 3", "Auto · Tier 2"),
+            (profile(3, 1.0), "Tier 3 reached · top targets met", "Auto · Tier 3"),
+            (profile(2, None), "Follows your stats", "Auto"),
+        )
+        for table, summary, label in cases:
+            self.assertEqual(summary, self.ns.GetAutoTierSummary(table))
+            self.assertEqual(label, self.ns.GetTierTitleLabel(table))
+        # A fixed tier is named plainly, and says nothing of Auto.
+        for key, label in (("top80", "Tier 1"), ("top50", "Tier 2"), ("top20", "Tier 3")):
+            self.assertIsNone(self.ns.GetAutoTierSummary(profile(bin_key=key)))
+            self.assertEqual(label, self.ns.GetTierTitleLabel(profile(bin_key=key)))
+        self.assertIsNone(self.ns.GetTierTitleLabel(None))
+
+    def test_the_title_bar_names_the_tier_in_use(self) -> None:
+        chrome = (ADDON / "UI" / "SV_WindowChrome.lua").read_text(encoding="utf-8-sig")
+        self.assertIn("frame.tierLabel", chrome)
+        audit = (ADDON / "UI" / "SV_StatAudit.lua").read_text(encoding="utf-8-sig")
+        self.assertIn("frame.tierLabel:SetText(ns.GetTierTitleLabel and ns.GetTierTitleLabel(panelProfile)", audit)
 
     def test_set_stat_target_bin_saves_it_and_refreshes(self) -> None:
         self.assertTrue(self.ns.SetStatTargetBin("top50"))
@@ -146,7 +174,7 @@ class WeightModeCoreTests(unittest.TestCase):
         self.lua.globals().StatVerdictDB.statTargetBin = "top50"
         choice = self.ns.GetTargetChoice()
         self.assertEqual("Stat targets", choice.title)
-        self.assertEqual(["top80", "top50", "top20"], [choice.options[i].key for i in (1, 2, 3)])
+        self.assertEqual(["auto", "top80", "top50", "top20"], [choice.options[i].key for i in (1, 2, 3, 4)])
         self.assertEqual("top50", choice.selected)
         self.assertTrue(choice.set("top80"))
         self.assertEqual("top80", self.lua.globals().StatVerdictDB.statTargetBin)
@@ -649,11 +677,14 @@ class CoreProfileTests(unittest.TestCase):
     OWN_TARGETS = {"crit": 1140.0, "haste": 900.0, "mastery": 680.0, "vers": 430.0}
     GUIDE_BINS = {"top20": (1000, 1200, None, 300), "top50": (900, 1000, 600, 250), "top80": (800, 900, 550, 200)}
 
-    def guide_runtime(self, bins: dict | None = None):
+    def guide_runtime(self, bins: dict | None = None, tier: str | None = "top20"):
         build_id = now_build_id()
         targets = add_guide_targets(make_classcodex_targets(build_id), "DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "sanlayn",
                                     make_guide_targets(**(self.GUIDE_BINS if bins is None else bins)))
-        return self.build_runtime(build_id=build_id, targets=targets)
+        lua, ns = self.build_runtime(build_id=build_id, targets=targets)
+        if tier:  # the fixed tier the tests below read; Auto has its own tests
+            lua.globals().StatVerdictDB.statTargetBin = tier
+        return lua, ns
 
     def named_targets(self, profile) -> dict[str, float]:
         by_key = self.targets(profile)
@@ -661,7 +692,7 @@ class CoreProfileTests(unittest.TestCase):
 
     def test_the_classcodex_top20_targets_are_shown_by_default(self) -> None:
         lua, ns = self.guide_runtime()
-        self.assertEqual("top20", ns.ProfileRepository.DEFAULT_STAT_TARGET_BIN)
+        self.assertEqual("auto", ns.ProfileRepository.DEFAULT_STAT_TARGET_BIN)
         profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
         # mastery is not in the guide's top20: our own target fills that stat.
         self.assertEqual({"crit": 1000.0, "haste": 1200.0, "mastery": 680.0, "vers": 300.0}, self.named_targets(profile))
@@ -683,9 +714,9 @@ class CoreProfileTests(unittest.TestCase):
             self.assertEqual(bin_key, profile.statTargetBin)
         for garbage in ("top99", "TOP50", 50, lua.table()):
             lua.globals().StatVerdictDB.statTargetBin = garbage
-            self.assertEqual("top20", repo.GetStatTargetBin(), garbage)
+            self.assertEqual("auto", repo.GetStatTargetBin(), garbage)
         lua.globals().StatVerdictDB = None
-        self.assertEqual("top20", repo.GetStatTargetBin())
+        self.assertEqual("auto", repo.GetStatTargetBin())
 
     def test_without_classcodex_targets_our_own_are_used(self) -> None:
         lua, ns = self.build_runtime()
@@ -757,6 +788,116 @@ class CoreProfileTests(unittest.TestCase):
         top80 = repo.RefreshProviderView("MYTHIC_PLUS")
         self.assertFalse(lua.eval("rawequal")(top20, top80))
         self.assertEqual(800.0, self.named_targets(top80["DEATHKNIGHT"][250].default)["crit"])
+
+    # --- Auto: the tier follows the character's stats ---------------------------
+    # Fixture San'layn guide targets: Tier 1 (top80) 800/900/550/200, Tier 2 (top50) 900/1000/600/250,
+    # Tier 3 (top20) 1000/1200/-(own 680)/300 (crit/haste/mastery/versatility).
+    TIER_1 = {"crit": 800, "haste": 900, "mastery": 550, "vers": 200}
+
+    def auto_runtime(self, scale: float | None = None, tier: str | None = None):
+        lua, ns = self.guide_runtime(tier=tier)
+        self.set_ratings(ns, scale)
+        return lua, ns
+
+    def set_ratings(self, ns, scale: float | None, base: dict | None = None) -> None:
+        """The character's ratings: `scale` times Tier 1's targets (None: no rating function yet)."""
+        base = base or self.TIER_1
+        if scale is None:
+            ns.GetCurrentStatRating = None
+            return
+        keys = {"crit": SECONDARY["crit"], "haste": SECONDARY["haste"], "mastery": SECONDARY["mastery"],
+                "vers": SECONDARY["vers"]}
+        values = {keys[name]: value * scale for name, value in base.items()}
+        ns.GetCurrentStatRating = lambda stat_key: values.get(stat_key, 0)
+
+    def auto(self, lua, ns):
+        return ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
+
+    def test_auto_starts_at_tier_1_and_shows_its_targets(self) -> None:
+        lua, ns = self.auto_runtime(0.5)
+        profile = self.auto(lua, ns)
+        self.assertEqual("auto", profile.statTargetBin)
+        self.assertEqual("top80", profile.effectiveBin)
+        self.assertEqual((0, 1), (profile.autoInfo.level, profile.autoInfo.shownTier))
+        self.assertAlmostEqual(0.5, profile.autoInfo.progress)
+        self.assertEqual({"crit": 800.0, "haste": 900.0, "mastery": 550.0, "vers": 200.0}, self.named_targets(profile))
+
+    def test_auto_without_known_stats_starts_at_tier_1_and_says_nothing_of_progress(self) -> None:
+        lua, ns = self.auto_runtime(None)
+        profile = self.auto(lua, ns)
+        self.assertEqual((0, 1), (profile.autoInfo.level, profile.autoInfo.shownTier))
+        self.assertIsNone(profile.autoInfo.progress)
+        self.assertIsNone(lua.globals().StatVerdictDB.autoTier)  # nothing is remembered from guesses
+
+    def test_auto_moves_up_at_90_percent_of_the_tier(self) -> None:
+        lua, ns = self.auto_runtime(0.89)
+        self.assertEqual(0, self.auto(lua, ns).autoInfo.level)
+        self.set_ratings(ns, 0.90)
+        profile = self.auto(lua, ns)
+        self.assertEqual((1, 2, "top50"), (profile.autoInfo.level, profile.autoInfo.shownTier, profile.effectiveBin))
+        self.assertEqual({"crit": 900.0, "haste": 1000.0, "mastery": 600.0, "vers": 250.0}, self.named_targets(profile))
+        # 720 + 810 + 495 + 180 of 900 + 1000 + 600 + 250
+        self.assertAlmostEqual(2205 / 2750, profile.autoInfo.progress)
+        self.assertEqual(1, lua.globals().StatVerdictDB.autoTier["DEATHKNIGHT_BLOOD"])
+        self.assertEqual(1, ns.ProfileRepository.GetAutoNotice("DEATHKNIGHT_BLOOD"))
+        self.assertIsNone(ns.ProfileRepository.GetAutoNotice("MAGE_FIRE"))
+
+    def test_auto_does_not_flip_back_for_one_swapped_piece(self) -> None:
+        lua, ns = self.auto_runtime(0.92)
+        self.assertEqual(1, self.auto(lua, ns).autoInfo.level)
+        self.set_ratings(ns, 0.85)  # below 90% but not below 80%: stays
+        self.assertEqual(1, self.auto(lua, ns).autoInfo.level)
+        ns.ProfileRepository.ClearAutoNotice()
+        self.set_ratings(ns, 0.75)  # clearly below 80%: back down, without a notice
+        profile = self.auto(lua, ns)
+        self.assertEqual((0, 1), (profile.autoInfo.level, profile.autoInfo.shownTier))
+        self.assertIsNone(ns.ProfileRepository.GetAutoNotice("DEATHKNIGHT_BLOOD"))
+
+    def test_auto_goes_one_tier_at_a_time_and_stops_at_tier_3(self) -> None:
+        lua, ns = self.auto_runtime(3.0)  # far past every tier
+        profile = self.auto(lua, ns)
+        self.assertEqual((3, 3, "top20"), (profile.autoInfo.level, profile.autoInfo.shownTier, profile.effectiveBin))
+        self.assertEqual(3, ns.ProfileRepository.GetAutoNotice("DEATHKNIGHT_BLOOD"))
+
+    def test_ratings_that_are_not_loaded_yet_never_move_the_remembered_tier(self) -> None:
+        lua, ns = self.auto_runtime(0.95)
+        self.assertEqual(1, self.auto(lua, ns).autoInfo.level)
+        self.set_ratings(ns, 0.0)  # the game still reports 0 right after login
+        profile = self.auto(lua, ns)
+        self.assertEqual(1, profile.autoInfo.level)
+        self.assertIsNone(profile.autoInfo.progress)
+        self.assertEqual(1, lua.globals().StatVerdictDB.autoTier["DEATHKNIGHT_BLOOD"])
+
+    def test_a_fixed_tier_ignores_the_stats(self) -> None:
+        lua, ns = self.auto_runtime(3.0, tier="top80")
+        profile = self.auto(lua, ns)
+        self.assertEqual(("top80", "top80"), (profile.statTargetBin, profile.effectiveBin))
+        self.assertIsNone(profile.autoInfo)
+        self.assertIsNone(lua.globals().StatVerdictDB.autoTier)
+
+    def test_the_provider_view_follows_the_ratings_under_auto(self) -> None:
+        lua, ns = self.auto_runtime(0.5)
+        ns.GetSnapshotHeroTalentName = lambda context: "San'layn"
+        repo = ns.ProfileRepository
+        first = repo.RefreshProviderView("MYTHIC_PLUS")
+        self.assertEqual(800.0, self.named_targets(first["DEATHKNIGHT"][250].default)["crit"])
+        self.assertTrue(lua.eval("rawequal")(first, repo.RefreshProviderView("MYTHIC_PLUS")))  # same ratings: cached
+        self.set_ratings(ns, 0.95)
+        second = repo.RefreshProviderView("MYTHIC_PLUS")
+        self.assertFalse(lua.eval("rawequal")(first, second))
+        self.assertEqual(900.0, self.named_targets(second["DEATHKNIGHT"][250].default)["crit"])
+
+    def test_best_in_slot_follows_the_tier_auto_chose(self) -> None:
+        lua, ns = self.auto_runtime(0.5)
+        repo = ns.ProfileRepository
+        ns.ClassCodexTargets.trackSwap = lua.eval('{ champion = { ["12854"] = 12838 }, hero = { ["12854"] = 12846 } }')
+        self.auto(lua, ns)  # Tier 1 is the goal: Champion
+        self.assertEqual("top80", repo.GetEffectiveStatTargetBin())
+        self.assertEqual(12838, repo.ApplyTrackSwap(lua.table(12854))[1])
+        self.set_ratings(ns, 0.95)
+        self.auto(lua, ns)  # Tier 2 is the goal: Hero
+        self.assertEqual("top50", repo.GetEffectiveStatTargetBin())
+        self.assertEqual(12846, repo.ApplyTrackSwap(lua.table(12854))[1])
 
     def test_old_saved_mode_and_gear_level_change_nothing(self) -> None:
         # Saved variables of the removed Measured mode: the guide's tier is still what is shown.
@@ -1012,8 +1153,9 @@ class PanelModeTests(unittest.TestCase):
     def test_manual_describes_the_weights_button(self) -> None:
         source = (ADDON / "UI" / "SV_ManualDrawerPanel.lua").read_text(encoding="utf-8-sig")
         self.assertIn("Guide — the stat priorities, Best in Slot lists and stat targets are copied from the "
-                      "guides, unchanged. Pick a stat target tier: Tier 1, Tier 2 or Tier 3 (the most demanding).",
-                      source)
+                      "guides, unchanged. Pick Auto (the default: the tier follows your own stats and moves up when "
+                      "you cover about 90% of it) or one fixed tier: Tier 1, Tier 2 or Tier 3 (the most demanding). "
+                      "The tier in use is shown in the title bar; Best in Slot and trinkets follow it.", source)
         self.assertNotIn("Measured", source)
         for word in ("Easy", "Hard"):
             self.assertNotIn(word, source)
@@ -1113,10 +1255,16 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         self.ns.GetStatAuditGoalMode = lambda: "RAID"
         self.guide_targets = True
         self.has_profile = True
+        self.auto_info = None  # (level, progress) of the active build under Auto
+        self.notice = None
         self.ns.SetRightPanelMode("weights")
+        self.ns.ProfileRepository.GetAutoNotice = lambda spec_key: self.notice
 
     def card(self):
-        profile = self.lua.table(specKey="SPEC", guideTargetsMissing=not self.guide_targets)
+        profile = self.lua.table(specKey="SPEC", guideTargetsMissing=not self.guide_targets,
+                                 statTargetBin=self.lua.globals().StatVerdictDB.statTargetBin or "auto")
+        if self.auto_info is not None:
+            profile.autoInfo = self.lua.table(level=self.auto_info[0], progress=self.auto_info[1])
         context = self.lua.table(profile=profile) if self.has_profile else self.lua.table()
         self.ns.GetActivePanelContext = lambda: context
         self.ns.StatVerdictWeightsDrawerPanel.Apply(self.frame)
@@ -1129,7 +1277,7 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
     MEANINGS = ["Targets most players reach", "The stats of a typical player", "The best-equipped players"]
 
     def checks(self, card):
-        return [card.binRows[i].check.checked for i in (1, 2, 3)]
+        return [card.binRows[i].check.checked for i in (1, 2, 3, 4)]
 
     def border(self, region):
         return tuple(round(region._border[i], 2) for i in (1, 2, 3))
@@ -1142,60 +1290,103 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         self.assertIsNone(card.about)
         self.assertIsNone(card.binNote)
 
-    def test_three_premium_tier_rows(self) -> None:
+    def test_auto_and_three_premium_tier_rows(self) -> None:
         card = self.card()
         self.assertEqual("Stat targets", card.binTitle.text)
-        self.assertEqual(3, len(card.binRows))
-        rows = [card.binRows[i] for i in (1, 2, 3)]
-        self.assertEqual(["top80", "top50", "top20"], [r.key for r in rows])
-        self.assertEqual(["Tier 1", "Tier 2", "Tier 3"], [r.label.text for r in rows])
-        self.assertEqual(["Comfortable", "Realistic", "Demanding"], [r.hint.text for r in rows])
-        self.assertEqual(self.MEANINGS, [r.meaning.text for r in rows])
+        self.assertEqual(4, len(card.binRows))
+        rows = [card.binRows[i] for i in (1, 2, 3, 4)]
+        self.assertEqual(["auto", "top80", "top50", "top20"], [r.key for r in rows])
+        self.assertEqual(["Auto", "Tier 1", "Tier 2", "Tier 3"], [r.label.text for r in rows])
+        self.assertEqual(["Recommended", "Comfortable", "Realistic", "Demanding"], [r.hint.text for r in rows])
+        self.assertEqual(["Follows your stats"] + self.MEANINGS, [r.meaning.text for r in rows])
         for row in rows:
             self.assertEqual("BackdropTemplate", row._frameTemplate)
             self.assertEqual(50, row._height)
-        # Stacked top to bottom, least to most demanding, evenly spaced, spanning the card's text width.
+        # Stacked top to bottom, evenly spaced, spanning the card's text width.
         ys = [row.points[1][5] for row in rows]
         self.assertEqual(sorted(ys, reverse=True), ys)
-        self.assertEqual(ys[0] - ys[1], ys[1] - ys[2])
+        self.assertEqual(1, len({ys[i] - ys[i + 1] for i in (0, 1, 2)}))
         self.assertGreaterEqual(ys[0] - ys[1], 50 + 4)
         self.assertEqual("TOPRIGHT", rows[0].points[2][1])
 
-    def test_default_is_tier_3_ticked_and_gold(self) -> None:
+    def test_auto_is_the_default_and_the_only_one_ticked_and_gold(self) -> None:
         card = self.card()
-        self.assertEqual([False, False, True], self.checks(card))
-        self.assertEqual(self.GOLD_BORDER, self.border(card.binRows[3]))
-        self.assertEqual(self.SELECTED_BG, tuple(round(card.binRows[3]._bg[i], 2) for i in (1, 2, 3)))
-        self.assertEqual(self.RESTING_BORDER, self.border(card.binRows[1]))
-        self.assertEqual(self.RESTING_BG, tuple(round(card.binRows[1]._bg[i], 2) for i in (1, 2, 3)))
+        self.assertEqual([True, False, False, False], self.checks(card))
+        self.assertEqual(self.GOLD_BORDER, self.border(card.binRows[1]))
+        self.assertEqual(self.SELECTED_BG, tuple(round(card.binRows[1]._bg[i], 2) for i in (1, 2, 3)))
+        for i in (2, 3, 4):
+            self.assertEqual(self.RESTING_BORDER, self.border(card.binRows[i]), i)
+            self.assertEqual(self.RESTING_BG, tuple(round(card.binRows[i]._bg[i2], 2) for i2 in (1, 2, 3)), i)
 
-    def test_the_saved_tier_is_shown(self) -> None:
-        for key, checks in (("top80", [True, False, False]), ("top50", [False, True, False]),
-                            ("top99", [False, False, True])):
+    def test_never_two_choices_at_once(self) -> None:
+        for key in ("auto", "top80", "top50", "top20", "top99", None):
+            self.lua.globals().StatVerdictDB.statTargetBin = key
+            ticked = self.checks(self.card())
+            self.assertEqual(1, sum(1 for t in ticked if t), key)
+        card = self.card()
+        for index in (4, 2, 1, 3, 1):
+            card.binRows[index].scripts.OnClick()
+            self.assertEqual(1, sum(1 for t in self.checks(card) if t), index)
+            golds = [i for i in (1, 2, 3, 4) if self.border(card.binRows[i]) == self.GOLD_BORDER]
+            self.assertEqual([index], golds, index)
+
+    def test_the_saved_choice_is_shown(self) -> None:
+        for key, checks in (("auto", [True, False, False, False]), ("top80", [False, True, False, False]),
+                            ("top50", [False, False, True, False]), ("top20", [False, False, False, True]),
+                            ("top99", [True, False, False, False])):
             self.lua.globals().StatVerdictDB.statTargetBin = key
             self.assertEqual(checks, self.checks(self.card()), key)
 
-    def test_clicking_a_tier_sets_it_and_refreshes(self) -> None:
+    def test_clicking_a_row_sets_it_and_refreshes(self) -> None:
         card = self.card()
-        card.binRows[2].scripts.OnClick()
+        card.binRows[3].scripts.OnClick()
         self.assertEqual("top50", self.lua.globals().StatVerdictDB.statTargetBin)
         self.assertEqual("top50", self.ns.ProfileRepository.GetStatTargetBin())
-        self.assertEqual([False, True, False], self.checks(card))
+        self.assertEqual([False, False, True, False], self.checks(card))
         self.assertGreaterEqual(self.refreshes, 1)
         card.binRows[1].scripts.OnClick()
-        self.assertEqual("top80", self.lua.globals().StatVerdictDB.statTargetBin)
-        self.assertEqual([True, False, False], self.checks(card))
+        self.assertEqual("auto", self.lua.globals().StatVerdictDB.statTargetBin)
+        self.assertEqual([True, False, False, False], self.checks(card))
+
+    def test_auto_tells_where_the_character_stands(self) -> None:
+        for level, progress, text in ((0, 0.40, "Getting started · 40% to Tier 1"),
+                                      (1, 0.80, "Tier 1 reached · 80% to Tier 2"),
+                                      (2, 0.87, "Tier 2 reached · 87% to Tier 3"),
+                                      (3, 1.0, "Tier 3 reached · top targets met"),
+                                      (2, None, "Follows your stats")):
+            self.auto_info = (level, progress)
+            self.assertEqual(text, self.card().binRows[1].meaning.text, (level, progress))
+        self.auto_info = None
+        self.assertEqual("Follows your stats", self.card().binRows[1].meaning.text)  # no active build
+
+    def test_a_move_up_is_noted_once_and_goes_when_the_drawer_closes(self) -> None:
+        self.auto_info = (2, 0.5)
+        self.notice = 2
+        self.assertEqual("You moved up to Tier 2.", self.card().status.text)
+        self.assertTrue(self.frame.weightsDrawerCard.noticeShown)
+        self.ns.SetRightPanelMode(None)
+        self.ns.StatVerdictWeightsDrawerPanel.Apply(self.frame)
+        self.assertIsNone(self.lua.globals().StatVerdictDB.autoNotice)
+        self.notice = None
+        self.ns.SetRightPanelMode("weights")
+        self.assertEqual("", self.card().status.text)
+
+    def test_the_notice_is_only_shown_for_auto(self) -> None:
+        self.auto_info = (2, 0.5)
+        self.notice = 2
+        self.lua.globals().StatVerdictDB.statTargetBin = "top50"
+        self.assertEqual("", self.card().status.text)
 
     def test_hovering_lights_the_border_but_the_selected_row_stays_gold(self) -> None:
         card = self.card()
-        row = card.binRows[1]
+        row = card.binRows[2]
         resting = self.border(row)
         row.scripts.OnEnter(row)
         self.assertNotEqual(resting, self.border(row))
         row.scripts.OnLeave(row)
         self.assertEqual(resting, self.border(row))
-        card.binRows[3].scripts.OnEnter(card.binRows[3])
-        self.assertEqual(self.GOLD_BORDER, self.border(card.binRows[3]))
+        card.binRows[1].scripts.OnEnter(card.binRows[1])  # Auto is the ticked one
+        self.assertEqual(self.GOLD_BORDER, self.border(card.binRows[1]))
 
     def test_status_is_empty_when_all_is_well_and_without_a_build(self) -> None:
         self.assertEqual("", self.card().status.text)
@@ -1292,7 +1483,8 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
 
     def layout_snapshot(self, card):
         regions = {"title": card.title, "intro": card.intro, "group title": card.binTitle,
-                   "tier 1": card.binRows[1], "tier 2": card.binRows[2], "tier 3": card.binRows[3],
+                   "auto": card.binRows[1], "tier 1": card.binRows[2], "tier 2": card.binRows[3],
+                   "tier 3": card.binRows[4],
                    "status line": card.status}
         snapshot = {}
         for name, region in regions.items():

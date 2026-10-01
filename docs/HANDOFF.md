@@ -11,7 +11,9 @@ Read this file first, then `git log --oneline -40` on `main`. Everything describ
 > cards, `/svweights`, `SV_ClassCodexWeights.lua`, `classcodex-stat-weights.yml`, `classcodex_weights_cli.py`, track swap.
 > Sections below that mention Measured / gear level / weights file are history. Next idea (owner): later offer more
 > guide sources (only if their data can be copied 1:1, verified from many sides); then the button becomes a choice
-> of guide again. Research tools stay: `tools/gear_search.py`, `tools/stat_split_probe.py`, `tools/tank_survival_probe.py`.
+> of guide again. **Auto tier (2026-10-01):** the Guide drawer has Auto (default) + Tier 1/2/3, exactly one chosen; Auto
+> level = highest tier whose rating targets are >=90% covered (down only below 80%, remembered in
+> `StatVerdictDB.autoTier`), shows the NEXT tier's targets; `Repository.GetEffectiveStatTargetBin`. Research tools stay: `tools/gear_search.py`, `tools/stat_split_probe.py`, `tools/tank_survival_probe.py`.
 
 
 ## How to talk to the owner (standing rule, 2026-10-01)

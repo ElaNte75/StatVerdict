@@ -32,7 +32,7 @@ If you already use SimulationCraft for exact character-specific optimization, th
 - Shows **Stat Progress** toward build targets, with live Weights
 - Lets you **Approve** bag pieces into a virtual loadout for a spec you are not wearing
 - Tracks **Best in Slot** progress (Mythic+, Raid, PvP)
-- **Guide** drawer shows whose guides the stat priorities, Best in Slot lists and stat targets are copied from (unchanged), with a Tier 1 / 2 / 3 stat target choice
+- **Guide** drawer: the stat priorities, Best in Slot lists and stat targets are copied from the guides (unchanged); choose Auto (follows your stats, the default) or Tier 1 / 2 / 3
 
 ---
 

@@ -6,7 +6,7 @@ ns.StatVerdictWeightsDrawerPanel = Panel
 local DRAWER_PREFERRED_WIDTH = 300
 local MARGIN = 14
 
--- The tier rows use this look.
+-- The Auto and tier rows use this look.
 local ROW_BACKDROP = {
     bgFile = "Interface\\Buttons\\WHITE8X8",
     edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -77,9 +77,11 @@ local function AddText(card, template, y, justify)
     return text
 end
 
--- The stat target tiers: three premium rows, least to most demanding (a radio
--- group: exactly one is ticked, shown gold), each with its name, a hint on the
--- right and a short meaning under the name. The whole row is the click target.
+-- Auto, then the stat target tiers: four premium rows, least to most demanding (a
+-- radio group: exactly one is ticked, shown gold, never two), each with its name,
+-- a hint on the right and a short meaning under the name. The whole row is the
+-- click target. Auto's meaning line tells where the character stands.
+local ROW_COUNT = 4
 local ROW_HEIGHT = 50
 local ROW_STEP = 56
 local TITLE_Y = -78
@@ -175,7 +177,7 @@ local function EnsureCard(frame)
     card.binTitle:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
 
     local lastRow
-    for index = 1, 3 do
+    for index = 1, ROW_COUNT do
         local row = EnsureTierRow(card, index)
         local y = ROWS_TOP - ((index - 1) * ROW_STEP)
         row:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, y)
@@ -206,18 +208,29 @@ function Panel.Sync(card)
         row.key = info.key
         row.label:SetText(info.label or "")
         row.hint:SetText(info.hint or "")
-        row.meaning:SetText(info.meaning or "")
+        local meaning = info.meaning or ""
+        if info.auto then meaning = ns.GetAutoTierSummary(ActiveProfile()) or meaning end
+        row.meaning:SetText(meaning)
         local checked = info.key ~= nil and info.key == choice.selected
         row.check:SetChecked(checked)
         PaintRow(row, checked, row.hovered == true)
     end
 
-    local status = ""
+    -- The status: a build without guide targets (orange), and the one-off notice
+    -- after Auto moved the character up a tier (gold).
+    local lines = {}
     if MissingGuideTargets() then
-        status = "No guide targets for this build: our own are used."
+        lines[#lines + 1] = "No guide targets for this build: our own are used."
     end
-    card.status:SetTextColor(ORANGE[1], ORANGE[2], ORANGE[3])
-    card.status:SetText(status)
+    local notice = choice.selected == "auto" and ns.GetAutoTierNotice(ActiveProfile()) or nil
+    if notice then lines[#lines + 1] = notice end
+    card.noticeShown = notice ~= nil
+    if MissingGuideTargets() then
+        card.status:SetTextColor(ORANGE[1], ORANGE[2], ORANGE[3])
+    else
+        card.status:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+    end
+    card.status:SetText(table.concat(lines, "\n"))
 end
 
 function Panel.IsOpen()
@@ -260,7 +273,16 @@ end
 function Panel.Apply(frame)
     if not frame then return end
     if not Panel.IsOpen() then
-        if frame.weightsDrawerCard then frame.weightsDrawerCard:Hide() end
+        local closed = frame.weightsDrawerCard
+        if closed then
+            -- The move-up notice was seen: it goes when the drawer closes.
+            if closed.noticeShown then
+                local repository = ns.ProfileRepository
+                if repository and repository.ClearAutoNotice then repository.ClearAutoNotice() end
+                closed.noticeShown = false
+            end
+            closed:Hide()
+        end
         return
     end
 

@@ -3206,6 +3206,9 @@ UpdateFrame = function()
             panelProfile = panelContext.profile
         end
     end
+    if frame.tierLabel then
+        frame.tierLabel:SetText(ns.GetTierTitleLabel and ns.GetTierTitleLabel(panelProfile) or "")
+    end
     if ns.StatVerdictBisProgressPanel then
         ns.StatVerdictBisProgressPanel.Refresh(frame, panelProfile)
     end

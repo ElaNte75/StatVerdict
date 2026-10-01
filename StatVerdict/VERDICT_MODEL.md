@@ -19,8 +19,11 @@ percentages.
   piece is a tier-set piece (the Catalyst rule).
 - **Stat weights** follow the guides' priority (stats the guide calls roughly
   equal weigh alike), copied unchanged. Guide stat targets come in three tiers
-  (Tier 1 / Tier 2 / Tier 3, the default being the most demanding), chosen in the
-  Guide drawer. A stat with no target keeps its row with target 0.
+  (Tier 1 / Tier 2 / Tier 3), chosen in the Guide drawer: Auto (the default) or one
+  fixed tier, never both. Auto shows the targets of the next tier above the highest
+  one the stats cover: it moves up at 90% of a tier's rating targets and back down
+  only below 80% (remembered per spec); Best in Slot and trinkets follow the tier
+  shown. A stat with no target keeps its row with target 0.
 - **Diminishing returns.** A swap is judged by what it really adds to the stats you have now:
   the game takes an increasing cut off rating past about 30% of a stat, so the change in the
   effective stat (after the cuts) is scored, not a straight count of rating. Below the first
