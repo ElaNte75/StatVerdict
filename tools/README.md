@@ -61,6 +61,10 @@ source and the real installed addon both have it correctly.
   ships measured weights (the Measured mode was removed 2026-10-01); this is
   now only a research library (see `tools/gear_search.py`, `tools/stat_split_probe.py`,
   `tools/tank_survival_probe.py`).
+- `tools/item_sources.py` -- writes `SV_ItemSources.lua` (where each item drops: dungeon or raid and boss) from the
+  Adventure Journal pool `tools/data/blizzard_item_pool.json` (refreshed with `tools/blizzard_item_pool.py`, which needs
+  Blizzard API credentials from the environment); the tooltips' "Where to find" lines read it. Items the journal
+  does not list get no line.
 - `tools/spec_catalog.py` -- the 40 specializations (addon spec key, names,
   role, primary stat); `tools/lua_render.py` -- renders data as Lua.
 

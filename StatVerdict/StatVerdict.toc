@@ -10,6 +10,7 @@
 ## AddonCompartmentFuncOnLeave: StatVerdict_OnAddonCompartmentLeave
 Data/Generated/SV_ClassCodexTargets.lua
 Data/Generated/SV_StatDR.lua
+Data/Generated/SV_ItemSources.lua
 Core/SV_Constants.lua
 Core/SV_WeightModes.lua
 Core/SV_CurrentStats.lua

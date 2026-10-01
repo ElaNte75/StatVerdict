@@ -1870,7 +1870,7 @@ class BisPanelTests(unittest.TestCase):
         self.hover(self.refresh(self.guardian_head(), spec_id=104).rows[1])
         block = {line.left: line for line in self.shown()[len(GUARDIAN_HEAD_KEPT):]}
         for heading in ("Gems", "Enchant"):
-            self.assertEqual([0.55, 0.55, 0.55], [block[heading].color[i] for i in (1, 2, 3)], heading)
+            self.assertEqual([0.66, 0.74, 0.9], [block[heading].color[i] for i in (1, 2, 3)], heading)  # a label colour
             self.assertFalse(block[heading].indent, heading)
         for name in ("Flawless Gem", "Quick Gem", "Enchant Helm - Scroll"):
             self.assertTrue(block[name].indent, name)
@@ -1878,6 +1878,68 @@ class BisPanelTests(unittest.TestCase):
         # A small gap between the gems and the enchant; a bigger one before the block.
         self.assertGreater(block["Enchant"].gap, 0)
         self.assertTrue(block["Recommended"].gapBefore)
+
+    def test_the_tooltip_has_room_to_breathe(self) -> None:
+        source = (ADDON / "UI" / "SV_BisProgressPanel.lua").read_text(encoding="utf-8-sig")
+        for line in ("local TOOLTIP_PAD = 14", "local TOOLTIP_LINE_GAP = 3", "local TOOLTIP_SECTION_GAP = 20",
+                     "local TOOLTIP_SUBSECTION_GAP = 9", "local TOOLTIP_INDENT = 12", "local TOOLTIP_MIN_WIDTH = 240"):
+            self.assertIn(line, source)
+        # Every name sits a little below its label.
+        self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_SOCKETED_TOOLTIP)
+        self.hover(self.refresh(self.guardian_head(), spec_id=104).rows[1])
+        block = {line.left: line for line in self.shown()[len(GUARDIAN_HEAD_KEPT):]}
+        for name in ("Flawless Gem", "Quick Gem", "Enchant Helm - Scroll"):
+            self.assertGreater(block[name].gap, 0, name)
+
+    def set_sources(self, sources: str) -> None:
+        self.ns.ItemSources = self.lua.eval(sources)
+
+    def test_where_to_find_lists_the_dungeon_and_the_boss(self) -> None:
+        self.set_sources('{ [271528] = { {"Kings\' Rest", "Dazar, The First King", "D"} } }')
+        self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_SOCKETED_TOOLTIP)
+        self.hover(self.refresh(self.guardian_head(), spec_id=104).rows[1])
+        lines = self.shown()[len(GUARDIAN_HEAD_KEPT):]
+        names = [line.left for line in lines]
+        i = names.index("Where to find")
+        self.assertEqual(["Where to find", "Dungeon: Kings' Rest", "Dazar, The First King"], names[i:i + 3])
+        header, place, boss = lines[i], lines[i + 1], lines[i + 2]
+        self.assertTrue(header.gapBefore)
+        self.assertEqual("header", header.font)
+        self.assertTrue(place.indent and place.wrap and boss.indent and boss.wrap)
+        self.assertEqual([0.55, 0.55, 0.55], [boss.color[k] for k in (1, 2, 3)])  # the boss is dim
+        self.assertLess(names.index("Recommended"), i)  # after the gems and the enchant
+
+    def test_raids_and_unknown_places_are_named_plainly(self) -> None:
+        self.set_sources('{ [271528] = { {"The Voidspire", "Imperator Averzian", "R"}, {"Sporefall", "Rotmire", ""} } }')
+        self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_SOCKETED_TOOLTIP)
+        self.hover(self.refresh(self.guardian_head(), spec_id=104).rows[1])
+        names = [line.left for line in self.shown()]
+        self.assertIn("Raid: The Voidspire", names)
+        self.assertIn("Sporefall", names)  # the journal does not say what it is: no label
+        self.assertNotIn("Dungeon: Sporefall", names)
+
+    def test_at_most_two_places_then_how_many_more(self) -> None:
+        self.set_sources('{ [271528] = { {"A", "a", "D"}, {"B", "b", "D"}, {"C", "c", "D"}, {"E", "e", "D"} } }')
+        lines = self.panel.BuildSourceLines(271528)
+        names = [lines[i].left for i in range(1, len(lines) + 1)]
+        self.assertEqual(["Where to find", "Dungeon: A", "a", "Dungeon: B", "b", "+2 more"], names)
+
+    def test_an_item_the_journal_does_not_list_gets_no_line(self) -> None:
+        self.set_sources('{ [999] = { {"A", "a", "D"} } }')
+        self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_SOCKETED_TOOLTIP)
+        self.hover(self.refresh(self.guardian_head(), spec_id=104).rows[1])
+        self.assertNotIn("Where to find", [line.left for line in self.shown()])
+        self.ns.ItemSources = None
+        self.assertEqual(0, len(self.panel.BuildSourceLines(271528)))
+        self.assertEqual(0, len(self.panel.BuildSourceLines(None)))
+
+    def test_ranked_trinkets_say_where_they_drop_too(self) -> None:
+        self.set_sources('{ [1003] = { {"Murder Row", "Zaen Bladesorrow", "D"} } }')
+        card = self.refresh_trinkets()
+        lines = self.panel.BuildTrinketTooltipLines(card.rows[1])
+        names = [lines[i].left for i in range(1, len(lines) + 1)]
+        self.assertIn("Where to find", names)
+        self.assertIn("Dungeon: Murder Row", names)
 
     def test_gem_and_enchant_names_use_the_item_quality_colour(self) -> None:
         g = self.lua.globals()
@@ -2354,7 +2416,7 @@ class BisPanelTests(unittest.TestCase):
                             gems=GUIDE_GEMS)
         self.hover(card.rows[1])
         block = {line.left: line for line in self.shown()}
-        self.assertEqual([0.55, 0.55, 0.55], [block["Gems"].color[i] for i in (1, 2, 3)])
+        self.assertEqual([0.66, 0.74, 0.9], [block["Gems"].color[i] for i in (1, 2, 3)])
         for name in ("Indecipherable Eversong Diamond", "Quick Gem"):
             self.assertTrue(block[name].indent and block[name].wrap, name)
             self.assertEqual([0.64, 0.21, 0.93], [block[name].color[i] for i in (1, 2, 3)], name)
