@@ -111,10 +111,10 @@ def candidate_items(spec, pool: dict[str, Any], guide_entries: list[dict[str, An
         slot = CLASSCODEX_SLOT_TO_SIMC.get(str(entry.get("slot") or ""))
         if slot in out and entry.get("itemId"):
             item = {"itemId": int(entry["itemId"])}
-            if entry.get("bonusIDs"):
-                item["bonusIds"] = [int(v) for v in entry["bonusIDs"]]
-            elif level_for(slot):
+            if level_for(slot):  # same item level as the baseline slot, so only the choice of item is compared
                 item["itemLevel"] = level_for(slot)
+            elif entry.get("bonusIDs"):
+                item["bonusIds"] = [int(v) for v in entry["bonusIDs"]]
             out[slot][item["itemId"]] = item
     for slot, base in baseline.items():
         out[slot].pop(int(base["itemId"]), None)
