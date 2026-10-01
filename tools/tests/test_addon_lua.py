@@ -105,7 +105,7 @@ class WeightModeCoreTests(unittest.TestCase):
             self.assertIsNone(self.ns[name], name)
         repo = self.ns.ProfileRepository
         for name in ("GetWeightMode", "SetWeightMode", "GetGearLevel", "SetGearLevel", "GetWeights",
-                     "GetActiveTrackSwap", "ApplyTrackSwap", "DEFAULT_WEIGHT_MODE", "DEFAULT_GEAR_LEVEL"):
+                     "DEFAULT_WEIGHT_MODE", "DEFAULT_GEAR_LEVEL"):
             self.assertIsNone(repo[name], name)
         # Old saved choices are ignored, never an error.
         db = self.lua.globals().StatVerdictDB
@@ -1859,9 +1859,9 @@ class BisPanelTests(unittest.TestCase):
         self.hover(card.rows[1])
         self.assertEqual([], self.game_tooltip_calls())
 
-    def use_level(self, mode, level, track_swap=True):
+    def use_level(self, tier, track_swap=True):
         """Loads the repository with the data root's trackSwap (string keys, as the
-        generated file writes them) and saves the mode and gear level."""
+        generated file writes them) and saves the stat target tier."""
         load_addon_file(self.lua, self.ns, "Core/SV_ProfileRepository.lua")
         root = self.lua.table(profiles=self.lua.table())
         if track_swap:
@@ -1869,45 +1869,56 @@ class BisPanelTests(unittest.TestCase):
                 '{ hero = { ["6652"] = 7652, ["13334"] = 14334 }, champion = { ["6652"] = 8652 } }')
             root.trackItemLevels = self.lua.table(myth=289, hero=276, champion=263)
         self.ns.ClassCodexTargets = root
-        db = self.lua.globals().StatVerdictDB
-        db.weightMode = mode
-        db.gearLevel = level
+        self.lua.globals().StatVerdictDB.statTargetBin = tier
 
     HERO_HEAD_LINK = ("item:271528:7961:240983:240894:::::90:104::0:7:"
                       "14334:7652:13696:13847:13692:13698:12854")
 
-    def test_old_saved_gear_level_never_swaps_the_track_in_our_tooltip(self) -> None:
-        self.use_level("MEASURED", "hero")
+    def test_tier_3_shows_the_items_as_listed(self) -> None:
+        self.use_level("top20")
         self.assertEqual(GUARDIAN_HEAD_LINK, self.panel.BuildRecommendedItemLink(self.guardian_head(), 104))
 
-    def test_old_saved_gear_level_never_swaps_the_game_tooltip_link(self) -> None:
-        self.use_level("MEASURED", "champion")
+    def test_tier_2_shows_the_hero_track_in_our_tooltip(self) -> None:
+        self.use_level("top50")
+        self.assertEqual(self.HERO_HEAD_LINK, self.panel.BuildRecommendedItemLink(self.guardian_head(), 104))
+        # The game knows only the Hero-track link: our tooltip reads that one.
+        self.game_knows(self.HERO_HEAD_LINK, GUARDIAN_HEAD_SOCKETED_TOOLTIP)
+        card = self.refresh(self.guardian_head(), spec_id=104)
+        self.assertEqual(GUARDIAN_HEAD_KEPT + HEAD_RECOMMENDED, self.hover(card.rows[1]))
+        self.assertIn("14334:7652", card.rows[1].itemLink)
+
+    def test_tier_1_shows_the_champion_track_in_the_game_tooltip_link(self) -> None:
+        self.use_level("top80")
         self.use_game_tooltip()
         row = self.refresh(self.entry(item_id=1001, bonus_ids=[6652, 11]), spec_id=104).rows[1]
         row.scripts.OnEnter(row)
-        self.assertIn(("SetHyperlink", "item:1001::::::::90:104::0:2:6652:11"), self.game_tooltip_calls())
+        self.assertIn(("SetHyperlink", "item:1001::::::::90:104::0:2:8652:11"), self.game_tooltip_calls())
 
     def use_game_trinket_tooltip(self) -> None:
         g = self.lua.globals()
         g.StatVerdictDB.showTrinketTooltip = False
         g.StatVerdictDB.trinketUseGameTooltip = True
 
-    def test_the_items_are_always_shown_as_listed(self) -> None:
-        for mode, level, track_swap in (("MEASURED", "myth", True), ("GUIDE", "hero", True),
-                                        ("MEASURED", "champion", True), ("MEASURED", "hero", False)):
-            self.use_level(mode, level, track_swap)
-            self.assertEqual(GUARDIAN_HEAD_LINK, self.panel.BuildRecommendedItemLink(self.guardian_head(), 104),
-                             (mode, level))
+    def test_myth_tier_and_old_data_keep_the_items_as_listed(self) -> None:
+        for tier, track_swap in (("top20", True), ("top50", False), ("top80", False)):
+            self.use_level(tier, track_swap)
+            self.assertEqual(GUARDIAN_HEAD_LINK, self.panel.BuildRecommendedItemLink(self.guardian_head(), 104), tier)
             self.lua.globals().TOOLTIP_CALLS = self.lua.table()
             self.use_game_trinket_tooltip()
             card = self.refresh_trinkets()
             card.rows[1].scripts.OnEnter(card.rows[1])
-            self.assertIn(("SetHyperlink", "item:1003::::::::90::::1:6652"), self.game_tooltip_calls(),
-                          (mode, level))
+            self.assertIn(("SetHyperlink", "item:1003::::::::90::::1:6652"), self.game_tooltip_calls(), tier)
             self.mode = "bis"
 
+    def test_tier_2_shows_the_ranked_trinkets_at_the_hero_track(self) -> None:
+        self.use_level("top50")
+        self.use_game_trinket_tooltip()
+        card = self.refresh_trinkets()
+        card.rows[1].scripts.OnEnter(card.rows[1])
+        self.assertIn(("SetHyperlink", "item:1003::::::::90::::1:7652"), self.game_tooltip_calls())
+
     def test_owned_state_still_matches_by_item_id(self) -> None:
-        self.use_level("MEASURED", "champion")
+        self.use_level("top80")
         g = self.lua.globals()
         g.GetInventoryItemLink = self.lua.eval(
             'function(unit, slot) if slot == 1 then return "item:271528::::::::90::::1:6652" end end')

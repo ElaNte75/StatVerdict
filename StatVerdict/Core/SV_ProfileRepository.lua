@@ -318,6 +318,38 @@ function Repository.GetStatTargetBin()
     return DEFAULT_STAT_TARGET_BIN
 end
 
+-- The upgrade track the Best in Slot / trinket items are shown at follows the
+-- stat target tier: a comfortable target must not show gear only the best can
+-- have. Tier 3 (top20) is the guide's own list (Myth track, nothing swapped);
+-- Tier 2 shows the Hero track, Tier 1 the Champion track, through the data root's
+-- trackSwap[track] (Myth bonus id -> that track's bonus id). Old data has no swap:
+-- the items then show as listed. Keys may be numbers or, as the generated file
+-- writes them, strings.
+local TRACK_OF_BIN = { top50 = "hero", top80 = "champion" }
+
+function Repository.GetActiveTrackSwap()
+    local track = TRACK_OF_BIN[Repository.GetStatTargetBin()]
+    if not track then return nil end
+    local root = ns.ClassCodexTargets
+    local swaps = type(root) == "table" and root.trackSwap or nil
+    local swap = type(swaps) == "table" and swaps[track] or nil
+    return type(swap) == "table" and swap or nil
+end
+
+-- A copy of bonusIDs with every id in the active swap replaced by its value;
+-- ids not in the swap stay. The same table when nothing is swapped.
+function Repository.ApplyTrackSwap(bonusIDs)
+    local swap = Repository.GetActiveTrackSwap()
+    if not swap or type(bonusIDs) ~= "table" then return bonusIDs end
+    local out = {}
+    for index, bonusID in ipairs(bonusIDs) do
+        local replacement = swap[bonusID]
+        if replacement == nil then replacement = swap[tostring(bonusID)] end
+        out[index] = tonumber(replacement) or bonusID
+    end
+    return out
+end
+
 -- Positive stat targets of one data table (canonical keys) keyed by runtime
 -- stat key; nil when none is usable.
 local function CollectTargetValues(values)
