@@ -17,12 +17,10 @@ percentages.
   affect a verdict when that data passes the profile quality and freshness checks.
   A found item with an upgrade track counts like the Best in Slot piece when that
   piece is a tier-set piece (the Catalyst rule).
-- **Stat weights** follow the guides' priority by default (Guide mode; stats the
-  guide calls roughly equal weigh alike); the Mode drawer can switch to Measured,
-  our own simulated values. Guide stat targets come in three tiers (Tier 1 / Tier 2
-  / Tier 3, the default being the most demanding); Measured targets come from
-  best-in-slot gear at a chosen gear level (Champion / Hero / Myth). A stat with
-  no target keeps its row with target 0.
+- **Stat weights** follow the guides' priority (stats the guide calls roughly
+  equal weigh alike), copied unchanged. Guide stat targets come in three tiers
+  (Tier 1 / Tier 2 / Tier 3, the default being the most demanding), chosen in the
+  Guide drawer. A stat with no target keeps its row with target 0.
 - **Diminishing returns.** A swap is judged by what it really adds to the stats you have now:
   the game takes an increasing cut off rating past about 30% of a stat, so the change in the
   effective stat (after the cuts) is scored, not a straight count of rating. Below the first
@@ -78,11 +76,11 @@ profiles are missing, unresolved data exceeds the accepted threshold, targets
 are implausible, or data is too old. Runtime loading repeats the safety checks
 so manually copied or stale generated files fail closed.
 
-## Item level wins, Measured weight sizes
+## Item level wins
 
 - A candidate 10 or more item levels above the equipped piece never falls below a floor that grows with the gap
   (not for neck, ring, trinket). Up to +5 the stats can still decide.
-- Measured secondary shares are proportional to the measured weights; Guide uses rank shares from the guide order.
+- Secondary shares are rank shares from the guide order.
 - The live weights read the character's ratings when gear, spec, talents, level or login change, not on every
   buff: a flask, food or combat buff does not move the verdicts of the moment.
 - Live secondary weights: the guide's order becomes starting shares of the fixed 6.00 budget (places worth

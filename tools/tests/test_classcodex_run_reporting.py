@@ -1,5 +1,5 @@
 """Skip reporting (I4) and the coverage floor (I5) shared by both generated-
-file CLIs (tools/classcodex_targets_cli.py, tools/classcodex_weights_cli.py)."""
+file CLI (tools/classcodex_targets_cli.py)."""
 from __future__ import annotations
 
 import io
@@ -9,8 +9,9 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
-from tools import classcodex_targets_cli, classcodex_weights_cli
+from tools import classcodex_targets_cli
 from tools.classcodex_fetch import FetchResult
+from tools.classcodex_weights import build_all_weights
 from tools.classcodex_targets import (
     SkipRecord,
     build_all,
@@ -21,7 +22,6 @@ from tools.classcodex_targets import (
     gate_and_write,
     previous_context_count,
 )
-from tools.classcodex_weights import build_all_weights
 
 
 def doc(contexts_per_spec: dict[str, int]) -> dict:
@@ -181,21 +181,21 @@ class CoverageTests(unittest.TestCase):
 
     def test_gate_refuses_to_shrink_coverage_past_the_floor(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            out = Path(tmp) / "SV_ClassCodexWeights.lua"
-            classcodex_weights_cli.write_addon_file(doc({"A_X": 5, "B_Y": 5}), out)
+            out = Path(tmp) / "SV_ClassCodexTargets.lua"
+            classcodex_targets_cli.write_addon_file(doc({"A_X": 5, "B_Y": 5}), out)
             before = out.read_bytes()
             stderr = io.StringIO()
             with redirect_stderr(stderr):
-                code = gate_and_write(doc({"A_X": 5}), out, "ClassCodexWeights", classcodex_weights_cli.write_addon_file)
+                code = gate_and_write(doc({"A_X": 5}), out, "ClassCodexTargets", classcodex_targets_cli.write_addon_file)
             self.assertEqual(1, code)
             self.assertEqual(before, out.read_bytes())
             self.assertIn("coverage dropped from 10 to 5", stderr.getvalue())
 
     def test_gate_refuses_an_empty_document(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            out = Path(tmp) / "SV_ClassCodexWeights.lua"
+            out = Path(tmp) / "SV_ClassCodexTargets.lua"
             with redirect_stderr(io.StringIO()):
-                code = gate_and_write(doc({}), out, "ClassCodexWeights", classcodex_weights_cli.write_addon_file)
+                code = gate_and_write(doc({}), out, "ClassCodexTargets", classcodex_targets_cli.write_addon_file)
             self.assertEqual(1, code)
             self.assertFalse(out.exists())
 

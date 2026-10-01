@@ -62,7 +62,6 @@ class OddCharacterRepositoryTests(unittest.TestCase):
         lua, repo = self.lua, self.repo
         self.assertIsNone(repo.GetContext(None, None, None))
         self.assertIsNone(repo.GetContext(lua.table(), lua.table(), lua.table()))
-        self.assertIsNone(repo.GetWeights(None, None, None))
         repo.ResolveHeroKey(None, None, None, None)
         repo.ResolveHeroKey("NOPE", "RAID", "x", 1)
         repo.GetProviderView("BOGUS")
@@ -70,27 +69,20 @@ class OddCharacterRepositoryTests(unittest.TestCase):
         repo.RefreshProviderView(None)
         repo.GetDataProvenance(None)
         repo.GetDataProvenance("X")
-        for bonus_ids in (None, "x", lua.table("a", None, lua.table())):
-            repo.ApplyTrackSwap(bonus_ids)
 
     def test_bad_settings_are_refused_not_saved(self) -> None:
         repo, lua = self.repo, self.lua
-        self.assertFalse(repo.SetWeightMode(None))
-        self.assertFalse(repo.SetWeightMode(5))
-        self.assertFalse(repo.SetGearLevel(lua.table()))
         self.assertFalse(repo.SetStatTargetBin(None))
-        self.ns.HandleWeightModeSlash(None)
-        self.ns.HandleWeightModeSlash("  junk!!  ")
-        self.assertEqual("GUIDE", repo.GetWeightMode())
+        self.assertFalse(repo.SetStatTargetBin(5))
+        self.assertFalse(repo.SetStatTargetBin(lua.table()))
+        self.assertEqual("top20", repo.GetStatTargetBin())
 
     def test_missing_or_garbage_saved_variables_use_the_defaults(self) -> None:
         for saved in ("'garbage'", "{weightMode = 5, gearLevel = {}, statTargetBin = 7}", "nil"):
             self.lua.execute(f"StatVerdictDB = {saved}")
-            self.assertEqual("GUIDE", self.repo.GetWeightMode(), saved)
-            self.assertEqual("myth", self.repo.GetGearLevel(), saved)
             self.assertEqual("top20", self.repo.GetStatTargetBin(), saved)
             self.assertIsNotNone(self.profile(), saved)
-        self.assertTrue(self.repo.SetWeightMode("MEASURED"))  # recreates the table after nil
+        self.assertTrue(self.repo.SetStatTargetBin("top50"))  # recreates the table after nil
 
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")

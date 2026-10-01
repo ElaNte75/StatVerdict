@@ -256,8 +256,8 @@ local PANEL_TOGGLE_BUTTONS = {
     {
         mode = "weights",
         field = "weightsDrawerButton",
-        label = "Mode",
-        tooltip = "Choose how stat priorities and targets are decided: Guide or Measured.",
+        label = "Guide",
+        tooltip = "Whose guides the stat priorities, Best in Slot lists and stat targets are copied from, and the stat target tier.",
         -- Layout key kept from the Summary button (later Benchmark) this replaced,
         -- so saved button positions carry over.
         layoutKey = "setup.summaryButton",

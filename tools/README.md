@@ -57,10 +57,10 @@ source and the real installed addon both have it correctly.
 - `tools/upgrade_tracks.py` -- the upgrade tracks (Adventurer to Myth), their
   ranks and item levels from the game's DB2 tables on wago.tools, and the
   verified Myth -> Hero / Champion swap table used above.
-- `tools/classcodex_weights.py` / `tools/classcodex_weights_cli.py` -- real
-  SimC scale-factor stat weights per spec/goal/hero talent, normalised so the
-  best secondary stat is 1.0, written to `SV_ClassCodexWeights.lua`. A missing
-  combination makes the addon fall back to rank-position weights.
+- `tools/classcodex_weights.py` -- SimC scale-factor runs. The addon no longer
+  ships measured weights (the Measured mode was removed 2026-10-01); this is
+  now only a research library (see `tools/gear_search.py`, `tools/stat_split_probe.py`,
+  `tools/tank_survival_probe.py`).
 - `tools/spec_catalog.py` -- the 40 specializations (addon spec key, names,
   role, primary stat); `tools/lua_render.py` -- renders data as Lua.
 
@@ -76,9 +76,6 @@ back to another hero tree's data.
 - `.github/workflows/classcodex-live-refresh.yml` runs weekly and on manual
   dispatch: tests, StatDR, then the SimC stat targets. It commits
   only files that actually changed.
-- `.github/workflows/classcodex-stat-weights.yml` runs on the 1st and 16th
-  of each month (and on manual dispatch), sharded by role, and merges the
-  shards into one weights file behind the same fail-closed write gate.
 
 Run the tests locally with `python -m unittest discover -s tools/tests`
 (`pip install lupa` so the addon Lua tests run instead of being skipped).

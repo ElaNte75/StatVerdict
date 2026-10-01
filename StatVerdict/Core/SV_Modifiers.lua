@@ -760,39 +760,6 @@ local function GetEqualGroupTopRank(profile, rank)
     return rank
 end
 
--- Measured SimC weights (highest = 1.0) only decide how the secondaries split
--- their share of the point budget: over the n ordered secondaries that have a
--- measured weight, raw_i = w_i / sum(w) * sum(model.secondary[1..n]). That sum
--- is what those stats would get from rank weights, so primary and item level
--- keep the same share as without weights. nil when statKey has no usable
--- measured weight (the rank weight applies then). Also used by the Stat Audit
--- rows (SV_ProfileRepository) so both show the same per-stat weight.
-function ns.GetMeasuredSecondaryRawWeight(profile, statKey)
-    if type(profile) ~= "table" or type(profile.secondaryWeights) ~= "table"
-        or type(profile.secondaryOrder) ~= "table" then
-        return nil
-    end
-    local own = tonumber(profile.secondaryWeights[statKey])
-    if not own or own <= 0 then return nil end
-    local model = ns.GlobalStatVerdictModifiers
-    local weightSum, rankSum, count, listed = 0, 0, 0, false
-    for _, key in ipairs(profile.secondaryOrder) do
-        local weight = tonumber(profile.secondaryWeights[key])
-        if weight and weight > 0 then
-            count = count + 1
-            weightSum = weightSum + weight
-            rankSum = rankSum + (tonumber(model.secondary[count]) or tonumber(model.fallbackSecondary) or 1)
-            if key == statKey then listed = true end
-        end
-    end
-    if not listed or weightSum <= 0 then return nil end
-    return own / weightSum * rankSum
-end
-
-local function HasMeasuredSecondaryWeights(profile)
-    return type(profile) == "table" and type(profile.secondaryWeights) == "table" and next(profile.secondaryWeights) ~= nil
-end
-
 local function GetRawDefaultStatWeight(profile, statKey)
     if not profile or not statKey then
         return nil
@@ -810,10 +777,6 @@ local function GetRawDefaultStatWeight(profile, statKey)
 
     local rank = GetSecondaryRank(profile, statKey)
     if rank then
-        local measured = ns.GetMeasuredSecondaryRawWeight(profile, statKey)
-        if measured then
-            return measured
-        end
         rank = GetEqualGroupTopRank(profile, rank)
         return model.secondary[rank] or model.fallbackSecondary
     end
@@ -1010,11 +973,6 @@ local function GetDeltaPriorityMultiplier(profile, statKey, delta)
     end
 
     local rank = GetSecondaryRankForDelta(profileTable, statKey)
-    -- Measured weights already encode how much each secondary is worth; the
-    -- rank-based gain/loss calibration would count that twice.
-    if rank and HasMeasuredSecondaryWeights(profileTable) then
-        return 1
-    end
     if rank and type(direction.secondary) == "table" then
         return tonumber(direction.secondary[rank]) or tonumber(direction.fallbackSecondary) or 1
     end

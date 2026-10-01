@@ -41,10 +41,8 @@ local function RequestItemLoad(itemID)
     end
 end
 
--- The item's bonus ids as listed, then moved to the chosen gear level's upgrade
--- track (Measured below Myth; otherwise unchanged). Every link below is built from
--- these, so rows, tooltips and socket counts all show the item at that level; the
--- item id never changes, so ownership still matches by id.
+-- The item's bonus ids as listed. Every link below is built from these, so rows,
+-- tooltips and socket counts all show the item as the guide lists it.
 local function GetBonusIDs(entry)
     if type(entry) ~= "table" then return nil end
     local item = entry.item
@@ -61,10 +59,6 @@ local function GetBonusIDs(entry)
         if n then out[#out + 1] = n end
     end
     if #out == 0 then return nil end
-    local repository = ns.ProfileRepository
-    if repository and repository.ApplyTrackSwap then
-        out = repository.ApplyTrackSwap(out)
-    end
     return out
 end
 

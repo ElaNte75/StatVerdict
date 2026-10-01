@@ -5,11 +5,9 @@ ns.StatVerdictWeightsDrawerPanel = Panel
 
 local DRAWER_PREFERRED_WIDTH = 300
 local MARGIN = 14
-local ROW_HEIGHT = 50
-local ROW_STEP = 56
 local ROWS_TOP = -72
 
--- Mode rows and difficulty cards share this look.
+-- The stat target cards use this look.
 local ROW_BACKDROP = {
     bgFile = "Interface\\Buttons\\WHITE8X8",
     edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -40,18 +38,9 @@ local function ActiveProfile()
     return context and context.profile or nil
 end
 
--- Only MEASURED reads measured weights; a build without them falls back to the
--- guide order, which the status line says.
-local function MissingMeasuredData(mode)
-    if mode ~= "MEASURED" then return false end
-    local profile = ActiveProfile()
-    return type(profile) == "table" and profile.secondaryWeights == nil
-end
-
--- GUIDE shows the guide stat targets; a build without them shows
--- our own, which the status line says.
-local function MissingGuideTargets(mode)
-    if mode ~= "GUIDE" then return false end
+-- A build the guide has no stat targets for shows our own (the stat totals of
+-- the best-in-slot gear), which the status line says.
+local function MissingGuideTargets()
     local profile = ActiveProfile()
     return type(profile) == "table" and profile.guideTargetsMissing == true
 end
@@ -89,60 +78,10 @@ local function AddText(card, template, y, justify)
     return text
 end
 
-local function EnsureModeRow(card, index, mode)
-    card.modeRows = card.modeRows or {}
-    if card.modeRows[index] then return card.modeRows[index] end
-
-    local row = CreateFrame("Button", nil, card, "BackdropTemplate")
-    row.key = mode.key
-    row:SetHeight(ROW_HEIGHT)
-    row:SetBackdrop(ROW_BACKDROP)
-
-    -- Only shows the tick; the whole row is the click target.
-    row.check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
-    row.check:SetSize(24, 24)
-    row.check:SetPoint("LEFT", row, "LEFT", 8, 0)
-    row.check:EnableMouse(false)
-    if row.check.Text then row.check.Text:Hide() end
-
-    row.label = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    row.label:SetPoint("TOPLEFT", row, "TOPLEFT", 42, -9)
-    row.label:SetText(mode.label)
-
-    row.hint = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.hint:SetPoint("TOPRIGHT", row, "TOPRIGHT", -12, -11)
-    row.hint:SetJustifyH("RIGHT")
-    row.hint:SetTextColor(GREY[1], GREY[2], GREY[3])
-    row.hint:SetText(mode.hint or "")
-
-    row.meaning = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.meaning:SetPoint("TOPLEFT", row.label, "BOTTOMLEFT", 0, -4)
-    row.meaning:SetJustifyH("LEFT")
-    row.meaning:SetTextColor(GREY[1], GREY[2], GREY[3])
-    row.meaning:SetText(mode.meaning)
-
-    row:SetScript("OnEnter", function(self)
-        self.hovered = true
-        PaintRow(self, ns.GetWeightMode() == self.key, true)
-    end)
-    row:SetScript("OnLeave", function(self)
-        self.hovered = false
-        PaintRow(self, ns.GetWeightMode() == self.key, false)
-    end)
-    row:SetScript("OnClick", function()
-        ns.SetWeightMode(mode.key)
-        Panel.Sync(card)
-    end)
-
-    card.modeRows[index] = row
-    return row
-end
-
--- Choice group under the mode rows: title, three small cards in one row, least to
--- most demanding, styled like the mode rows (a radio group: exactly one is ticked),
--- then the selected card's explanation under them (two lines). The cards mean a
--- different, separately saved choice per mode (ns.GetTargetChoice): Guide's stat
--- target tier, Measured's gear level. Never dimmed.
+-- Choice group under the guide text: title, three small cards in one row, least to
+-- most demanding (a radio group: exactly one is ticked), then the selected card's
+-- explanation under them (two lines). The cards are the guide's stat target tier
+-- (ns.GetTargetChoice). Never dimmed.
 local DESCRIPTION_SPACING = 4
 local SEPARATOR_GAP = 8           -- status line > separator
 local BIN_GROUP_GAP = 16          -- separator > group
@@ -155,17 +94,17 @@ local BIN_NOTE_HEIGHT = 2 * 10 + DESCRIPTION_SPACING + 2
 local BIN_BOTTOM_MARGIN = 4
 local BIN_NOTE_TOP = BIN_CHIP_TOP - BIN_CHIP_HEIGHT - BIN_NOTE_GAP
 local BIN_GROUP_HEIGHT = -BIN_NOTE_TOP + BIN_NOTE_HEIGHT + BIN_BOTTOM_MARGIN
--- Nothing may move when the mode, the card or the status changes, so the mode
--- explanation and the status line get the room of their longest text for good
--- (Measured's explanation: four lines; a status: two lines); a shorter or empty
--- text just leaves space under it.
+-- Nothing may move when the card or the status changes, so the guide text and
+-- the status line get the room of their longest text for good (the guide text:
+-- four lines; a status: two lines); a shorter or empty text just leaves space
+-- under it.
 local STATUS_SPACING = 2
 local ABOUT_HEIGHT = 4 * 10 + 3 * DESCRIPTION_SPACING
 local STATUS_HEIGHT = 2 * 10 + 1 * STATUS_SPACING
 
--- The key of the card ticked for the mode shown now.
+-- The key of the card ticked now.
 local function SelectedChoice()
-    return ns.GetTargetChoice(ns.GetWeightMode()).selected
+    return ns.GetTargetChoice().selected
 end
 
 -- Three equal cards filling the given width, with even gaps between them.
@@ -200,13 +139,13 @@ local function EnsureBinGroup(card, above)
     card.binNote:SetSpacing(DESCRIPTION_SPACING)
     card.binNote:SetTextColor(0.85, 0.85, 0.85)
 
-    -- Keys, labels and the title are filled in by Panel.Sync for the mode shown.
+    -- Keys, labels and the title are filled in by Panel.Sync.
     card.binRows = {}
     for index = 1, 3 do
         local option = CreateFrame("Button", nil, group, "BackdropTemplate")
         option:SetBackdrop(ROW_BACKDROP)
 
-        -- Same tick as the mode rows; the whole card is the click target.
+        -- The whole card is the click target; the tick only shows the choice.
         option.check = CreateFrame("CheckButton", nil, option, "UICheckButtonTemplate")
         option.check:SetSize(BIN_CHIP_CHECK, BIN_CHIP_CHECK)
         option.check:SetPoint("LEFT", option, "LEFT", 4, 0)
@@ -225,7 +164,7 @@ local function EnsureBinGroup(card, above)
             PaintRow(self, SelectedChoice() == self.key, false)
         end)
         option:SetScript("OnClick", function()
-            ns.GetTargetChoice(ns.GetWeightMode()).set(option.key)
+            ns.GetTargetChoice().set(option.key)
             Panel.Sync(card)
         end)
         card.binRows[index] = option
@@ -235,6 +174,7 @@ end
 
 local function EnsureCard(frame)
     if frame.weightsDrawerCard then return frame.weightsDrawerCard end
+    local guide = ns.GetGuideInfo()
 
     local card = CreateFrame("Frame", nil, frame, "BackdropTemplate")
     card:SetFrameLevel(math.max(1, frame:GetFrameLevel() - 1))
@@ -251,36 +191,28 @@ local function EnsureCard(frame)
 
     card.title = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     card.title:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, -14)
-    card.title:SetText("Mode")
+    card.title:SetText(guide.title)
     card.title:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
 
     AddLine(card, -36)
 
     card.intro = AddText(card, "GameFontHighlightSmall", -46)
     card.intro:SetTextColor(GREY[1], GREY[2], GREY[3])
-    card.intro:SetText("Choose how stat priorities and targets are decided.")
+    card.intro:SetText(guide.intro)
 
-    local lastRow
-    for index, mode in ipairs(ns.GetWeightModes()) do
-        local row = EnsureModeRow(card, index, mode)
-        local y = ROWS_TOP - ((index - 1) * ROW_STEP)
-        row:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, y)
-        row:SetPoint("TOPRIGHT", card, "TOPRIGHT", -MARGIN, y)
-        lastRow = row
-    end
-
-    -- Everything below hangs from the element above it: selected mode's description >
+    -- Everything below hangs from the element above it: the guide's sources >
     -- status line (empty when all is well) > separator > stat target group (with the
     -- card's explanation). Each block has a fixed height, so nothing moves on a click.
     card.about = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    card.about:SetPoint("TOPLEFT", lastRow, "BOTTOMLEFT", 0, -8)
-    card.about:SetPoint("TOPRIGHT", lastRow, "BOTTOMRIGHT", 0, -8)
+    card.about:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, ROWS_TOP)
+    card.about:SetPoint("TOPRIGHT", card, "TOPRIGHT", -MARGIN, ROWS_TOP)
     card.about:SetHeight(ABOUT_HEIGHT)
     card.about:SetJustifyH("LEFT")
     card.about:SetJustifyV("TOP")
     card.about:SetWordWrap(true)
     card.about:SetSpacing(DESCRIPTION_SPACING)
     card.about:SetTextColor(0.85, 0.85, 0.85)
+    card.about:SetText(guide.about)
 
     card.status = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     card.status:SetPoint("TOPLEFT", card.about, "BOTTOMLEFT", 0, -4)
@@ -306,14 +238,7 @@ end
 function Panel.Sync(card)
     if not card then return end
 
-    local selected = ns.GetWeightMode()
-    for _, row in ipairs(card.modeRows or {}) do
-        row.check:SetChecked(row.key == selected)
-        PaintRow(row, row.key == selected, row.hovered == true)
-    end
-
-    -- The cards show this mode's own choice; the other mode's is kept for switching back.
-    local choice = ns.GetTargetChoice(selected)
+    local choice = ns.GetTargetChoice()
     card.binTitle:SetText(choice.title)
     local binAbout = ""
     for index, option in ipairs(card.binRows or {}) do
@@ -327,13 +252,8 @@ function Panel.Sync(card)
     end
     card.binNote:SetText(binAbout)
 
-    local info = ns.GetWeightModeInfo(selected)
-    card.about:SetText(info.about or "")
-
     local status = ""
-    if MissingMeasuredData(selected) then
-        status = "No measured data for this build: the guide is used."
-    elseif MissingGuideTargets(selected) then
+    if MissingGuideTargets() then
         status = "No guide targets for this build: our own are used."
     end
     card.status:SetTextColor(ORANGE[1], ORANGE[2], ORANGE[3])
@@ -415,7 +335,7 @@ function Panel.Apply(frame)
     end
     card:Show()
     if ns.ApplyRightDrawerCard then
-        ns.ApplyRightDrawerCard(card, "weights.card", "Mode drawer", "weights.width", DRAWER_PREFERRED_WIDTH)
+        ns.ApplyRightDrawerCard(card, "weights.card", "Guide drawer", "weights.width", DRAWER_PREFERRED_WIDTH)
     end
 
     Panel.Sync(card)

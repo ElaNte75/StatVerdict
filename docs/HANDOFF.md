@@ -3,6 +3,16 @@
 Read this file first, then `git log --oneline -40` on `main`. Everything described here is already on `main`
 (GitHub `ElaNte75/StatVerdict`, public repo, so GitHub Actions minutes are free).
 
+> **2026-10-01 UPDATE, read first.** The *Measured* mode is REMOVED (owner decision after the Fire Mage gear search:
+> own simulation beats the guide by only ~4-5% damage with items that are hard to get, and keeping our own numbers
+> current is a burden). The "Mode" button is now the **Guide** button: a drawer that names the sources (Icy Veins for
+> PvE priority/Best in Slot/trinkets/gems/enchants, u.gg for stat targets and all PvP data; this is the ONLY place the
+> addon may name sources, see `NoDataSourceNamesShownTests`) and keeps the Tier 1/2/3 choice. Gone: Measured, gear level
+> cards, `/svweights`, `SV_ClassCodexWeights.lua`, `classcodex-stat-weights.yml`, `classcodex_weights_cli.py`, track swap.
+> Sections below that mention Measured / gear level / weights file are history. Next idea (owner): later offer more
+> guide sources (only if their data can be copied 1:1, verified from many sides); then the button becomes a choice
+> of guide again. Research tools stay: `tools/gear_search.py`, `tools/stat_split_probe.py`, `tools/tank_survival_probe.py`.
+
 
 ## How to talk to the owner (standing rule, 2026-10-01)
 

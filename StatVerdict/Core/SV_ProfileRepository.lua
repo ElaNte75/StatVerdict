@@ -10,26 +10,12 @@ local VALID_GOALS = {
 }
 local DEFAULT_GOAL = "MYTHIC_PLUS"
 
--- Stat weight mode (Weights drawer, /svweights): where the secondary priority,
--- weights AND stat targets come from.
---   GUIDE    exactly what the ClassCodex addon shows: its guide priority list
---            (rank weights) and its u.gg stat targets (targets.guideTargets,
---            bin below). Players read these guides, so the addon must not
---            contradict them: default.
---   MEASURED the measured SimC weights order and weight the secondaries; the
---            targets are our own (targets.statTargets, from best-in-slot gear
---            with recommended gems and enchants) at the chosen gear level.
--- A stat the guide has no target for uses ours (and the other way round).
--- StatVerdictDB.weightMode overrides the default; any other saved value
--- (such as the removed "BLEND") means the default.
-local WEIGHT_MODE_GUIDE = "GUIDE"
-local WEIGHT_MODE_MEASURED = "MEASURED"
-local DEFAULT_WEIGHT_MODE = WEIGHT_MODE_GUIDE
-local VALID_WEIGHT_MODES = {
-    [WEIGHT_MODE_GUIDE] = true,
-    [WEIGHT_MODE_MEASURED] = true,
-}
-Repository.DEFAULT_WEIGHT_MODE = DEFAULT_WEIGHT_MODE
+-- The secondary priority, weights and stat targets are exactly what the
+-- ClassCodex addon shows: its guide priority list (rank weights) and its u.gg
+-- stat targets (targets.guideTargets, bin below). Players read these guides,
+-- so the addon must not contradict them. A stat the guide has no target for
+-- uses our own SimC total of the best-in-slot gear (targets.statTargets).
+-- Older saved variables (weightMode, gearLevel) are ignored.
 
 -- Which u.gg bin of the guide targets is shown (the ClassCodex addon's default
 -- is the top 20%). StatVerdictDB.statTargetBin overrides it.
@@ -40,19 +26,6 @@ local VALID_STAT_TARGET_BINS = {
     top80 = true,
 }
 Repository.DEFAULT_STAT_TARGET_BIN = DEFAULT_STAT_TARGET_BIN
-
--- Which gear level MEASURED uses (GUIDE ignores it). myth is the context's own
--- targets.statTargets; hero / champion read targets.levels[level] (falling back
--- to myth's), and show the Best in Slot / trinket items at that upgrade track via
--- the data root's trackSwap[level] (myth bonus id -> that track's bonus id).
--- StatVerdictDB.gearLevel overrides the default.
-local DEFAULT_GEAR_LEVEL = "myth"
-local VALID_GEAR_LEVELS = {
-    champion = true,
-    hero = true,
-    myth = true,
-}
-Repository.DEFAULT_GEAR_LEVEL = DEFAULT_GEAR_LEVEL
 
 local MIN_VALID_MAX_LEVEL_TARGET_ILVL = 250
 local STAT_KEY = {
@@ -83,13 +56,6 @@ local STAT_LABEL = {
     ITEM_MOD_LIFESTEAL = "Leech",
     ITEM_MOD_SPEED = "Speed",
     STATVERDICT_ARMOR = "Armor",
-}
-
-local SECONDARY_STAT = {
-    ITEM_MOD_CRIT_RATING_SHORT = true,
-    ITEM_MOD_HASTE_RATING_SHORT = true,
-    ITEM_MOD_MASTERY_RATING_SHORT = true,
-    ITEM_MOD_VERSATILITY = true,
 }
 
 local function NormalizeToken(value)
@@ -286,20 +252,6 @@ function Repository.ResolveHeroKey(specKey, goal, heroTalentName, heroSubTreeID)
     return ResolveHeroKey(specKey, goal, heroTalentName, heroSubTreeID)
 end
 
--- Measured SimC stat weights (highest = 1.0) for one spec/goal/hero tree, or nil
--- when that combination has none (the caller then uses rank weights).
-function Repository.GetWeights(specKey, goal, heroKey)
-    if not VALID_GOALS[goal] or not specKey or not heroKey then return nil end
-    local root = ns.ClassCodexWeights
-    local profiles = type(root) == "table" and root.profiles or nil
-    local profile = type(profiles) == "table" and profiles[specKey] or nil
-    local goals = type(profile) == "table" and profile.goals or nil
-    local goalRoot = type(goals) == "table" and goals[goal] or nil
-    local heroTalents = type(goalRoot) == "table" and goalRoot.heroTalents or nil
-    local weights = type(heroTalents) == "table" and heroTalents[heroKey] or nil
-    return type(weights) == "table" and weights or nil
-end
-
 -- Each ClassCodex hero context carries its own priority row.
 local function GetPriority(context)
     local rows = type(context) == "table" and context.priorityProfiles or nil
@@ -359,87 +311,11 @@ local function BuildSecondaryOrderFromTargets(targets, fallbackPriority)
     return {}
 end
 
--- Measured weights keyed by runtime stat key, keeping only positive numbers of
--- the secondary stats; nil when none are usable (rank weights apply then).
-local function BuildSecondaryWeights(weights)
-    if type(weights) ~= "table" then return nil end
-    local result, count = {}, 0
-    for canonicalKey, value in pairs(weights) do
-        local statKey = STAT_KEY[canonicalKey]
-        local weight = tonumber(value)
-        if statKey and SECONDARY_STAT[statKey] and weight and weight > 0 then
-            result[statKey] = weight
-            count = count + 1
-        end
-    end
-    return count > 0 and result or nil
-end
-
--- Measured weights order the secondaries (highest first); ties and stats
--- without a weight keep the ClassCodex priority order, then the key.
-local function SortByWeights(order, secondaryWeights)
-    if not secondaryWeights then return order end
-    local priorityIndex = {}
-    for index, statKey in ipairs(order) do priorityIndex[statKey] = index end
-    local sorted = {}
-    for index, statKey in ipairs(order) do sorted[index] = statKey end
-    table.sort(sorted, function(a, b)
-        local weightA, weightB = secondaryWeights[a] or 0, secondaryWeights[b] or 0
-        if weightA ~= weightB then return weightA > weightB end
-        local indexA, indexB = priorityIndex[a] or math.huge, priorityIndex[b] or math.huge
-        if indexA ~= indexB then return indexA < indexB end
-        return tostring(a) < tostring(b)
-    end)
-    return sorted
-end
-
-function Repository.GetWeightMode()
-    local db = _G.StatVerdictDB
-    local mode = type(db) == "table" and db.weightMode or nil
-    if VALID_WEIGHT_MODES[mode] then return mode end
-    return DEFAULT_WEIGHT_MODE
-end
-
 function Repository.GetStatTargetBin()
     local db = _G.StatVerdictDB
     local bin = type(db) == "table" and db.statTargetBin or nil
     if type(bin) == "string" and VALID_STAT_TARGET_BINS[bin] then return bin end
     return DEFAULT_STAT_TARGET_BIN
-end
-
-function Repository.GetGearLevel()
-    local db = _G.StatVerdictDB
-    local level = type(db) == "table" and db.gearLevel or nil
-    if type(level) == "string" and VALID_GEAR_LEVELS[level] then return level end
-    return DEFAULT_GEAR_LEVEL
-end
-
--- The bonus id swap the Best in Slot / trinket items are shown with: only in
--- MEASURED below myth, and only when the data has one for that level (old data
--- has none: the items then show as listed). Keys may be numbers or, as the
--- generated file writes them, strings.
-function Repository.GetActiveTrackSwap()
-    if Repository.GetWeightMode() ~= WEIGHT_MODE_MEASURED then return nil end
-    local level = Repository.GetGearLevel()
-    if level == DEFAULT_GEAR_LEVEL then return nil end
-    local root = ns.ClassCodexTargets
-    local swaps = type(root) == "table" and root.trackSwap or nil
-    local swap = type(swaps) == "table" and swaps[level] or nil
-    return type(swap) == "table" and swap or nil
-end
-
--- A copy of bonusIDs with every id in the active swap replaced by its value;
--- ids not in the swap stay. The same table when nothing is swapped.
-function Repository.ApplyTrackSwap(bonusIDs)
-    local swap = Repository.GetActiveTrackSwap()
-    if not swap or type(bonusIDs) ~= "table" then return bonusIDs end
-    local out = {}
-    for index, bonusID in ipairs(bonusIDs) do
-        local replacement = swap[bonusID]
-        if replacement == nil then replacement = swap[tostring(bonusID)] end
-        out[index] = tonumber(replacement) or bonusID
-    end
-    return out
 end
 
 -- Positive stat targets of one data table (canonical keys) keyed by runtime
@@ -458,35 +334,18 @@ local function CollectTargetValues(values)
     return count > 0 and result or nil
 end
 
--- Our own targets at a gear level (targets.levels[level]) as { values, averageItemLevel },
--- or nil for myth or when the data has no usable targets for that level.
-local function GetLevelTargets(targets, level)
-    if level == DEFAULT_GEAR_LEVEL then return nil end
-    local levels = type(targets) == "table" and targets.levels or nil
-    local entry = type(levels) == "table" and levels[level] or nil
-    if type(entry) ~= "table" then return nil end
-    local statTargets = type(entry.statTargets) == "table" and entry.statTargets or nil
-    local values = CollectTargetValues(statTargets and statTargets.stats or nil)
-    if not values then return nil end
-    return { values = values, averageItemLevel = tonumber(entry.averageItemLevel) }
-end
-
--- The stat targets the mode shows, keyed by runtime stat key, whether the guide
+-- The stat targets shown, keyed by runtime stat key, whether the guide
 -- (ClassCodex / u.gg) has no targets for this build in the chosen bin, and the
--- item level those targets belong to. GUIDE reads the bin (myth's own targets
--- fill the gaps); MEASURED reads the gear level (myth's when it has none).
-local function SelectTargetValues(targets, weightMode, bin, level)
+-- item level those targets belong to. The guide's bin is read; our own targets
+-- (the SimC totals of the best-in-slot gear) fill the gaps, or stand in for a
+-- build the guide has no targets for.
+local function SelectTargetValues(targets, bin)
     local statTargets = type(targets) == "table" and targets.statTargets or nil
     local own = CollectTargetValues(type(statTargets) == "table" and statTargets.stats or nil) or {}
     local averageItemLevel = type(targets) == "table" and targets.averageItemLevel or nil
     local guideRoot = type(targets) == "table" and targets.guideTargets or nil
     local guide = CollectTargetValues(type(guideRoot) == "table" and guideRoot[bin] or nil)
     local guideMissing = guide == nil
-    if weightMode == WEIGHT_MODE_MEASURED then
-        local atLevel = GetLevelTargets(targets, level)
-        if not atLevel then return own, guideMissing, averageItemLevel end
-        return atLevel.values, guideMissing, atLevel.averageItemLevel or averageItemLevel
-    end
     if guideMissing then return own, guideMissing, averageItemLevel end
 
     local selected = {}
@@ -495,17 +354,7 @@ local function SelectTargetValues(targets, weightMode, bin, level)
     return selected, guideMissing, averageItemLevel
 end
 
--- Saves the mode and drops the cached provider views so every profile is
--- rebuilt with it. false (nothing saved) for an unknown mode.
-function Repository.SetWeightMode(mode)
-    if not VALID_WEIGHT_MODES[mode] then return false end
-    _G.StatVerdictDB = type(_G.StatVerdictDB) == "table" and _G.StatVerdictDB or {}
-    _G.StatVerdictDB.weightMode = mode
-    Repository.InvalidateProviderViews()
-    return true
-end
-
--- Saves the guide target bin (Mode drawer: Tier 1/2/3) and drops the cached
+-- Saves the guide target bin (Guide drawer: Tier 1/2/3) and drops the cached
 -- provider views. false (nothing saved) for an unknown bin.
 function Repository.SetStatTargetBin(bin)
     if type(bin) ~= "string" or not VALID_STAT_TARGET_BINS[bin] then return false end
@@ -513,32 +362,6 @@ function Repository.SetStatTargetBin(bin)
     _G.StatVerdictDB.statTargetBin = bin
     Repository.InvalidateProviderViews()
     return true
-end
-
--- Saves MEASURED's gear level (Mode drawer: Champion/Hero/Myth) and drops the
--- cached provider views. false (nothing saved) for an unknown level.
-function Repository.SetGearLevel(level)
-    if type(level) ~= "string" or not VALID_GEAR_LEVELS[level] then return false end
-    _G.StatVerdictDB = type(_G.StatVerdictDB) == "table" and _G.StatVerdictDB or {}
-    _G.StatVerdictDB.gearLevel = level
-    Repository.InvalidateProviderViews()
-    return true
-end
-
--- Hidden /svweights [guide|measured]: no argument prints the mode.
-function ns.HandleWeightModeSlash(msg)
-    local arg = string.upper((tostring(msg or ""):gsub("^%s+", ""):gsub("%s+$", "")))
-    if arg == "" then
-        print("|cffff8000StatVerdict:|r stat weight mode is " .. Repository.GetWeightMode())
-        return
-    end
-    if not Repository.SetWeightMode(arg) then
-        print("|cffff8000StatVerdict:|r usage: /svweights guide | measured")
-        return
-    end
-    if ns.RequestStatAuditRefresh then ns.RequestStatAuditRefresh() end
-    if ns.RefreshUpgradeIndicators then ns.RefreshUpgradeIndicators() end
-    print("|cffff8000StatVerdict:|r stat weight mode set to " .. arg)
 end
 
 local function BuildEqualGroups(priority, secondaryOrder)
@@ -559,22 +382,21 @@ local function BuildEqualGroups(priority, secondaryOrder)
     return groups
 end
 
--- targetValues: the targets the weight mode shows, keyed by runtime stat key, and
+-- targetValues: the targets shown, keyed by runtime stat key, and
 -- averageItemLevel the item level they belong to (SelectTargetValues).
-local function BuildAuditTargets(averageItemLevel, targetValues, weightMode, secondaryOrder, secondaryWeights, equalGroups)
+local function BuildAuditTargets(averageItemLevel, targetValues, secondaryOrder, equalGroups)
     -- The weight shown per stat is the very one the verdict scoring uses: its fixed share
-    -- of the secondary budget (Guide: by rank, ties share their average; Measured: in proportion to the
-    -- measured weights), see SV_Scoring.
-    local shares = ns.GetSecondaryBaseShares and ns.GetSecondaryBaseShares(secondaryOrder, equalGroups, secondaryWeights) or {}
+    -- of the secondary budget (by rank in the guide's order, ties share their average), see SV_Scoring.
+    local shares = ns.GetSecondaryBaseShares and ns.GetSecondaryBaseShares(secondaryOrder, equalGroups) or {}
     local rows = {}
     local seen = {}
 
     local function add(statKey, statType, priority, baseModifier)
         if not statKey or seen[statKey] then return end
         seen[statKey] = true
-        -- A secondary stat always keeps its row: a stat with no target (e.g. our
-        -- measured Versatility is 0 when the best gear carries none) shows with
-        -- target 0, which every consumer already treats as "no target".
+        -- A secondary stat always keeps its row: a stat with no target (e.g.
+        -- Versatility when neither the guide nor the best gear carries any) shows
+        -- with target 0, which every consumer already treats as "no target".
         local target = targetValues[statKey] or 0
         rows[#rows + 1] = {
             key = statKey,
@@ -592,7 +414,6 @@ local function BuildAuditTargets(averageItemLevel, targetValues, weightMode, sec
 
     return {
         source = "generated_classcodex",
-        targetMode = weightMode,
         averageItemLevel = averageItemLevel,
         rows = rows,
     }
@@ -622,18 +443,11 @@ function Repository.BuildRuntimeProfile(context)
     local invalidGeneratedContext = not validGeneratedContext
 
     local priority = GetPriority(generatedContext)
-    local weightMode = Repository.GetWeightMode()
-    local guideOrder = BuildSecondaryOrderFromTargets(generatedContext.targets, priority)
-    local secondaryOrder, secondaryWeights = guideOrder, nil
-    if weightMode == WEIGHT_MODE_MEASURED then
-        secondaryWeights = BuildSecondaryWeights(Repository.GetWeights(specKey, goal, heroKey))
-        secondaryOrder = SortByWeights(guideOrder, secondaryWeights)
-    end
+    local secondaryOrder = BuildSecondaryOrderFromTargets(generatedContext.targets, priority)
     local equalGroups = BuildEqualGroups(priority, secondaryOrder)
     local statTargetBin = Repository.GetStatTargetBin()
-    local gearLevel = Repository.GetGearLevel()
     local targetValues, guideTargetsMissing, targetItemLevel =
-        SelectTargetValues(generatedContext.targets, weightMode, statTargetBin, gearLevel)
+        SelectTargetValues(generatedContext.targets, statTargetBin)
     local primaryStat = STAT_KEY[generatedProfile.primaryStat]
     if not primaryStat then return nil end
     local role = context.role
@@ -676,7 +490,6 @@ function Repository.BuildRuntimeProfile(context)
         source = "generated_classcodex",
         primaryStat = primaryStat,
         secondaryOrder = secondaryOrder,
-        secondaryWeights = secondaryWeights,
         hiddenTrackedStats = hiddenTrackedStats,
         equalGroups = equalGroups,
         caps = {},
@@ -686,9 +499,8 @@ function Repository.BuildRuntimeProfile(context)
             averageItemLevel = nil,
             rows = {},
             invalidReason = invalidReason or "Generated profile data failed quality checks.",
-        } or BuildAuditTargets(targetItemLevel, targetValues, weightMode, secondaryOrder, secondaryWeights, equalGroups),
+        } or BuildAuditTargets(targetItemLevel, targetValues, secondaryOrder, equalGroups),
         statTargetBin = statTargetBin,
-        gearLevel = gearLevel,
         guideTargetsMissing = guideTargetsMissing,
         generatedContext = invalidGeneratedContext and nil or generatedContext,
         invalidGeneratedContext = invalidGeneratedContext,
@@ -725,9 +537,8 @@ end
 
 -- The provider view builds a profile for every spec (40), so it is cached per
 -- goal and rebuilt only when something it is built from changes: the loaded
--- data files, their freshness, the scoring model, the stat weight mode, the
--- guide target bin, the gear level, or the hero tree a spec
--- snapshot records (each spec's default profile follows it). Nothing else
+-- data files, their freshness, the scoring model, the guide target bin, or the
+-- hero tree a spec snapshot records (each spec's default profile follows it). Nothing else
 -- feeds BuildRuntimeProfile here: the goal is fixed per view and spec
 -- ID/name/role come from the static SV_SpecMeta tables.
 local providerViewSignature = {}
@@ -740,11 +551,8 @@ local function BuildProviderViewSignature(goal)
         tostring(ns.ClassCodexTargets),
         tostring(type(ns.ClassCodexTargets) == "table" and ns.ClassCodexTargets.buildId or nil),
         tostring(root ~= nil),
-        tostring(ns.ClassCodexWeights),
         tostring(ns.GlobalStatVerdictModifiers),
-        Repository.GetWeightMode(),
         Repository.GetStatTargetBin(),
-        Repository.GetGearLevel(),
     }
     if root then
         for specKey in pairs(root.profiles or {}) do

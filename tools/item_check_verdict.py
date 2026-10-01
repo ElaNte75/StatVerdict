@@ -152,7 +152,6 @@ def set_character(lua, ratings: dict[str, float], agility: float) -> None:
 
 
 def build_profile(lua, ns, goal: str, mode: str):
-    lua.globals().StatVerdictDB.weightMode = mode
     ns.ProfileRepository.InvalidateProviderViews()
     context = lua.table(**CHARACTER)
     context.goal = goal
@@ -284,7 +283,7 @@ def classify(simc: str, addon: str) -> str:
     return "not compared"
 
 
-def replay(data: dict[str, Any], goals=("MYTHIC_PLUS", "RAID"), modes=("GUIDE", "MEASURED")) -> dict[str, Any]:
+def replay(data: dict[str, Any], goals=("MYTHIC_PLUS", "RAID"), modes=("GUIDE",)) -> dict[str, Any]:
     lua, ns = load_addon()
     baseline = data["baseline"]
     stats = baseline.get("stats") or {}

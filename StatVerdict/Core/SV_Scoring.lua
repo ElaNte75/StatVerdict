@@ -199,15 +199,12 @@ local function GetTargetLiveMultiplier(profile, statKey, gate)
     return 1 - (1 - TARGET_NEED_SURPLUS_MIN) * over
 end
 
--- The fixed share of the secondary budget of each stat, in the profile's order.
---   Guide (weights == nil): the guide gives an order only, so rank weights (4, 3, 2, 1) scaled to
---   TARGET_SECONDARY_BUDGET; stats the guide calls roughly equal (equalGroups: lists of positions in
---   the order) share the average of their ranks.
---   Measured (weights = our own SimC weights by stat key): the budget is split in proportion to what
---   was measured, so the stat we measured best counts most and a small measured difference stays
---   small. Used when all four stats have a usable weight; otherwise the rank shares apply.
+-- The fixed share of the secondary budget of each stat, in the profile's order: the guide gives an
+-- order only, so rank places (TARGET_SECONDARY_BASE) scaled to TARGET_SECONDARY_BUDGET; stats the
+-- guide calls roughly equal (equalGroups: lists of positions in the order) share the average of
+-- their places.
 -- Returns { [statKey] = share, ... } and the shares as a list in order.
-function ns.GetSecondaryBaseShares(order, equalGroups, weights)
+function ns.GetSecondaryBaseShares(order, equalGroups)
     local bases, keys = {}, {}
     if type(order) ~= "table" then return {}, {} end
     local sumBase = 0
@@ -216,21 +213,6 @@ function ns.GetSecondaryBaseShares(order, equalGroups, weights)
             keys[#keys + 1] = { key = statKey, index = index }
             bases[index] = TARGET_SECONDARY_BASE[index] or 0.50
             sumBase = sumBase + bases[index]
-        end
-    end
-    if type(weights) == "table" and #keys > 0 then
-        local measured, sumMeasured, complete = {}, 0, true
-        for _, entry in ipairs(keys) do
-            local weight = tonumber(weights[entry.key])
-            if weight and weight > 0 then
-                measured[entry.index] = weight
-                sumMeasured = sumMeasured + weight
-            else
-                complete = false
-            end
-        end
-        if complete and sumMeasured > 0 then
-            bases, sumBase, equalGroups = measured, sumMeasured, nil
         end
     end
     if type(equalGroups) == "table" then
@@ -277,7 +259,7 @@ local function GetSecondaryCacheToken(profile)
     if type(profile.secondaryOrder) == "table" then
         for _, statKey in ipairs(profile.secondaryOrder) do
             local current = GetCurrentRatingForScoring(profile, statKey) or 0
-            -- The target too: a new gear level or guide tier keeps the profile id.
+            -- The target too: a new guide tier keeps the profile id.
             parts[#parts + 1] = tostring(statKey) .. "=" .. tostring(current)
                 .. "/" .. tostring(GetTargetForStat(profile, statKey))
         end
@@ -285,11 +267,6 @@ local function GetSecondaryCacheToken(profile)
     if type(profile.equalGroups) == "table" then
         for _, group in ipairs(profile.equalGroups) do
             parts[#parts + 1] = "=" .. table.concat(group, ",")
-        end
-    end
-    if type(profile.secondaryWeights) == "table" then
-        for _, statKey in ipairs(profile.secondaryOrder or {}) do
-            parts[#parts + 1] = "w" .. tostring(profile.secondaryWeights[statKey])
         end
     end
     return table.concat(parts, "|")
@@ -305,7 +282,7 @@ local function BuildAllocatedSecondaryWeights(profile)
     for _, statKey in ipairs(order) do
         if SECONDARY_TARGET_KEY[statKey] then keys[#keys + 1] = statKey end
     end
-    local shareByKey = ns.GetSecondaryBaseShares(order, profile.equalGroups, profile.secondaryWeights)
+    local shareByKey = ns.GetSecondaryBaseShares(order, profile.equalGroups)
     if #keys == 0 or next(shareByKey) == nil then
         return {}
     end
@@ -398,7 +375,7 @@ end
 function ns.GetScoringSecondaryWeights(profile, statKey)
     ratingOverride = nil  -- never read a half-finished swap's ratings here
     if not IsGeneratedTargetProfile(profile) or not SECONDARY_TARGET_KEY[statKey] then return nil end
-    local shares = ns.GetSecondaryBaseShares(profile.secondaryOrder, profile.equalGroups, profile.secondaryWeights)
+    local shares = ns.GetSecondaryBaseShares(profile.secondaryOrder, profile.equalGroups)
     local base = shares[statKey]
     if base == nil then return nil end
     local live = GetAllocatedSecondaryWeight(profile, statKey)

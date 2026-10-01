@@ -3,9 +3,9 @@
 official Icy Veins / U.GG desktop app updates from) and write its stat
 diminishing-returns module as the addon's SV_StatDR.lua.
 
-The per-spec ClassCodex data itself is not written here: the stat targets and
-weights pipelines (tools/classcodex_targets_cli.py, classcodex_weights_cli.py)
-fetch and build it themselves, and the addon reads only their output.
+The per-spec ClassCodex data itself is not written here: the stat targets
+pipeline (tools/classcodex_targets_cli.py)
+fetches and builds it itself, and the addon reads only their output.
 `--report` still prints a per-spec source summary of that data.
 
 Replaces the abandoned Scraper repo (github.com/ElaNte75/Scraper), which

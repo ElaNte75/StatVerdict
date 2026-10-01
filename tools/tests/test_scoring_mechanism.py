@@ -1,6 +1,5 @@
 """The mechanism that decides what is an upgrade, judged by its own rules (not by any data set):
-item level wins (except on jewelry), Measured uses the size of the measured weights, Guide keeps
-the guide's order. Runs the real scoring with the real generated data."""
+item level wins (except on jewelry), the guide's order sets the shares. Runs the real scoring with the real generated data."""
 from __future__ import annotations
 
 import unittest
@@ -58,7 +57,7 @@ class ScoringMechanismTests(unittest.TestCase):
         return ns.BuildComparison("item:c:1", profile).selected
 
     def test_clearly_more_item_level_is_always_an_upgrade_on_armor(self) -> None:
-        for mode in ("GUIDE", "MEASURED"):
+        for mode in ("GUIDE",):
             for state in STATES:
                 for gap in (10, 14, 20):
                     for pair in PAIRS:
@@ -79,17 +78,6 @@ class ScoringMechanismTests(unittest.TestCase):
     def test_less_item_level_is_still_held_back(self) -> None:
         best = candidate("chest", 236, ("mastery_rating", "haste_rating"))
         self.assertFalse(self.comparison("GUIDE", "mid", "chest", best).isUpgrade)
-
-    def test_measured_uses_the_size_of_the_measured_weights(self) -> None:
-        lua, ns = self.lua, self.ns
-        verdict.set_character(lua, STATES["mid"], 1600)
-        profile = verdict.build_profile(lua, ns, "MYTHIC_PLUS", "MEASURED")
-        weights = {str(k): float(profile.secondaryWeights[k]) for k in profile.secondaryWeights.keys()}
-        shares = {k: ns.GetScoringSecondaryWeights(profile, k)[0] for k in weights}
-        self.assertAlmostEqual(6.0, sum(shares.values()))
-        total = sum(weights.values())
-        for key, weight in weights.items():
-            self.assertAlmostEqual(6.0 * weight / total, shares[key], places=6, msg=key)
 
     def test_guide_keeps_the_rank_shares_of_the_guide_order(self) -> None:
         lua, ns = self.lua, self.ns
@@ -144,14 +132,14 @@ class ScoringMechanismTests(unittest.TestCase):
         return profile, {k: ns.GetScoringSecondaryWeights(profile, k) for k in keys}
 
     def test_live_weights_always_add_up_to_the_budget(self) -> None:
-        for mode in ("GUIDE", "MEASURED"):
+        for mode in ("GUIDE",):
             for fraction in (0.0, 0.4, 1.0, 2.5):
                 _, weights = self.live(mode, lambda key: fraction)
                 self.assertAlmostEqual(6.0, sum(live for _, live in weights.values()), places=6, msg=(mode, fraction))
 
     def test_the_last_stat_is_not_drained_when_everything_is_missing(self) -> None:
         # Every stat 60% short: nobody is drained to a floor; each keeps at least 80% of its share.
-        for mode in ("GUIDE", "MEASURED"):
+        for mode in ("GUIDE",):
             _, weights = self.live(mode, lambda key: 0.4)
             for key, (base, live) in weights.items():
                 self.assertGreater(live, 0.8 * base, (mode, key))
@@ -167,9 +155,9 @@ class ScoringMechanismTests(unittest.TestCase):
                 self.assertAlmostEqual(weights[keys[0]][1], weights[key][1], places=9)
 
     def test_a_bigger_deficit_and_a_surplus_move_a_weight_the_right_way(self) -> None:
-        _, near = self.live("MEASURED", lambda key: 0.9)
-        _, far = self.live("MEASURED", lambda key: 0.9 if key != "ITEM_MOD_HASTE_RATING_SHORT" else 0.3)
-        _, over = self.live("MEASURED", lambda key: 0.9 if key != "ITEM_MOD_HASTE_RATING_SHORT" else 1.8)
+        _, near = self.live("GUIDE", lambda key: 0.9)
+        _, far = self.live("GUIDE", lambda key: 0.9 if key != "ITEM_MOD_HASTE_RATING_SHORT" else 0.3)
+        _, over = self.live("GUIDE", lambda key: 0.9 if key != "ITEM_MOD_HASTE_RATING_SHORT" else 1.8)
         haste = "ITEM_MOD_HASTE_RATING_SHORT"
         self.assertGreater(far[haste][1], near[haste][1])
         self.assertLess(over[haste][1], near[haste][1])
@@ -214,7 +202,7 @@ class ScoringMechanismTests(unittest.TestCase):
             {**a, "name": "+10 ilvl", "ilevel": 256, "agility": 122, "crit_rating": 80, "haste_rating": 60, "mastery_rating": 60},
             {**a, "name": "primary -4, better top stats", "agility": 106, "crit_rating": 70, "haste_rating": 110, "mastery_rating": 90},
         ]
-        for mode in ("GUIDE", "MEASURED"):
+        for mode in ("GUIDE",):
             for state in STATES:
                 for other in others:
                     forward, backward = self.pair_verdicts(mode, state, "chest", a, other)
@@ -223,7 +211,7 @@ class ScoringMechanismTests(unittest.TestCase):
     def test_with_nothing_but_stats_the_two_directions_are_exactly_opposite(self) -> None:
         a = base_item("chest")
         b = {**a, "crit_rating": 20, "haste_rating": 110, "mastery_rating": 80}  # same item level, same primary
-        for mode in ("GUIDE", "MEASURED"):
+        for mode in ("GUIDE",):
             for state in STATES:
                 forward, backward = self.pair_verdicts(mode, state, "chest", a, b)
                 self.assertAlmostEqual(0.0, forward + backward, places=6, msg=(mode, state, forward, backward))
@@ -235,18 +223,13 @@ class ScoringMechanismTests(unittest.TestCase):
         high = {"name": "256", "ilevel": 256, "agility": 91, "haste_rating": 66, "versatility_rating": 72}
         low = {"name": "250", "ilevel": 250, "agility": 86, "haste_rating": 84, "mastery_rating": 49}
         ratings = {"crit": 261, "haste": 663, "mastery": 677, "versatility": 97}
-        for mode in ("GUIDE", "MEASURED"):
+        for mode in ("GUIDE",):
             low_over_high = self.between(mode, ratings, "head", high, low)
             shifted = dict(ratings, haste=ratings["haste"] + 84 - 66, mastery=ratings["mastery"] + 49,
                            versatility=ratings["versatility"] - 72)
             high_over_low = self.between(mode, shifted, "head", low, high)
-            if mode == "GUIDE":
-                self.assertGreater(low_over_high, 0, mode)
-                self.assertLess(high_over_low, 0, mode)
-            else:
-                # Measured follows our own measurements (Versatility is worth more there): it may decide
-                # the other way, but never both ways.
-                self.assertFalse(low_over_high > 0 and high_over_low > 0, mode)
+            self.assertGreater(low_over_high, 0, mode)
+            self.assertLess(high_over_low, 0, mode)
 
     # --- need in rating points, gated by the guide's order ---
 
@@ -315,7 +298,7 @@ class ScoringMechanismTests(unittest.TestCase):
     def test_two_trinkets_are_never_both_better_than_each_other(self) -> None:
         a = {"name": "a", "ilevel": 259, "haste_rating": 100}
         b = {"name": "b", "ilevel": 259, "agility": 89}
-        for mode in ("GUIDE", "MEASURED"):
+        for mode in ("GUIDE",):
             for state in STATES:
                 forward, backward = self.pair_verdicts(mode, state, "trinket1", a, b)
                 self.assertFalse(forward > 0 and backward > 0, (mode, state, forward, backward))

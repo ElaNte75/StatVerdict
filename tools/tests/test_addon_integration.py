@@ -4,8 +4,7 @@ spec x goal x hero talent cell is pushed through the repository and profile
 builder the way the game would. Runs against whatever data is committed, so a
 bad data refresh fails CI before it can reach players.
 
-Missing TARGETS for any spec/goal/hero cell is a failure. Missing WEIGHTS is
-allowed (the addon falls back to rank weights) and only reported."""
+Missing TARGETS for any spec/goal/hero cell is a failure."""
 from __future__ import annotations
 
 import os
@@ -15,7 +14,6 @@ from tools.spec_catalog import SPECS
 from tools.tests.test_addon_lua import FRAME_STUB, LuaRuntime, compile_lua_file, new_runtime, toc_lua_files
 
 GOALS = ("MYTHIC_PLUS", "RAID", "PVP")
-WEIGHT_MODES = ("GUIDE", "MEASURED")
 CANONICAL_STAT = {
     "ITEM_MOD_CRIT_RATING_SHORT": "critical_strike",
     "ITEM_MOD_HASTE_RATING_SHORT": "haste",
@@ -81,7 +79,7 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
         cls.lua, cls.ns = lua, ns
 
     def test_every_toc_file_loaded_and_exposes_the_repository(self) -> None:
-        for name in ("ClassCodexTargets", "ClassCodexWeights", "ProfileRepository", "GetDefaultStatWeight",
+        for name in ("ClassCodexTargets", "ProfileRepository", "GetDefaultStatWeight",
                      "GetItemReferenceInfo", "LoadEvaluationProfile"):
             self.assertIsNotNone(self.ns[name], name)
 
@@ -339,10 +337,8 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
         ns, lua = self.ns, self.lua
         repo = ns.ProfileRepository
         targets = ns.ClassCodexTargets.profiles
-        weights_root = ns.ClassCodexWeights.profiles if ns.ClassCodexWeights else None
         problems: list[str] = []
-        rows: list[tuple[str, str, str, str, str]] = []
-        no_weights: list[str] = []
+        rows: list[tuple[str, str, str, str]] = []
         # guideTargets (ClassCodex / u.gg) may not be in the committed data yet:
         # absent means GUIDE shows our own targets; present is checked per row.
         self.cells_with_guide_targets: set[str] = set()
@@ -359,33 +355,18 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
                 problems.append(f"{spec.key}: no hero talent has targets")
             for goal in GOALS:
                 for hero in hero_keys:
-                    cell = f"{spec.key} {goal} {hero}"
-                    for mode in WEIGHT_MODES:
-                        status = self.check_cell(spec, goal, hero, weights_root, problems, mode)
-                    rows.append((spec.key, goal, hero, status[0], status[1]))
-                    if status[0] == "ok" and status[1] == "-":
-                        no_weights.append(cell)
-
-        # Weights for a cell without targets would be silently unused.
-        if weights_root is not None:
-            for spec_key in weights_root.keys():
-                goals = weights_root[spec_key].goals
-                for goal in goals.keys():
-                    for hero in goals[goal].heroTalents.keys():
-                        if repo.GetContext(spec_key, goal, hero) is None:
-                            problems.append(f"{spec_key} {goal} {hero}: weights but no targets")
+                    status = self.check_cell(spec, goal, hero, problems)
+                    rows.append((spec.key, goal, hero, status))
 
         if problems:
-            table = "\n".join(f"  {s:<24} {g:<12} {h:<28} targets={t:<8} weights={w}" for s, g, h, t, w in rows)
+            table = "\n".join(f"  {s:<24} {g:<12} {h:<28} targets={t}" for s, g, h, t in rows)
             self.fail(f"{len(problems)} problem(s):\n  " + "\n  ".join(problems) + "\n\nCoverage:\n" + table)
         print(f"\n[classcodex coverage] {len(rows)} cells with targets "
-              f"({len(self.cells_with_guide_targets)} with ClassCodex top20 targets); "
-              f"{len(no_weights)} use rank weights: " + ", ".join(no_weights))
+              f"({len(self.cells_with_guide_targets)} with ClassCodex top20 targets)")
 
     def test_guide_targets_check_catches_a_wrong_target(self) -> None:
-        """Proves check_targets works on real data before the pipeline ships
-        guideTargets: a fake top20 on one real cell passes for every mode, and a
-        GUIDE profile showing our own targets instead is reported."""
+        """Proves check_targets works on real data: a fake top20 on one real cell passes,
+        and a profile showing other targets than the data's top20 is reported."""
         ns, lua = self.ns, self.lua
         spec = SPECS[0]
         hero = sorted(ns.ClassCodexTargets.profiles[spec.key].goals["MYTHIC_PLUS"].heroTalents.keys())[0]
@@ -398,60 +379,44 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
         context.targets.guideTargets = lua.table(top20=top20)
         self.cells_with_guide_targets = set()
         try:
-            for mode in WEIGHT_MODES:
-                problems: list[str] = []
-                self.check_targets(mode, context, self.build_profile(spec, "MYTHIC_PLUS", hero, mode), mode, problems)
-                self.assertEqual([], problems, mode)
+            profile = self.build_profile(spec, "MYTHIC_PLUS", hero)
+            problems: list[str] = []
+            self.check_targets("cell", context, profile, problems)
+            self.assertEqual([], problems)
+            for key in own.keys():
+                top20[key] = own[key] * 2 + 100  # the data now says something else than the profile shows
             wrong: list[str] = []
-            self.check_targets("GUIDE", context, self.build_profile(spec, "MYTHIC_PLUS", hero, "MEASURED"),
-                               "GUIDE", wrong)
+            self.check_targets("cell", context, profile, wrong)
             self.assertTrue(wrong)
         finally:
             context.targets.guideTargets = saved
 
-    def build_profile(self, spec, goal, hero, mode: str):
+    def build_profile(self, spec, goal, hero):
         ns, lua = self.ns, self.lua
-        db = lua.globals().StatVerdictDB
-        saved = db.weightMode
-        db.weightMode = mode
-        try:
-            return ns.ProfileRepository.BuildRuntimeProfile(lua.table(
-                specKey=spec.key, goal=goal, heroTalentName=hero,
-                specID=ns.GetStatVerdictSpecIDByKey(spec.key),
-                role={"tank": "TANK", "healer": "HEALER"}.get(spec.role, "DAMAGER"),
-            ))
-        finally:
-            db.weightMode = saved
+        return ns.ProfileRepository.BuildRuntimeProfile(lua.table(
+            specKey=spec.key, goal=goal, heroTalentName=hero,
+            specID=ns.GetStatVerdictSpecIDByKey(spec.key),
+            role={"tank": "TANK", "healer": "HEALER"}.get(spec.role, "DAMAGER"),
+        ))
 
-    def check_cell(self, spec, goal, hero, weights_root, problems: list[str], mode: str) -> tuple[str, str]:
+    def check_cell(self, spec, goal, hero, problems: list[str]) -> str:
         ns, lua = self.ns, self.lua
         repo = ns.ProfileRepository
-        cell = f"{spec.key} {goal} {hero} [{mode}]"
+        cell = f"{spec.key} {goal} {hero}"
         context = repo.GetContext(spec.key, goal, hero)
         if context is None:
             problems.append(f"{cell}: no targets")
-            return "MISSING", "?"
+            return "MISSING"
         result = repo.ValidateGeneratedContext(context, goal)
         valid, reason = result if isinstance(result, tuple) else (result, None)
         if not valid:
             problems.append(f"{cell}: invalid targets ({reason})")
-            return "INVALID", "?"
+            return "INVALID"
 
-        weights = repo.GetWeights(spec.key, goal, hero)
-        weight_status = "-"
-        if weights is not None:
-            values = [weights[key] for key in ("critical_strike", "haste", "mastery", "versatility")]
-            if any(not isinstance(v, (int, float)) or v <= 0 or v > 1.0 + 1e-9 for v in values) \
-                    or abs(max(values) - 1.0) > 1e-6:
-                problems.append(f"{cell}: weights not normalised to a best stat of 1.0: {values}")
-                weight_status = "BAD"
-            else:
-                weight_status = "ok"
-
-        profile = self.build_profile(spec, goal, hero, mode)
+        profile = self.build_profile(spec, goal, hero)
         if profile is None:
             problems.append(f"{cell}: BuildRuntimeProfile returned nothing")
-            return "NOPROFILE", weight_status
+            return "NOPROFILE"
         if profile.invalidGeneratedContext:
             problems.append(f"{cell}: profile marked invalid ({profile.auditTargets.invalidReason})")
         if profile.heroKey != hero:
@@ -460,21 +425,17 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
             problems.append(f"{cell}: empty secondaryOrder")
         if not lua_list(profile.auditTargets.rows):
             problems.append(f"{cell}: no audit target rows")
-        if mode == "GUIDE":
-            if profile.secondaryWeights is not None:
-                problems.append(f"{cell}: guide mode must not use measured weights")
-        elif weight_status == "ok" and profile.secondaryWeights is None:
-            problems.append(f"{cell}: measured weights not applied")
+        if profile.secondaryWeights is not None:
+            problems.append(f"{cell}: the profile must not carry measured weights")
         for stat_key in lua_list(profile.secondaryOrder):
             weight = ns.GetDefaultStatWeight(profile, stat_key)
             if not isinstance(weight, (int, float)) or weight <= 0:
                 problems.append(f"{cell}: no scoring weight for {stat_key}")
-        self.check_targets(cell, context, profile, mode, problems)
-        return "ok", weight_status
+        self.check_targets(cell, context, profile, problems)
+        return "ok"
 
-    def check_targets(self, cell: str, context, profile, mode: str, problems: list[str]) -> None:
-        """The audit rows show the mode's targets: GUIDE the ClassCodex (u.gg) top20
-        targets when the data has them, MEASURED our own.
+    def check_targets(self, cell: str, context, profile, problems: list[str]) -> None:
+        """The audit rows show the guide's (u.gg) top20 targets when the data has them, else our own.
         A stat missing on one side uses the other side's target; a secondary with no
         target at all keeps its row with target 0 (never dropped)."""
         def positive(table, key):
@@ -492,7 +453,7 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
                 continue
             own_value, guide_value = positive(own, canonical), positive(guide, canonical)
             target = float(row.target)
-            expected = own_value if mode == "MEASURED" or guide_value is None else guide_value
+            expected = own_value if guide_value is None else guide_value
             if expected is None:
                 expected = 0.0
             if abs(target - expected) > 1e-6:
