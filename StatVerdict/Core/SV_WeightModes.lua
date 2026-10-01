@@ -59,7 +59,8 @@ end
 local TIER_OF_BIN = { top80 = 1, top50 = 2, top20 = 3 }
 
 local function Percent(progress)
-    return math.max(0, math.min(99, math.floor((tonumber(progress) or 0) * 100)))
+    -- Rounded to the nearest (the window's Average Progress shows 58.5% where this says 59%), never 100% before it is reached.
+    return math.max(0, math.min(99, math.floor((tonumber(progress) or 0) * 100 + 0.5)))
 end
 
 function ns.GetAutoTierSummary(profile)

@@ -131,6 +131,7 @@ class WeightModeCoreTests(unittest.TestCase):
             return table
         cases = (
             (profile(0, 0.404), "Starter · 40% to Tier 1", "Auto · Starter · 40% to Tier 1"),
+            (profile(0, 0.585), "Starter · 59% to Tier 1", "Auto · Starter · 59% to Tier 1"),  # the window says 58.5%
             (profile(1, 0.8), "Tier 1 reached · 80% to Tier 2", "Auto · Tier 1 · 80% to Tier 2"),
             (profile(2, 0.999), "Tier 2 reached · 99% to Tier 3", "Auto · Tier 2 · 99% to Tier 3"),
             (profile(3, 1.0), "Tier 3 reached · top targets met", "Auto · Tier 3 · top targets met"),
