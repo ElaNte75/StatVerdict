@@ -85,6 +85,7 @@ Keywords: gear, upgrade, bis, offspec, mythic+, loot, stats, trinket, priority
 1.1.1
 New
 - /sv ag switches the Adventure Guide marks off and on (type /reload afterwards), in case they get in the way of the Adventure Guide.
+- /sv mouse lists, for 8 seconds, which frames sit under the mouse (handy for bug reports).
 Fixed
 - A saved loadout (Main Spec or Off Spec) no longer keeps gear that is gone. When an item of a saved loadout is sold, disenchanted, deleted or otherwise lost, it is removed from the loadout and the slot falls back to what you are wearing there. A line in the chat tells you. An item bought back from a vendor within 10 minutes goes back where it was.
 ```

@@ -154,6 +154,60 @@ if ItemRefTooltip then
     end)
 end
 
+
+-- /sv mouse: a diagnostic. For a few seconds it notes every change of the frame under the mouse and prints
+-- the list at the end, so a report like "the tabs blink" shows which frame takes the mouse away.
+local function FrameLabel(frame)
+    local parts, current, depth = {}, frame, 0
+    while current and depth < 4 do
+        local name = type(current.GetName) == "function" and current:GetName() or nil
+        parts[#parts + 1] = name or (type(current.GetObjectType) == "function" and current:GetObjectType() or "?")
+        current = type(current.GetParent) == "function" and current:GetParent() or nil
+        depth = depth + 1
+    end
+    return table.concat(parts, " < ")
+end
+
+function ns.WatchMouseFocus(seconds)
+    if ns._svMouseWatch then
+        PrintSV("Already watching.")
+        return
+    end
+    local getFoci = type(GetMouseFoci) == "function" and GetMouseFoci or nil
+    local getFocus = type(GetMouseFocus) == "function" and GetMouseFocus or nil
+    if not (getFoci or getFocus) then
+        PrintSV("This game version cannot report the frame under the mouse.")
+        return
+    end
+    local watch = CreateFrame("Frame")
+    ns._svMouseWatch = watch
+    local elapsed, last, changes, counts, order = 0, nil, 0, {}, {}
+    PrintSV("Watching the mouse for " .. tostring(seconds) .. " seconds. Move it over the tab that misbehaves.")
+    watch:SetScript("OnUpdate", function(self, delta)
+        elapsed = elapsed + delta
+        local label
+        local ok, foci = pcall(getFoci or getFocus)
+        if ok then
+            local top = getFoci and type(foci) == "table" and foci[1] or (not getFoci and foci) or nil
+            label = top and FrameLabel(top) or "(nothing)"
+        end
+        if label and label ~= last then
+            last = label
+            changes = changes + 1
+            if not counts[label] then counts[label] = 0; order[#order + 1] = label end
+            counts[label] = counts[label] + 1
+        end
+        if elapsed >= seconds then
+            self:SetScript("OnUpdate", nil)
+            ns._svMouseWatch = nil
+            PrintSV("Mouse focus changed " .. changes .. " times:")
+            for _, name in ipairs(order) do
+                print("  " .. counts[name] .. " x " .. name)
+            end
+        end
+    end)
+end
+
 local function HandleSlash(msg)
     local cmd, arg = msg:match("^(%S*)%s*(.-)$")
     cmd = string.lower(cmd or "")
@@ -164,6 +218,8 @@ local function HandleSlash(msg)
 
     if cmd == "approve" then
         ApproveFromCommand(arg)
+    elseif cmd == "mouse" then
+        ns.WatchMouseFocus(8)
     elseif cmd == "ag" then
         StatVerdictDB = StatVerdictDB or {}
         StatVerdictDB.adventureGuideMarksOff = not StatVerdictDB.adventureGuideMarksOff or nil
@@ -177,6 +233,7 @@ local function HandleSlash(msg)
         print("  /sv approve secondary - Save into Off Spec when dual-build is enabled")
         print("  /sv minimap - Show the minimap icon")
         print("  /sv ag - Switch the Adventure Guide marks off / on")
+        print("  /sv mouse - For 8 seconds, list which frames sit under the mouse (for bug reports)")
         print("  /sv help - Show this help message")
         print("  /sva - Open / close the StatVerdict window")
     else
