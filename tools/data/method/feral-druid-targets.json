@@ -3,5 +3,25 @@
  "updated": "",
  "itemLevel": 334,
  "incomplete": [],
- "results": {}
+ "results": {
+  "overall/all": {
+   "ratings": {
+    "crit": 340.0,
+    "haste": 884.0,
+    "mastery": 1329.0,
+    "versatility": 103.0
+   },
+   "items": 11,
+   "problems": [
+    "row without item: Shoulders",
+    "row without item: Chest",
+    "row without item: Gloves",
+    "row without item: Boots"
+   ],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 3 listed gems",
+   "simcRecovery": [],
+   "statSheet": ""
+  }
+ }
 }

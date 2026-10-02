@@ -1,5 +1,5 @@
 {
- "slug": "unholy-death-knight",
+ "slug": "frost-death-knight",
  "updated": "",
  "itemLevel": 334,
  "incomplete": [
@@ -8,9 +8,9 @@
  "results": {
   "overall/Single Target": {
    "ratings": {
-    "crit": 1138.0,
-    "haste": 488.0,
-    "mastery": 1432.0,
+    "crit": 1543.0,
+    "haste": 252.0,
+    "mastery": 1418.0,
     "versatility": 206.0
    },
    "items": 15,
@@ -22,9 +22,9 @@
   },
   "overall/Multi-Target": {
    "ratings": {
-    "crit": 1138.0,
-    "haste": 488.0,
-    "mastery": 1432.0,
+    "crit": 1543.0,
+    "haste": 252.0,
+    "mastery": 1418.0,
     "versatility": 206.0
    },
    "items": 15,
@@ -36,9 +36,9 @@
   },
   "raid/Single Target": {
    "ratings": {
-    "crit": 1483.0,
-    "haste": 272.0,
-    "mastery": 1303.0,
+    "crit": 1543.0,
+    "haste": 252.0,
+    "mastery": 1418.0,
     "versatility": 206.0
    },
    "items": 15,
@@ -50,9 +50,9 @@
   },
   "raid/Multi-Target": {
    "ratings": {
-    "crit": 1483.0,
-    "haste": 272.0,
-    "mastery": 1303.0,
+    "crit": 1543.0,
+    "haste": 252.0,
+    "mastery": 1418.0,
     "versatility": 206.0
    },
    "items": 15,
@@ -64,9 +64,9 @@
   },
   "mythic_plus/Single Target": {
    "ratings": {
-    "crit": 1227.0,
-    "haste": 796.0,
-    "mastery": 1008.0,
+    "crit": 1736.0,
+    "haste": 249.0,
+    "mastery": 1047.0,
     "versatility": 273.0
    },
    "items": 15,
@@ -78,9 +78,9 @@
   },
   "mythic_plus/Multi-Target": {
    "ratings": {
-    "crit": 1227.0,
-    "haste": 796.0,
-    "mastery": 1008.0,
+    "crit": 1736.0,
+    "haste": 249.0,
+    "mastery": 1047.0,
     "versatility": 273.0
    },
    "items": 15,

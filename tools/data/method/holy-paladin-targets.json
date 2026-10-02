@@ -1,56 +1,56 @@
 {
- "slug": "guardian-druid",
+ "slug": "holy-paladin",
  "updated": "",
  "itemLevel": 334,
  "incomplete": [],
  "results": {
-  "overall/all": {
+  "overall/Overall": {
    "ratings": {
-    "crit": 639.0,
-    "haste": 1843.0,
-    "mastery": 635.0,
-    "versatility": 474.0
+    "crit": 669.0,
+    "haste": 1026.0,
+    "mastery": 1647.0,
+    "versatility": 103.0
    },
-   "items": 15,
+   "items": 16,
    "problems": [],
    "enchantsNotApplied": [
     "Head: enchant 243948 could not be translated"
    ],
    "secondaryGem": "first of 2 listed gems",
    "simcRecovery": [],
-   "statSheet": ""
+   "statSheet": "stat sheet read with PALADIN_RETRIBUTION"
   },
-  "raid/all": {
+  "raid/Overall": {
    "ratings": {
-    "crit": 925.0,
-    "haste": 1496.0,
-    "mastery": 728.0,
-    "versatility": 441.0
+    "crit": 1106.0,
+    "haste": 857.0,
+    "mastery": 1379.0,
+    "versatility": 103.0
    },
-   "items": 15,
+   "items": 16,
    "problems": [],
    "enchantsNotApplied": [
     "Head: enchant 243948 could not be translated"
    ],
    "secondaryGem": "first of 2 listed gems",
    "simcRecovery": [],
-   "statSheet": ""
+   "statSheet": "stat sheet read with PALADIN_RETRIBUTION"
   },
-  "mythic_plus/all": {
+  "mythic_plus/Overall": {
    "ratings": {
-    "crit": 860.0,
-    "haste": 1996.0,
-    "mastery": 182.0,
-    "versatility": 410.0
+    "crit": 583.0,
+    "haste": 1200.0,
+    "mastery": 1681.0,
+    "versatility": 100.0
    },
-   "items": 15,
+   "items": 16,
    "problems": [],
    "enchantsNotApplied": [
     "Head: enchant 243948 could not be translated"
    ],
    "secondaryGem": "first of 2 listed gems",
    "simcRecovery": [],
-   "statSheet": ""
+   "statSheet": "stat sheet read with PALADIN_RETRIBUTION"
   }
  }
 }

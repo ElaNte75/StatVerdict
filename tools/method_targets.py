@@ -41,7 +41,7 @@ except ModuleNotFoundError:
 
 SEASON_MAX_ILVL = 334  # Midnight Season 2: Myth 6/6 (tools/upgrade_tracks.py)
 SLUG_TO_SPEC = {f"{s.spec_name.lower().replace(' ', '-')}-{s.class_name}": key for key, s in SPEC_BY_KEY.items()}
-CONTEXT_OF_TAB = {"raid": "RAID", "mythic_plus": "MYTHIC_PLUS"}
+CONTEXT_OF_TAB = {"overall": "MYTHIC_PLUS", "raid": "RAID", "mythic_plus": "MYTHIC_PLUS"}  # the goal picks the talents only
 # Method's slot words -> the slot names the shared loadout builder reads.
 SLOT_NAMES = {"head": "Head", "neck": "Neck", "shoulders": "Shoulders", "shoulder": "Shoulders", "cloak": "Back",
               "back": "Back", "chest": "Chest", "wrist": "Wrist", "gloves": "Hands", "hands": "Hands", "belt": "Waist",
@@ -61,8 +61,17 @@ def gear_entries(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list
     """The tab's rows as a loadout list (one entry per slot, rings and trinkets numbered in order)."""
     entries, problems = [], []
     counters = {"ring": 0, "trinket": 0}
+    weapon_variant: str | None = None  # 'Main Hand (2H)' / 'Main Hand (DW)': the guide offers both, the first listed is used
     for row in rows:
         label = row["slot"].strip().lower()
+        variant = re.search(r"\(([^)]+)\)", label)
+        label = re.sub(r"\s*\([^)]*\)", "", label)
+        if label == "main hand" and variant:
+            weapon_variant = weapon_variant or variant.group(1).lower()
+            if variant.group(1).lower() != weapon_variant:
+                continue
+        if label == "off hand" and weapon_variant == "2h":
+            continue
         if row.get("itemId") is None:
             problems.append(f"row without item: {row['slot']}")
             continue
@@ -155,12 +164,27 @@ def main(argv: list[str] | None = None) -> int:
                     upgrades, unresolved, gem_note = loadout_upgrades(data, hero_label, lookup, catalog_key, entries)
                     items = build_simc_items(entries, upgrades)
                     exports = talent_exports_from_entries(select_goal_context(talents_value, heroes[0], goal)) if heroes else []
-                    stats, report, recovery, actor = run_with_talent_fallback(args.simc_bin, spec, items, exports, run_simc_fn=run_simc)
+                    stat_spec, sheet_note = spec, ""
+                    try:
+                        stats, report, recovery, actor = run_with_talent_fallback(args.simc_bin, spec, items, exports or [""], render_kwargs={"talents_optional": True}, run_simc_fn=run_simc)
+                    except RuntimeError:
+                        # SimC cannot run this spec (healers): the ratings only come from the gear, so another spec
+                        # of the same class reads the same stat sheet.
+                        stat_spec = next((s for s in SPEC_BY_KEY.values() if s.class_name == spec.class_name and s.role == "dps"
+                                          and s.key != spec.key), None)
+                        if stat_spec is None:
+                            raise
+                        sheet_note = f"stat sheet read with {stat_spec.key}"
+                        other_fields = next(f for k, f in specs.items() if _classcodex_key_to_catalog_key(k) == stat_spec.key)
+                        other_talents = (other_fields.get("talents") or {}).get("value")
+                        other_heroes = sorted(_hero_talent_keys((other_fields.get("gear") or {}).get("value"), other_talents))
+                        other_exports = talent_exports_from_entries(select_goal_context(other_talents, other_heroes[0], goal)) if other_heroes else []
+                        stats, report, recovery, actor = run_with_talent_fallback(args.simc_bin, stat_spec, items, other_exports or [""], render_kwargs={"talents_optional": True}, run_simc_fn=run_simc)
                     ratings = stats[actor]["ratings"]
                     out["results"][f"{tab}/{hero_label or 'all'}"] = {
                         "ratings": {s: ratings[s] for s in STATS},
                         "items": len(entries), "problems": problems, "enchantsNotApplied": unresolved,
-                        "secondaryGem": gem_note, "simcRecovery": recovery,
+                        "secondaryGem": gem_note, "simcRecovery": recovery, "statSheet": sheet_note,
                     }
             (args.data / f"{slug}-targets.json").write_text(json.dumps(out, indent=1, ensure_ascii=False), encoding="utf-8")
             print(slug, {k: (v["ratings"], v["enchantsNotApplied"], v["problems"]) for k, v in out["results"].items()})

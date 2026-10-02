@@ -1,0 +1,50 @@
+{
+ "slug": "restoration-shaman",
+ "updated": "",
+ "itemLevel": 334,
+ "incomplete": [],
+ "results": {
+  "overall/Raid": {
+   "ratings": {
+    "crit": 1285.0,
+    "haste": 750.0,
+    "mastery": 583.0,
+    "versatility": 707.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 3 listed gems",
+   "simcRecovery": [],
+   "statSheet": "stat sheet read with SHAMAN_ELEMENTAL"
+  },
+  "raid/Raid": {
+   "ratings": {
+    "crit": 1110.0,
+    "haste": 750.0,
+    "mastery": 684.0,
+    "versatility": 369.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 3 listed gems",
+   "simcRecovery": [],
+   "statSheet": "stat sheet read with SHAMAN_ELEMENTAL"
+  },
+  "mythic_plus/Raid": {
+   "ratings": {
+    "crit": 1288.0,
+    "haste": 877.0,
+    "mastery": 275.0,
+    "versatility": 742.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 3 listed gems",
+   "simcRecovery": [],
+   "statSheet": "stat sheet read with SHAMAN_ELEMENTAL"
+  }
+ }
+}

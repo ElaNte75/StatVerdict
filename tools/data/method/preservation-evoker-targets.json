@@ -4,6 +4,24 @@
  "itemLevel": 334,
  "incomplete": [],
  "results": {
+  "overall/all": {
+   "ratings": {
+    "crit": null,
+    "haste": null,
+    "mastery": null,
+    "versatility": null
+   },
+   "items": 16,
+   "problems": [
+    "unknown slot: Two-Hand"
+   ],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 7 listed gems",
+   "simcRecovery": [
+    "gems dropped"
+   ],
+   "statSheet": ""
+  },
   "raid/all": {
    "ratings": {
     "crit": null,
@@ -21,7 +39,8 @@
    "secondaryGem": "first of 7 listed gems",
    "simcRecovery": [
     "gems dropped"
-   ]
+   ],
+   "statSheet": ""
   },
   "mythic_plus/all": {
    "ratings": {
@@ -40,7 +59,8 @@
    "secondaryGem": "first of 7 listed gems",
    "simcRecovery": [
     "gems dropped"
-   ]
+   ],
+   "statSheet": ""
   }
  }
 }

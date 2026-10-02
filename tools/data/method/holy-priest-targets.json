@@ -1,0 +1,52 @@
+{
+ "slug": "holy-priest",
+ "updated": "",
+ "itemLevel": 334,
+ "incomplete": [
+  "ring enchant not read from the guide"
+ ],
+ "results": {
+  "overall/Raid": {
+   "ratings": {
+    "crit": 1622.0,
+    "haste": 340.0,
+    "mastery": 1058.0,
+    "versatility": 148.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 4 listed gems",
+   "simcRecovery": [],
+   "statSheet": "stat sheet read with PRIEST_SHADOW"
+  },
+  "raid/Raid": {
+   "ratings": {
+    "crit": 1432.0,
+    "haste": 340.0,
+    "mastery": 1364.0,
+    "versatility": 249.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 4 listed gems",
+   "simcRecovery": [],
+   "statSheet": "stat sheet read with PRIEST_SHADOW"
+  },
+  "mythic_plus/Raid": {
+   "ratings": {
+    "crit": 1678.0,
+    "haste": 77.0,
+    "mastery": 1596.0,
+    "versatility": 153.0
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 4 listed gems",
+   "simcRecovery": [],
+   "statSheet": "stat sheet read with PRIEST_SHADOW"
+  }
+ }
+}

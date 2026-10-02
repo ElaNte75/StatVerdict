@@ -5,5 +5,20 @@
  "incomplete": [
   "ring enchant not read from the guide"
  ],
- "results": {}
+ "results": {
+  "overall/all": {
+   "ratings": {
+    "crit": 852.0,
+    "haste": 995.0,
+    "mastery": 1081.0,
+    "versatility": 418.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "the one listed gem",
+   "simcRecovery": [],
+   "statSheet": ""
+  }
+ }
 }

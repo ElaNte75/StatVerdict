@@ -1,56 +1,56 @@
 {
- "slug": "guardian-druid",
+ "slug": "mistweaver-monk",
  "updated": "",
  "itemLevel": 334,
  "incomplete": [],
  "results": {
   "overall/all": {
    "ratings": {
-    "crit": 639.0,
-    "haste": 1843.0,
-    "mastery": 635.0,
-    "versatility": 474.0
+    "crit": 1091.0,
+    "haste": 1649.0,
+    "mastery": 335.0,
+    "versatility": 312.0
    },
    "items": 15,
    "problems": [],
    "enchantsNotApplied": [
     "Head: enchant 243948 could not be translated"
    ],
-   "secondaryGem": "first of 2 listed gems",
+   "secondaryGem": "the one listed gem",
    "simcRecovery": [],
-   "statSheet": ""
+   "statSheet": "stat sheet read with MONK_WINDWALKER"
   },
   "raid/all": {
    "ratings": {
-    "crit": 925.0,
-    "haste": 1496.0,
-    "mastery": 728.0,
-    "versatility": 441.0
+    "crit": 962.0,
+    "haste": 1521.0,
+    "mastery": 878.0,
+    "versatility": 230.0
    },
    "items": 15,
    "problems": [],
    "enchantsNotApplied": [
     "Head: enchant 243948 could not be translated"
    ],
-   "secondaryGem": "first of 2 listed gems",
+   "secondaryGem": "the one listed gem",
    "simcRecovery": [],
-   "statSheet": ""
+   "statSheet": "stat sheet read with MONK_WINDWALKER"
   },
   "mythic_plus/all": {
    "ratings": {
-    "crit": 860.0,
-    "haste": 1996.0,
-    "mastery": 182.0,
-    "versatility": 410.0
+    "crit": 1153.0,
+    "haste": 1780.0,
+    "mastery": 168.0,
+    "versatility": 347.0
    },
    "items": 15,
    "problems": [],
    "enchantsNotApplied": [
     "Head: enchant 243948 could not be translated"
    ],
-   "secondaryGem": "first of 2 listed gems",
+   "secondaryGem": "the one listed gem",
    "simcRecovery": [],
-   "statSheet": ""
+   "statSheet": "stat sheet read with MONK_WINDWALKER"
   }
  }
 }

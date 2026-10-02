@@ -17,7 +17,8 @@
     "Head: enchant 244005 could not be translated"
    ],
    "secondaryGem": "gem for Deathbringer",
-   "simcRecovery": []
+   "simcRecovery": [],
+   "statSheet": ""
   },
   "raid/San’layn": {
    "ratings": {
@@ -32,7 +33,8 @@
     "Head: enchant 244005 could not be translated"
    ],
    "secondaryGem": "gem for San’layn",
-   "simcRecovery": []
+   "simcRecovery": [],
+   "statSheet": ""
   },
   "mythic_plus/Deathbringer": {
    "ratings": {
@@ -47,7 +49,8 @@
     "Head: enchant 244005 could not be translated"
    ],
    "secondaryGem": "gem for Deathbringer",
-   "simcRecovery": []
+   "simcRecovery": [],
+   "statSheet": ""
   },
   "mythic_plus/San’layn": {
    "ratings": {
@@ -62,7 +65,8 @@
     "Head: enchant 244005 could not be translated"
    ],
    "secondaryGem": "gem for San’layn",
-   "simcRecovery": []
+   "simcRecovery": [],
+   "statSheet": ""
   }
  }
 }
