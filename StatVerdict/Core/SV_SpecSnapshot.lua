@@ -712,6 +712,155 @@ function ns.CaptureActiveSpecSnapshot()
     return db.bySpecID[specKey]
 end
 
+-- Vanished gear. A saved loadout is a picture, so an item that is sold, disenchanted, deleted or
+-- otherwise gone would stay in it for ever and every later comparison would use it. When an item of
+-- a saved loadout is no longer owned (worn, in the bags, the bank or the warband bank), it leaves the
+-- loadout, and its slot falls back to what is worn there now. What is worn always has priority;
+-- what the player puts in the bags stays their own choice (Approve).
+--
+-- Safety: an item counts as gone only when it is missing in two checks at least
+-- VANISH_CONFIRM_SECONDS apart (a trade, a bank move or a loading screen never removes anything),
+-- and the check is by item id, so a second copy of the same item keeps it. The active spec is not
+-- touched: its picture is rebuilt from the worn gear on every capture. An item bought back from a
+-- vendor within RESTORE_WINDOW_SECONDS goes back where it was, if the slot was not changed since.
+local VANISH_CONFIRM_SECONDS = 3
+local RESTORE_WINDOW_SECONDS = 600
+local missingSince = {}      -- itemID -> time it was first found missing
+local recentlyRemoved = {}   -- { itemID, specKey, slotKey, link, fallback, at }
+
+local function Now()
+    if type(GetTime) == "function" then return GetTime() end
+    return type(time) == "function" and time() or 0
+end
+
+-- Unknown means present: nothing is removed on a guess.
+local function PlayerOwnsItem(itemID)
+    local getter = (type(C_Item) == "table" and C_Item.GetItemCount) or GetItemCount
+    if type(getter) ~= "function" then return true end
+    local ok, count = pcall(getter, itemID, true, false, true, true)
+    count = ok and SafeNumber(count) or nil
+    if count == nil then return true end
+    return count > 0
+end
+
+local function SpecNameByID(specID)
+    if type(GetSpecializationInfoByID) == "function" then
+        local ok, _, name = pcall(GetSpecializationInfoByID, tonumber(specID))
+        if ok and type(name) == "string" and name ~= "" then return name end
+    end
+    return "spec " .. tostring(specID)
+end
+
+local function SayLoadoutChange(text)
+    if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
+        DEFAULT_CHAT_FRAME:AddMessage("|cffff8000StatVerdict:|r " .. text)
+    end
+end
+
+local function BumpSnapshotRevision(db, snapshot)
+    local revision = (SafeNumber(db.revision) or 0) + 1
+    db.revision = revision
+    snapshot.revision = revision
+    snapshot.capturedAt = type(time) == "function" and time() or snapshot.capturedAt
+end
+
+-- Runs one check. Returns how many items it removed or restored, and whether some are still
+-- waiting for their second look (the caller checks again later).
+function ns.PruneVanishedLoadoutItems()
+    if IsInCombat() then return 0, false end
+    local activeSpecID = GetActiveSpecID()
+    if not activeSpecID then return 0, false end
+    local db = EnsureDB()
+    local activeKey = tostring(activeSpecID)
+    local now = Now()
+    local changed, pending = 0, false
+
+    for specKey, snapshot in pairs(db.bySpecID) do
+        local equipment = type(snapshot) == "table" and snapshot.equipment or nil
+        if specKey ~= activeKey and type(equipment) == "table" then
+            -- The table is only changed after the walk over it (adding a key while walking is not allowed).
+            local gone = {}
+            for slotKey, link in pairs(equipment) do
+                local itemID = GetItemIDFromLink(link)
+                if itemID then
+                    if PlayerOwnsItem(itemID) then
+                        missingSince[itemID] = nil
+                    elseif not missingSince[itemID] then
+                        missingSince[itemID] = now
+                        pending = true
+                    elseif now - missingSince[itemID] >= VANISH_CONFIRM_SECONDS then
+                        gone[#gone + 1] = { slotKey = slotKey, link = link, itemID = itemID }
+                    else
+                        pending = true
+                    end
+                end
+            end
+            local removedHere = #gone > 0
+            for _, entry in ipairs(gone) do
+                local slotID = SafeNumber(entry.slotKey)
+                local worn = slotID and type(GetInventoryItemLink) == "function"
+                    and GetInventoryItemLink("player", slotID) or nil
+                equipment[entry.slotKey] = worn
+                -- Removing a two-hander gives the off-hand slot back to what is worn there.
+                if slotID == INVSLOT_MAINHAND and equipment[tostring(INVSLOT_OFFHAND)] == nil
+                    and type(GetInventoryItemLink) == "function" then
+                    equipment[tostring(INVSLOT_OFFHAND)] = GetInventoryItemLink("player", INVSLOT_OFFHAND)
+                end
+                if snapshot.lastApprovedLink and GetItemIDFromLink(snapshot.lastApprovedLink) == entry.itemID then
+                    snapshot.lastApprovedLink, snapshot.lastApprovedSlot = nil, nil
+                end
+                recentlyRemoved[#recentlyRemoved + 1] = {
+                    itemID = entry.itemID, specKey = specKey, slotKey = entry.slotKey,
+                    link = entry.link, fallback = worn, at = now,
+                }
+                missingSince[entry.itemID] = nil
+                changed = changed + 1
+                SayLoadoutChange(tostring(entry.link) .. " is gone and was removed from the "
+                    .. SpecNameByID(specKey) .. " loadout.")
+            end
+            if removedHere then BumpSnapshotRevision(db, snapshot) end
+        end
+    end
+
+    -- Bought back (or found again) shortly after it was removed: it returns to its slot, unless the
+    -- slot was changed in the meantime.
+    for index = #recentlyRemoved, 1, -1 do
+        local entry = recentlyRemoved[index]
+        if now - entry.at > RESTORE_WINDOW_SECONDS then
+            table.remove(recentlyRemoved, index)
+        elseif PlayerOwnsItem(entry.itemID) then
+            local snapshot = db.bySpecID[entry.specKey]
+            local equipment = snapshot and snapshot.equipment
+            if type(equipment) == "table" and equipment[entry.slotKey] == entry.fallback then
+                equipment[entry.slotKey] = entry.link
+                BumpSnapshotRevision(db, snapshot)
+                changed = changed + 1
+                SayLoadoutChange(tostring(entry.link) .. " is back and was put back into the "
+                    .. SpecNameByID(entry.specKey) .. " loadout.")
+            end
+            table.remove(recentlyRemoved, index)
+        end
+    end
+
+    if changed > 0 then NotifyVirtualLoadoutChanged() end
+    return changed, pending
+end
+
+local pruneToken = 0
+local function SchedulePrune(delay)
+    if type(C_Timer) ~= "table" or type(C_Timer.After) ~= "function" then return end
+    pruneToken = pruneToken + 1
+    local token = pruneToken
+    C_Timer.After(delay, function()
+        if token ~= pruneToken then return end
+        local _, pending = ns.PruneVanishedLoadoutItems()
+        if pending then
+            -- The second look: items first found missing are checked again once the delay has passed.
+            SchedulePrune(VANISH_CONFIRM_SECONDS + 0.5)
+        end
+    end)
+end
+
 local function RequestRefresh()
     if ns.InvalidateUpgradeIndicatorDecisionCache then
         ns.InvalidateUpgradeIndicatorDecisionCache()
@@ -762,4 +911,13 @@ frame:SetScript("OnEvent", function(_, event, unit)
         return
     end
     ScheduleCapture()
+end)
+
+-- A separate frame: the capture frame above reacts to every one of its events with a new capture.
+local pruneFrame = CreateFrame("Frame")
+RegisterEventSafe(pruneFrame, "BAG_UPDATE_DELAYED")
+RegisterEventSafe(pruneFrame, "PLAYER_ENTERING_WORLD")
+pruneFrame:SetScript("OnEvent", function(_, event)
+    -- After a loading screen the bags and banks need a moment to be known.
+    SchedulePrune(event == "PLAYER_ENTERING_WORLD" and 15 or 1)
 end)
