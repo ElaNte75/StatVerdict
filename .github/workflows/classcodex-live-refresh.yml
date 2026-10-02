@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 concurrency:
   group: classcodex-live-refresh
@@ -95,6 +96,7 @@ jobs:
         run: python -m unittest tools.tests.test_addon_integration
 
       - name: Commit generated data
+        id: commit
         shell: bash
         run: |
           files=(
@@ -110,6 +112,7 @@ jobs:
           fi
           if [ -z "$(git status --porcelain -- "${files[@]}")" ]; then
             echo "No changes to commit."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git config user.name "StatVerdict Data Bot"
@@ -118,6 +121,7 @@ jobs:
           git commit -m "data: refresh live ClassCodex data"
           for attempt in 1 2 3 4 5; do
             if git push; then
+              echo "changed=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi
             echo "Push rejected (attempt $attempt/5), rebasing onto latest main and retrying..."
@@ -126,6 +130,40 @@ jobs:
           done
           echo "Push failed after 5 attempts."
           exit 1
+
+      # New data was committed: prepare the weekly release (version MAJOR.MINOR.WEEK, changelog file) and
+      # open an issue, which GitHub mails to the owner as the reminder to upload to CurseForge.
+      # See tools/release_prep.py. It never publishes anything.
+      - name: Prepare the weekly release and remind the owner
+        if: steps.commit.outputs.changed == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="$(python tools/release_prep.py --issue-body "$RUNNER_TEMP/issue.md")"
+          if [ -z "$title" ]; then
+            echo "This week already has its release; nothing to announce."
+            exit 0
+          fi
+          git config user.name "StatVerdict Data Bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- StatVerdict/StatVerdict.toc StatVerdict/StatVerdict.lua StatVerdict/STORE.md docs/changelog
+          if ! git diff --cached --quiet; then
+            git commit -m "release: prepare $title"
+            for attempt in 1 2 3 4 5; do
+              if git push; then
+                break
+              fi
+              echo "Push rejected (attempt $attempt/5), rebasing onto latest main and retrying..."
+              git fetch origin main
+              git rebase origin/main
+            done
+          fi
+          if gh issue list --state open --limit 50 --json title --jq '.[].title' | grep -Fxq "$title"; then
+            echo "An open issue with this title exists already."
+            exit 0
+          fi
+          gh issue create --title "$title" --body-file "$RUNNER_TEMP/issue.md"
 
       # The StatDR commit above has already happened by now; this
       # only turns the run red so a targets-pipeline failure is not silent.

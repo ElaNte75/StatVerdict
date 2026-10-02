@@ -425,7 +425,8 @@ class CoreProfileTests(unittest.TestCase):
         toc_version = re.search(r"^## Version:\s*(\S+)", toc, re.M).group(1)
         lua_version = re.search(r'ns\.VERSION = "([^"]+)"', main).group(1)
         self.assertEqual(toc_version, lua_version)
-        self.assertEqual("1.1.1", toc_version)
+        # The weekly data release (tools/release_prep.py) moves the version by itself: MAJOR.MINOR.WEEK.
+        self.assertRegex(toc_version, r"^\d+\.\d+\.\d+$")
         self.assertIn(f"(v{toc_version})", (ADDON / "STORE.md").read_text(encoding="utf-8"))
 
     def test_stale_data_fails_closed(self) -> None:

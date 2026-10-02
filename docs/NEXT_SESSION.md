@@ -28,11 +28,22 @@ When this file is rewritten, delete what is no longer true. Release notes live i
 - Replaced features and data are deleted completely, never left commented out.
 - Commits end with the co-author line the session gives. Pushes to `main` and `main-myh77p` are pre-authorised (inform, do not ask). No PRs unless asked.
 
-## Release state
-- **1.1.0 is on CurseForge.** The owner uploads by hand with `StatVerdict Ship (no bump).bat` (builds the zip on his Desktop). `StatVerdict Ship.bat` also bumps the version.
-- **When the owner says a version was uploaded to CurseForge**, rename its `_pending` changelog file to `<version>_<upload date>.md` (git mv), commit and push. Do not automate it: only the owner knows when the upload happened.
-- **The repo is at 1.1.1**, planned upload: the Wednesday after 1.1.0, one batch of fixes. Everything fixed from now on goes into `docs/changelog/1.1.1_pending.md`, and into `StatVerdict/STORE.md` (its header version is checked by a test).
-- 1.1.1 so far: vanished gear leaves saved loadouts; `/sv ag`; `/sv mouse`; Adventure Guide tab flicker fixed; equip/spec-change freeze fixed.
+## Release state and versions
+- **1.1.0 is on CurseForge** (old numbering). The owner uploads by hand with `StatVerdict Ship (no bump).bat` (zip on his Desktop). `StatVerdict Ship.bat` also bumps the version, which the weekly scheme below no longer wants.
+- **Version scheme (owner's rule, 2026-10-02): `MAJOR.MINOR.WEEK`.** A data-only release changes only WEEK: the week the data was refreshed
+  (weeks turn over on Wednesday, the game's weekly reset; a week with no release is skipped in the number). A functional change raises MINOR
+  (a big one raises MAJOR and zeroes MINOR). New year: WEEK restarts at 1 and MINOR goes up by one, so the version never goes backwards.
+  Already published versions keep their numbers; the scheme starts with the next release (it moves 1.1.x to e.g. 1.1.41, or 1.2.x for a functional release).
+- **Every Wednesday ~15:00 Greek time** `.github/workflows/classcodex-live-refresh.yml` refreshes the guide data. When the data changed it runs
+  `tools/release_prep.py`: bumps WEEK in the toc, `ns.VERSION` and the `STORE.md` header, writes `docs/changelog/<version>_<date>.md`, and opens a GitHub issue
+  ("Ώρα για ανέβασμα ...") which GitHub mails to the owner. It never publishes. If a release is waiting (`<version>_pending.md`) it only adds a data line to that file.
+  The owner then runs `StatVerdict Ship (no bump).bat`, uploads to CurseForge, closes the issue.
+- **Functional releases are made by hand:** the number is set when the owner is about to upload (MINOR up, WEEK = the week of upload), the changelog file is
+  `docs/changelog/<version>_pending.md` until the owner says it was uploaded, then rename it to `<version>_<upload date>.md` (git mv), commit, push.
+- **The repo is at 1.1.1 (pending)**, with functional changes, so by the rule it becomes `1.2.<week>` at upload time (rename the toc, `ns.VERSION`, `STORE.md` header and the pending file).
+  Changes so far: vanished gear leaves saved loadouts; `/sv ag`; `/sv mouse`; Adventure Guide tab flicker fixed; equip/spec-change freeze fixed.
+- The bot changes the version files in the repo. Before copying anything from the game folder, `git pull` first and never overwrite the version lines (toc, `ns.VERSION`) with the game copy's old ones.
+- GitHub emails: the owner receives mail for failed workflows only. Keep it that way: no experiment workflows.
 
 ## What the addon is
 Retail addon (interface 120100, Lua 5.1) that judges gear for Main Spec and Off Spec: bag/tooltip verdicts and upgrade arrows, a Guide drawer
@@ -47,6 +58,7 @@ The evaluation contexts are built once per bag scan (`ns.BeginContextScan` / `En
 - `tools/item_sources.py`, `tools/blizzard_item_pool.py`, `tools/data/blizzard_item_pool.json`: the "Where to find" data.
 - `tools/item_check_verdict.py`: despite the name, the harness the scoring tests (`test_scoring_mechanism`, `test_diminishing_returns`) use to load the addon.
 - `tools/method_guides.py`, `method_targets.py`, `tools/data/method/`: Method as a second guide source (below).
+- `tools/release_prep.py`: the weekly version number, changelog file and upload reminder (see Release state). Tested in `tools/tests/test_release_prep.py`.
 - `.github/workflows/tests.yml`, `tools/tests/`.
 
 ## Open work
