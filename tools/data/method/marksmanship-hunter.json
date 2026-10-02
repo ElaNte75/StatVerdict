@@ -1,0 +1,404 @@
+{
+ "slug": "marksmanship-hunter",
+ "updated": "",
+ "priority": [
+  {
+   "hero": null,
+   "secondary": [
+    [
+     "crit"
+    ],
+    [
+     "mastery"
+    ],
+    [
+     "versatility"
+    ],
+    [
+     "haste"
+    ]
+   ],
+   "line": "Stat Ranking Weapon Damage > Agility > Crit > Mastery > Versatility > Haste"
+  }
+ ],
+ "ratingRanges": [],
+ "bestInSlot": {
+  "overall": [
+   {
+    "slot": "Head",
+    "itemId": 268230,
+    "name": "Crown Of The Eternal Fang",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Nek'zali the Soulcoiler"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’Tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 268231,
+    "name": "Soulslither Spaulders",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 271487,
+    "name": "Shroud Of The Skulking Viper",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271876,
+    "name": "Awoken Dreadfang Cuirass",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Ula’Tek (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 244584,
+    "name": "Farstrider's Plated Bracers",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 193752,
+    "name": "Galerattle Gauntlets",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Ruby Life Pools"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 244581,
+    "name": "Farstrider's Trophy Belt",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 268237,
+    "name": "Cuisses Of The Uncoiled Union",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268233,
+    "name": "Ferocious Scaleboots",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268249,
+    "name": "Vile Alchemist's Band",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 251136,
+    "name": "Signet Of Snarling Servitude",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270168,
+    "name": "Font of Venomous Rage",
+    "note": "",
+    "bonusIds": "13335:13848",
+    "source": "Ula’Tek"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270175,
+    "name": "Voracious Heart Of Ula'tek",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’Tek"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 268207,
+    "name": "Caustic Repose Greatbow",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’Tek"
+   }
+  ],
+  "raid": [
+   {
+    "slot": "Head",
+    "itemId": 268230,
+    "name": "Crown Of The Eternal Fang",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Nek'zali the Soulcoiler"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’Tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 268231,
+    "name": "Soulslither Spaulders",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 271487,
+    "name": "Shroud Of The Skulking Viper Catalysed from Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271876,
+    "name": "Awoken Dreadfang Cuirass",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Ula’Tek (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 244584,
+    "name": "Farstrider's Plated Bracers",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 268238,
+    "name": "Grips Of Swirling Fury",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 244581,
+    "name": "Farstrider's Trophy Belt",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 268237,
+    "name": "Cuisses Of The Uncoiled Union",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268233,
+    "name": "Ferocious Scaleboots",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268249,
+    "name": "Vile Alchemist's Band",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268252,
+    "name": "Apex Brute's Claw Ring",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270168,
+    "name": "Font of Venomous Rage",
+    "note": "",
+    "bonusIds": "13335:13848",
+    "source": "Ula’Tek"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270175,
+    "name": "Voracious Heart Of Ula'tek",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’Tek"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 268207,
+    "name": "Caustic Repose Greatbow",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’Tek"
+   }
+  ],
+  "mythic_plus": [
+   {
+    "slot": "Head",
+    "itemId": 239035,
+    "name": "Sethraliss' Fanged Helm",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 251234,
+    "name": "Graft Of The Domanaar",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 251131,
+    "name": "Jangling Felpaulets",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 251132,
+    "name": "Speakeasy Shroud",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 239046,
+    "name": "Loa-Blessed Chestguard",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "King’s Rest"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 244584,
+    "name": "Farstrider's Plated Bracers",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 193752,
+    "name": "Galerattle Gauntlets",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Ruby Life Pools"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 244581,
+    "name": "Farstrider's Trophy Belt",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 159375,
+    "name": "Legguards Of The Awakening Brood",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 159388,
+    "name": "Sabatons Of Coruscating Energy",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 158366,
+    "name": "Charged Sandstone Band",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 251136,
+    "name": "Signet Of Snarling Servitude",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 250214,
+    "name": "Lightspire Core",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 159617,
+    "name": "Lustrous Golden Plumage",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "King’s Rest"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 271680,
+    "name": "Sinseared Repeater",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   }
+  ]
+ },
+ "enchants": {},
+ "gems": {
+  "primary": 240983,
+  "others": [
+   {
+    "itemId": 240908,
+    "name": "Flawless Masterful Garnet",
+    "note": ""
+   }
+  ]
+ }
+}

@@ -1,22 +1,22 @@
 {
- "slug": "brewmaster-monk",
+ "slug": "windwalker-monk",
  "updated": "",
  "priority": [
   {
    "hero": null,
    "secondary": [
     [
-     "crit",
-     "versatility"
-    ],
-    [
-     "mastery"
-    ],
-    [
      "haste"
+    ],
+    [
+     "mastery",
+     "crit"
+    ],
+    [
+     "versatility"
     ]
    ],
-   "line": "Agility >> Crit = Vers > Mastery >> Haste."
+   "line": "Stat Ranking Agility > Haste > Mastery = Crit >>> Versatility"
   }
  ],
  "ratingRanges": [],
@@ -26,9 +26,9 @@
     "slot": "Head",
     "itemId": 271875,
     "name": "Gaze Of The Coiled Watcher",
-    "note": "",
+    "note": "Tier Set",
     "bonusIds": "",
-    "source": "Ula’tek"
+    "source": "Ula’tek (Catalyst)"
    },
    {
     "slot": "Neck",
@@ -40,11 +40,11 @@
    },
    {
     "slot": "Shoulders",
-    "itemId": 273774,
-    "name": "Snakeskin Spaulders",
-    "note": "Tier",
+    "itemId": 271517,
+    "name": "Tassels Of The Monkey King",
+    "note": "",
     "bonusIds": "",
-    "source": "Altar of Fangs (Catalyst)"
+    "source": "The Lost Explorers"
    },
    {
     "slot": "Cloak",
@@ -56,27 +56,27 @@
    },
    {
     "slot": "Chest",
-    "itemId": 251226,
-    "name": "Hide Of Pestilence",
-    "note": "Tier",
-    "bonusIds": "13440:12854",
-    "source": "Voidscar Arena (Catalyst)"
+    "itemId": 271522,
+    "name": "Battle Gi Of The Monkey King",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
    },
    {
     "slot": "Wrist",
-    "itemId": 159300,
-    "name": "Kula's Butchering Wristwraps",
+    "itemId": 244576,
+    "name": "Silvermoon Agent's Deflectors",
     "note": "",
-    "bonusIds": "",
-    "source": "Kings’ Rest"
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
    },
    {
     "slot": "Gloves",
-    "itemId": 193758,
-    "name": "Subjugator's Chilling Grips",
-    "note": "Tier",
-    "bonusIds": "13440:12854",
-    "source": "Ruby Life Pools (Catalyst)"
+    "itemId": 271520,
+    "name": "Monkey King's Fighting Fists",
+    "note": "",
+    "bonusIds": "",
+    "source": "Entombed Sentinels"
    },
    {
     "slot": "Belt",
@@ -90,9 +90,9 @@
     "slot": "Legs",
     "itemId": 268225,
     "name": "Coiled Hex Legguards",
-    "note": "Tier",
+    "note": "",
     "bonusIds": "",
-    "source": "The Coiled Altar (Catalyst)"
+    "source": "The Coiled Altar"
    },
    {
     "slot": "Boots",
@@ -100,28 +100,28 @@
     "name": "Silvermoon Agent's Sneakers",
     "note": "",
     "bonusIds": "12214:13667:12497:13751:13836",
-    "source": "Crafting"
+    "source": "Crafted"
    },
    {
     "slot": "Ring",
-    "itemId": 268252,
-    "name": "Apex Brute's Claw Ring",
+    "itemId": 268249,
+    "name": "Vile Alchemist's Band",
     "note": "",
     "bonusIds": "",
-    "source": "Sszorak"
+    "source": "Vashnik"
    },
    {
     "slot": "Ring",
-    "itemId": 240949,
-    "name": "Masterwork Sin'dorei Band",
+    "itemId": 252258,
+    "name": "Sickening Signet Of Atroxus",
     "note": "",
-    "bonusIds": "12214:13667:12497:13751:13836",
-    "source": "Crafting"
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
    },
    {
     "slot": "Trinket",
-    "itemId": 270168,
-    "name": "Font Of Venomous Rage",
+    "itemId": 270175,
+    "name": "Voracious Heart Of Ula'tek",
     "note": "",
     "bonusIds": "",
     "source": "Ula’tek"
@@ -148,9 +148,9 @@
     "slot": "Head",
     "itemId": 271875,
     "name": "Gaze Of The Coiled Watcher",
-    "note": "",
+    "note": "Tier Set",
     "bonusIds": "",
-    "source": "Ula’tek"
+    "source": "Ula’tek (Catalyst)"
    },
    {
     "slot": "Neck",
@@ -166,7 +166,7 @@
     "name": "Tassels Of The Monkey King",
     "note": "",
     "bonusIds": "",
-    "source": "Tier - Vashnik (Catalyst)"
+    "source": "The Lost Explorers"
    },
    {
     "slot": "Cloak",
@@ -182,15 +182,15 @@
     "name": "Battle Gi Of The Monkey King",
     "note": "",
     "bonusIds": "",
-    "source": "Tier - Vashnik"
+    "source": "Vashnik the Malignant"
    },
    {
     "slot": "Wrist",
-    "itemId": 268240,
-    "name": "Restless Spirit Shackles",
+    "itemId": 244576,
+    "name": "Silvermoon Agent's Deflectors",
     "note": "",
-    "bonusIds": "",
-    "source": "Nek’zali the Soulcoiler"
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
    },
    {
     "slot": "Gloves",
@@ -198,7 +198,7 @@
     "name": "Monkey King's Fighting Fists",
     "note": "",
     "bonusIds": "",
-    "source": "Tier - Sszorak (Catalyst)"
+    "source": "Entombed Sentinels"
    },
    {
     "slot": "Belt",
@@ -210,11 +210,11 @@
    },
    {
     "slot": "Legs",
-    "itemId": 271518,
-    "name": "Pantaloons Of The Monkey King",
+    "itemId": 268225,
+    "name": "Coiled Hex Legguards",
     "note": "",
     "bonusIds": "",
-    "source": "Tier - The Coiled Altar"
+    "source": "The Coiled Altar"
    },
    {
     "slot": "Boots",
@@ -222,7 +222,15 @@
     "name": "Silvermoon Agent's Sneakers",
     "note": "",
     "bonusIds": "12214:13667:12497:13751:13836",
-    "source": "Crafting"
+    "source": "Crafted"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268249,
+    "name": "Vile Alchemist's Band",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik"
    },
    {
     "slot": "Ring",
@@ -230,20 +238,12 @@
     "name": "Masterwork Sin'dorei Band",
     "note": "",
     "bonusIds": "12214:13667:12497:13751:13836",
-    "source": "Crafting"
-   },
-   {
-    "slot": "Ring",
-    "itemId": 268252,
-    "name": "Apex Brute's Claw Ring",
-    "note": "",
-    "bonusIds": "",
-    "source": "Sszorak"
+    "source": "Crafted"
    },
    {
     "slot": "Trinket",
-    "itemId": 270168,
-    "name": "Font Of Venomous Rage",
+    "itemId": 270175,
+    "name": "Voracious Heart Of Ula'tek",
     "note": "",
     "bonusIds": "",
     "source": "Ula’tek"
@@ -268,19 +268,19 @@
   "mythic_plus": [
    {
     "slot": "Head",
-    "itemId": 193751,
-    "name": "Crown Of Roaring Storms",
-    "note": "",
+    "itemId": 251140,
+    "name": "Vilefiend's Guise",
+    "note": "Tier Set",
     "bonusIds": "13440:12854",
-    "source": "Ruby Life Pools"
+    "source": "Murder Row"
    },
    {
     "slot": "Neck",
-    "itemId": 240950,
-    "name": "Masterwork Sin'dorei Amulet",
+    "itemId": 251142,
+    "name": "Pendant Of Malefic Fury",
     "note": "",
-    "bonusIds": "12214:13667:12497:13751:13836",
-    "source": "Crafting"
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
    },
    {
     "slot": "Shoulders",
@@ -288,15 +288,15 @@
     "name": "Tassels Of The Monkey King",
     "note": "",
     "bonusIds": "",
-    "source": "Tier - Altar of Fangs (Catalyst)"
+    "source": "Great Vault"
    },
    {
     "slot": "Cloak",
-    "itemId": 159288,
-    "name": "Cloak Of The Restless Tribes",
+    "itemId": 251190,
+    "name": "Bloodthorn Burnous",
     "note": "",
     "bonusIds": "13440:12854",
-    "source": "King’s Rest"
+    "source": "The Blinding Vale"
    },
    {
     "slot": "Chest",
@@ -304,15 +304,15 @@
     "name": "Battle Gi Of The Monkey King",
     "note": "",
     "bonusIds": "",
-    "source": "Tier - Voidscar Arena (Catalyst)"
+    "source": "Great Vault"
    },
    {
     "slot": "Wrist",
-    "itemId": 159300,
-    "name": "Kula's Butchering Wristwraps",
+    "itemId": 244576,
+    "name": "Silvermoon Agent's Deflectors",
     "note": "",
-    "bonusIds": "13440:12854",
-    "source": "Kings’ Rest"
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
    },
    {
     "slot": "Gloves",
@@ -320,23 +320,23 @@
     "name": "Monkey King's Fighting Fists",
     "note": "",
     "bonusIds": "",
-    "source": "Tier - Ruby Life Pools (Catalyst)"
+    "source": "Great Vault"
    },
    {
     "slot": "Belt",
-    "itemId": 251189,
-    "name": "Rootwalker Harness",
+    "itemId": 159317,
+    "name": "Whirling Dervish Sash",
     "note": "",
-    "bonusIds": "",
-    "source": "The Blinding Vale"
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
    },
    {
     "slot": "Legs",
-    "itemId": 271518,
-    "name": "Pantaloons Of The Monkey King",
+    "itemId": 251130,
+    "name": "Breeches Of Deft Deals",
     "note": "",
-    "bonusIds": "",
-    "source": "Tier - The Blinding Vale (Catalyst)"
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
    },
    {
     "slot": "Boots",
@@ -344,72 +344,74 @@
     "name": "Silvermoon Agent's Sneakers",
     "note": "",
     "bonusIds": "12214:13667:12497:13751:13836",
-    "source": "Crafting"
+    "source": "Crafted"
    },
    {
     "slot": "Ring",
-    "itemId": 162544,
-    "name": "Jade Ophidian Band",
+    "itemId": 158366,
+    "name": "Charged Sandstone Band",
     "note": "",
     "bonusIds": "13440:12854",
     "source": "Temple of Sethraliss"
    },
    {
     "slot": "Ring",
-    "itemId": 251148,
-    "name": "Pilfered Precious Band",
+    "itemId": 252258,
+    "name": "Sickening Signet Of Atroxus",
     "note": "",
     "bonusIds": "13440:12854",
-    "source": "Den of Nalorakk"
+    "source": "Voidscar Arena"
    },
    {
     "slot": "Trinket",
-    "itemId": 159617,
-    "name": "Lustrous Golden Plumage",
-    "note": "",
-    "bonusIds": "13440:12854",
-    "source": "King’s Rest"
-   },
-   {
-    "slot": "Trinket",
-    "itemId": 250228,
-    "name": "Resonant Bellowstone",
+    "itemId": 250215,
+    "name": "Freightrunner's Flask",
     "note": "",
     "bonusIds": "13440:12854",
     "source": "Murder Row"
    },
    {
-    "slot": "Main Hand",
-    "itemId": 251192,
-    "name": "Branch Of Pride",
+    "slot": "Trinket",
+    "itemId": 250259,
+    "name": "Sapling Of The Dawnroot",
     "note": "",
     "bonusIds": "13440:12854",
     "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 251149,
+    "name": "Victor's Flashfrozen Blade",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Den of Nalorakk"
    }
   ]
  },
- "enchants": {},
+ "enchants": {
+  "Head": 244005,
+  "Shoulders": 243991,
+  "Chest": 243977,
+  "Boots": 243953,
+  "Legs": 244641,
+  "Rings": 243957
+ },
  "gems": {
   "primary": 240983,
   "others": [
    {
-    "itemId": 240894,
-    "name": "Flawless Versatile Peridot",
+    "itemId": 240892,
+    "name": "Flawless Masterful Peridot",
     "note": ""
    },
    {
-    "itemId": 240914,
-    "name": "Flawless Deadly Lapis",
+    "itemId": 240906,
+    "name": "Flawless Quick Garnet",
     "note": ""
    },
    {
-    "itemId": 240898,
-    "name": "Flawless Deadly Amethyst",
-    "note": ""
-   },
-   {
-    "itemId": 240910,
-    "name": "Flawless Versatile Garnet",
+    "itemId": 240892,
+    "name": "Flawless Masterful Peridot",
     "note": ""
    }
   ]

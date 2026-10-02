@@ -1,0 +1,466 @@
+{
+ "slug": "elemental-shaman",
+ "updated": "",
+ "priority": [
+  {
+   "hero": "Farseer",
+   "secondary": [
+    [
+     "mastery"
+    ],
+    [
+     "haste"
+    ],
+    [
+     "crit"
+    ],
+    [
+     "versatility"
+    ]
+   ],
+   "line": "Mastery > Haste >= Crit > Versatility"
+  },
+  {
+   "hero": "Stormbringer",
+   "secondary": [
+    [
+     "mastery"
+    ],
+    [
+     "crit"
+    ],
+    [
+     "haste"
+    ],
+    [
+     "versatility"
+    ]
+   ],
+   "line": "Mastery > Crit > Haste > Versatility"
+  }
+ ],
+ "ratingRanges": [],
+ "bestInSlot": {
+  "overall": [
+   {
+    "slot": "Head",
+    "itemId": 251220,
+    "name": "Voidscarred Crown",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena (Catalyst)"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 268231,
+    "name": "Soulslither Spaulders",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271876,
+    "name": "Awoken Dreadfang Cuirass",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Ula’tek (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 244584,
+    "name": "Farstrider's Plated Bracers with Arcanoweave Lining",
+    "note": "Crit/Mastery",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Leatherworking"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 160213,
+    "name": "Sepulchral Construct's Gloves",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Kings’ Rest (Catalyst)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 244581,
+    "name": "Farstrider's Trophy Belt with Arcanoweave Lining",
+    "note": "Crit/Mastery",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Leatherworking"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 268237,
+    "name": "Cuisses Of The Uncoiled Union",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268233,
+    "name": "Ferocious Scaleboots",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268252,
+    "name": "Apex Brute's Claw Ring",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 273792,
+    "name": "Band Of The Amani Warlord",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 273796,
+    "name": "Vile Vial Of Volatile Venom",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270164,
+    "name": "Gebbo's Bottomless Bag",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Lost Explorers"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 271092,
+    "name": "Jan'thrazet, The Soul Fang",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 268262,
+    "name": "Bubblefin Splash Guard",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   }
+  ],
+  "raid": [
+   {
+    "slot": "Head",
+    "itemId": 271483,
+    "name": "Serpent Crown Of The Ophidian Oracle",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Twin Fangs"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 268231,
+    "name": "Soulslither Spaulders",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271876,
+    "name": "Awoken Dreadfang Cuirass",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Ula’tek (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 268217,
+    "name": "Rising Tide Wristguards",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271484,
+    "name": "Hexing Grips Of The Ophidian Oracle",
+    "note": "",
+    "bonusIds": "",
+    "source": "Entombed Sentinels"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268254,
+    "name": "Serpentine Mixing Belt",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 268237,
+    "name": "Cuisses Of The Uncoiled Union",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268233,
+    "name": "Ferocious Scaleboots",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268252,
+    "name": "Apex Brute's Claw Ring",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268266,
+    "name": "Alluring Bubbleband",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270164,
+    "name": "Gebbo's Bottomless Bag",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Lost Explorers"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270167,
+    "name": "Wavecaller's Seastone",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 271092,
+    "name": "Jan'thrazet, The Soul Fang",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 268196,
+    "name": "Venom-Slashed Scuteward",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Lost Explorers"
+   }
+  ],
+  "mythic_plus": [
+   {
+    "slot": "Head",
+    "itemId": 251220,
+    "name": "Voidscarred Crown",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena (Catalyst)"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 251234,
+    "name": "Graft Of The Domanaar",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 239049,
+    "name": "Spaulders Of Prime Emperor",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Kings’ Rest (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 193763,
+    "name": "Fireproof Drape",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Ruby Life Pools"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 251233,
+    "name": "Manipulator's Vest",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 273775,
+    "name": "Hydra Scale Wristguards",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 160213,
+    "name": "Sepulchral Construct's Gloves",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Kings’ Rest (Catalyst)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 251228,
+    "name": "Behemoth Waistband",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 251141,
+    "name": "Lithiel's Linked Leggings",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 159388,
+    "name": "Sabatons Of Coruscating Energy",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 158366,
+    "name": "Charged Sandstone Band",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 252258,
+    "name": "Sickening Signet Of Atroxus",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 250214,
+    "name": "Lightspire Core",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 273796,
+    "name": "Vile Vial Of Volatile Venom",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 273778,
+    "name": "Polished Lightwood Channeler",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 251150,
+    "name": "Tempest's Shelter",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Den of Nalorakk"
+   }
+  ]
+ },
+ "enchants": {
+  "Head": 244005,
+  "Shoulder": 243991,
+  "Chest": 243977,
+  "Weapon": 273072
+ },
+ "gems": {
+  "primary": 240967,
+  "others": [
+   {
+    "itemId": 240900,
+    "name": "Flawless Quick Amethyst",
+    "note": ""
+   },
+   {
+    "itemId": 240908,
+    "name": "Flawless Masterful Garnet",
+    "note": ""
+   },
+   {
+    "itemId": 240918,
+    "name": "Flawless Masterful Lapis",
+    "note": ""
+   },
+   {
+    "itemId": 240892,
+    "name": "Flawless Masterful Peridot",
+    "note": ""
+   }
+  ]
+ }
+}

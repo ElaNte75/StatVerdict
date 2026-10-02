@@ -1,0 +1,34 @@
+{
+ "slug": "havoc-demon-hunter",
+ "updated": "",
+ "itemLevel": 334,
+ "incomplete": [],
+ "results": {
+  "raid/all": {
+   "ratings": {
+    "crit": 1357.0,
+    "haste": 900.0,
+    "mastery": 1272.0,
+    "versatility": 103.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 4 listed gems",
+   "simcRecovery": []
+  },
+  "mythic_plus/all": {
+   "ratings": {
+    "crit": 1964.0,
+    "haste": 327.0,
+    "mastery": 1312.0,
+    "versatility": null
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 4 listed gems",
+   "simcRecovery": []
+  }
+ }
+}

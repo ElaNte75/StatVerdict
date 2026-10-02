@@ -1,0 +1,62 @@
+{
+ "slug": "augmentation-evoker",
+ "updated": "",
+ "itemLevel": 334,
+ "incomplete": [
+  "ring enchant not read from the guide"
+ ],
+ "results": {
+  "raid/Scalecommander": {
+   "ratings": {
+    "crit": 724.0,
+    "haste": 791.0,
+    "mastery": 1362.0,
+    "versatility": 103.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "no secondary gem listed",
+   "simcRecovery": []
+  },
+  "raid/Chronowarden": {
+   "ratings": {
+    "crit": 724.0,
+    "haste": 791.0,
+    "mastery": 1362.0,
+    "versatility": 103.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "no secondary gem listed",
+   "simcRecovery": []
+  },
+  "mythic_plus/Scalecommander": {
+   "ratings": {
+    "crit": 1034.0,
+    "haste": 524.0,
+    "mastery": 1329.0,
+    "versatility": null
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "no secondary gem listed",
+   "simcRecovery": []
+  },
+  "mythic_plus/Chronowarden": {
+   "ratings": {
+    "crit": 1034.0,
+    "haste": 524.0,
+    "mastery": 1329.0,
+    "versatility": null
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "no secondary gem listed",
+   "simcRecovery": []
+  }
+ }
+}

@@ -1,0 +1,483 @@
+{
+ "slug": "preservation-evoker",
+ "updated": "",
+ "priority": [
+  {
+   "hero": null,
+   "secondary": [
+    [
+     "haste"
+    ],
+    [
+     "mastery"
+    ],
+    [
+     "crit"
+    ]
+   ],
+   "line": "After you have a comfortable amount of Haste and around 1380 Mastery rating, you can start putting more value into Critical Strike."
+  }
+ ],
+ "ratingRanges": [],
+ "bestInSlot": {
+  "overall": [
+   {
+    "slot": "Head",
+    "itemId": 271501,
+    "name": "Calamitous Echo's Magmashapers",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Venomous Abyss"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Venomous Abyss"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 271499,
+    "name": "Calamitous Echo's Sundered Peaks",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Venomous Abyss"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 251132,
+    "name": "Speakeasy Shroud",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271876,
+    "name": "Awoken Dreadfang Cuirass",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Venomous Abyss (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 268217,
+    "name": "Rising Tide Wristguards",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 268238,
+    "name": "Grips Of Swirling Fury",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller (Catalyst)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268254,
+    "name": "Serpentine Mixing Belt",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Venomous Abyss"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271500,
+    "name": "Earthen Pillars Of Calamity",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Venomous Abyss"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268233,
+    "name": "Ferocious Scaleboots",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Venomous Abyss"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268249,
+    "name": "Vile Alchemist's Band",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Venomous Abyss"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 252258,
+    "name": "Sickening Signet Of Atroxus",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270164,
+    "name": "Gebbo's Bottomless Bag",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Venomous Abyss"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270162,
+    "name": "Soulcoiler Ritual Vessel",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Venomous Abyss"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 271092,
+    "name": "Jan'thrazet, The Soul Fang",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Venomous Abyss"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 251191,
+    "name": "Luminescent Sprout",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Two-Hand",
+    "itemId": 268205,
+    "name": "Venomancer's Winged Channeler",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Venomous Abyss"
+   }
+  ],
+  "raid": [
+   {
+    "slot": "Head",
+    "itemId": 271501,
+    "name": "Calamitous Echo's Magmashapers",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Venomous Abyss"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Venomous Abyss"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 271499,
+    "name": "Calamitous Echo's Sundered Peaks",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Venomous Abyss"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Venomous Abyss"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271876,
+    "name": "Awoken Dreadfang Cuirass",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Venomous Abyss (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 268217,
+    "name": "Rising Tide Wristguards",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 268238,
+    "name": "Grips Of Swirling Fury",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller (Catalyst)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268254,
+    "name": "Serpentine Mixing Belt",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Venomous Abyss"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271500,
+    "name": "Earthen Pillars Of Calamity",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Venomous Abyss (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268233,
+    "name": "Ferocious Scaleboots",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Venomous Abyss"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268266,
+    "name": "Alluring Bubbleband",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268249,
+    "name": "Vile Alchemist's Band",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Venomous Abyss"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270164,
+    "name": "Gebbo's Bottomless Bag",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Venomous Abyss"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270162,
+    "name": "Soulcoiler Ritual Vessel",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Venomous Abyss"
+   },
+   {
+    "slot": "Main-Hand",
+    "itemId": 271092,
+    "name": "Jan'thrazet, The Soul Fang",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Venomous Abyss"
+   },
+   {
+    "slot": "Off-Hand",
+    "itemId": 268197,
+    "name": "Spine Of The Hissing Abyss",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Venomous Abyss"
+   },
+   {
+    "slot": "Two-Hand",
+    "itemId": 268205,
+    "name": "Venomancer's Winged Channeler",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Venomous Abyss"
+   }
+  ],
+  "mythic_plus": [
+   {
+    "slot": "Head",
+    "itemId": 239035,
+    "name": "Sethraliss' Fanged Helm",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Tempel of Sethraliss (Catalyst)"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 273781,
+    "name": "Strand Of Warding Fangs",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 239049,
+    "name": "Spaulders Of Prime Emperor",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Kings Rest (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 193763,
+    "name": "Fireproof Drape",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Ruby Life Pools"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 251233,
+    "name": "Manipulator's Vest",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 251200,
+    "name": "Saptorbane Guards",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 193752,
+    "name": "Galerattle Gauntlets",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Ruby Life Pools"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 251155,
+    "name": "Tribal Defender's Cord",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Den of Nalorakk"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 159375,
+    "name": "Legguards Of The Awakening Brood",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Tempel of Sethraliss (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 159388,
+    "name": "Sabatons Of Coruscating Energy",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Tempel of Sethraliss"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 273792,
+    "name": "Band Of The Amani Warlord",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 251136,
+    "name": "Signet Of Snarling Servitude",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 250214,
+    "name": "Lightspire Core",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 250255,
+    "name": "Unstable Felheart Crystal",
+    "note": "",
+    "bonusIds": "",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Two-Hand Weapon",
+    "itemId": 251123,
+    "name": "Nibbles' Training Rod",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Two-Hand Weapon",
+    "itemId": 273778,
+    "name": "Polished Lightwood Channeler",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "One-Hand",
+    "itemId": 273779,
+    "name": "Nocuous Focal Fang",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   }
+  ]
+ },
+ "enchants": {
+  "Chest": 244003,
+  "Legs": 240155,
+  "Rings": 243959
+ },
+ "gems": {
+  "primary": 240969,
+  "others": [
+   {
+    "itemId": 263897,
+    "name": "Radiant Jewelbinder",
+    "note": "Red"
+   },
+   {
+    "itemId": 249920,
+    "name": "Eye Of Midnight",
+    "note": "Red"
+   },
+   {
+    "itemId": 240910,
+    "name": "Flawless Versatile Garnet",
+    "note": "Red"
+   },
+   {
+    "itemId": 240900,
+    "name": "Flawless Quick Amethyst",
+    "note": "Purple"
+   },
+   {
+    "itemId": 240918,
+    "name": "Flawless Masterful Lapis",
+    "note": "Blue"
+   },
+   {
+    "itemId": 240892,
+    "name": "Flawless Masterful Peridot",
+    "note": "Green"
+   },
+   {
+    "itemId": 240900,
+    "name": "Flawless Quick Amethyst",
+    "note": "Purple"
+   }
+  ]
+ }
+}

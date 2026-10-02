@@ -1,0 +1,180 @@
+{
+ "slug": "restoration-druid",
+ "updated": "",
+ "priority": [
+  {
+   "hero": null,
+   "secondary": [
+    [
+     "mastery"
+    ],
+    [
+     "haste"
+    ],
+    [
+     "versatility"
+    ]
+   ],
+   "line": "If you really need more healing throughput to grasp the spec during smaller keys, for instance, you can add some mastery to be extra safe, though you should consider swapping stats to Haste > versatility to improve your DPS & survivability for high keystones dungeons and embrace cat-weaving."
+  }
+ ],
+ "ratingRanges": [],
+ "bestInSlot": {
+  "overall": [
+   {
+    "slot": "Head",
+    "itemId": 271875,
+    "name": "Gaze Of The Coiled Watcher",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Ula'tek / Catalyst"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268251,
+    "name": "Amulet Of The Twin Fangs",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Twin Fangs"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 244572,
+    "name": "Silvermoon Agent's Mantle",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 251159,
+    "name": "War Trial Vestments",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Den of Nalorakk / Catalyst"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 244576,
+    "name": "Silvermoon Agent's Deflectors",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271529,
+    "name": "Enigmatic Dreamwatcher's Gauntlets",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Entombed Sentinels (Tier Token)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268256,
+    "name": "Sash Of The Forlorn Vessel",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 268225,
+    "name": "Coiled Hex Legguards",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Coiled Altar / Catalyst"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268247,
+    "name": "Breakwater Boots",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268249,
+    "name": "Vile Alchemist's Band",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 252258,
+    "name": "Sickening Signet Of Atroxus",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270167,
+    "name": "Wavecaller's Seastone",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270162,
+    "name": "Soulcoiler Ritual Vessel",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nek'zali the Soulcoiler"
+   },
+   {
+    "slot": "Two Hand",
+    "itemId": 159636,
+    "name": "Staff Of The Lightning Serpent",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 271092,
+    "name": "Jan'thrazet, The Soul Fang",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula'tek"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 268197,
+    "name": "Spine Of The Hissing Abyss",
+    "note": "",
+    "bonusIds": "",
+    "source": "Entombed Sentinels"
+   }
+  ]
+ },
+ "enchants": {
+  "Shoulders": 244021
+ },
+ "gems": {
+  "primary": 240982,
+  "others": [
+   {
+    "itemId": 240892,
+    "name": "Flawless Masterful Peridot",
+    "note": ""
+   },
+   {
+    "itemId": 240900,
+    "name": "Flawless Quick Amethyst",
+    "note": ""
+   }
+  ]
+ }
+}

@@ -1,0 +1,427 @@
+{
+ "slug": "devastation-evoker",
+ "updated": "",
+ "priority": [
+  {
+   "hero": null,
+   "secondary": [
+    [
+     "crit"
+    ],
+    [
+     "haste",
+     "mastery"
+    ],
+    [
+     "versatility"
+    ]
+   ],
+   "line": "Stat Ranking Intellect > Critical Strike > Haste = Mastery > Versatility"
+  }
+ ],
+ "ratingRanges": [],
+ "bestInSlot": {
+  "overall": [
+   {
+    "slot": "Head",
+    "itemId": 268230,
+    "name": "Crown Of The Eternal Fang",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Nek’zali the Soulcoiler (Catalyst)"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 268231,
+    "name": "Soulslither Spaulders",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271876,
+    "name": "Awoken Dreadfang Cuirass",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 244584,
+    "name": "Farstrider's Plated Bracers",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271502,
+    "name": "Calamitous Echo's Ebon Greathorns",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Entombed Sentinels (Tier Token)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268254,
+    "name": "Serpentine Mixing Belt",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 268237,
+    "name": "Cuisses Of The Uncoiled Union",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268258,
+    "name": "Boots Of The Reckless Wayfarer",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Lost Explorers"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 158366,
+    "name": "Charged Sandstone Band",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268249,
+    "name": "Vile Alchemist's Band",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270164,
+    "name": "Gebbo's Bottomless Bag",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Lost Explorers"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270167,
+    "name": "Wavecaller's Seastone",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 271092,
+    "name": "Jan'thrazet, The Soul Fang",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 245769,
+    "name": "Aln'hara Lantern",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   }
+  ],
+  "raid": [
+   {
+    "slot": "Head",
+    "itemId": 268230,
+    "name": "Crown Of The Eternal Fang",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Nek’zali the Soulcoiler (Catalyst)"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 268231,
+    "name": "Soulslither Spaulders",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271876,
+    "name": "Awoken Dreadfang Cuirass",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 244584,
+    "name": "Farstrider's Plated Bracers",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271502,
+    "name": "Calamitous Echo's Ebon Greathorns",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Entomed Sentinels (Tier Token)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268254,
+    "name": "Serpentine Mixing Belt",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 268237,
+    "name": "Cuisses Of The Uncoiled Union",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268258,
+    "name": "Boots Of The Reckless Wayfarer",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Lost Explorers"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268252,
+    "name": "Apex Brute's Claw Ring",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268249,
+    "name": "Vile Alchemist's Band",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270164,
+    "name": "Gebbo's Bottomless Bag",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Lost Explorers"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270167,
+    "name": "Wavecaller's Seastone",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 271092,
+    "name": "Jan'thrazet, The Soul Fang",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 245769,
+    "name": "Aln'hara Lantern",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   }
+  ],
+  "mythic_plus": [
+   {
+    "slot": "Head",
+    "itemId": 251220,
+    "name": "Voidscarred Crown",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena (Catalyst)"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 273781,
+    "name": "Strand Of Warding Fangs",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 239049,
+    "name": "Spaulders Of Prime Emperor",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "King’s Rest (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 251132,
+    "name": "Speakeasy Shroud",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 273789,
+    "name": "Chestguard Of Corroded Scales",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 244584,
+    "name": "Farstrider's Plated Bracers",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 160213,
+    "name": "Sepulchral Construct's Gloves",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "King’s Rest (Catalyst)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 251155,
+    "name": "Tribal Defender's Cord",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Den of Nalorakk"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 159375,
+    "name": "Legguards Of The Awakening Brood",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Selthraliss (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 159388,
+    "name": "Sabatons Of Coruscating Energy",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Selthraliss"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 158366,
+    "name": "Charged Sandstone Band",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Selthraliss"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 273792,
+    "name": "Band Of The Amani Warlord",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 250215,
+    "name": "Freightrunner's Flask",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 273796,
+    "name": "Vile Vial Of Volatile Venom",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 273778,
+    "name": "Polished Lightwood Channeler",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 245769,
+    "name": "Aln'hara Lantern",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   }
+  ]
+ },
+ "enchants": {
+  "Head": 244007,
+  "Shoulder": 243991,
+  "Chest": 243977,
+  "Boots": 243953,
+  "Legs": 240133,
+  "Weapon": 244029
+ },
+ "gems": {
+  "primary": 240983,
+  "others": []
+ }
+}

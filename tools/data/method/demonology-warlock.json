@@ -1,0 +1,169 @@
+{
+ "slug": "demonology-warlock",
+ "updated": "",
+ "priority": [
+  {
+   "hero": null,
+   "secondary": [
+    [
+     "crit"
+    ],
+    [
+     "haste"
+    ],
+    [
+     "mastery"
+    ],
+    [
+     "versatility"
+    ]
+   ],
+   "line": "Stat Ranking Intellect >>> Crit > Haste/ Mastery > Versatility"
+  }
+ ],
+ "ratingRanges": [],
+ "bestInSlot": {
+  "overall": [
+   {
+    "slot": "Head",
+    "itemId": 271874,
+    "name": "Venomkeeper's Horrific Cowl",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 271544,
+    "name": "Spires Of The Damned Necrolyte",
+    "note": "",
+    "bonusIds": "",
+    "source": "Lost Explorers/Catalyst"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271549,
+    "name": "Damned Necrolyte's Rattling Robes",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant/Catalyst"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 239648,
+    "name": "Martyr's Bindings /w Arcanoweave",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271547,
+    "name": "Damned Necrolyte's Charred Grasps",
+    "note": "",
+    "bonusIds": "",
+    "source": "Catalysted From The Coiled Altar"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 239649,
+    "name": "Martyr's Waistwrap /w Arcanoweave",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271545,
+    "name": "Damned Necrolyte's Leg Bindings",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268255,
+    "name": "Cackling Soultreads",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268252,
+    "name": "Apex Brute's Claw Ring",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268249,
+    "name": "Vile Alchemist's Band",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270169,
+    "name": "Hex Lord's Dooming Idol",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270167,
+    "name": "Wavecaller's Seastone",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 271092,
+    "name": "Jan'thrazet, The Soul Fang",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 268197,
+    "name": "Spine Of The Hissing Abyss",
+    "note": "",
+    "bonusIds": "",
+    "source": "Entombed Sentinels"
+   }
+  ]
+ },
+ "enchants": {
+  "Head": 244007,
+  "Chest": 243977,
+  "Boots": 243953,
+  "Legs": 240133,
+  "Rings": 243957,
+  "Weapon": 243971
+ },
+ "gems": {
+  "primary": 240967,
+  "others": []
+ }
+}

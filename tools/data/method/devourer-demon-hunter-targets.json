@@ -1,0 +1,42 @@
+{
+ "slug": "devourer-demon-hunter",
+ "updated": "",
+ "itemLevel": 334,
+ "incomplete": [
+  "ring enchant not read from the guide"
+ ],
+ "results": {
+  "raid/all": {
+   "ratings": {
+    "crit": 912.0,
+    "haste": 982.0,
+    "mastery": 1364.0,
+    "versatility": 103.0
+   },
+   "items": 14,
+   "problems": [
+    "unknown slot: Mainhand",
+    "unknown slot: Offhand"
+   ],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 4 listed gems",
+   "simcRecovery": []
+  },
+  "mythic_plus/all": {
+   "ratings": {
+    "crit": 1567.0,
+    "haste": 330.0,
+    "mastery": 1436.0,
+    "versatility": null
+   },
+   "items": 14,
+   "problems": [
+    "unknown slot: Mainhand",
+    "unknown slot: Offhand"
+   ],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 4 listed gems",
+   "simcRecovery": []
+  }
+ }
+}

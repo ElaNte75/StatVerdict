@@ -1,0 +1,426 @@
+{
+ "slug": "fury-warrior",
+ "updated": "",
+ "priority": [
+  {
+   "hero": null,
+   "secondary": [
+    [
+     "mastery"
+    ],
+    [
+     "haste"
+    ],
+    [
+     "crit",
+     "versatility"
+    ]
+   ],
+   "line": "Stat Ranking Mastery > Haste > Crit = Vers It is highly recommended that you regularly sim your own character while gaining upgrades, as this stat order will not always be accurate."
+  }
+ ],
+ "ratingRanges": [],
+ "bestInSlot": {
+  "overall": [
+   {
+    "slot": "Head",
+    "itemId": 251126,
+    "name": "Greathelm Of Temptation",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row (Catalyst)"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 251138,
+    "name": "Cinderfury Shoulderguards",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 251190,
+    "name": "Bloodthorn Burnous",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 193753,
+    "name": "Breastplate Of Soaring Terror",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Ruby Life Pools (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 237834,
+    "name": "Spellbreaker's Bracers",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 159413,
+    "name": "Gauntlets Of The Avian Sentinel",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "King’s Rest (Catalyst)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 159418,
+    "name": "Girdle Of Pestilent Purification",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "King’s Rest"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271878,
+    "name": "Chausses Of Unbound Rancor",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268260,
+    "name": "Scaled Fiend's Warboots",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 252258,
+    "name": "Sickening Signet Of Atroxus",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268249,
+    "name": "Vile Alchemist's Band",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270173,
+    "name": "Zul'jin's Guillotine Technique",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270175,
+    "name": "Voracious Heart Of Ula'tek",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 268213,
+    "name": "Maze-Roa, Warlord's Fury",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 237846,
+    "name": "Blood Knight's Warblade",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   }
+  ],
+  "raid": [
+   {
+    "slot": "Head",
+    "itemId": 268229,
+    "name": "Skullguard Of The Risen Sacrifice",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Nek’zali the Soulcoiler (Catalyst)"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 271454,
+    "name": "Raging Pauldrons Of The Jade Warlord",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Lost Explorers (Tier Token)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 268222,
+    "name": "Reckless Spirit Breastplate",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 237834,
+    "name": "Spellbreaker's Bracers",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271457,
+    "name": "Jeweled Gauntlets Of The Jade Warlord",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Entombed Sentinels (Tier Token)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268259,
+    "name": "Girdle Of Toxic Regret",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271878,
+    "name": "Chausses Of Unbound Rancor",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268260,
+    "name": "Scaled Fiend's Warboots",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268249,
+    "name": "Vile Alchemist's Band",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268252,
+    "name": "Apex Brute's Claw Ring",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270173,
+    "name": "Zul'jin's Guillotine Technique",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270175,
+    "name": "Voracious Heart Of Ula'tek",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 268213,
+    "name": "Maze-Roa, Warlord's Fury",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 237846,
+    "name": "Blood Knight's Warblade",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   }
+  ],
+  "mythic_plus": [
+   {
+    "slot": "Head",
+    "itemId": 251126,
+    "name": "Greathelm Of Temptation",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row (Catalyst)"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 251142,
+    "name": "Pendant Of Malefic Fury",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 251138,
+    "name": "Cinderfury Shoulderguards",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 251190,
+    "name": "Bloodthorn Burnous",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 193753,
+    "name": "Breastplate Of Soaring Terror",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Ruby Life Pools (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 237834,
+    "name": "Spellbreaker's Bracers",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 159413,
+    "name": "Gauntlets Of The Avian Sentinel",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "King’s Rest (Catalyst)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 159418,
+    "name": "Girdle Of Pestilent Purification",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "King’s Rest"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 273776,
+    "name": "Ancient General's Obsidian Pillars",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 193728,
+    "name": "Scaleguard's Stalwart Greatboots",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Ruby Life Pools"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 252258,
+    "name": "Sickening Signet Of Atroxus",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 158366,
+    "name": "Charged Sandstone Band",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 250238,
+    "name": "Seed Of The Devouring Wild",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 250259,
+    "name": "Sapling Of The Dawnroot",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 251230,
+    "name": "Charonic Crescent",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 237846,
+    "name": "Blood Knight's Warblade",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   }
+  ]
+ },
+ "enchants": {},
+ "gems": {
+  "primary": 240983,
+  "others": [
+   {
+    "itemId": 240892,
+    "name": "Flawless Masterful Peridot",
+    "note": ""
+   }
+  ]
+ }
+}

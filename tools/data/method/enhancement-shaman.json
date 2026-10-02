@@ -1,0 +1,456 @@
+{
+ "slug": "enhancement-shaman",
+ "updated": "",
+ "priority": [
+  {
+   "hero": null,
+   "secondary": [
+    [
+     "mastery"
+    ],
+    [
+     "haste"
+    ],
+    [
+     "crit"
+    ],
+    [
+     "versatility"
+    ]
+   ],
+   "line": "Stat Ranking Agility > Mastery >= Haste > Crit >= Vers"
+  }
+ ],
+ "ratingRanges": [],
+ "bestInSlot": {
+  "overall": [
+   {
+    "slot": "Head",
+    "itemId": 271483,
+    "name": "Serpent Crown Of The Ophidian Oracle",
+    "note": "",
+    "bonusIds": "",
+    "source": "Voidscar Arena (Catalyst)"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 271481,
+    "name": "Hissing Mantle Of The Ophidian Oracle",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271486,
+    "name": "Fanged Raiment Of The Ophidian Oracle",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 244584,
+    "name": "Farstrider's Plated Bracers",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271484,
+    "name": "Hexing Grips Of The Ophidian Oracle",
+    "note": "",
+    "bonusIds": "",
+    "source": "Entombed Sentinels"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268254,
+    "name": "Serpentine Mixing Belt",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271482,
+    "name": "Leggings Of The Ophidian Oracle",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268258,
+    "name": "Boots Of The Reckless Wayfarer",
+    "note": "",
+    "bonusIds": "",
+    "source": "Entombed Sentinels"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268252,
+    "name": "Apex Brute's Claw Ring",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 273792,
+    "name": "Band Of The Amani Warlord",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270175,
+    "name": "Voracious Heart Of Ula'tek",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270173,
+    "name": "Zul'jin's Guillotine Technique",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 268209,
+    "name": "Aman'muso, Warlord's Vengeance",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 237850,
+    "name": "Farstrider's Chopper",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   }
+  ],
+  "raid": [
+   {
+    "slot": "Head",
+    "itemId": 271483,
+    "name": "Serpent Crown Of The Ophidian Oracle",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Twin Fangs"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 271481,
+    "name": "Hissing Mantle Of The Ophidian Oracle",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271486,
+    "name": "Fanged Raiment Of The Ophidian Oracle",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 244584,
+    "name": "Farstrider's Plated Bracers",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271484,
+    "name": "Hexing Grips Of The Ophidian Oracle",
+    "note": "",
+    "bonusIds": "",
+    "source": "Entombed Sentinels"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268254,
+    "name": "Serpentine Mixing Belt",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271482,
+    "name": "Leggings Of The Ophidian Oracle",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268258,
+    "name": "Boots Of The Reckless Wayfarer",
+    "note": "",
+    "bonusIds": "",
+    "source": "Entombed Sentinels"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268252,
+    "name": "Apex Brute's Claw Ring",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268249,
+    "name": "Vile Alchemist's Band",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270175,
+    "name": "Voracious Heart Of Ula'tek",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270173,
+    "name": "Zul'jin's Guillotine Technique",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 268209,
+    "name": "Aman'muso, Warlord's Vengeance",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 237850,
+    "name": "Farstrider's Chopper",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   }
+  ],
+  "mythic_plus": [
+   {
+    "slot": "Head",
+    "itemId": 271483,
+    "name": "Serpent Crown Of The Ophidian Oracle",
+    "note": "",
+    "bonusIds": "",
+    "source": "Voidscar Arena (Catalyst)"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 251142,
+    "name": "Pendant Of Malefic Fury",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 271481,
+    "name": "Hissing Mantle Of The Ophidian Oracle",
+    "note": "",
+    "bonusIds": "",
+    "source": "King’s Rest (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 251132,
+    "name": "Speakeasy Shroud",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271486,
+    "name": "Fanged Raiment Of The Ophidian Oracle",
+    "note": "",
+    "bonusIds": "",
+    "source": "Voidscar Arena (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 244584,
+    "name": "Farstrider's Plated Bracers",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271484,
+    "name": "Hexing Grips Of The Ophidian Oracle",
+    "note": "",
+    "bonusIds": "",
+    "source": "King’s Rest (Catalyst)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 251228,
+    "name": "Behemoth Waistband",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271482,
+    "name": "Leggings Of The Ophidian Oracle",
+    "note": "",
+    "bonusIds": "",
+    "source": "Temple of Sethraliss (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 159388,
+    "name": "Sabatons Of Coruscating Energy",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 252258,
+    "name": "Sickening Signet Of Atroxus",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 273792,
+    "name": "Band Of The Amani Warlord",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 273796,
+    "name": "Vile Vial Of Volatile Venom",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 250228,
+    "name": "Resonant Bellowstone",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 251224,
+    "name": "Hulking Handaxe",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 237850,
+    "name": "Farstrider's Chopper",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   }
+  ]
+ },
+ "enchants": {
+  "Chest": 243976,
+  "Rings": 243957
+ },
+ "gems": {
+  "primary": 240983,
+  "others": [
+   {
+    "itemId": 240900,
+    "name": "Flawless Quick Amethyst",
+    "note": ""
+   },
+   {
+    "itemId": 240892,
+    "name": "Flawless Masterful Peridot",
+    "note": ""
+   },
+   {
+    "itemId": 240900,
+    "name": "Flawless Quick Amethyst",
+    "note": ""
+   },
+   {
+    "itemId": 240892,
+    "name": "Flawless Masterful Peridot",
+    "note": ""
+   },
+   {
+    "itemId": 240908,
+    "name": "Flawless Masterful Garnet",
+    "note": ""
+   },
+   {
+    "itemId": 240918,
+    "name": "Flawless Masterful Lapis",
+    "note": ""
+   }
+  ]
+ }
+}

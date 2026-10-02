@@ -1,0 +1,36 @@
+{
+ "slug": "devastation-evoker",
+ "updated": "",
+ "itemLevel": 334,
+ "incomplete": [
+  "ring enchant not read from the guide"
+ ],
+ "results": {
+  "raid/all": {
+   "ratings": {
+    "crit": 996.0,
+    "haste": 758.0,
+    "mastery": 1174.0,
+    "versatility": 103.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "no secondary gem listed",
+   "simcRecovery": []
+  },
+  "mythic_plus/all": {
+   "ratings": {
+    "crit": 1326.0,
+    "haste": 986.0,
+    "mastery": 577.0,
+    "versatility": null
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "no secondary gem listed",
+   "simcRecovery": []
+  }
+ }
+}

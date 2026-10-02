@@ -1,0 +1,36 @@
+{
+ "slug": "beast-mastery-hunter",
+ "updated": "",
+ "itemLevel": 334,
+ "incomplete": [
+  "ring enchant not read from the guide"
+ ],
+ "results": {
+  "raid/all": {
+   "ratings": {
+    "crit": 808.0,
+    "haste": 865.0,
+    "mastery": 1574.0,
+    "versatility": 194.0
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "the one listed gem",
+   "simcRecovery": []
+  },
+  "mythic_plus/all": {
+   "ratings": {
+    "crit": 1355.0,
+    "haste": 385.0,
+    "mastery": 1266.0,
+    "versatility": 282.0
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "the one listed gem",
+   "simcRecovery": []
+  }
+ }
+}

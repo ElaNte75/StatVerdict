@@ -1,0 +1,430 @@
+{
+ "slug": "arcane-mage",
+ "updated": "",
+ "priority": [
+  {
+   "hero": null,
+   "secondary": [
+    [
+     "haste"
+    ],
+    [
+     "versatility"
+    ],
+    [
+     "crit"
+    ],
+    [
+     "mastery"
+    ]
+   ],
+   "line": "Intellect > Haste > Versatility > Critical Strike > Mastery"
+  }
+ ],
+ "ratingRanges": [],
+ "bestInSlot": {
+  "overall": [
+   {
+    "slot": "Head",
+    "itemId": 271874,
+    "name": "Venomkeeper's Horrific Cowl",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 271562,
+    "name": "Primal Leywarden's Manaflux",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Lost Explorers"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271567,
+    "name": "Crest Of The Primal Leywarden",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 239648,
+    "name": "Martyr's Bindings",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271565,
+    "name": "Primal Leywarden's Manashapers",
+    "note": "",
+    "bonusIds": "",
+    "source": "Entombed Sentinels"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268257,
+    "name": "Caustic Chain-Wrapped Sash",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271563,
+    "name": "Primal Leywarden's Tailored Legwraps",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268255,
+    "name": "Cackling Soultreads",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268266,
+    "name": "Alluring Bubbleband",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 251148,
+    "name": "Pilfered Precious Band",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Den of Narolakk"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 250215,
+    "name": "Freightrunner's Flask",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270164,
+    "name": "Gebbo's Bottomless Bag",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Lost Explorers"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 271092,
+    "name": "Jan'thrazet, The Soul Fang",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 245769,
+    "name": "Aln'hara Lantern",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   }
+  ],
+  "raid": [
+   {
+    "slot": "Head",
+    "itemId": 271874,
+    "name": "Venomkeeper's Horrific Cowl",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 271562,
+    "name": "Primal Leywarden's Manaflux",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Lost Explorers"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271567,
+    "name": "Crest Of The Primal Leywarden",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 239648,
+    "name": "Martyr's Bindings",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271565,
+    "name": "Primal Leywarden's Manashapers",
+    "note": "",
+    "bonusIds": "",
+    "source": "Entombed Sentinels"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268257,
+    "name": "Caustic Chain-Wrapped Sash",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271563,
+    "name": "Primal Leywarden's Tailored Legwraps",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268255,
+    "name": "Cackling Soultreads",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268266,
+    "name": "Alluring Bubbleband",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268252,
+    "name": "Apex Brute's Claw Ring",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270169,
+    "name": "Hex Lord's Dooming Idol",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270164,
+    "name": "Gebbo's Bottomless Bag",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Lost Explorers"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 271092,
+    "name": "Jan'thrazet, The Soul Fang",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 245769,
+    "name": "Aln'hara Lantern",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   }
+  ],
+  "mythic_plus": [
+   {
+    "slot": "Head",
+    "itemId": 251232,
+    "name": "Overseer's Diadem",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 273781,
+    "name": "Strand Of Warding Fangs",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 239045,
+    "name": "Mantle Of Ceremonial Ascension",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "King’s Rest"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 159288,
+    "name": "Cloak Of The Restless Tribes",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "King’s Rest"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 273785,
+    "name": "Primordial Robe Of Rites",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 239648,
+    "name": "Martyr's Bindings",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 273773,
+    "name": "Handwraps Of Blasphemous Rites",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 251222,
+    "name": "Ethereal Netherwrap",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 159234,
+    "name": "Down-Lined Breeches",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "King’s Rest"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 251219,
+    "name": "Riftworn Stompers",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 273792,
+    "name": "Band Of The Amani Warlord",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 251148,
+    "name": "Pilfered Precious Band",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Den of Narolakk"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 250215,
+    "name": "Freightrunner's Flask",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 250214,
+    "name": "Lightspire Core",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 251225,
+    "name": "Fang Of Contagion",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 245769,
+    "name": "Aln'hara Lantern",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   }
+  ]
+ },
+ "enchants": {
+  "Head": 244005,
+  "Shoulders": 243991,
+  "Chest": 243977,
+  "Boots": 243953,
+  "Legs": 240155,
+  "Rings": 243957,
+  "Weapon": 273072
+ },
+ "gems": {
+  "primary": 240983,
+  "others": []
+ }
+}

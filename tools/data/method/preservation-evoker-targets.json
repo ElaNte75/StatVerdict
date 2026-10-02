@@ -1,0 +1,46 @@
+{
+ "slug": "preservation-evoker",
+ "updated": "",
+ "itemLevel": 334,
+ "incomplete": [],
+ "results": {
+  "raid/all": {
+   "ratings": {
+    "crit": null,
+    "haste": null,
+    "mastery": null,
+    "versatility": null
+   },
+   "items": 14,
+   "problems": [
+    "unknown slot: Main-Hand",
+    "unknown slot: Off-Hand",
+    "unknown slot: Two-Hand"
+   ],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 7 listed gems",
+   "simcRecovery": [
+    "gems dropped"
+   ]
+  },
+  "mythic_plus/all": {
+   "ratings": {
+    "crit": null,
+    "haste": null,
+    "mastery": null,
+    "versatility": null
+   },
+   "items": 14,
+   "problems": [
+    "unknown slot: Two-Hand Weapon",
+    "unknown slot: Two-Hand Weapon",
+    "unknown slot: One-Hand"
+   ],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 7 listed gems",
+   "simcRecovery": [
+    "gems dropped"
+   ]
+  }
+ }
+}

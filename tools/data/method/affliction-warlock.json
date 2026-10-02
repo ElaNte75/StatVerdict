@@ -1,0 +1,441 @@
+{
+ "slug": "affliction-warlock",
+ "updated": "",
+ "priority": [
+  {
+   "hero": null,
+   "secondary": [
+    [
+     "haste",
+     "crit"
+    ],
+    [
+     "mastery"
+    ],
+    [
+     "versatility"
+    ]
+   ],
+   "line": "On AoE, aim for Haste = Crit > Mastery > Versatility However, stats always depend on the gear you have as well as diminishing returns; as such, I would suggest simming your character when possible to work out the stats your character specifically needs."
+  }
+ ],
+ "ratingRanges": [],
+ "bestInSlot": {
+  "overall": [
+   {
+    "slot": "Head",
+    "itemId": 271874,
+    "name": "Venomkeeper's Horrific Cowl",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 239031,
+    "name": "Brood Cleanser's Amice",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 251132,
+    "name": "Speakeasy Shroud",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 239032,
+    "name": "Robes Of The Reborn Serpent",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 251154,
+    "name": "Winter's Embrace Bracers",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Den of Nalorakk"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 159247,
+    "name": "Handwraps Of Oscillating Polarity",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 251222,
+    "name": "Ethereal Netherwrap",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 273786,
+    "name": "Leggings Of Entwined Serpents",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268218,
+    "name": "Nek'zali's Spiritwalkers",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nek’zali the Soulcoiler"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268252,
+    "name": "Apex Brute's Claw Ring",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 251136,
+    "name": "Signet Of Snarling Servitude",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270167,
+    "name": "Wavecaller's Seastone",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 273649,
+    "name": "Stormbound Emblem Of Dazar",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "King’s Rest"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 271092,
+    "name": "Jan'thrazet, The Soul Fang",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 193766,
+    "name": "Kokia's Burnout Rod",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Ruby Life Pools"
+   }
+  ],
+  "raid": [
+   {
+    "slot": "Head",
+    "itemId": 271874,
+    "name": "Venomkeeper's Horrific Cowl",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 268241,
+    "name": "Ornaments Of The Eternal Coil",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Twin Fangs"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 268221,
+    "name": "Tidebound Sorcereress's Robes",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 268228,
+    "name": "Venom-Singed Cuffs",
+    "note": "",
+    "bonusIds": "",
+    "source": "Entombed Sentinels"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 268243,
+    "name": "Grasps Of The Eternal Shadow",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268257,
+    "name": "Caustic Chain-Wrapped Sash",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271545,
+    "name": "Damned Necrolyte's Leg Bindings",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268218,
+    "name": "Nek'zali's Spiritwalkers",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nek’zali the Soulcoiler"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268252,
+    "name": "Apex Brute's Claw Ring",
+    "note": "",
+    "bonusIds": "",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268249,
+    "name": "Vile Alchemist's Band",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270164,
+    "name": "Gebbo's Bottomless Bag",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Lost Explorers"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270167,
+    "name": "Wavecaller's Seastone",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 271092,
+    "name": "Jan'thrazet, The Soul Fang",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 268197,
+    "name": "Spine Of The Hissing Abyss",
+    "note": "",
+    "bonusIds": "",
+    "source": "Entombed Sentinels"
+   }
+  ],
+  "mythic_plus": [
+   {
+    "slot": "Head",
+    "itemId": 251199,
+    "name": "Worldroot Canopy",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 273781,
+    "name": "Strand Of Warding Fangs",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 239031,
+    "name": "Brood Cleanser's Amice",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 251132,
+    "name": "Speakeasy Shroud",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 239032,
+    "name": "Robes Of The Reborn Serpent",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 251154,
+    "name": "Winter's Embrace Bracers",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Den of Nalorakk"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 159247,
+    "name": "Handwraps Of Oscillating Polarity",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 251222,
+    "name": "Ethereal Netherwrap",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 273786,
+    "name": "Leggings Of Entwined Serpents",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 159259,
+    "name": "Sandswept Sandals",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 158366,
+    "name": "Charged Sandstone Band",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 251136,
+    "name": "Signet Of Snarling Servitude",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 250215,
+    "name": "Freightrunner's Flask",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 273649,
+    "name": "Stormbound Emblem Of Dazar",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "King’s Rest"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 251123,
+    "name": "Nibbles' Training Rod",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   }
+  ]
+ },
+ "enchants": {
+  "Head": 244007,
+  "Shoulders": 243991,
+  "Chest": 243977,
+  "Boots": 243953,
+  "Legs": 240133,
+  "Rings": 243985,
+  "Weapon": 244029
+ },
+ "gems": {
+  "primary": 240967,
+  "others": [
+   {
+    "itemId": 240908,
+    "name": "Flawless Masterful Garnet",
+    "note": ""
+   },
+   {
+    "itemId": 240898,
+    "name": "Flawless Deadly Amethyst",
+    "note": ""
+   },
+   {
+    "itemId": 240914,
+    "name": "Flawless Deadly Lapis",
+    "note": ""
+   },
+   {
+    "itemId": 240890,
+    "name": "Flawless Deadly Peridot",
+    "note": ""
+   }
+  ]
+ }
+}

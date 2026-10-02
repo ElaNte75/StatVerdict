@@ -1,0 +1,436 @@
+{
+ "slug": "survival-hunter",
+ "updated": "",
+ "priority": [
+  {
+   "hero": "Single Target",
+   "secondary": [
+    [
+     "mastery"
+    ],
+    [
+     "crit",
+     "haste"
+    ],
+    [
+     "versatility"
+    ]
+   ],
+   "line": "Agility Mastery Critical Strike = Haste Versatility"
+  },
+  {
+   "hero": "AOE",
+   "secondary": [
+    [
+     "mastery"
+    ],
+    [
+     "haste"
+    ],
+    [
+     "crit"
+    ],
+    [
+     "versatility"
+    ]
+   ],
+   "line": "Agility Mastery Haste Critical Strike Versatility"
+  }
+ ],
+ "ratingRanges": [],
+ "bestInSlot": {
+  "overall": [
+   {
+    "slot": "Head",
+    "itemId": 271492,
+    "name": "Skulking Viper's Weeping Fangs",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula'tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 271490,
+    "name": "Jaws Of The Skulking Viper",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Colled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271876,
+    "name": "Awoken Dreadfang Cuirass",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula'tek"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 244584,
+    "name": "Farstrider's Plated Bracers",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 160213,
+    "name": "Sepulchral Construct's Gloves",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Kings Rest"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 244581,
+    "name": "Farstrider's Trophy Belt",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 268237,
+    "name": "Cuisses Of The Uncoiled Union",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Colled Altar"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268233,
+    "name": "Ferocious Scaleboots",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 273792,
+    "name": "Band Of The Amani Warlord",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 252258,
+    "name": "Sickening Signet Of Atroxus",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270175,
+    "name": "Voracious Heart Of Ula'tek",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula'tek"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270173,
+    "name": "Zul'jin's Guillotine Technique",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Colled Altar"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 268215,
+    "name": "Abyssal Broodfiend's Bardiche",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula'tek"
+   }
+  ],
+  "raid": [
+   {
+    "slot": "Head",
+    "itemId": 271492,
+    "name": "Skulking Viper's Weeping Fangs",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Twin Fangs"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula'tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 268231,
+    "name": "Soulslither Spaulders",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Colled Altar"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Colled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271495,
+    "name": "Skulking Viper's Scuteplate",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula'tek"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 244584,
+    "name": "Farstrider's Plated Bracers",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271493,
+    "name": "Skulking Viper's Hidepiercers",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 244581,
+    "name": "Farstrider's Trophy Belt",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 268237,
+    "name": "Cuisses Of The Uncoiled Union",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268233,
+    "name": "Ferocious Scaleboots",
+    "note": "",
+    "bonusIds": "",
+    "source": "Szorak"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268266,
+    "name": "Alluring Bubbleband",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268249,
+    "name": "Vile Alchemist's Band",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270175,
+    "name": "Voracious Heart Of Ula'tek",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula'tek"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270173,
+    "name": "Zul'jin's Guillotine Technique",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 268213,
+    "name": "Maze-Roa, Warlord's Fury",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   }
+  ],
+  "mythic_plus": [
+   {
+    "slot": "Head",
+    "itemId": 271492,
+    "name": "Skulking Viper's Weeping Fangs",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 251142,
+    "name": "Pendant Of Malefic Fury",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 271490,
+    "name": "Jaws Of The Skulking Viper",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "King's Rest"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 251190,
+    "name": "Bloodthorn Burnous",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271495,
+    "name": "Skulking Viper's Scuteplate",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 244584,
+    "name": "Farstrider's Plated Bracers",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271493,
+    "name": "Skulking Viper's Hidepiercers",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "King's Rest"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 244581,
+    "name": "Farstrider's Trophy Belt",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271491,
+    "name": "Skulking Viper's Coiled Legwraps",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 159388,
+    "name": "Sabatons Of Coruscating Energy",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 252258,
+    "name": "Sickening Signet Of Atroxus",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 251136,
+    "name": "Signet Of Snarling Servitude",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 250215,
+    "name": "Freightrunner's Flask",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 250214,
+    "name": "Lightspire Core",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 275070,
+    "name": "Sharpened Lightwood Slasher",
+    "note": "",
+    "bonusIds": "",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 275070,
+    "name": "Sharpened Lightwood Slasher",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   }
+  ]
+ },
+ "enchants": {
+  "Head": 243951,
+  "Chest": 243975,
+  "Shoulder": 244021,
+  "Boots": 243983,
+  "Legs": 244641,
+  "Rings": 243959,
+  "Weapon": 244029
+ },
+ "gems": {
+  "primary": 240967,
+  "others": [
+   {
+    "itemId": 240898,
+    "name": "Flawless Deadly Amethyst",
+    "note": ""
+   }
+  ]
+ }
+}

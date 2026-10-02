@@ -1,0 +1,430 @@
+{
+ "slug": "assassination-rogue",
+ "updated": "",
+ "priority": [
+  {
+   "hero": null,
+   "secondary": [
+    [
+     "crit"
+    ],
+    [
+     "haste"
+    ],
+    [
+     "mastery"
+    ],
+    [
+     "versatility"
+    ]
+   ],
+   "line": "Critical Strike > Haste > Mastery >> Versatility"
+  }
+ ],
+ "ratingRanges": [],
+ "bestInSlot": {
+  "overall": [
+   {
+    "slot": "Head",
+    "itemId": 271875,
+    "name": "Gaze Of The Coiled Watcher",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Ula'tek (Catalyzed)"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 251223,
+    "name": "Somber Spaulders",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena (Catalyzed)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 251159,
+    "name": "War Trial Vestments",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Den of Nalorakk (Catalyzed)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 244576,
+    "name": "Silvermoon Agent's Deflectors",
+    "note": "",
+    "bonusIds": "12214:13836:13751:9627:13750:8790:8960:12384",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271511,
+    "name": "Chosen Bloodslayer's Fanged Grips",
+    "note": "",
+    "bonusIds": "",
+    "source": "Entombed Sentinels"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268256,
+    "name": "Sash of the Forlorn Vessel",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 268225,
+    "name": "Coiled Hex Legguards",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyzed)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 251153,
+    "name": "Arctic Explorer's Legwraps",
+    "note": "",
+    "bonusIds": "",
+    "source": "Den of Nalorakk"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268252,
+    "name": "Apex Brute's Claw Ring",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268249,
+    "name": "Vile Alchemist's Band",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270175,
+    "name": "Voracious Heart of Ula'tek",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270164,
+    "name": "Gebbo's Bottomless Bag",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Lost Explorers"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 271093,
+    "name": "Zatha'tek, Breath of Corruption",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 237837,
+    "name": "Farstrider's Mercy",
+    "note": "",
+    "bonusIds": "12214:13836:13751:9627:13771:8960",
+    "source": "Crafting"
+   }
+  ],
+  "raid": [
+   {
+    "slot": "Head",
+    "itemId": 250006,
+    "name": "Masquerade Of The Grim Jest",
+    "note": "",
+    "bonusIds": "13786",
+    "source": "Sporefall"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 249337,
+    "name": "Ribbon Of Coiled Malice",
+    "note": "",
+    "bonusIds": "13335:12806",
+    "source": "Fallen-King Salhadaar"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 250004,
+    "name": "Venom Casks Of The Grim Jest",
+    "note": "",
+    "bonusIds": "13335:12806",
+    "source": "Tier Set"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 249370,
+    "name": "Draconic Nullcape",
+    "note": "",
+    "bonusIds": "13335:12806",
+    "source": "Vaelgor"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 250009,
+    "name": "Fantastic Finery Of The Grim Jest",
+    "note": "",
+    "bonusIds": "13335:12806",
+    "source": "Tier Set"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 244576,
+    "name": "Silvermoon Agent's Deflectors",
+    "note": "",
+    "bonusIds": "12066",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 250007,
+    "name": "Sleight Of Hand Of The Grim Jest",
+    "note": "",
+    "bonusIds": "13335:12806",
+    "source": "Tier Set"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 249374,
+    "name": "Scorn-Scarred Shul'ka's Belt",
+    "note": "",
+    "bonusIds": "13335:12806",
+    "source": "Chimaerus"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 250005,
+    "name": "Blade Holsters Of The Grim Jest",
+    "note": "",
+    "bonusIds": "13786",
+    "source": "Tier Set"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 249382,
+    "name": "Canopy Walker's Footwraps",
+    "note": "",
+    "bonusIds": "13335:12806",
+    "source": "Crown of the Cosmos"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 249919,
+    "name": "Sin'dorei Band Of Hope",
+    "note": "",
+    "bonusIds": "13335:12806",
+    "source": "Belo’ren"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268290,
+    "name": "Sporecaller's Blooming Loop",
+    "note": "",
+    "bonusIds": "13786",
+    "source": "Sporefall"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 249343,
+    "name": "Gaze Of The Alnseer",
+    "note": "",
+    "bonusIds": "13335:12806",
+    "source": "Chimaerus"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 249806,
+    "name": "Radiant Plume",
+    "note": "",
+    "bonusIds": "13335:12806",
+    "source": "Belo’ren"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 249925,
+    "name": "Hungering Victory",
+    "note": "",
+    "bonusIds": "13335:12806",
+    "source": "Vorasius"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 237837,
+    "name": "Farstrider's Mercy",
+    "note": "",
+    "bonusIds": "12066",
+    "source": "Crafting"
+   }
+  ],
+  "mythic_plus": [
+   {
+    "slot": "Head",
+    "itemId": 250006,
+    "name": "Masquerade Of The Grim Jest",
+    "note": "",
+    "bonusIds": "13335:12806",
+    "source": "Tier Set"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 151309,
+    "name": "Necklace Of The Twisting Void",
+    "note": "",
+    "bonusIds": "10390:12806",
+    "source": "Seat of the Triumvirate"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 250004,
+    "name": "Venom Casks Of The Grim Jest",
+    "note": "",
+    "bonusIds": "13335:12806",
+    "source": "Tier Set"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 260312,
+    "name": "Defiant Defender's Drape",
+    "note": "",
+    "bonusIds": "10390:12806",
+    "source": "Seranel Sunlash"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 251099,
+    "name": "Vest Of The Howling Gale",
+    "note": "",
+    "bonusIds": "10390:12806",
+    "source": "Windrunner Spire"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 244576,
+    "name": "Silvermoon Agent's Deflectors",
+    "note": "",
+    "bonusIds": "12066",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 250007,
+    "name": "Sleight Of Hand Of The Grim Jest",
+    "note": "",
+    "bonusIds": "13335:12806",
+    "source": "Tier Set"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 251082,
+    "name": "Snapvine Cinch",
+    "note": "",
+    "bonusIds": "10390:12806",
+    "source": "Windrunner Spire"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 251087,
+    "name": "Legwraps Of Lingering Legacies",
+    "note": "",
+    "bonusIds": "10390:12806",
+    "source": "Windrunner Spire"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 109787,
+    "name": "Boots Of Burning Focus",
+    "note": "",
+    "bonusIds": "10390:12806",
+    "source": "Skyreach"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 251217,
+    "name": "Occlusion Of Void",
+    "note": "",
+    "bonusIds": "10390:12806",
+    "source": "Nexus-Point Xenas"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 251093,
+    "name": "Omission Of Light",
+    "note": "",
+    "bonusIds": "10390:12806",
+    "source": "Nexus-Point Xenas"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 193701,
+    "name": "Algeth'ar Puzzle Box",
+    "note": "",
+    "bonusIds": "10390:12806",
+    "source": "Algeth’ar Academy"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 252420,
+    "name": "Solarflare Prism",
+    "note": "",
+    "bonusIds": "10390:12806",
+    "source": "Skyreach"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 258436,
+    "name": "Edge Of The Burning Sun",
+    "note": "",
+    "bonusIds": "10390:12806",
+    "source": "Skyreach"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 237837,
+    "name": "Farstrider's Mercy",
+    "note": "",
+    "bonusIds": "12066",
+    "source": "Crafting"
+   }
+  ]
+ },
+ "enchants": {
+  "Weapon": 243973,
+  "Helm": 243951,
+  "Chest": 243977,
+  "Shoulder": 244021,
+  "Legs": 244641,
+  "Boots": 243983,
+  "Ring": 243957
+ },
+ "gems": {
+  "primary": 240983,
+  "others": []
+ }
+}

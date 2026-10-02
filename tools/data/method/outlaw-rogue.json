@@ -1,0 +1,437 @@
+{
+ "slug": "outlaw-rogue",
+ "updated": "",
+ "priority": [
+  {
+   "hero": null,
+   "secondary": [
+    [
+     "haste"
+    ],
+    [
+     "crit"
+    ],
+    [
+     "versatility"
+    ],
+    [
+     "mastery"
+    ]
+   ],
+   "line": "Stat Ranking Agility Haste Crit Versatility Mastery"
+  }
+ ],
+ "ratingRanges": [],
+ "bestInSlot": {
+  "overall": [
+   {
+    "slot": "Head",
+    "itemId": 271875,
+    "name": "Gaze Of The Coiled Watcher",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula'tek"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 271508,
+    "name": "Chosen Bloodslayer's Voodoo Guards",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Lost Explorers"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268248,
+    "name": "Amani Summoning Shawl",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nek’zali the Soulcoiler"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271513,
+    "name": "Chosen Bloodslayer's Banded Poncho",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 268240,
+    "name": "Restless Spirit Shackles",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nek’zali the Soulcoiler"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271511,
+    "name": "Chosen Bloodslayer's Fanged Grips",
+    "note": "",
+    "bonusIds": "",
+    "source": "Murder Row (Catalyst)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 244573,
+    "name": "Silvermoon Agent's Utility Belt - Arcanoweave Lining",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271509,
+    "name": "Chosen Bloodslayer's Reinforced Pants",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 244569,
+    "name": "Silvermoon Agent's Sneakers - Arcanoweave Lining",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268266,
+    "name": "Alluring Bubbleband",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268252,
+    "name": "Apex Brute's Claw Ring",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270173,
+    "name": "Zul'jin's Guillotine Technique",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270175,
+    "name": "Voracious Heart Of Ula'tek",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 268209,
+    "name": "Aman'muso, Warlord's Vengeance",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 275070,
+    "name": "Sharpened Lightwood Slasher",
+    "note": "",
+    "bonusIds": "",
+    "source": "Altar of Fangs"
+   }
+  ],
+  "raid": [
+   {
+    "slot": "Head",
+    "itemId": 271875,
+    "name": "Gaze Of The Coiled Watcher",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula'tek"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 271508,
+    "name": "Chosen Bloodslayer's Voodoo Guards",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Lost Explorers"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268248,
+    "name": "Amani Summoning Shawl",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nek’zali the Soulcoiler"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271513,
+    "name": "Chosen Bloodslayer's Banded Poncho",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 268240,
+    "name": "Restless Spirit Shackles",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nek’zali the Soulcoiler"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271511,
+    "name": "Chosen Bloodslayer's Fanged Grips",
+    "note": "",
+    "bonusIds": "",
+    "source": "Entombed Sentinels"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 244573,
+    "name": "Silvermoon Agent's Utility Belt - Arcanoweave Lining",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271509,
+    "name": "Chosen Bloodslayer's Reinforced Pants",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 244569,
+    "name": "Silvermoon Agent's Sneakers - Arcanoweave Lining",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268266,
+    "name": "Alluring Bubbleband",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268252,
+    "name": "Apex Brute's Claw Ring",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270173,
+    "name": "Zul'jin's Guillotine Technique",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270175,
+    "name": "Voracious Heart Of Ula'tek",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 268209,
+    "name": "Aman'muso, Warlord's Vengeance",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 268204,
+    "name": "Ancient Construct's Venomshiv",
+    "note": "",
+    "bonusIds": "",
+    "source": "Entombed Sentinels"
+   }
+  ],
+  "mythic_plus": [
+   {
+    "slot": "Head",
+    "itemId": 273791,
+    "name": "Spare Speaker's Hood",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 273781,
+    "name": "Strand Of Warding Fangs",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 271508,
+    "name": "Chosen Bloodslayer's Voodoo Guards",
+    "note": "",
+    "bonusIds": "",
+    "source": "Altar of Fangs (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 193763,
+    "name": "Fireproof Drape",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Ruby Life Pools"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271513,
+    "name": "Chosen Bloodslayer's Banded Poncho",
+    "note": "",
+    "bonusIds": "",
+    "source": "Voidscar Arena (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 251135,
+    "name": "Fury-Fletched Armlets",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271511,
+    "name": "Chosen Bloodslayer's Fanged Grips",
+    "note": "",
+    "bonusIds": "",
+    "source": "Murder Row (Catalyst)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 244573,
+    "name": "Silvermoon Agent's Utility Belt - Arcanoweave Lining",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271509,
+    "name": "Chosen Bloodslayer's Reinforced Pants",
+    "note": "",
+    "bonusIds": "",
+    "source": "Kings Rest (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 244569,
+    "name": "Silvermoon Agent's Sneakers - Arcanoweave Lining",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 273792,
+    "name": "Band Of The Amani Warlord",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 159459,
+    "name": "Ritual Binder's Ring",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Kings’ Rest"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 250259,
+    "name": "Sapling Of The Dawnroot",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 159617,
+    "name": "Lustrous Golden Plumage",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Kings’ Rest"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 251143,
+    "name": "Grim Harvest Gloves",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Den of Nalorakk"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 275070,
+    "name": "Sharpened Lightwood Slasher",
+    "note": "",
+    "bonusIds": "",
+    "source": "Altar of Fangs"
+   }
+  ]
+ },
+ "enchants": {
+  "Weapon": 244029,
+  "Legs": 244641,
+  "Ring": 243957
+ },
+ "gems": {
+  "primary": 240983,
+  "others": [
+   {
+    "itemId": 240906,
+    "name": "Flawless Quick Garnet",
+    "note": ""
+   },
+   {
+    "itemId": 240890,
+    "name": "Flawless Deadly Peridot",
+    "note": ""
+   }
+  ]
+ }
+}

@@ -1,0 +1,170 @@
+{
+ "slug": "fire-mage",
+ "updated": "",
+ "priority": [
+  {
+   "hero": "Frostfire",
+   "secondary": [
+    [
+     "haste"
+    ],
+    [
+     "versatility"
+    ],
+    [
+     "mastery"
+    ],
+    [
+     "crit"
+    ]
+   ],
+   "line": "Intellect > Haste > Vers > Mastery > Crit Obviously Intellect is king, and anything with higher intellect should generally always be equipped."
+  }
+ ],
+ "ratingRanges": [],
+ "bestInSlot": {
+  "overall": [
+   {
+    "slot": "Head",
+    "itemId": 271874,
+    "name": "Venomkeeper's Horrific Cowl",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 251142,
+    "name": "Pendant Of Malefic Fury",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 268241,
+    "name": "Ornaments Of The Eternal Coil",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Twin Fangs"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 273785,
+    "name": "Primordial Robe Of Rites",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 239648,
+    "name": "Martyr's Bindings",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 268243,
+    "name": "Grasps Of The Eternal Shadow",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268257,
+    "name": "Caustic Chain-Wrapped Sash",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 268236,
+    "name": "Initiate's Sacrificial Tights",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nek’zali the soulcoiler"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268255,
+    "name": "Cackling Soultreads",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268266,
+    "name": "Alluring Bubbleband",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller (solo raid)"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 159459,
+    "name": "Ritual Binder's Ring",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "King’s Rest"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 273796,
+    "name": "Vile Vial Of Volatile Venom",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270164,
+    "name": "Gebbo's Bottomless Bag",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Lost Explorers"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 271092,
+    "name": "Jan'thrazet, The Soul Fang",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 245769,
+    "name": "Aln'hara Lantern",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   }
+  ]
+ },
+ "enchants": {
+  "Head": 244007,
+  "Shoulders": 243991,
+  "Chest": 243977,
+  "Boots": 243953,
+  "Legs": 240133,
+  "Rings": 243957,
+  "Weapon": 244029
+ },
+ "gems": {
+  "primary": 240967,
+  "others": []
+ }
+}

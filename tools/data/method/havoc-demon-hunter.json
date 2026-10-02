@@ -1,20 +1,24 @@
 {
- "slug": "vengeance-demon-hunter",
+ "slug": "havoc-demon-hunter",
  "updated": "",
  "priority": [
   {
    "hero": null,
    "secondary": [
     [
+     "crit"
+    ],
+    [
+     "mastery"
+    ],
+    [
      "haste"
     ],
     [
-     "crit",
-     "versatility",
-     "mastery"
+     "versatility"
     ]
    ],
-   "line": "Agility (Item Level) Haste Critical Strike = Versatility = Mastery"
+   "line": "Stat Ranking Agility > Critical Strike > Mastery > Haste > Versatility The stat priorities for both Hero Trees are very similar, but they do have minor differences."
   }
  ],
  "ratingRanges": [],
@@ -24,7 +28,7 @@
     "slot": "Head",
     "itemId": 271875,
     "name": "Gaze Of The Coiled Watcher",
-    "note": "Tier Set",
+    "note": "",
     "bonusIds": "",
     "source": "Ula’tek (Catalyst)"
    },
@@ -38,27 +42,27 @@
    },
    {
     "slot": "Shoulders",
-    "itemId": 251146,
-    "name": "Scavenger's Spaulders",
-    "note": "Tier Set",
+    "itemId": 268246,
+    "name": "Frothing Venom Spaulders",
+    "note": "",
     "bonusIds": "",
-    "source": "Den of Nalorakk (Catalyst)"
+    "source": "Vashnik the Malignant (Catalyst)"
    },
    {
     "slot": "Cloak",
-    "itemId": 239656,
-    "name": "Adherent's Silken Shroud with Arcanoweave Lining",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
     "note": "",
-    "bonusIds": "12214:13667:12497:13751:13836",
-    "source": "Crafted"
+    "bonusIds": "",
+    "source": "The Coiled Altar"
    },
    {
     "slot": "Chest",
-    "itemId": 271540,
-    "name": "Abyssal Doomhound's Coreguard",
-    "note": "Tier Set",
-    "bonusIds": "",
-    "source": "Vashnik"
+    "itemId": 239048,
+    "name": "Vest Of Reverent Adoration",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Kings’ Rest (Catalyst)"
    },
    {
     "slot": "Wrist",
@@ -70,11 +74,11 @@
    },
    {
     "slot": "Gloves",
-    "itemId": 193758,
-    "name": "Subjugator's Chilling Grips",
-    "note": "Tier Set",
-    "bonusIds": "13440:12854",
-    "source": "Ruby Life Pools (Catalyst)"
+    "itemId": 271538,
+    "name": "Abyssal Doomhound's Studded Gauntlets",
+    "note": "",
+    "bonusIds": "",
+    "source": "Entombed Sentinels"
    },
    {
     "slot": "Belt",
@@ -86,27 +90,157 @@
    },
    {
     "slot": "Legs",
-    "itemId": 159313,
-    "name": "Breeches Of The Sacred Hall",
-    "note": "Tier Set",
-    "bonusIds": "13440:12854",
+    "itemId": 268225,
+    "name": "Coiled Hex Legguards",
+    "note": "",
+    "bonusIds": "",
     "source": "The Coiled Altar (Catalyst)"
    },
    {
     "slot": "Boots",
-    "itemId": 251153,
-    "name": "Arctic Explorer's Legwraps",
+    "itemId": 159327,
+    "name": "Sand-Shined Snakeskin Sandals",
     "note": "",
     "bonusIds": "13440:12854",
-    "source": "Den of Nalorakk"
+    "source": "Temple of Sethraliss"
    },
    {
     "slot": "Ring",
-    "itemId": 159459,
-    "name": "Ritual Binder's Ring",
+    "itemId": 268249,
+    "name": "Vile Alchemist's Band",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 251136,
+    "name": "Signet Of Snarling Servitude",
     "note": "",
     "bonusIds": "13440:12854",
-    "source": "Kings’ Rest"
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270175,
+    "name": "Voracious Heart Of Ula'tek",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270173,
+    "name": "Zul'jin's Guillotine Technique",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 268209,
+    "name": "Aman'muso, Warlord's Vengeance",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 237840,
+    "name": "Spellbreaker's Warglaive with Hunter's Ritual Stone",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   }
+  ],
+  "raid": [
+   {
+    "slot": "Head",
+    "itemId": 271875,
+    "name": "Gaze Of The Coiled Watcher",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek (Catalyst)"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 268246,
+    "name": "Frothing Venom Spaulders",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 268235,
+    "name": "Vestment Of The Awakening",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nek’zali the Soulcoiler (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 268240,
+    "name": "Restless Spirit Shackles",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nek’zali the Soulcoiler"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271538,
+    "name": "Abyssal Doomhound's Studded Gauntlets",
+    "note": "",
+    "bonusIds": "",
+    "source": "Entombed Sentinels"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268256,
+    "name": "Sash Of The Forlorn Vessel",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 268225,
+    "name": "Coiled Hex Legguards",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268261,
+    "name": "Bespittled Slitherslippers",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Twin Fangs"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268249,
+    "name": "Vile Alchemist's Band",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
    },
    {
     "slot": "Ring",
@@ -142,289 +276,172 @@
    },
    {
     "slot": "Off Hand",
-    "itemId": 270930,
-    "name": "Tomb-Creeper's Claw",
-    "note": "",
-    "bonusIds": "",
-    "source": "Nek’zali"
-   }
-  ],
-  "raid": [
-   {
-    "slot": "Head",
-    "itemId": 271875,
-    "name": "Gaze Of The Coiled Watcher",
-    "note": "Tier Set",
-    "bonusIds": "",
-    "source": "Ula’tek (Catalyst)"
-   },
-   {
-    "slot": "Neck",
-    "itemId": 268265,
-    "name": "Aqirbane Reliquary",
-    "note": "",
-    "bonusIds": "",
-    "source": "Ula’tek"
-   },
-   {
-    "slot": "Shoulders",
-    "itemId": 271535,
-    "name": "Abyssal Doomhound's Jaws",
-    "note": "Tier Set",
-    "bonusIds": "",
-    "source": "The Lost Explorers"
-   },
-   {
-    "slot": "Cloak",
-    "itemId": 239656,
-    "name": "Adherent's Silken Shroud with Arcanoweave Lining",
-    "note": "",
-    "bonusIds": "12214:13667:12497:13751:13836",
-    "source": "Crafted"
-   },
-   {
-    "slot": "Chest",
-    "itemId": 271540,
-    "name": "Abyssal Doomhound's Coreguard",
-    "note": "Tier Set",
-    "bonusIds": "",
-    "source": "Vashnik"
-   },
-   {
-    "slot": "Wrist",
-    "itemId": 244576,
-    "name": "Silvermoon Agent's Deflectors with Arcanoweave Lining",
-    "note": "",
-    "bonusIds": "12214:13667:12497:13751:13836",
-    "source": "Crafted"
-   },
-   {
-    "slot": "Gloves",
-    "itemId": 271538,
-    "name": "Abyssal Doomhound's Studded Gauntlets",
-    "note": "Tier Set",
-    "bonusIds": "",
-    "source": "Entombed Sentinels"
-   },
-   {
-    "slot": "Belt",
-    "itemId": 268256,
-    "name": "Sash Of The Forlorn Vessel",
-    "note": "",
-    "bonusIds": "",
-    "source": "The Coiled Altar"
-   },
-   {
-    "slot": "Legs",
-    "itemId": 268225,
-    "name": "Coiled Hex Legguards",
-    "note": "Tier Set",
-    "bonusIds": "",
-    "source": "The Coiled Altar"
-   },
-   {
-    "slot": "Boots",
-    "itemId": 268247,
-    "name": "Breakwater Boots",
-    "note": "",
-    "bonusIds": "",
-    "source": "Nymrissa Wavecaller"
-   },
-   {
-    "slot": "Ring",
-    "itemId": 268266,
-    "name": "Alluring Bubbleband",
-    "note": "",
-    "bonusIds": "",
-    "source": "Nymrissa Wavecaller"
-   },
-   {
-    "slot": "Ring",
-    "itemId": 268252,
-    "name": "Apex Brute's Claw Ring",
+    "itemId": 268201,
+    "name": "Venomous Boneglaive",
     "note": "",
     "bonusIds": "",
     "source": "Sszorak"
-   },
-   {
-    "slot": "Trinket",
-    "itemId": 270175,
-    "name": "Voracious Heart Of Ula'tek",
-    "note": "",
-    "bonusIds": "",
-    "source": "Ula’tek"
-   },
-   {
-    "slot": "Trinket",
-    "itemId": 270165,
-    "name": "Keeper's Seething Core",
-    "note": "",
-    "bonusIds": "",
-    "source": "Entombed Sentinels"
-   },
-   {
-    "slot": "Main Hand",
-    "itemId": 268209,
-    "name": "Aman'muso, Warlord's Vengeance",
-    "note": "",
-    "bonusIds": "",
-    "source": "The Coiled Altar"
-   },
-   {
-    "slot": "Off Hand",
-    "itemId": 270930,
-    "name": "Tomb-Creeper's Claw",
-    "note": "",
-    "bonusIds": "",
-    "source": "Nek’zali"
    }
   ],
   "mythic_plus": [
    {
     "slot": "Head",
-    "itemId": 273791,
-    "name": "Spare Speaker's Hood",
-    "note": "Tier Set",
-    "bonusIds": "",
-    "source": "Altar of Fangs (Catalyst)"
+    "itemId": 239033,
+    "name": "Hood Of The Slithering Loa",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
    },
    {
     "slot": "Neck",
-    "itemId": 273781,
-    "name": "Strand Of Warding Fangs",
+    "itemId": 251234,
+    "name": "Graft Of The Domanaar",
     "note": "",
-    "bonusIds": "",
-    "source": "Altar of Fangs"
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
    },
    {
     "slot": "Shoulders",
-    "itemId": 251146,
-    "name": "Scavenger's Spaulders",
-    "note": "Tier Set",
-    "bonusIds": "",
-    "source": "Den of Nalorakk (Catalyst)"
+    "itemId": 251223,
+    "name": "Somber Spaulders",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
    },
    {
     "slot": "Cloak",
-    "itemId": 239656,
-    "name": "Adherent's Silken Shroud with Arcanoweave Lining",
+    "itemId": 251132,
+    "name": "Speakeasy Shroud",
     "note": "",
-    "bonusIds": "12214:13667:12497:13751:13836",
-    "source": "Crafted"
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
    },
    {
     "slot": "Chest",
-    "itemId": 251226,
-    "name": "Hide Of Pestilence",
-    "note": "Tier Set",
-    "bonusIds": "13440:12854",
-    "source": "Atroxus (Catalyst)"
-   },
-   {
-    "slot": "Wrist",
-    "itemId": 244576,
-    "name": "Silvermoon Agent's Deflectors with Arcanoweave Lining",
+    "itemId": 239048,
+    "name": "Vest Of Reverent Adoration",
     "note": "",
-    "bonusIds": "12214:13667:12497:13751:13836",
-    "source": "Crafted"
-   },
-   {
-    "slot": "Gloves",
-    "itemId": 193758,
-    "name": "Subjugator's Chilling Grips",
-    "note": "Tier Set",
-    "bonusIds": "13440:12854",
-    "source": "Ruby Life Pools (Catalyst)"
-   },
-   {
-    "slot": "Belt",
-    "itemId": 251189,
-    "name": "Rootwalker Harness",
-    "note": "",
-    "bonusIds": "",
-    "source": "The Blinding Vale"
-   },
-   {
-    "slot": "Legs",
-    "itemId": 159313,
-    "name": "Breeches Of The Sacred Hall",
-    "note": "Tier Set",
     "bonusIds": "13440:12854",
     "source": "Kings’ Rest (Catalyst)"
    },
    {
-    "slot": "Boots",
-    "itemId": 251153,
-    "name": "Arctic Explorer's Legwraps",
+    "slot": "Wrist",
+    "itemId": 251183,
+    "name": "Rootwarden Wraps",
     "note": "",
     "bonusIds": "13440:12854",
-    "source": "Den of Nalorakk"
+    "source": "The Blinding Vale"
    },
    {
-    "slot": "Ring",
-    "itemId": 159459,
-    "name": "Ritual Binder's Ring",
+    "slot": "Gloves",
+    "itemId": 159312,
+    "name": "Desiccator's Blessed Gloves",
     "note": "",
     "bonusIds": "13440:12854",
     "source": "Kings’ Rest"
    },
    {
+    "slot": "Belt",
+    "itemId": 159301,
+    "name": "Primal Dinomancer's Belt",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Kings’ Rest"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 251130,
+    "name": "Breeches Of Deft Deals",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 159327,
+    "name": "Sand-Shined Snakeskin Sandals",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
     "slot": "Ring",
-    "itemId": 251148,
-    "name": "Pilfered Precious Band",
-    "note": "",
-    "bonusIds": "13440:12854",
-    "source": "Den of Nalorakk"
-   },
-   {
-    "slot": "Trinket",
-    "itemId": 250215,
-    "name": "Freightrunner's Flask",
+    "itemId": 251136,
+    "name": "Signet Of Snarling Servitude",
     "note": "",
     "bonusIds": "13440:12854",
     "source": "Murder Row"
    },
    {
-    "slot": "Trinket",
-    "itemId": 250228,
-    "name": "Resonant Bellowstone",
+    "slot": "Ring",
+    "itemId": 158366,
+    "name": "Charged Sandstone Band",
     "note": "",
     "bonusIds": "13440:12854",
-    "source": "Murder Row"
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 273796,
+    "name": "Vile Vial Of Volatile Venom",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 250214,
+    "name": "Lightspire Core",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "The Blinding Vale"
    },
    {
     "slot": "Main Hand",
-    "itemId": 251143,
-    "name": "Grim Harvest Gloves",
+    "itemId": 251186,
+    "name": "Thorntalon Edge",
     "note": "",
     "bonusIds": "13440:12854",
-    "source": "Den of Nalorakk"
+    "source": "The Blinding Vale"
    },
    {
     "slot": "Off Hand",
-    "itemId": 251143,
-    "name": "Grim Harvest Gloves",
+    "itemId": 251186,
+    "name": "Thorntalon Edge",
     "note": "",
     "bonusIds": "13440:12854",
-    "source": "Den of Nalorakk"
+    "source": "The Blinding Vale"
    }
   ]
  },
  "enchants": {
-  "Head": 243948,
-  "Shoulder": 244021,
+  "Shoulders": 243991,
   "Chest": 243977,
-  "Boots": 243983,
-  "Legs": 244641,
-  "Rings": 244015,
-  "Weapon": 243973
+  "Boots": 243953,
+  "Rings": 243957,
+  "Weapon": 273072
  },
  "gems": {
   "primary": 240983,
   "others": [
    {
-    "itemId": 240890,
-    "name": "Flawless Deadly Peridot",
+    "itemId": 240900,
+    "name": "Flawless Quick Amethyst",
+    "note": ""
+   },
+   {
+    "itemId": 240892,
+    "name": "Flawless Masterful Peridot",
+    "note": ""
+   },
+   {
+    "itemId": 240918,
+    "name": "Flawless Masterful Lapis",
+    "note": ""
+   },
+   {
+    "itemId": 240908,
+    "name": "Flawless Masterful Garnet",
     "note": ""
    }
   ]

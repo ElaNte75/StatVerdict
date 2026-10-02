@@ -22,6 +22,17 @@ BASE = "https://www.method.gg/guides/"
 USER_AGENT = "Mozilla/5.0 (compatible; StatVerdictDataBot; +https://github.com/ElaNte75/StatVerdict)"
 TANK_SLUGS = ("blood-death-knight", "vengeance-demon-hunter", "guardian-druid", "brewmaster-monk",
               "protection-paladin", "protection-warrior")
+
+
+def all_slugs() -> list[str]:
+    """Method's guide slug of every spec in the catalog: '<spec>-<class>' ('beast-mastery-hunter')."""
+    try:
+        from tools.spec_catalog import SPEC_BY_KEY
+    except ModuleNotFoundError:
+        from spec_catalog import SPEC_BY_KEY
+    return [f"{s.spec_name.lower().replace(' ', '-')}-{s.class_name}" for s in SPEC_BY_KEY.values()]
+
+
 TABS = {"overall_table": "overall", "raid_table": "raid", "dungeon_table": "mythic_plus"}
 STAT_WORDS = {"haste": "haste", "vers": "versatility", "versatility": "versatility", "crit": "crit",
               "critical": "crit", "mastery": "mastery"}
@@ -38,7 +49,9 @@ def text_of(fragment: str) -> str:
 
 
 STAT_PATTERN = r"(?:critical strike|crit|haste|versatility|vers|mastery)"
-HERO_LABEL = re.compile(r"((?:[A-Z][\w'’]+ ?){1,3}):\s*(?=(?:Strength|Agility|Intellect|Item Level)\b)")
+HERO_LABEL = re.compile(r"((?:[A-Z][\w'’\-]+ ?){1,3}):\s*(?=(?:Strength|Agility|Intellect|Item Level|ilvl|Haste|Crit|Mastery|Vers)\b)")
+END_MARKERS = ("Stat Outline", "Stat Summary", "Secondary Stats", "Stat Breakdown", "Races")
+RATING_RANGE = re.compile(r"(crit\w*|haste|mastery|vers\w*)\s*:\s*~?\s*(\d{3,4})(?:\s*-\s*(\d{3,4}))?\s*rating", re.I)
 
 
 def _chain(segment: str) -> list[list[str]] | None:
@@ -66,19 +79,40 @@ def _chain(segment: str) -> list[list[str]] | None:
 def _label(match) -> tuple[str, int]:
     """(hero name, where it starts): a stat word written just before the name ('... > Haste San’layn:') is not part of it."""
     raw = match.group(1)
-    name = re.sub(r"^(?:(?:crit|haste|vers|mastery)\w* )+", "", raw.strip(), flags=re.I)
+    name = re.sub(r"^(?:(?:crit|haste|vers|mastery)\w* |stat ranking?s? |ranking |stat priority )+", "", raw.strip(), flags=re.I)
     return name, match.start() + raw.find(name)
+
+
+def parse_rating_ranges(section: str) -> list[dict[str, Any]]:
+    """Some guides give rating ranges ('Mastery: ~1200-1400 rating'), per variant label when there are several."""
+    marks = list(re.finditer(r"((?:[A-Z][\w'’\-]+ ?){1,3}):\s*(?=Intellect|Strength|Agility)", section))
+    segments = [("", section)] if not marks else [
+        (marks[i].group(1).strip(), section[marks[i].end():marks[i + 1].start() if i + 1 < len(marks) else len(section)])
+        for i in range(len(marks))]
+    out = []
+    for label, body in segments:
+        ranges = {}
+        for stat, lo, hi in RATING_RANGE.findall(body):
+            ranges[STAT_WORDS.get(stat.lower().split(" ")[0], stat.lower())] = [int(lo), int(hi or lo)]
+        if ranges:
+            label = re.sub(r"^(?:(?:crit|haste|vers|mastery)\w* )+", "", label, flags=re.I)
+            out.append({"hero": label or None, "ranges": ranges})
+    return out
+
+
+def priority_section(page: str) -> str:
+    text = text_of(page)
+    start = max(text.rfind("Stat Rankings"), text.rfind("Stat Ranking"), text.rfind("Stat Priorities"))
+    ends = [e for e in (text.find(marker, start + 15) for marker in END_MARKERS) if e > 0]
+    return text[start:min(ends)] if start >= 0 and ends else ""
 
 
 def parse_priority(page: str) -> list[dict[str, Any]]:
     """The guide's stat priority as variants [{"hero": name or None, "secondary": [[stat, ...], ...], "line": text}].
     The section sits between the 'Stat Priorities / Stat Rankings' heading and 'Stat Outline'."""
-    text = text_of(page)
-    start = max(text.rfind("Stat Rankings"), text.rfind("Stat Ranking"), text.rfind("Stat Priorities"))
-    end = text.find("Stat Outline", start)
-    if start < 0 or end < 0:
+    section = priority_section(page)
+    if not section:
         return []
-    section = text[start:end]
     # Only the part that holds the order itself: from the first sentence with an operator or a stat run.
     marks = [(m, _label(m)) for m in HERO_LABEL.finditer(section)]
     variants: list[dict[str, Any]] = []
@@ -185,6 +219,7 @@ def read_spec(slug: str) -> dict[str, Any]:
         "slug": slug,
         "updated": updated.group(1).strip() if updated else "",
         "priority": parse_priority(stats_page),
+        "ratingRanges": parse_rating_ranges(priority_section(stats_page)),
         "bestInSlot": parse_tables(gear_page),
         **parse_enchants_and_gems(stats_page),
     }
@@ -193,11 +228,12 @@ def read_spec(slug: str) -> dict[str, Any]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, default=Path("tools/data/method"))
-    parser.add_argument("--specs", default=",".join(TANK_SLUGS))
+    parser.add_argument("--specs", default="all", help="comma-separated slugs, or 'all' (every spec in the catalog)")
     args = parser.parse_args(argv)
     args.out.mkdir(parents=True, exist_ok=True)
     failed = False
-    for slug in args.specs.split(","):
+    slugs = all_slugs() if args.specs == "all" else args.specs.split(",")
+    for slug in slugs:
         try:
             data = read_spec(slug)
             (args.out / f"{slug}.json").write_text(json.dumps(data, indent=1, ensure_ascii=False), encoding="utf-8")

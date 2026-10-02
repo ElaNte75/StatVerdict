@@ -1,0 +1,327 @@
+{
+ "slug": "shadow-priest",
+ "updated": "",
+ "priority": [
+  {
+   "hero": "Broad Prio",
+   "secondary": [
+    [
+     "haste"
+    ],
+    [
+     "mastery"
+    ],
+    [
+     "crit"
+    ],
+    [
+     "versatility"
+    ]
+   ],
+   "line": "ilvl > Haste >= Mastery > Crit > Vers"
+  },
+  {
+   "hero": "Voidweaver ST",
+   "secondary": [
+    [
+     "mastery"
+    ],
+    [
+     "haste"
+    ],
+    [
+     "crit"
+    ],
+    [
+     "versatility"
+    ]
+   ],
+   "line": "Intellect Mastery: ~1200-1400 rating Haste: ~1400-1800 rating Crit: ~800-1200 rating Vers: 400 or less"
+  },
+  {
+   "hero": "Voidweaver AoE",
+   "secondary": [
+    [
+     "haste"
+    ],
+    [
+     "mastery"
+    ],
+    [
+     "crit"
+    ],
+    [
+     "versatility"
+    ]
+   ],
+   "line": "Intellect Haste: ~1600-1800 rating Mastery: ~1000-1200 rating Crit: ~800-1200 rating Vers: 400 or less"
+  },
+  {
+   "hero": "Archon ST",
+   "secondary": [
+    [
+     "mastery"
+    ],
+    [
+     "crit"
+    ],
+    [
+     "haste"
+    ],
+    [
+     "versatility"
+    ]
+   ],
+   "line": "Intellect Mastery: ~1200-1400 rating Crit: ~800-1200 rating Haste: ~1400-1600 rating Vers : 400 or less"
+  },
+  {
+   "hero": "Archon AoE",
+   "secondary": [
+    [
+     "mastery"
+    ],
+    [
+     "haste"
+    ],
+    [
+     "crit"
+    ],
+    [
+     "versatility"
+    ]
+   ],
+   "line": "Intellect Mastery: ~1000-1200 rating Haste: ~1600-1800 rating Crit: ~800-1200 rating Vers: 400 or less"
+  }
+ ],
+ "ratingRanges": [
+  {
+   "hero": "Vers Voidweaver ST",
+   "ranges": {
+    "mastery": [
+     1200,
+     1400
+    ],
+    "haste": [
+     1400,
+     1800
+    ],
+    "crit": [
+     800,
+     1200
+    ]
+   }
+  },
+  {
+   "hero": "Voidweaver AoE",
+   "ranges": {
+    "haste": [
+     1600,
+     1800
+    ],
+    "mastery": [
+     1000,
+     1200
+    ],
+    "crit": [
+     800,
+     1200
+    ]
+   }
+  },
+  {
+   "hero": "Archon ST",
+   "ranges": {
+    "mastery": [
+     1200,
+     1400
+    ],
+    "crit": [
+     800,
+     1200
+    ],
+    "haste": [
+     1400,
+     1600
+    ]
+   }
+  },
+  {
+   "hero": "Archon AoE",
+   "ranges": {
+    "mastery": [
+     1000,
+     1200
+    ],
+    "haste": [
+     1600,
+     1800
+    ],
+    "crit": [
+     800,
+     1200
+    ]
+   }
+  }
+ ],
+ "bestInSlot": {
+  "overall": [
+   {
+    "slot": "Head",
+    "itemId": 271555,
+    "name": "Cosmic Penitent's Truesight",
+    "note": "",
+    "bonusIds": "",
+    "source": "Tier set token / Catalyst"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 239045,
+    "name": "Mantle Of Ceremonial Ascension",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Kings’ Rest"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271558,
+    "name": "Cosmic Penitent's Eclipsing Robes",
+    "note": "",
+    "bonusIds": "",
+    "source": "Tier set token / Catalyst"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 239648,
+    "name": "Martyr's Bindings",
+    "note": "Crafted",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271556,
+    "name": "Cosmic Penitent's Celestial Grips",
+    "note": "",
+    "bonusIds": "",
+    "source": "Tier set token / Catalyst"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 239649,
+    "name": "Martyr's Waistwrap",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271554,
+    "name": "Enveloping Legwraps Of The Cosmic Penitent",
+    "note": "",
+    "bonusIds": "",
+    "source": "Tier set token / Catalyst"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268255,
+    "name": "Cackling Soultreads",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 252258,
+    "name": "Sickening Signet Of Atroxus",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268249,
+    "name": "Vile Alchemist's Band",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270167,
+    "name": "Wavecaller's Seastone",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 250215,
+    "name": "Freightrunner's Flask",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 271092,
+    "name": "Jan'thrazet, The Soul Fang",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 268197,
+    "name": "Spine Of The Hissing Abyss",
+    "note": "",
+    "bonusIds": "",
+    "source": "Entomed Sentinels"
+   }
+  ]
+ },
+ "enchants": {
+  "Head": 243981,
+  "Chest": 243977,
+  "Shoulders": 243962,
+  "Legs": 240133,
+  "Boots": 244008,
+  "Rings": 243956,
+  "Weapon": 243973
+ },
+ "gems": {
+  "primary": 240983,
+  "others": [
+   {
+    "itemId": 240892,
+    "name": "Flawless Masterful Peridot",
+    "note": ""
+   },
+   {
+    "itemId": 240898,
+    "name": "Flawless Deadly Amethyst",
+    "note": ""
+   },
+   {
+    "itemId": 240906,
+    "name": "Flawless Quick Garnet",
+    "note": ""
+   }
+  ]
+ }
+}

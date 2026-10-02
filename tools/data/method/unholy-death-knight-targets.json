@@ -1,0 +1,62 @@
+{
+ "slug": "unholy-death-knight",
+ "updated": "",
+ "itemLevel": 334,
+ "incomplete": [
+  "ring enchant not read from the guide"
+ ],
+ "results": {
+  "raid/Single Target": {
+   "ratings": {
+    "crit": 1483.0,
+    "haste": 272.0,
+    "mastery": 1303.0,
+    "versatility": 206.0
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "the one listed gem",
+   "simcRecovery": []
+  },
+  "raid/Multi-Target": {
+   "ratings": {
+    "crit": 1483.0,
+    "haste": 272.0,
+    "mastery": 1303.0,
+    "versatility": 206.0
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "the one listed gem",
+   "simcRecovery": []
+  },
+  "mythic_plus/Single Target": {
+   "ratings": {
+    "crit": 1227.0,
+    "haste": 796.0,
+    "mastery": 1008.0,
+    "versatility": 273.0
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "the one listed gem",
+   "simcRecovery": []
+  },
+  "mythic_plus/Multi-Target": {
+   "ratings": {
+    "crit": 1227.0,
+    "haste": 796.0,
+    "mastery": 1008.0,
+    "versatility": 273.0
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "the one listed gem",
+   "simcRecovery": []
+  }
+ }
+}

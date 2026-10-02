@@ -40,11 +40,7 @@ except ModuleNotFoundError:
     from spec_catalog import SPEC_BY_KEY
 
 SEASON_MAX_ILVL = 334  # Midnight Season 2: Myth 6/6 (tools/upgrade_tracks.py)
-SLUG_TO_SPEC = {
-    "blood-death-knight": "DEATHKNIGHT_BLOOD", "vengeance-demon-hunter": "DEMONHUNTER_VENGEANCE",
-    "guardian-druid": "DRUID_GUARDIAN", "brewmaster-monk": "MONK_BREWMASTER",
-    "protection-paladin": "PALADIN_PROTECTION", "protection-warrior": "WARRIOR_PROTECTION",
-}
+SLUG_TO_SPEC = {f"{s.spec_name.lower().replace(' ', '-')}-{s.class_name}": key for key, s in SPEC_BY_KEY.items()}
 CONTEXT_OF_TAB = {"raid": "RAID", "mythic_plus": "MYTHIC_PLUS"}
 # Method's slot words -> the slot names the shared loadout builder reads.
 SLOT_NAMES = {"head": "Head", "neck": "Neck", "shoulders": "Shoulders", "shoulder": "Shoulders", "cloak": "Back",
@@ -129,12 +125,12 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--simc-bin", type=Path, required=True)
     parser.add_argument("--data", type=Path, default=Path("tools/data/method"))
-    parser.add_argument("--slugs", default=",".join(SLUG_TO_SPEC))
+    parser.add_argument("--slugs", default="all", help="comma-separated slugs, or 'all'")
     args = parser.parse_args(argv)
     fetched = fetch_all()
     specs = build(fetched.sources)
     failed = False
-    for slug in args.slugs.split(","):
+    for slug in (SLUG_TO_SPEC if args.slugs == "all" else args.slugs.split(",")):
         try:
             data = json.loads((args.data / f"{slug}.json").read_text(encoding="utf-8"))
             catalog_key = SLUG_TO_SPEC[slug]

@@ -1,0 +1,472 @@
+{
+ "slug": "frost-death-knight",
+ "updated": "",
+ "priority": [
+  {
+   "hero": "Single Target",
+   "secondary": [
+    [
+     "crit"
+    ],
+    [
+     "mastery"
+    ],
+    [
+     "haste"
+    ],
+    [
+     "versatility"
+    ]
+   ],
+   "line": "Strength > Crit > Mastery >= Haste > Versatility"
+  },
+  {
+   "hero": "Multi-Target",
+   "secondary": [
+    [
+     "crit"
+    ],
+    [
+     "mastery"
+    ],
+    [
+     "haste"
+    ],
+    [
+     "versatility"
+    ]
+   ],
+   "line": "Strength > Crit > Mastery >= Haste > Versatility"
+  }
+ ],
+ "ratingRanges": [],
+ "bestInSlot": {
+  "overall": [
+   {
+    "slot": "Head",
+    "itemId": 271474,
+    "name": "Baleful Grave-Knight’s Casque",
+    "note": "Tier Set",
+    "bonusIds": "40:12854:13335:13692:13696:13698",
+    "source": "Vexhul"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "Venomcursed",
+    "bonusIds": "40:13335:13668:13708:13848",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 271472,
+    "name": "Baleful Grave-Knight’s Gibbets",
+    "note": "Tier Set",
+    "bonusIds": "40:12854:13335:13694:13697",
+    "source": "Murder Row (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "13848:13662",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271477,
+    "name": "Baleful Grave-Knight’s Breastplate",
+    "note": "Tier Set",
+    "bonusIds": "13690:13698:13848",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 237834,
+    "name": "Spellbreaker’s Bracers",
+    "note": "",
+    "bonusIds": "8791:8960:12214:12384:13667:13750:13751:13836:12497",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271475,
+    "name": "Baleful Grave-Knight’s Deathgrips",
+    "note": "Tier Set",
+    "bonusIds": "40:12854:13335:13691:13697",
+    "source": "Entombed Sentinels"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268259,
+    "name": "Girdle of Toxic Regret",
+    "note": "",
+    "bonusIds": "13662:13750:13848",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271878,
+    "name": "Chausses of Unbound Rancor",
+    "note": "Venomcursed",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268260,
+    "name": "Scaled Fiend’s Warboots",
+    "note": "",
+    "bonusIds": "6652:12851:12854:13335:13662",
+    "source": "Entombed Sentinels"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268249,
+    "name": "Vile Alchemist's Band",
+    "note": "",
+    "bonusIds": "13335:13848",
+    "source": "Vashnik"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 251513,
+    "name": "Loa Worshiper's Band",
+    "note": "",
+    "bonusIds": "8960:12214:13751:13836:9627",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270175,
+    "name": "Voracious Heart of Ula’tek",
+    "note": "",
+    "bonusIds": "40:13335:13848",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270173,
+    "name": "Zul’jin’s Guillotine Technique",
+    "note": "",
+    "bonusIds": "4786:13848",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Main Hand (2H)",
+    "itemId": 268213,
+    "name": "Maze-roa, Warlord’s Fury",
+    "note": "",
+    "bonusIds": "40:13335:13848",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Main Hand (DW)",
+    "itemId": 268209,
+    "name": "Aman’muso, Warlord’s Vengance",
+    "note": "",
+    "bonusIds": "13662:13848",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 268202,
+    "name": "Jaw of the Shackled Goddess",
+    "note": "",
+    "bonusIds": "13847:13848",
+    "source": "Ula’tek"
+   }
+  ],
+  "raid": [
+   {
+    "slot": "Head",
+    "itemId": 271474,
+    "name": "Baleful Grave-Knight’s Casque",
+    "note": "Tier Set",
+    "bonusIds": "40:12854:13335:13692:13696:13698",
+    "source": "Vexhul"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "Venomcursed",
+    "bonusIds": "40:13335:13668:13708:13848",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 271472,
+    "name": "Baleful Grave-Knight’s Gibbets",
+    "note": "Tier Set",
+    "bonusIds": "40:12854:13335:13694:13697",
+    "source": "The Lost Explorers"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "13848:13662",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271477,
+    "name": "Baleful Grave-Knight’s Breastplate",
+    "note": "Tier Set",
+    "bonusIds": "13690:13698:13848",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 237834,
+    "name": "Spellbreaker’s Bracers",
+    "note": "",
+    "bonusIds": "8791:8960:12214:12384:13667:13750:13751:13836:12497",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271475,
+    "name": "Baleful Grave-Knight’s Deathgrips",
+    "note": "Tier Set",
+    "bonusIds": "40:12854:13335:13691:13697",
+    "source": "Entombed Sentinels"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268259,
+    "name": "Girdle of Toxic Regret",
+    "note": "",
+    "bonusIds": "13662:13750:13848",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271878,
+    "name": "Chausses of Unbound Rancor",
+    "note": "Venomcursed",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268260,
+    "name": "Scaled Fiend’s Warboots",
+    "note": "",
+    "bonusIds": "6652:12851:12854:13335:13662",
+    "source": "Entombed Sentinels"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 251513,
+    "name": "Loa Worshiper's Band",
+    "note": "",
+    "bonusIds": "8960:12214:13751:13836:9627",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268249,
+    "name": "Vile Alchemist's Band",
+    "note": "",
+    "bonusIds": "13335:13848",
+    "source": "Vashnik"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270175,
+    "name": "Voracious Heart of Ula’tek",
+    "note": "",
+    "bonusIds": "40:13335:13848",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270173,
+    "name": "Zul’jin’s Guillotine Technique",
+    "note": "",
+    "bonusIds": "4786:13848",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Main Hand (2H)",
+    "itemId": 268213,
+    "name": "Maze-roa, Warlord’s Fury",
+    "note": "",
+    "bonusIds": "40:13335:13848",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Main Hand (DW)",
+    "itemId": 268209,
+    "name": "Aman’muso, Warlord’s Vengance",
+    "note": "",
+    "bonusIds": "13662:13848",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 268202,
+    "name": "Jaw of the Shackled Goddess",
+    "note": "",
+    "bonusIds": "13847:13848",
+    "source": "Ula’tek"
+   }
+  ],
+  "mythic_plus": [
+   {
+    "slot": "Head",
+    "itemId": 271474,
+    "name": "Baleful Grave-Knight’s Casque",
+    "note": "Tier Set",
+    "bonusIds": "40:12854:13335:13692:13696:13698",
+    "source": "Murder Row (Catalyst)"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 251234,
+    "name": "Graft of the Domanaar",
+    "note": "",
+    "bonusIds": "13668",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 271472,
+    "name": "Baleful Grave-Knight’s Gibbets",
+    "note": "Tier Set",
+    "bonusIds": "40:12854:13335:13694:13697",
+    "source": "Murder Row (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 239656,
+    "name": "Adherent’s Silken Shroud",
+    "note": "",
+    "bonusIds": "8791:8960:12214:12384:13667:13751:13836:12497",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271477,
+    "name": "Baleful Grave-Knight’s Breastplate",
+    "note": "Tier Set",
+    "bonusIds": "13690:13698:13848",
+    "source": "Ruby Life Pools (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 237834,
+    "name": "Spellbreaker’s Bracers",
+    "note": "",
+    "bonusIds": "8791:8960:12214:12384:13667:13750:13751:13836:12497",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271475,
+    "name": "Baleful Grave-Knight’s Deathgrips",
+    "note": "Tier Set",
+    "bonusIds": "40:12854:13335:13691:13697",
+    "source": "Kings Rest (Catalyst)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 159418,
+    "name": "Girdle of Pestilent Putification",
+    "note": "",
+    "bonusIds": "",
+    "source": "Kings Rest"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 251182,
+    "name": "Bedrock Breeches",
+    "note": "",
+    "bonusIds": "13578",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 159412,
+    "name": "Auric Puddle Stompers",
+    "note": "",
+    "bonusIds": "9024",
+    "source": "Entombed Sentinels"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 251136,
+    "name": "Signet of Snarling Servitude",
+    "note": "",
+    "bonusIds": "13668",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 158366,
+    "name": "Charged Sandstone Band",
+    "note": "",
+    "bonusIds": "12854:13662:13750",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 250238,
+    "name": "Seed of the Devouring Wild",
+    "note": "",
+    "bonusIds": "13440:12806",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 250229,
+    "name": "Idol of the War Loa",
+    "note": "",
+    "bonusIds": "12854:13440:40",
+    "source": "Den of Nalorakk"
+   },
+   {
+    "slot": "Main Hand (2H)",
+    "itemId": 251134,
+    "name": "Xathuux's Cleave",
+    "note": "",
+    "bonusIds": "",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Main Hand (DW)",
+    "itemId": 251195,
+    "name": "Thorned Reply",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 251195,
+    "name": "Thorned Reply",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Blinding Vale"
+   }
+  ]
+ },
+ "enchants": {
+  "Boots": 244009
+ },
+ "gems": {
+  "primary": 240966,
+  "others": [
+   {
+    "itemId": 240898,
+    "name": "Flawless Deadly Amethyst",
+    "note": ""
+   }
+  ]
+ }
+}

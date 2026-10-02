@@ -1,0 +1,153 @@
+{
+ "slug": "feral-druid",
+ "updated": "",
+ "priority": [],
+ "ratingRanges": [],
+ "bestInSlot": {
+  "overall": [
+   {
+    "slot": "Head",
+    "itemId": 271875,
+    "name": "Gaze Of The Coiled Watcher",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Ula'tek (Catalyst)"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula'tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": null,
+    "name": "Any 334",
+    "note": "",
+    "bonusIds": "",
+    "source": "-"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": null,
+    "name": "Any 334",
+    "note": "",
+    "bonusIds": "",
+    "source": "-"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 244576,
+    "name": "Silvermoon Agent's Deflectors",
+    "note": "with Arcanoweave Lining ",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": null,
+    "name": "Any 334",
+    "note": "",
+    "bonusIds": "",
+    "source": "-"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268256,
+    "name": "Sash Of The Forlorn Vessel",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 268225,
+    "name": "Coiled Hex Legguards",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Boots",
+    "itemId": null,
+    "name": "Any 334",
+    "note": "",
+    "bonusIds": "",
+    "source": "-"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 252258,
+    "name": "Sickening Signet Of Atroxus",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268249,
+    "name": "Vile Alchemist's Band",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270175,
+    "name": "Voracious Heart Of Ula'tek",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270173,
+    "name": "Zul'jin's Guillotine Technique",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 268215,
+    "name": "Abyssal Broodfiend's Bardiche",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula'tek"
+   }
+  ]
+ },
+ "enchants": {
+  "Rings": 243957
+ },
+ "gems": {
+  "primary": 240983,
+  "others": [
+   {
+    "itemId": 240892,
+    "name": "Flawless Masterful Peridot",
+    "note": ""
+   },
+   {
+    "itemId": 240900,
+    "name": "Flawless Quick Amethyst",
+    "note": ""
+   },
+   {
+    "itemId": 251513,
+    "name": "Loa Worshiper's Band",
+    "note": ""
+   }
+  ]
+ }
+}

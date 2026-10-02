@@ -1,0 +1,435 @@
+{
+ "slug": "holy-priest",
+ "updated": "",
+ "priority": [
+  {
+   "hero": "Raid",
+   "secondary": [
+    [
+     "crit"
+    ],
+    [
+     "mastery"
+    ],
+    [
+     "versatility"
+    ],
+    [
+     "haste"
+    ]
+   ],
+   "line": "Crit > Mastery > Versatility > Haste M+: Haste > Versatility = Crit > Mastery The Mythic+ stats are aimed at improving your DPS & survivability, which are both key in dungeons. Our mastery is very powerful in raid but not so much in M+ so you’ll want to prioritise other stats."
+  }
+ ],
+ "ratingRanges": [],
+ "bestInSlot": {
+  "overall": [
+   {
+    "slot": "Head",
+    "itemId": 271874,
+    "name": "Venomkeeper's Horrific Cowl",
+    "note": "TIER",
+    "bonusIds": "",
+    "source": "Ula'tek (Catalyst)"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula'tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 271553,
+    "name": "Cosmic Penitent's Echoing Screams",
+    "note": "TIER",
+    "bonusIds": "",
+    "source": "Lost Explorers (Token)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 251132,
+    "name": "Speakeasy Shroud",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 268221,
+    "name": "Tidebound Sorcereress's Robes",
+    "note": "TIER",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 239648,
+    "name": "Martyr's Bindings",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted( Arcanoweave Lining )"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 273773,
+    "name": "Handwraps Of Blasphemous Rites",
+    "note": "TIER",
+    "bonusIds": "",
+    "source": "Altar of Fangs (Catalyst)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268232,
+    "name": "Cincture Of The Abyssal Grotto",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 159234,
+    "name": "Down-Lined Breeches",
+    "note": "TIER",
+    "bonusIds": "13440:12854",
+    "source": "King's Rest (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268218,
+    "name": "Nek'zali's Spiritwalkers",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nek'zali"
+   },
+   {
+    "slot": "Ring 1",
+    "itemId": 251136,
+    "name": "Signet Of Snarling Servitude",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Ring 2",
+    "itemId": 268252,
+    "name": "Apex Brute's Claw Ring",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Trinket 1",
+    "itemId": 270162,
+    "name": "Soulcoiler Ritual Vessel",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nek'zali"
+   },
+   {
+    "slot": "Trinket 2",
+    "itemId": 270164,
+    "name": "Gebbo's Bottomless Bag",
+    "note": "",
+    "bonusIds": "",
+    "source": "Lost Explorers"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 271092,
+    "name": "Jan'thrazet, The Soul Fang",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula'tek"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 245769,
+    "name": "Aln'hara Lantern",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted ( Darkmoon Sigil: Hunt )"
+   }
+  ],
+  "raid": [
+   {
+    "slot": "Head",
+    "itemId": 271874,
+    "name": "Venomkeeper's Horrific Cowl",
+    "note": "TIER",
+    "bonusIds": "",
+    "source": "Ula'tek (Catalyst)"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula'tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 271553,
+    "name": "Cosmic Penitent's Echoing Screams",
+    "note": "TIER",
+    "bonusIds": "",
+    "source": "Lost Explorers (Token)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268248,
+    "name": "Amani Summoning Shawl",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nek'zali"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 268221,
+    "name": "Tidebound Sorcereress's Robes",
+    "note": "TIER",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 268228,
+    "name": "Venom-Singed Cuffs",
+    "note": "",
+    "bonusIds": "",
+    "source": "Entombed Sentinels"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271556,
+    "name": "Cosmic Penitent's Celestial Grips",
+    "note": "TIER",
+    "bonusIds": "",
+    "source": "Entombed Sentinels (Token)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268232,
+    "name": "Cincture Of The Abyssal Grotto",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 268236,
+    "name": "Initiate's Sacrificial Tights",
+    "note": "TIER",
+    "bonusIds": "",
+    "source": "Nek'zali (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268218,
+    "name": "Nek'zali's Spiritwalkers",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nek'zali"
+   },
+   {
+    "slot": "Ring 1",
+    "itemId": 268249,
+    "name": "Vile Alchemist's Band",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik"
+   },
+   {
+    "slot": "Ring 2",
+    "itemId": 268252,
+    "name": "Apex Brute's Claw Ring",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Trinket 1",
+    "itemId": 270162,
+    "name": "Soulcoiler Ritual Vessel",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nek'zali"
+   },
+   {
+    "slot": "Trinket 2",
+    "itemId": 270164,
+    "name": "Gebbo's Bottomless Bag",
+    "note": "",
+    "bonusIds": "",
+    "source": "Lost Explorers"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 271092,
+    "name": "Jan'thrazet, The Soul Fang",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula'tek"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 268263,
+    "name": "Frostscale's Mystic Frond",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   }
+  ],
+  "mythic_plus": [
+   {
+    "slot": "Head",
+    "itemId": 251199,
+    "name": "Worldroot Canopy",
+    "note": "TIER",
+    "bonusIds": "13440:12854",
+    "source": "The Blinding Vale (Catalyst)"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 251234,
+    "name": "Graft Of The Domanaar",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 251227,
+    "name": "Poisoner's Pauldrons",
+    "note": "TIER",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 251132,
+    "name": "Speakeasy Shroud",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 239032,
+    "name": "Robes Of The Reborn Serpent",
+    "note": "TIER",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 251154,
+    "name": "Winter's Embrace Bracers",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Den of Nalorakk"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 273773,
+    "name": "Handwraps Of Blasphemous Rites",
+    "note": "TIER",
+    "bonusIds": "",
+    "source": "Altar of Fangs (Catalyst)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 159255,
+    "name": "Ouroborial Sash",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 159234,
+    "name": "Down-Lined Breeches",
+    "note": "TIER",
+    "bonusIds": "13440:12854",
+    "source": "King's Rest (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 159259,
+    "name": "Sandswept Sandals",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Ring 1",
+    "itemId": 251136,
+    "name": "Signet Of Snarling Servitude",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Ring 2",
+    "itemId": 158366,
+    "name": "Charged Sandstone Band",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Trinket 1",
+    "itemId": 250214,
+    "name": "Lightspire Core",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Trinket 2",
+    "itemId": 250215,
+    "name": "Freightrunner's Flask",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 193761,
+    "name": "Chillworn's Infusion Staff",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Ruby Life Pools"
+   }
+  ]
+ },
+ "enchants": {},
+ "gems": {
+  "primary": 240969,
+  "others": [
+   {
+    "itemId": 240908,
+    "name": "Flawless Masterful Garnet",
+    "note": ""
+   },
+   {
+    "itemId": 240898,
+    "name": "Flawless Deadly Amethyst",
+    "note": ""
+   },
+   {
+    "itemId": 240890,
+    "name": "Flawless Deadly Peridot",
+    "note": ""
+   },
+   {
+    "itemId": 240894,
+    "name": "Flawless Versatile Peridot",
+    "note": ""
+   }
+  ]
+ }
+}
