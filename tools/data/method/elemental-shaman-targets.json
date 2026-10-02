@@ -1,0 +1,70 @@
+{
+ "slug": "elemental-shaman",
+ "updated": "",
+ "itemLevel": 334,
+ "incomplete": [
+  "ring enchant not read from the guide"
+ ],
+ "results": {
+  "raid/Farseer": {
+   "ratings": {
+    "crit": 673.0,
+    "haste": 1310.0,
+    "mastery": 1322.0,
+    "versatility": 194.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Head: enchant 244005 could not be translated"
+   ],
+   "secondaryGem": "first of 4 listed gems",
+   "simcRecovery": []
+  },
+  "raid/Stormbringer": {
+   "ratings": {
+    "crit": 673.0,
+    "haste": 1310.0,
+    "mastery": 1322.0,
+    "versatility": 194.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Head: enchant 244005 could not be translated"
+   ],
+   "secondaryGem": "first of 4 listed gems",
+   "simcRecovery": []
+  },
+  "mythic_plus/Farseer": {
+   "ratings": {
+    "crit": 815.0,
+    "haste": 1133.0,
+    "mastery": 1390.0,
+    "versatility": 134.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Head: enchant 244005 could not be translated"
+   ],
+   "secondaryGem": "first of 4 listed gems",
+   "simcRecovery": []
+  },
+  "mythic_plus/Stormbringer": {
+   "ratings": {
+    "crit": 815.0,
+    "haste": 1133.0,
+    "mastery": 1390.0,
+    "versatility": 134.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Head: enchant 244005 could not be translated"
+   ],
+   "secondaryGem": "first of 4 listed gems",
+   "simcRecovery": []
+  }
+ }
+}

@@ -1,0 +1,36 @@
+{
+ "slug": "fury-warrior",
+ "updated": "",
+ "itemLevel": 334,
+ "incomplete": [
+  "ring enchant not read from the guide"
+ ],
+ "results": {
+  "raid/all": {
+   "ratings": {
+    "crit": 1371.0,
+    "haste": 821.0,
+    "mastery": 1156.0,
+    "versatility": 103.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "the one listed gem",
+   "simcRecovery": []
+  },
+  "mythic_plus/all": {
+   "ratings": {
+    "crit": 507.0,
+    "haste": 1081.0,
+    "mastery": 1494.0,
+    "versatility": 224.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "the one listed gem",
+   "simcRecovery": []
+  }
+ }
+}

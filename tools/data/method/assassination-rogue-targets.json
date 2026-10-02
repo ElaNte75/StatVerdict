@@ -1,0 +1,38 @@
+{
+ "slug": "assassination-rogue",
+ "updated": "",
+ "itemLevel": 334,
+ "incomplete": [],
+ "results": {
+  "raid/all": {
+   "ratings": {
+    "crit": 1190.0,
+    "haste": 818.0,
+    "mastery": 1160.0,
+    "versatility": 249.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Helm: slot not understood"
+   ],
+   "secondaryGem": "no secondary gem listed",
+   "simcRecovery": []
+  },
+  "mythic_plus/all": {
+   "ratings": {
+    "crit": 1019.0,
+    "haste": 975.0,
+    "mastery": 672.0,
+    "versatility": 253.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Helm: slot not understood"
+   ],
+   "secondaryGem": "no secondary gem listed",
+   "simcRecovery": []
+  }
+ }
+}

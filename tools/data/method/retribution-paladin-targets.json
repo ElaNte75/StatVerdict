@@ -1,0 +1,38 @@
+{
+ "slug": "retribution-paladin",
+ "updated": "",
+ "itemLevel": 334,
+ "incomplete": [],
+ "results": {
+  "raid/all": {
+   "ratings": {
+    "crit": 1362.0,
+    "haste": 529.0,
+    "mastery": 1308.0,
+    "versatility": 103.0
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Head: enchant 244005 could not be translated"
+   ],
+   "secondaryGem": "first of 2 listed gems",
+   "simcRecovery": []
+  },
+  "mythic_plus/all": {
+   "ratings": {
+    "crit": 802.0,
+    "haste": 1083.0,
+    "mastery": 1344.0,
+    "versatility": 73.0
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Head: enchant 244005 could not be translated"
+   ],
+   "secondaryGem": "first of 2 listed gems",
+   "simcRecovery": []
+  }
+ }
+}

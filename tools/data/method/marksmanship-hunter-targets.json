@@ -1,0 +1,36 @@
+{
+ "slug": "marksmanship-hunter",
+ "updated": "",
+ "itemLevel": 334,
+ "incomplete": [
+  "ring enchant not read from the guide"
+ ],
+ "results": {
+  "raid/all": {
+   "ratings": {
+    "crit": 1683.0,
+    "haste": 431.0,
+    "mastery": 1256.0,
+    "versatility": 103.0
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "the one listed gem",
+   "simcRecovery": []
+  },
+  "mythic_plus/all": {
+   "ratings": {
+    "crit": 1941.0,
+    "haste": 101.0,
+    "mastery": 1035.0,
+    "versatility": 233.0
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "the one listed gem",
+   "simcRecovery": []
+  }
+ }
+}

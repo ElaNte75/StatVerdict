@@ -1,0 +1,36 @@
+{
+ "slug": "discipline-priest",
+ "updated": "",
+ "itemLevel": 334,
+ "incomplete": [
+  "ring enchant not read from the guide"
+ ],
+ "results": {
+  "raid/all": {
+   "ratings": {
+    "crit": 802.0,
+    "haste": 1845.0,
+    "mastery": 777.0,
+    "versatility": 253.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 4 listed gems",
+   "simcRecovery": []
+  },
+  "mythic_plus/all": {
+   "ratings": {
+    "crit": 827.0,
+    "haste": 2166.0,
+    "mastery": 509.0,
+    "versatility": null
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 4 listed gems",
+   "simcRecovery": []
+  }
+ }
+}

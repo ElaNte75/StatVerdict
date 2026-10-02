@@ -1,0 +1,40 @@
+{
+ "slug": "destruction-warlock",
+ "updated": "",
+ "itemLevel": 334,
+ "incomplete": [
+  "ring enchant not read from the guide"
+ ],
+ "results": {
+  "raid/all": {
+   "ratings": {
+    "crit": 1025.0,
+    "haste": 1071.0,
+    "mastery": 1231.0,
+    "versatility": 206.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Head: enchant 243948 could not be translated"
+   ],
+   "secondaryGem": "first of 2 listed gems",
+   "simcRecovery": []
+  },
+  "mythic_plus/all": {
+   "ratings": {
+    "crit": 1149.0,
+    "haste": 967.0,
+    "mastery": 1052.0,
+    "versatility": 66.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Head: enchant 243948 could not be translated"
+   ],
+   "secondaryGem": "first of 2 listed gems",
+   "simcRecovery": []
+  }
+ }
+}

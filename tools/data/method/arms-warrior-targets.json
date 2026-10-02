@@ -1,0 +1,40 @@
+{
+ "slug": "arms-warrior",
+ "updated": "",
+ "itemLevel": 334,
+ "incomplete": [
+  "ring enchant not read from the guide"
+ ],
+ "results": {
+  "raid/all": {
+   "ratings": {
+    "crit": 1499.0,
+    "haste": 826.0,
+    "mastery": 835.0,
+    "versatility": 103.0
+   },
+   "items": 15,
+   "problems": [
+    "unknown slot: Alt. Main Hand"
+   ],
+   "enchantsNotApplied": [],
+   "secondaryGem": "the one listed gem",
+   "simcRecovery": []
+  },
+  "mythic_plus/all": {
+   "ratings": {
+    "crit": 1321.0,
+    "haste": 1777.0,
+    "mastery": 272.0,
+    "versatility": null
+   },
+   "items": 15,
+   "problems": [
+    "unknown slot: Alt. Main Hand"
+   ],
+   "enchantsNotApplied": [],
+   "secondaryGem": "the one listed gem",
+   "simcRecovery": []
+  }
+ }
+}

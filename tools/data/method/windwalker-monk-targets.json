@@ -1,0 +1,38 @@
+{
+ "slug": "windwalker-monk",
+ "updated": "",
+ "itemLevel": 334,
+ "incomplete": [],
+ "results": {
+  "raid/all": {
+   "ratings": {
+    "crit": 340.0,
+    "haste": 942.0,
+    "mastery": 1418.0,
+    "versatility": 149.0
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Head: enchant 244005 could not be translated"
+   ],
+   "secondaryGem": "first of 3 listed gems",
+   "simcRecovery": []
+  },
+  "mythic_plus/all": {
+   "ratings": {
+    "crit": 373.0,
+    "haste": 1241.0,
+    "mastery": 1458.0,
+    "versatility": 46.0
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Head: enchant 244005 could not be translated"
+   ],
+   "secondaryGem": "first of 3 listed gems",
+   "simcRecovery": []
+  }
+ }
+}

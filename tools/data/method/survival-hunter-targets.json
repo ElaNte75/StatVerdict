@@ -1,0 +1,60 @@
+{
+ "slug": "survival-hunter",
+ "updated": "",
+ "itemLevel": 334,
+ "incomplete": [],
+ "results": {
+  "raid/Single Target": {
+   "ratings": {
+    "crit": 642.0,
+    "haste": 977.0,
+    "mastery": 1556.0,
+    "versatility": 247.0
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "the one listed gem",
+   "simcRecovery": []
+  },
+  "raid/AOE": {
+   "ratings": {
+    "crit": 642.0,
+    "haste": 977.0,
+    "mastery": 1556.0,
+    "versatility": 247.0
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "the one listed gem",
+   "simcRecovery": []
+  },
+  "mythic_plus/Single Target": {
+   "ratings": {
+    "crit": 635.0,
+    "haste": 1089.0,
+    "mastery": 1649.0,
+    "versatility": 53.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "the one listed gem",
+   "simcRecovery": []
+  },
+  "mythic_plus/AOE": {
+   "ratings": {
+    "crit": 635.0,
+    "haste": 1089.0,
+    "mastery": 1649.0,
+    "versatility": 53.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "the one listed gem",
+   "simcRecovery": []
+  }
+ }
+}

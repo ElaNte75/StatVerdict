@@ -1,0 +1,38 @@
+{
+ "slug": "arcane-mage",
+ "updated": "",
+ "itemLevel": 334,
+ "incomplete": [],
+ "results": {
+  "raid/all": {
+   "ratings": {
+    "crit": 764.0,
+    "haste": 1339.0,
+    "mastery": 594.0,
+    "versatility": 336.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Head: enchant 244005 could not be translated"
+   ],
+   "secondaryGem": "no secondary gem listed",
+   "simcRecovery": []
+  },
+  "mythic_plus/all": {
+   "ratings": {
+    "crit": 872.0,
+    "haste": 1098.0,
+    "mastery": 682.0,
+    "versatility": 353.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Head: enchant 244005 could not be translated"
+   ],
+   "secondaryGem": "no secondary gem listed",
+   "simcRecovery": []
+  }
+ }
+}
