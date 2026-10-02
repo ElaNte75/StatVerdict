@@ -49,11 +49,13 @@ def next_data_version(current: str, today: date) -> str | None:
 
 
 def _read(path: Path) -> str:
-    return path.read_text(encoding="utf-8", newline="")
+    with open(path, encoding="utf-8", newline="") as handle:
+        return handle.read()
 
 
 def _write(path: Path, text: str) -> None:
-    path.write_text(text, encoding="utf-8", newline="")
+    with open(path, "w", encoding="utf-8", newline="") as handle:
+        handle.write(text)
 
 
 def _replace_once(path: Path, pattern: str, replacement: str) -> None:

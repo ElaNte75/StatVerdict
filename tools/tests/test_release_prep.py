@@ -48,17 +48,22 @@ STORE = "# StatVerdict — store & launch copy (v{version})\n\nText with (v9.9.9
 PENDING = "# StatVerdict {version}\n\nWaiting.\n\n```\n{version}\nFixed\n- Something.\n```\n"
 
 
+def write_raw(path: Path, text: str) -> None:
+    with open(path, "w", encoding="utf-8", newline="") as handle:
+        handle.write(text)
+
+
 def build_tree(root: Path, version: str, pending: bool, newline: str = "\n") -> None:
     addon = root / "StatVerdict"
     addon.mkdir(parents=True)
-    (addon / "StatVerdict.toc").write_text(TOC.format(version=version).replace("\n", newline), encoding="utf-8", newline="")
-    (addon / "StatVerdict.lua").write_text(LUA.format(version=version).replace("\n", newline), encoding="utf-8", newline="")
-    (addon / "STORE.md").write_text(STORE.format(version=version).replace("\n", newline), encoding="utf-8", newline="")
+    write_raw(addon / "StatVerdict.toc", TOC.format(version=version).replace("\n", newline))
+    write_raw(addon / "StatVerdict.lua", LUA.format(version=version).replace("\n", newline))
+    write_raw(addon / "STORE.md", STORE.format(version=version).replace("\n", newline))
     changelog = root / "docs" / "changelog"
     changelog.mkdir(parents=True)
     (changelog / "1.1.0_2026-10-01.md").write_text("old\n", encoding="utf-8")
     if pending:
-        (changelog / f"{version}_pending.md").write_text(PENDING.format(version=version).replace("\n", newline), encoding="utf-8", newline="")
+        write_raw(changelog / f"{version}_pending.md", PENDING.format(version=version).replace("\n", newline))
 
 
 class PrepareTests(unittest.TestCase):
