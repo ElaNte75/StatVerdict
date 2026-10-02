@@ -1,7 +1,7 @@
 # StatVerdict — where we stand (updated 2026-10-02). The ONLY notes file: replace it, never add another.
 
 Read this first, then `git log --oneline -20`, then `StatVerdict/VERIFICATION.md` (the in-game checklist).
-When this file is rewritten, delete what is no longer true. Past release notes live in `CHANGELOG.md`.
+When this file is rewritten, delete what is no longer true. Release notes live in `docs/changelog/`, one file per version (`<version>_<date>.md`; the one being prepared ends in `_pending`).
 
 ## Who and how
 - Owner: Gchris (GitHub `ElaNte75/StatVerdict`). A non-programmer product owner who reads on a phone and speaks Greek.
@@ -30,7 +30,7 @@ When this file is rewritten, delete what is no longer true. Past release notes l
 
 ## Release state
 - **1.1.0 is on CurseForge.** The owner uploads by hand with `StatVerdict Ship (no bump).bat` (builds the zip on his Desktop). `StatVerdict Ship.bat` also bumps the version.
-- **The repo is at 1.1.1**, planned upload: the Wednesday after 1.1.0, one batch of fixes. Everything fixed from now on goes into the 1.1.1 section of `CHANGELOG.md`, and into `StatVerdict/STORE.md` (its header version is checked by a test).
+- **The repo is at 1.1.1**, planned upload: the Wednesday after 1.1.0, one batch of fixes. Everything fixed from now on goes into `docs/changelog/1.1.1_pending.md`, and into `StatVerdict/STORE.md` (its header version is checked by a test).
 - 1.1.1 so far: vanished gear leaves saved loadouts; `/sv ag`; `/sv mouse`; Adventure Guide tab flicker fixed; equip/spec-change freeze fixed.
 
 ## What the addon is
