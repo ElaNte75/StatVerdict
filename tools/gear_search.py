@@ -89,7 +89,7 @@ POOL_SLOTS = {
 PAIRED = {"FINGER_1": "FINGER_2", "FINGER_2": "FINGER_1", "TRINKET_1": "TRINKET_2", "TRINKET_2": "TRINKET_1"}
 SEARCH_FIGHT = ()  # Patchwerk, one target
 FIGHTS = {"single target": (), "three targets": ("desired_targets=3",), "dungeon slice": ("fight_style=DungeonSlice",)}
-METRIC_NAMES = {"Damage per Second": "dps", "Damage Taken per Second": "dtps"}
+METRIC_NAMES = {"Damage per Second": "dps", "Damage Taken per Second": "dtps", "Healing per Second": "hps"}
 Z_NEEDED = 2.0
 MAX_ROUNDS = 6
 
@@ -104,6 +104,11 @@ def objective_value(objective: str, metrics: dict[str, tuple[float, float]]) -> 
     dtps, dtps_se = metrics["dtps"]
     if objective == "survival":
         return -dtps, dtps_se
+    if objective == "survival_net":
+        # The second survival measure: damage taken minus the tank's own healing and absorbs per second
+        # (a split that only wins by feeding the self-heal shows up here as a smaller gain).
+        hps, hps_se = metrics["hps"]
+        return hps - dtps, math.hypot(dtps_se, hps_se)
     if objective == "balance":
         return math.log(dps) - math.log(dtps), math.hypot(dps_se / dps, dtps_se / dtps)
     raise ValueError(f"unknown objective {objective!r}")
@@ -115,6 +120,9 @@ def objective_gain_percent(objective: str, base: dict[str, tuple[float, float]],
         return 100 * (other["dps"][0] - base["dps"][0]) / base["dps"][0]
     if objective == "survival":
         return 100 * (base["dtps"][0] - other["dtps"][0]) / base["dtps"][0]
+    if objective == "survival_net":
+        net = lambda m: m["dtps"][0] - m["hps"][0]
+        return 100 * (net(base) - net(other)) / net(base)
     return 100 * (math.exp(objective_value("balance", other)[0] - objective_value("balance", base)[0]) - 1)
 
 
@@ -268,7 +276,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--hero")
     parser.add_argument("--threads", type=int, default=4)
     parser.add_argument("--pool", type=Path, default=Path("tools/data/blizzard_item_pool.json"))
-    parser.add_argument("--objective", choices=("dps", "survival", "balance"), default="dps")
+    parser.add_argument("--objective", choices=("dps", "survival", "survival_net", "balance"), default="dps")
     parser.add_argument("--out", type=Path, default=None, help="default: docs/gear-search/<spec>-<goal>-<objective>")
     args = parser.parse_args(argv)
     if args.out is None:
