@@ -67,6 +67,7 @@ For Mythic+, Raid, and PvP:
 3. Sell it, then buy it back from the vendor within 10 minutes: it is put back into the loadout.
 4. After a loading screen, an old Off Spec item you no longer own (for example a former necklace) is removed within about 20 seconds.
 5. The spec you are playing is never changed by this.
+6. `/sv ag` then `/reload`: the Adventure Guide shows no marks and its tabs (Overview, Loot, ...) show their tooltip steadily; `/sv ag` and `/reload` again brings the marks back. (Reported: with the addon on, the tab tooltip blinks on and off while the mouse is on the Loot tab; the cause is not found yet.)
 
 ### Guide, tiers and tooltips (1.1.0)
 

@@ -164,6 +164,11 @@ local function HandleSlash(msg)
 
     if cmd == "approve" then
         ApproveFromCommand(arg)
+    elseif cmd == "ag" then
+        StatVerdictDB = StatVerdictDB or {}
+        StatVerdictDB.adventureGuideMarksOff = not StatVerdictDB.adventureGuideMarksOff or nil
+        PrintSV("Adventure Guide marks are now " .. (StatVerdictDB.adventureGuideMarksOff and "OFF" or "ON")
+            .. ". Type /reload to apply.")
     elseif cmd == "help" or cmd == "" then
         PrintSV("Available commands:")
         print("  Alt-Right-Click an upgrade in bags to save it into Main Spec")
@@ -171,6 +176,7 @@ local function HandleSlash(msg)
         print("  /sv approve - Save the hovered upgrade into Main Spec")
         print("  /sv approve secondary - Save into Off Spec when dual-build is enabled")
         print("  /sv minimap - Show the minimap icon")
+        print("  /sv ag - Switch the Adventure Guide marks off / on")
         print("  /sv help - Show this help message")
         print("  /sva - Open / close the StatVerdict window")
     else

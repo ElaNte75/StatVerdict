@@ -754,7 +754,8 @@ local function AnyArrowWindowVisible()
         return true
     end
     for _, name in ipairs({ "MerchantFrame", "QuestFrame", "QuestInfoFrame", "EncounterJournal" }) do
-        if IsFrameVisible(_G[name]) then
+        local skip = name == "EncounterJournal" and ns.IsAdventureGuideMarksEnabled and not ns.IsAdventureGuideMarksEnabled()
+        if not skip and IsFrameVisible(_G[name]) then
             return true
         end
     end

@@ -15,6 +15,12 @@ local lastSoftRefreshAt = 0
 local MIN_SOFT_REFRESH_INTERVAL = 0.75
 local requestedItemIDs = {}
 
+-- "/sv ag" switches the Adventure Guide marks off (and on again): a way to tell whether the marks are what
+-- makes the Adventure Guide misbehave. Saved in StatVerdictDB.adventureGuideMarksOff.
+function ns.IsAdventureGuideMarksEnabled()
+    return not (StatVerdictDB and StatVerdictDB.adventureGuideMarksOff)
+end
+
 local function LooksLikeItemLink(value)
     return type(value) == "string" and (value:find("|Hitem:", 1, true) or value:find("^item:%d+"))
 end
@@ -110,6 +116,9 @@ local function IsAdventureLootButton(frame)
 end
 
 local function ScanAdventureGuide()
+    if not ns.IsAdventureGuideMarksEnabled() then
+        return 0
+    end
     local root = _G.EncounterJournal
     if not root or type(root.IsShown) ~= "function" or not root:IsShown() then
         return 0
@@ -145,6 +154,9 @@ end
 
 -- Coalesced AG-only refresh. Does not wipe bags / other sources.
 local function SoftRefreshSoon()
+    if not ns.IsAdventureGuideMarksEnabled() then
+        return
+    end
     local journal = _G.EncounterJournal
     if not (journal and type(journal.IsShown) == "function" and journal:IsShown()) then
         return
@@ -257,6 +269,9 @@ sourceFrame:SetScript("OnEvent", function(_, event, arg1)
     elseif event == "ADDON_LOADED" and arg1 == "Blizzard_EncounterJournal" then
         InitializeAdventureGuideSource()
     elseif event == "GET_ITEM_INFO_RECEIVED" then
+        if not ns.IsAdventureGuideMarksEnabled() then
+            return
+        end
         local journal = _G.EncounterJournal
         if not (journal and type(journal.IsShown) == "function" and journal:IsShown()) then
             return
