@@ -30,6 +30,7 @@ When this file is rewritten, delete what is no longer true. Release notes live i
 
 ## Release state
 - **1.1.0 is on CurseForge.** The owner uploads by hand with `StatVerdict Ship (no bump).bat` (builds the zip on his Desktop). `StatVerdict Ship.bat` also bumps the version.
+- **When the owner says a version was uploaded to CurseForge**, rename its `_pending` changelog file to `<version>_<upload date>.md` (git mv), commit and push. Do not automate it: only the owner knows when the upload happened.
 - **The repo is at 1.1.1**, planned upload: the Wednesday after 1.1.0, one batch of fixes. Everything fixed from now on goes into `docs/changelog/1.1.1_pending.md`, and into `StatVerdict/STORE.md` (its header version is checked by a test).
 - 1.1.1 so far: vanished gear leaves saved loadouts; `/sv ag`; `/sv mouse`; Adventure Guide tab flicker fixed; equip/spec-change freeze fixed.
 
