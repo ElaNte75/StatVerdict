@@ -11,7 +11,6 @@ from unittest.mock import patch
 
 from tools import classcodex_targets_cli
 from tools.classcodex_fetch import FetchResult
-from tools.classcodex_weights import build_all_weights
 from tools.classcodex_targets import (
     SkipRecord,
     build_all,
@@ -81,26 +80,6 @@ class SkipRecordingTests(unittest.TestCase):
         self.assertEqual({}, data["profiles"])
         self.assertIn(SkipRecord("DEATHKNIGHT_FROST", "MYTHIC_PLUS", "deathbringer", "SimC run failed (RuntimeError)"), skips)
 
-    def test_build_all_weights_reports_noise_rejections(self) -> None:
-        by_stat = {"Crit": 1.0, "Haste": 0.5, "Mastery": 0.4, "Vers": -0.2}
-        report = {"sim": {"players": [{"name": "sv_0001", "scale_factors_all": {"dps": by_stat}}]}}
-        skips: list[SkipRecord] = []
-        with patch("tools.classcodex_weights.run_simc", return_value=({}, report)):
-            data = build_all_weights(SPECS, Path("simc"), goals=("MYTHIC_PLUS",), skips=skips)
-        self.assertEqual({}, data["profiles"])
-        self.assertIn(
-            SkipRecord("DEATHKNIGHT_FROST", "MYTHIC_PLUS", "deathbringer", "negative dps scale factor (noise)"), skips
-        )
-
-    def test_build_all_weights_borrows_talents_from_another_goal(self) -> None:
-        by_stat = {"Crit": 1.0, "Haste": 0.5, "Mastery": 0.4, "Vers": 0.2}
-        report = {"sim": {"players": [{"name": "sv_0001", "scale_factors_all": {"dps": by_stat}}]}}
-        skips: list[SkipRecord] = []
-        with patch("tools.classcodex_weights.run_simc", return_value=({}, report)):
-            data = build_all_weights(SPECS, Path("simc"), goals=("MYTHIC_PLUS", "RAID"), skips=skips)
-        self.assertIn("RAID", data["profiles"]["DEATHKNIGHT_FROST"]["goals"])
-        self.assertEqual([], [skip for skip in skips if skip.spec_key == "DEATHKNIGHT_FROST"])
-
     def test_skip_argument_is_optional(self) -> None:
         with patch("tools.classcodex_targets.run_simc", side_effect=RuntimeError("boom")):
             self.assertEqual({}, build_all(SPECS, Path("simc"))["profiles"])
@@ -121,13 +100,6 @@ class SimcErrorLoggingTests(unittest.TestCase):
         self.assertIn("FATAL-HEAD", stderr.getvalue())
         self.assertIn("TAIL-END", stderr.getvalue())
         self.assertLess(len(stderr.getvalue()), 2500)
-
-    def test_weights_log_the_head_and_the_tail_of_a_long_simc_error(self) -> None:
-        stderr = io.StringIO()
-        with redirect_stderr(stderr), patch("tools.classcodex_weights.run_simc", side_effect=RuntimeError(LONG_SIMC_ERROR)):
-            build_all_weights(SPECS, Path("simc"), goals=("MYTHIC_PLUS",))
-        self.assertIn("FATAL-HEAD", stderr.getvalue())
-        self.assertIn("TAIL-END", stderr.getvalue())
 
     def test_short_errors_are_logged_whole(self) -> None:
         self.assertEqual("boom", format_simc_error(RuntimeError("boom")))

@@ -1,5 +1,5 @@
 """End-to-end: raw ClassCodex Lua source -> tools.classcodex_build.build() ->
-tools.classcodex_targets.build_all / tools.classcodex_weights.build_all_weights,
+tools.classcodex_targets.build_all,
 with only SimulationCraft mocked.
 
 The fixture mirrors the layout of the REAL live data (verified against build
@@ -24,7 +24,6 @@ from unittest.mock import patch
 
 from tools.classcodex_build import build
 from tools.classcodex_targets import build_all
-from tools.classcodex_weights import build_all_weights
 
 SLOTS = (
     "Head", "Neck", "Shoulders", "Back", "Chest", "Wrist", "Hands", "Waist",
@@ -146,40 +145,6 @@ class RealShapedPipelineTests(unittest.TestCase):
         self.assertIn("talents=DB-PVP", talents_used)
         self.assertNotIn("talents=DB-DUNGEON", talents_used)
         self.assertEqual(6, len(profiles_seen))  # 3 goals x 2 hero talents
-
-    def test_weights_pipeline_produces_every_goal_for_every_hero_talent(self) -> None:
-        by_stat = {"Str": 0.0, "Crit": 0.653, "Haste": 0.492, "Mastery": 0.455, "Vers": 0.345}
-        report = {"sim": {"players": [{"name": "sv_0001", "scale_factors": by_stat, "scale_factors_all": {"dps": by_stat}}]}}
-        with patch("tools.classcodex_weights.run_simc", return_value=({}, report)):
-            data = build_all_weights(self.specs, Path("simc"))
-
-        self.assertTrue(data["profiles"], "real-shaped data must produce at least one weights profile")
-        profile = data["profiles"]["DEATHKNIGHT_FROST"]
-        for goal in ("MYTHIC_PLUS", "RAID", "PVP"):
-            self.assertEqual({"deathbringer", "rider-of-the-apocalypse"}, set(profile["goals"][goal]["heroTalents"]))
-        weights = profile["goals"]["RAID"]["heroTalents"]["deathbringer"]
-        self.assertEqual({"critical_strike", "haste", "mastery", "versatility"}, set(weights))
-        self.assertAlmostEqual(1.0, weights["critical_strike"])
-
-    def test_targets_and_weights_share_spec_keys_and_nesting(self) -> None:
-        by_stat = {"Crit": 0.653, "Haste": 0.492, "Mastery": 0.455, "Vers": 0.345}
-        report = {"sim": {"players": [{"name": "sv_0001", "scale_factors_all": {"dps": by_stat}}]}}
-        with patch("tools.classcodex_targets.run_simc", return_value=({"sv_0001": RECONSTRUCTED}, {})):
-            targets = build_all(self.specs, Path("simc"))
-        with patch("tools.classcodex_weights.run_simc", return_value=({}, report)):
-            weights = build_all_weights(self.specs, Path("simc"))
-
-        def shape(data: dict) -> set[tuple[str, str, str]]:
-            return {
-                (spec_key, goal, hero)
-                for spec_key, profile in data["profiles"].items()
-                for goal, goal_data in profile["goals"].items()
-                for hero in goal_data["heroTalents"]
-            }
-
-        self.assertEqual(shape(targets), shape(weights))
-        self.assertEqual(targets["profiles"]["DEATHKNIGHT_FROST"]["specKey"], weights["profiles"]["DEATHKNIGHT_FROST"]["specKey"])
-
 
 if __name__ == "__main__":
     unittest.main()

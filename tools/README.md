@@ -1,8 +1,7 @@
 # StatVerdict data pipelines
 
 Everything the addon knows about a specialization (Mythic+, Raid and PvP stat
-targets, best-in-slot gear, ranked trinkets, stat priority and measured stat
-weights) comes from the ClassCodex data below. The addon loads the generated
+targets, best-in-slot gear, ranked trinkets and stat priority) comes from the ClassCodex data below. The addon loads the generated
 files from `StatVerdict/Data/Generated/` (see `StatVerdict/StatVerdict.toc`);
 they are produced by GitHub Actions and must not be edited by hand.
 
@@ -40,9 +39,9 @@ source and the real installed addon both have it correctly.
   `StatVerdict/Data/Generated/SV_StatDR.lua` (the stat diminishing-returns
   module the addon loads); `--report` prints a per-spec source summary of the
   built data instead of writing. The per-spec data itself is not written as a
-  file: the targets and weights pipelines below build it in memory.
+  file: the targets pipeline below builds it in memory.
 
-## Stat targets and stat weights (what the addon reads)
+## Stat targets (what the addon reads)
 
 - `tools/classcodex_targets.py` / `tools/classcodex_targets_cli.py` -- for
   every spec, goal (`MYTHIC_PLUS`, `RAID`, `PVP`) and hero talent, rebuilds
@@ -57,16 +56,15 @@ source and the real installed addon both have it correctly.
 - `tools/upgrade_tracks.py` -- the upgrade tracks (Adventurer to Myth), their
   ranks and item levels from the game's DB2 tables on wago.tools, and the
   verified Myth -> Hero / Champion swap table used above.
-- `tools/classcodex_weights.py` -- SimC scale-factor runs. The addon no longer
-  ships measured weights (the Measured mode was removed 2026-10-01); this is
-  now only a research library (see `tools/gear_search.py`, `tools/stat_split_probe.py`,
-  `tools/tank_survival_probe.py`).
 - `tools/item_sources.py` -- writes `SV_ItemSources.lua` (where each item drops: dungeon or raid and boss) from the
   Adventure Journal pool `tools/data/blizzard_item_pool.json` (refreshed with `tools/blizzard_item_pool.py`, which needs
   Blizzard API credentials from the environment); the tooltips' "Where to find" lines read it. Items the journal
   does not list get no line.
 - `tools/spec_catalog.py` -- the 40 specializations (addon spec key, names,
   role, primary stat); `tools/lua_render.py` -- renders data as Lua.
+- `tools/method_guides.py` / `tools/method_targets.py` -- reads Method's guides into `tools/data/method/`
+  (a second guide source being prepared; not used by the addon yet).
+- `tools/item_check_verdict.py` -- loads the whole addon in Lua; the scoring tests build on it.
 
 Inside the addon, `StatVerdict/Core/SV_ProfileRepository.lua` is the only
 reader of these files. It picks the player's hero tree by its subtree ID (a
