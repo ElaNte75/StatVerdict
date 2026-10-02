@@ -1,4 +1,4 @@
-# StatVerdict — store & launch copy (v1.1.0)
+# StatVerdict — store & launch copy (v1.1.1)
 
 Use this on CurseForge / Wago / Discord. Edit tone freely; keep the audience clear.
 
@@ -79,7 +79,17 @@ Keywords: gear, upgrade, bis, offspec, mythic+, loot, stats, trinket, priority
 
 ---
 
-## Changelog (1.1.0) — paste into CurseForge
+## Changelog (1.1.1) — paste into CurseForge
+
+```
+1.1.1
+Fixed
+- A saved loadout (Main Spec or Off Spec) no longer keeps gear that is gone. When an item of a saved loadout is sold, disenchanted, deleted or otherwise lost, it is removed from the loadout and the slot falls back to what you are wearing there. A line in the chat tells you. An item bought back from a vendor within 10 minutes goes back where it was.
+```
+
+---
+
+## Older changelog (1.1.0)
 
 ```
 1.1.0

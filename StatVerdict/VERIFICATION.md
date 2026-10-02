@@ -60,6 +60,14 @@ For Mythic+, Raid, and PvP:
 - Manual, tooltip, and store copy must describe the same behavior.
 - The TOC, runtime version, changelog, and release archive version must match.
 
+### Vanished gear (1.1.1)
+
+1. Put a bag item into the Off Spec loadout (Approve), then sell it: a few seconds later the chat says it was removed, and the item no longer shows MS/OS anywhere.
+2. Move an Off Spec item to the bank or the warband bank: it stays in the loadout.
+3. Sell it, then buy it back from the vendor within 10 minutes: it is put back into the loadout.
+4. After a loading screen, an old Off Spec item you no longer own (for example a former necklace) is removed within about 20 seconds.
+5. The spec you are playing is never changed by this.
+
 ### Guide, tiers and tooltips (1.1.0)
 
 1. Guide drawer: exactly one of Auto / Tier 1 / Tier 2 / Tier 3 is ticked, whatever you click.

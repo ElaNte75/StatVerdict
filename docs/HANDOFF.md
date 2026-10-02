@@ -152,8 +152,8 @@ Also pending: the `ClassCodex live data refresh` with the fixed selection code (
 `python tools/guide_fidelity_check.py` must show no bis / priority / targets differences), the stricter stat split
 run, the open question of the primary stat on trinkets (half or full weight of the first secondary).
 
-## Next version (1.1.1): vanished gear leaves the saved loadouts
+## Version 1.1.1: vanished gear leaves the saved loadouts
 `ns.PruneVanishedLoadoutItems` (Core/SV_SpecSnapshot.lua): an item of a saved loadout (not the active spec) that is no longer owned
 (worn, bags, bank, warband bank; by item id) is removed after two looks 3 s apart, its slot falls back to the worn item, a chat line
 says so, and a buyback within 10 minutes puts it back. Runs on BAG_UPDATE_DELAYED and 15 s after a loading screen.
-Not verified in game. Kept OFF main until 1.1.0 is published (pushed to the working branch only).
+Not verified in game. Part of 1.1.1 (version bumped; planned release: the Wednesday after 1.1.0, one batch of fixes, with its changelog in STORE.md). Anything fixed from now on goes into 1.1.1.
