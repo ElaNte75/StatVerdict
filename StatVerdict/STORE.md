@@ -88,6 +88,8 @@ New
 - /sv mouse lists, for 8 seconds, which frames sit under the mouse (handy for bug reports).
 Fixed
 - A saved loadout (Main Spec or Off Spec) no longer keeps gear that is gone. When an item of a saved loadout is sold, disenchanted, deleted or otherwise lost, it is removed from the loadout and the slot falls back to what you are wearing there. A line in the chat tells you. An item bought back from a vendor within 10 minutes goes back where it was.
+- The Adventure Guide tabs (Overview, Loot, ...) no longer flicker or become hard to click while StatVerdict is running. StatVerdict no longer adds a click handler to the game tooltip, which was taking the mouse away from whatever the tooltip sat on.
+- The short freeze when you equip an item or change spec is gone. StatVerdict now works out your build once per bag check instead of once per item.
 ```
 
 ---

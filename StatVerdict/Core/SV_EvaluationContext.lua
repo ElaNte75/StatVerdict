@@ -70,10 +70,33 @@ local function BuildCurrentContext()
     }
 end
 
+-- One scan of many items (bags, merchant, journal) asks for the same contexts again and again.
+-- Between BeginContextScan and EndContextScan they are built once and reused; every new scan starts
+-- empty, so a gear, spec or setting change is picked up by the next scan.
+local contextScan = nil
+
+function ns.BeginContextScan()
+    contextScan = {}
+end
+
+function ns.EndContextScan()
+    contextScan = nil
+end
+
+function ns.GetContextScanCache()
+    return contextScan
+end
+
 function ns.GetEvaluationContext()
+    if contextScan and contextScan.evaluation then
+        return contextScan.evaluation
+    end
     local context = BuildCurrentContext()
     if ns.LoadEvaluationProfile then
         context.profile = ns.LoadEvaluationProfile(context)
+    end
+    if contextScan then
+        contextScan.evaluation = context
     end
     return context
 end

@@ -1058,8 +1058,13 @@ local function GetBaseContextForAudit()
 end
 
 function ns.GetTooltipEvaluationContexts()
+    local scan = ns.GetContextScanCache and ns.GetContextScanCache() or nil
+    if scan and scan.tooltipReady then
+        return scan.tooltipPrimary, scan.tooltipSecondary
+    end
     local baseContext = GetBaseContextForAudit()
     if not baseContext or not baseContext.profile then
+        if scan then scan.tooltipReady = true end
         return nil, nil
     end
 
@@ -1076,6 +1081,9 @@ function ns.GetTooltipEvaluationContexts()
         secondaryContext = BuildContextForSpec(baseContext, secondarySpecID, selection, selection.secondaryGoalMode)
     end
     SaveSelection(selection)
+    if scan then
+        scan.tooltipReady, scan.tooltipPrimary, scan.tooltipSecondary = true, primaryContext, secondaryContext
+    end
     return primaryContext, secondaryContext
 end
 

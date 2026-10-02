@@ -659,13 +659,19 @@ local function ScanVisibleItemFrames(kind)
         bagRefreshCounter = bagRefreshCounter + 1
     end
 
-    if AnyKnownContainerVisible() then
-        ScanBagButtons()
-    end
+    -- The whole scan shares one set of evaluation contexts instead of rebuilding them per item.
+    ns.BeginContextScan()
+    local ok, err = pcall(function()
+        if AnyKnownContainerVisible() then
+            ScanBagButtons()
+        end
 
-    if kind == "full" then
-        ScanRegisteredSources()
-    end
+        if kind == "full" then
+            ScanRegisteredSources()
+        end
+    end)
+    ns.EndContextScan()
+    if not ok then error(err, 0) end
 end
 
 local function RunPendingRefresh()
