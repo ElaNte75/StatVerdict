@@ -160,9 +160,14 @@ end
 local function FrameLabel(frame)
     local parts, current, depth = {}, frame, 0
     while current and depth < 4 do
-        local name = type(current.GetName) == "function" and current:GetName() or nil
-        parts[#parts + 1] = name or (type(current.GetObjectType) == "function" and current:GetObjectType() or "?")
-        current = type(current.GetParent) == "function" and current:GetParent() or nil
+        local ok, name = pcall(function() return current:GetName() end)
+        if not (ok and type(name) == "string" and name ~= "") then
+            local okType, objectType = pcall(function() return current:GetObjectType() end)
+            name = okType and type(objectType) == "string" and objectType or "?"
+        end
+        parts[#parts + 1] = name
+        local okParent, parent = pcall(function() return current:GetParent() end)
+        current = okParent and parent or nil
         depth = depth + 1
     end
     return table.concat(parts, " < ")
