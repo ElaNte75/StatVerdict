@@ -13,3 +13,12 @@ Guide drawer, copied 1:1 and verified, never mixed with another source.
 | Bloodmallet | yes | - | simulation results, not a guide | not a guide source |
 
 Plan: add one source at a time; import, verify against the live pages from several sides, then the next.
+
+## Method import, state (2026-10-02)
+- `tools/method_guides.py` reads the six tank guides (priority per hero tree, Best in Slot tabs Raid / Mythic+, enchants,
+  gems) into `tools/data/method/<slug>.json` (facts only).
+- `tools/method_targets.py` adds up the listed set (item level 334 = season top, one unique Diamond, secondary gem only into
+  real sockets, enchants only on slots that take them) into `tools/data/method/<slug>-targets.json`.
+- Gaps: Brewmaster and Protection Warrior pages describe enchants/gems in prose, so the ring enchant is not read
+  (`incomplete` is set); head enchants are leech/avoidance (no secondary rating). Where a guide says "A or B" the first is used.
+- Not in the addon yet.

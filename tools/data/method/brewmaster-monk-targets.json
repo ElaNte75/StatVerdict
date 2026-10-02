@@ -1,0 +1,36 @@
+{
+ "slug": "brewmaster-monk",
+ "updated": "",
+ "itemLevel": 334,
+ "incomplete": [
+  "ring enchant not read from the guide"
+ ],
+ "results": {
+  "raid/all": {
+   "ratings": {
+    "crit": 672.0,
+    "haste": 986.0,
+    "mastery": 830.0,
+    "versatility": 475.0
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 4 listed gems",
+   "simcRecovery": []
+  },
+  "mythic_plus/all": {
+   "ratings": {
+    "crit": 654.0,
+    "haste": 489.0,
+    "mastery": 503.0,
+    "versatility": 1176.0
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 4 listed gems",
+   "simcRecovery": []
+  }
+ }
+}

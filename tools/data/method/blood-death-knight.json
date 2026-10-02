@@ -34,14 +34,6 @@
  "bestInSlot": {
   "raid": [
    {
-    "slot": "Slot",
-    "itemId": null,
-    "name": "Item",
-    "note": "",
-    "bonusIds": "",
-    "source": "Source"
-   },
-   {
     "slot": "Head",
     "itemId": 251229,
     "name": "Visor Of The Predator",
@@ -164,14 +156,6 @@
   ],
   "mythic_plus": [
    {
-    "slot": "Slot",
-    "itemId": null,
-    "name": "Item",
-    "note": "",
-    "bonusIds": "",
-    "source": "Source"
-   },
-   {
     "slot": "Head",
     "itemId": 268229,
     "name": "Skullguard Of The Risen Sacrifice",
@@ -290,46 +274,29 @@
     "note": "",
     "bonusIds": "",
     "source": "The Coiled Altar"
+   }
+  ]
+ },
+ "enchants": {
+  "Head": 244005,
+  "Shoulders": 243991,
+  "Chest": 243977,
+  "Boots": 243953,
+  "Legs": 244641,
+  "Rings": 243957
+ },
+ "gems": {
+  "primary": 240983,
+  "others": [
+   {
+    "itemId": 240906,
+    "name": "Flawless Quick Garnet",
+    "note": "San'layn"
    },
    {
-    "slot": "Source / Drop",
-    "itemId": null,
-    "name": "Difficulty",
-    "note": "",
-    "bonusIds": "",
-    "source": "Target Item"
-   },
-   {
-    "slot": "Ula’tek",
-    "itemId": null,
-    "name": "Heroic/Mythic",
-    "note": "",
-    "bonusIds": "",
-    "source": "Voracious Heart Of Ula'tek"
-   },
-   {
-    "slot": "The Coiled Altar",
-    "itemId": null,
-    "name": "Heroic/Mythic",
-    "note": "",
-    "bonusIds": "",
-    "source": "Zul'jin's Guillotine Technique"
-   },
-   {
-    "slot": "The Coiled Altar",
-    "itemId": null,
-    "name": "Heroic/Mythic",
-    "note": "",
-    "bonusIds": "",
-    "source": "Maze-Roa, Warlord's Fury"
-   },
-   {
-    "slot": "Altar of Fangs",
-    "itemId": null,
-    "name": "M+10",
-    "note": "",
-    "bonusIds": "",
-    "source": "Vile Writhefang Glaive Aged Interwoven Scaleplate Ancient General's Obsidian Pillars"
+    "itemId": 240908,
+    "name": "Flawless Masterful Garnet",
+    "note": "Deathbringer"
    }
   ]
  }

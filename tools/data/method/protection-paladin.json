@@ -24,14 +24,6 @@
  "bestInSlot": {
   "overall": [
    {
-    "slot": "Slot",
-    "itemId": null,
-    "name": "Item",
-    "note": "",
-    "bonusIds": "",
-    "source": "Source"
-   },
-   {
     "slot": "Head",
     "itemId": 268229,
     "name": "Skullguard Of The Risen Sacrifice",
@@ -161,14 +153,6 @@
    }
   ],
   "raid": [
-   {
-    "slot": "Slot",
-    "itemId": null,
-    "name": "Item",
-    "note": "",
-    "bonusIds": "",
-    "source": "Source"
-   },
    {
     "slot": "Head",
     "itemId": 268229,
@@ -300,14 +284,6 @@
   ],
   "mythic_plus": [
    {
-    "slot": "Slot",
-    "itemId": null,
-    "name": "Item",
-    "note": "",
-    "bonusIds": "",
-    "source": "Source"
-   },
-   {
     "slot": "Head",
     "itemId": 239050,
     "name": "Helm Of The Raptor King",
@@ -434,70 +410,24 @@
     "note": "",
     "bonusIds": "13440:12854",
     "source": "The Blinding Vale"
-   },
+   }
+  ]
+ },
+ "enchants": {
+  "Head": 243948,
+  "Shoulders": 244021,
+  "Chest": 243977,
+  "Legs": 244641,
+  "Boots": 243983,
+  "Rings": 244015
+ },
+ "gems": {
+  "primary": 240983,
+  "others": [
    {
-    "slot": "Source / Drop",
-    "itemId": null,
-    "name": "Difficulty",
-    "note": "",
-    "bonusIds": "",
-    "source": "Target Item"
-   },
-   {
-    "slot": "The Coiled Altar",
-    "itemId": null,
-    "name": "Mythic/Heroic",
-    "note": "",
-    "bonusIds": "",
-    "source": "Aman'muso, Warlord's Vengeance"
-   },
-   {
-    "slot": "The Coiled Altar",
-    "itemId": null,
-    "name": "Mythic/Heroic",
-    "note": "",
-    "bonusIds": "",
-    "source": "Zul'jin's Guillotine Technique"
-   },
-   {
-    "slot": "Ula’tek",
-    "itemId": null,
-    "name": "Mythic/Heroic",
-    "note": "",
-    "bonusIds": "",
-    "source": "Aqirbane Reliquary"
-   },
-   {
-    "slot": "Ula’tek",
-    "itemId": null,
-    "name": "Mythic/Heroic",
-    "note": "",
-    "bonusIds": "",
-    "source": "Chausses Of Unbound Rancor"
-   },
-   {
-    "slot": "Entombed Sentinels",
-    "itemId": null,
-    "name": "Mythic/Heroic",
-    "note": "",
-    "bonusIds": "",
-    "source": "Keeper's Seething Core"
-   },
-   {
-    "slot": "The Coiled Altar",
-    "itemId": null,
-    "name": "Mythic",
-    "note": "",
-    "bonusIds": "",
-    "source": "Reckless Spirit Breastplate"
-   },
-   {
-    "slot": "The Coiled Altar",
-    "itemId": null,
-    "name": "Mythic",
-    "note": "",
-    "bonusIds": "",
-    "source": "Girdle Of Toxic Regret"
+    "itemId": 240890,
+    "name": "Flawless Deadly Peridot",
+    "note": ""
    }
   ]
  }

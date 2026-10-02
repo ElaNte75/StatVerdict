@@ -386,70 +386,30 @@
     "note": "",
     "bonusIds": "13440:12854",
     "source": "Temple of Sethraliss"
+   }
+  ]
+ },
+ "enchants": {
+  "Head": 243948,
+  "Shoulders": 244021,
+  "Chest": 243977,
+  "Legs": 244641,
+  "Boots": 243983,
+  "Rings": 244015,
+  "Weapon": 244029
+ },
+ "gems": {
+  "primary": 240983,
+  "others": [
+   {
+    "itemId": 240894,
+    "name": "Flawless Versatile Peridot",
+    "note": ""
    },
    {
-    "slot": "Source / Drop",
-    "itemId": null,
-    "name": "Difficulty",
-    "note": "",
-    "bonusIds": "",
-    "source": "Target Item"
-   },
-   {
-    "slot": "Ula’tek",
-    "itemId": null,
-    "name": "Mythic/Heroic",
-    "note": "",
-    "bonusIds": "",
-    "source": "Abyssal Broodfiend's Bardiche"
-   },
-   {
-    "slot": "Ula’tek",
-    "itemId": null,
-    "name": "Mythic/Heroic",
-    "note": "",
-    "bonusIds": "",
-    "source": "Gaze Of The Coiled Watcher"
-   },
-   {
-    "slot": "Ula’tek",
-    "itemId": null,
-    "name": "Mythic/Heroic",
-    "note": "",
-    "bonusIds": "",
-    "source": "Aqirbane Reliquary"
-   },
-   {
-    "slot": "Ula’tek",
-    "itemId": null,
-    "name": "Mythic/Heroic",
-    "note": "",
-    "bonusIds": "",
-    "source": "Voracious Heart Of Ula'tek"
-   },
-   {
-    "slot": "Entombed Sentinels",
-    "itemId": null,
-    "name": "Mythic/Heroic",
-    "note": "",
-    "bonusIds": "",
-    "source": "Keeper's Seething Core"
-   },
-   {
-    "slot": "The Coiled Altar",
-    "itemId": null,
-    "name": "Mythic",
-    "note": "",
-    "bonusIds": "",
-    "source": "Coiled Hex Legguards"
-   },
-   {
-    "slot": "The Coiled Altar",
-    "itemId": null,
-    "name": "Mythic",
-    "note": "",
-    "bonusIds": "",
-    "source": "Sash Of The Forlorn Vessel"
+    "itemId": 240890,
+    "name": "Flawless Deadly Peridot",
+    "note": ""
    }
   ]
  }

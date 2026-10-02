@@ -1,0 +1,38 @@
+{
+ "slug": "vengeance-demon-hunter",
+ "updated": "",
+ "itemLevel": 334,
+ "incomplete": [],
+ "results": {
+  "raid/all": {
+   "ratings": {
+    "crit": 904.0,
+    "haste": 1442.0,
+    "mastery": 636.0,
+    "versatility": 410.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Head: enchant 243948 could not be translated"
+   ],
+   "secondaryGem": "the one listed gem",
+   "simcRecovery": []
+  },
+  "mythic_plus/all": {
+   "ratings": {
+    "crit": 993.0,
+    "haste": 1157.0,
+    "mastery": 168.0,
+    "versatility": 930.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Head: enchant 243948 could not be translated"
+   ],
+   "secondaryGem": "the one listed gem",
+   "simcRecovery": []
+  }
+ }
+}

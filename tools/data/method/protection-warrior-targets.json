@@ -1,0 +1,36 @@
+{
+ "slug": "protection-warrior",
+ "updated": "",
+ "itemLevel": 334,
+ "incomplete": [
+  "ring enchant not read from the guide"
+ ],
+ "results": {
+  "raid/all": {
+   "ratings": {
+    "crit": 1188.0,
+    "haste": 1260.0,
+    "mastery": 361.0,
+    "versatility": 194.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 4 listed gems",
+   "simcRecovery": []
+  },
+  "mythic_plus/all": {
+   "ratings": {
+    "crit": 851.0,
+    "haste": 1388.0,
+    "mastery": 414.0,
+    "versatility": 353.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 4 listed gems",
+   "simcRecovery": []
+  }
+ }
+}

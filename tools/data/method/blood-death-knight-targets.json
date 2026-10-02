@@ -1,0 +1,68 @@
+{
+ "slug": "blood-death-knight",
+ "updated": "",
+ "itemLevel": 334,
+ "incomplete": [],
+ "results": {
+  "raid/Deathbringer": {
+   "ratings": {
+    "crit": 1359.0,
+    "haste": 340.0,
+    "mastery": 932.0,
+    "versatility": 372.0
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Head: enchant 244005 could not be translated"
+   ],
+   "secondaryGem": "gem for Deathbringer",
+   "simcRecovery": []
+  },
+  "raid/San’layn": {
+   "ratings": {
+    "crit": 1359.0,
+    "haste": 425.0,
+    "mastery": 847.0,
+    "versatility": 372.0
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Head: enchant 244005 could not be translated"
+   ],
+   "secondaryGem": "gem for San’layn",
+   "simcRecovery": []
+  },
+  "mythic_plus/Deathbringer": {
+   "ratings": {
+    "crit": 1650.0,
+    "haste": 817.0,
+    "mastery": 395.0,
+    "versatility": 103.0
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Head: enchant 244005 could not be translated"
+   ],
+   "secondaryGem": "gem for Deathbringer",
+   "simcRecovery": []
+  },
+  "mythic_plus/San’layn": {
+   "ratings": {
+    "crit": 1650.0,
+    "haste": 903.0,
+    "mastery": 309.0,
+    "versatility": 103.0
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Head: enchant 244005 could not be translated"
+   ],
+   "secondaryGem": "gem for San’layn",
+   "simcRecovery": []
+  }
+ }
+}

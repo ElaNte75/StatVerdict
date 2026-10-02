@@ -22,14 +22,6 @@
  "bestInSlot": {
   "overall": [
    {
-    "slot": "Slot",
-    "itemId": null,
-    "name": "Item",
-    "note": "",
-    "bonusIds": "",
-    "source": "Source"
-   },
-   {
     "slot": "Head",
     "itemId": 268229,
     "name": "Skullguard Of The Risen Sacrifice",
@@ -159,14 +151,6 @@
    }
   ],
   "raid": [
-   {
-    "slot": "Slot",
-    "itemId": null,
-    "name": "Item",
-    "note": "",
-    "bonusIds": "",
-    "source": "Source"
-   },
    {
     "slot": "Head",
     "itemId": 268229,
@@ -298,14 +282,6 @@
   ],
   "mythic_plus": [
    {
-    "slot": "Slot",
-    "itemId": null,
-    "name": "Item",
-    "note": "",
-    "bonusIds": "",
-    "source": "Source"
-   },
-   {
     "slot": "Head",
     "itemId": 271456,
     "name": "Tempered Horns Of The Jade Warlord",
@@ -432,54 +408,34 @@
     "note": "",
     "bonusIds": "13440:12854",
     "source": "Den of Nalorakk"
+   }
+  ]
+ },
+ "enchants": {
+  "Boots": 244009
+ },
+ "gems": {
+  "primary": 240983,
+  "others": [
+   {
+    "itemId": 240890,
+    "name": "Flawless Deadly Peridot",
+    "note": ""
    },
    {
-    "slot": "Source / Drop",
-    "itemId": null,
-    "name": "Difficulty",
-    "note": "",
-    "bonusIds": "",
-    "source": "Target Item"
+    "itemId": 240916,
+    "name": "Flawless Quick Lapis",
+    "note": ""
    },
    {
-    "slot": "Ula’tek",
-    "itemId": null,
-    "name": "Mythic",
-    "note": "",
-    "bonusIds": "",
-    "source": "Everything"
+    "itemId": 240900,
+    "name": "Flawless Quick Amethyst",
+    "note": ""
    },
    {
-    "slot": "The Coiled Altar",
-    "itemId": null,
-    "name": "Mythic",
-    "note": "",
-    "bonusIds": "",
-    "source": "Everything"
-   },
-   {
-    "slot": "The Tidebound Grotto",
-    "itemId": null,
-    "name": "Mythic",
-    "note": "",
-    "bonusIds": "",
-    "source": "Shield, Waist, Ring"
-   },
-   {
-    "slot": "Ula’tek",
-    "itemId": null,
-    "name": "Heroic",
-    "note": "",
-    "bonusIds": "",
-    "source": "Trinkets + Neck"
-   },
-   {
-    "slot": "Kings’ Rest",
-    "itemId": null,
-    "name": "+10 or higher",
-    "note": "",
-    "bonusIds": "",
-    "source": "Tier pieces + Jewellery"
+    "itemId": 240906,
+    "name": "Flawless Quick Garnet",
+    "note": ""
    }
   ]
  }

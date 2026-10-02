@@ -104,12 +104,13 @@ def parse_tables(page: str) -> dict[str, list[dict[str, Any]]]:
         start = page.find(f'id="{tab_id}"')
         if start < 0:
             continue
-        end = page.find('role="tabpanel"', start + 10)
+        # Only the tab's own table: later tables on the page (bonus roll targets, ...) are other things.
+        end = page.find("</table>", start)
         block = page[start:end if end > 0 else len(page)]
         rows = []
         for row in re.findall(r"<tr>(.*?)</tr>", block, flags=re.S):
             cells = re.findall(r"<td>(.*?)</td>", row, flags=re.S)
-            if len(cells) < 3:
+            if len(cells) < 3 or text_of(cells[0]).lower() == "slot":
                 continue
             link = re.search(r'item=(\d+)[^"]*?(?:\?([^"]*))?"', cells[1])
             bonus = re.search(r"bonus=([\d:]+)", cells[1])
@@ -126,6 +127,56 @@ def parse_tables(page: str) -> dict[str, list[dict[str, Any]]]:
     return out
 
 
+def _section(page: str, start_id: str, end_id: str) -> str:
+    a = page.find(f'id="{start_id}"')
+    b = page.find(f'id="{end_id}"', a + 1)
+    return page[a:b] if a >= 0 and b > a else ""
+
+
+def _item_links(fragment: str) -> list[tuple[int, str]]:
+    return [(int(i), text_of(n)) for i, n in re.findall(r'item=(\d+)[^"]*"[^>]*>(.*?)</a>', fragment, flags=re.S)]
+
+
+def parse_enchants(page: str) -> dict[str, int]:
+    """{slot label: enchant item id}: the first (best) enchant of each slot, from a table row ('Head | Best | Cheaper')
+    or from a line 'Head: <link>'."""
+    section = _section(page, "enchants", "gems")
+    out: dict[str, int] = {}
+    for row in re.findall(r"<tr>(.*?)</tr>", section, flags=re.S):
+        cells = re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", row, flags=re.S)
+        if len(cells) >= 2:
+            links = _item_links(cells[1])
+            if links and text_of(cells[0]).lower() != "slot":
+                out.setdefault(text_of(cells[0]), links[0][0])
+    for label, body in re.findall(r"<(?:strong|b)>([^<:]+):</(?:strong|b)>\s*(.*?)(?:</p>|<br)", section, flags=re.S):
+        links = _item_links(body)
+        if links:
+            out.setdefault(label.strip(), links[0][0])
+    return out
+
+
+def parse_gems(page: str) -> dict[str, Any]:
+    """Gems as the page links them, in order: 'primary' = the first Diamond (the unique gem), 'others' = every other
+    gem link in order of appearance with its note (a hero tree in brackets, when there is one). The prose around the
+    links is free text, so more than one entry in 'others' means the guide offers a choice; the first one is used."""
+    section = _section(page, "gems", "consumables")
+    primary = None
+    others: list[dict[str, Any]] = []
+    for item_id, name in _item_links(section):
+        if "diamond" in name.lower():
+            if primary is None:
+                primary = item_id
+            continue
+        tail = section[section.find(f"item={item_id}"):]
+        note = re.search(r"</a>\s*\(([^)]{1,30})\)", tail)
+        others.append({"itemId": item_id, "name": name, "note": note.group(1) if note else ""})
+    return {"primary": primary, "others": others}
+
+
+def parse_enchants_and_gems(page: str) -> dict[str, Any]:
+    return {"enchants": parse_enchants(page), "gems": parse_gems(page)}
+
+
 def read_spec(slug: str) -> dict[str, Any]:
     stats_page = fetch(f"{BASE}{slug}/stats-races-and-consumables")
     gear_page = fetch(f"{BASE}{slug}/gearing")
@@ -135,6 +186,7 @@ def read_spec(slug: str) -> dict[str, Any]:
         "updated": updated.group(1).strip() if updated else "",
         "priority": parse_priority(stats_page),
         "bestInSlot": parse_tables(gear_page),
+        **parse_enchants_and_gems(stats_page),
     }
 
 
