@@ -11,7 +11,7 @@ rem
 rem  If your WoW is installed somewhere else, change the line below.
 rem ---------------------------------------------------------------
 set "PROJECT=C:\Users\ElaNte\Desktop\Projects\StatVerdict"
-set "ADDONS=C:\Program Files (x86)\World of Warcraft\_retail_\Interface\AddOns"
+set "ADDONS=D:\Battlenet Games\World of Warcraft\_retail_\Interface\AddOns"
 
 cd /d "%PROJECT%" || (echo Cannot find %PROJECT% & pause & exit /b 1)
 
