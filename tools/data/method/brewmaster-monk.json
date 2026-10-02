@@ -1,0 +1,462 @@
+{
+ "slug": "brewmaster-monk",
+ "updated": "",
+ "priority": [
+  {
+   "hero": null,
+   "secondary": [
+    [
+     "crit",
+     "versatility"
+    ],
+    [
+     "mastery"
+    ],
+    [
+     "haste"
+    ]
+   ],
+   "line": "Agility >> Crit = Vers > Mastery >> Haste."
+  }
+ ],
+ "bestInSlot": {
+  "overall": [
+   {
+    "slot": "Slot",
+    "itemId": null,
+    "name": "Item",
+    "note": "",
+    "bonusIds": "",
+    "source": "Source"
+   },
+   {
+    "slot": "Head",
+    "itemId": 271875,
+    "name": "Gaze Of The Coiled Watcher",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 273774,
+    "name": "Snakeskin Spaulders",
+    "note": "Tier",
+    "bonusIds": "",
+    "source": "Altar of Fangs (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 251226,
+    "name": "Hide Of Pestilence",
+    "note": "Tier",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 159300,
+    "name": "Kula's Butchering Wristwraps",
+    "note": "",
+    "bonusIds": "",
+    "source": "Kings’ Rest"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 193758,
+    "name": "Subjugator's Chilling Grips",
+    "note": "Tier",
+    "bonusIds": "13440:12854",
+    "source": "Ruby Life Pools (Catalyst)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268256,
+    "name": "Sash Of The Forlorn Vessel",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 268225,
+    "name": "Coiled Hex Legguards",
+    "note": "Tier",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 244569,
+    "name": "Silvermoon Agent's Sneakers",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268252,
+    "name": "Apex Brute's Claw Ring",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 240949,
+    "name": "Masterwork Sin'dorei Band",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270168,
+    "name": "Font Of Venomous Rage",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270173,
+    "name": "Zul'jin's Guillotine Technique",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 268215,
+    "name": "Abyssal Broodfiend's Bardiche",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   }
+  ],
+  "raid": [
+   {
+    "slot": "Slot",
+    "itemId": null,
+    "name": "Item",
+    "note": "",
+    "bonusIds": "",
+    "source": "Source"
+   },
+   {
+    "slot": "Head",
+    "itemId": 271875,
+    "name": "Gaze Of The Coiled Watcher",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 271517,
+    "name": "Tassels Of The Monkey King",
+    "note": "",
+    "bonusIds": "",
+    "source": "Tier - Vashnik (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271522,
+    "name": "Battle Gi Of The Monkey King",
+    "note": "",
+    "bonusIds": "",
+    "source": "Tier - Vashnik"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 268240,
+    "name": "Restless Spirit Shackles",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nek’zali the Soulcoiler"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271520,
+    "name": "Monkey King's Fighting Fists",
+    "note": "",
+    "bonusIds": "",
+    "source": "Tier - Sszorak (Catalyst)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268256,
+    "name": "Sash Of The Forlorn Vessel",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271518,
+    "name": "Pantaloons Of The Monkey King",
+    "note": "",
+    "bonusIds": "",
+    "source": "Tier - The Coiled Altar"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 244569,
+    "name": "Silvermoon Agent's Sneakers",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 240949,
+    "name": "Masterwork Sin'dorei Band",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268252,
+    "name": "Apex Brute's Claw Ring",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270168,
+    "name": "Font Of Venomous Rage",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270173,
+    "name": "Zul'jin's Guillotine Technique",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 268215,
+    "name": "Abyssal Broodfiend's Bardiche",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   }
+  ],
+  "mythic_plus": [
+   {
+    "slot": "Slot",
+    "itemId": null,
+    "name": "Item",
+    "note": "",
+    "bonusIds": "",
+    "source": "Source"
+   },
+   {
+    "slot": "Head",
+    "itemId": 193751,
+    "name": "Crown Of Roaring Storms",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Ruby Life Pools"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 240950,
+    "name": "Masterwork Sin'dorei Amulet",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 271517,
+    "name": "Tassels Of The Monkey King",
+    "note": "",
+    "bonusIds": "",
+    "source": "Tier - Altar of Fangs (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 159288,
+    "name": "Cloak Of The Restless Tribes",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "King’s Rest"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271522,
+    "name": "Battle Gi Of The Monkey King",
+    "note": "",
+    "bonusIds": "",
+    "source": "Tier - Voidscar Arena (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 159300,
+    "name": "Kula's Butchering Wristwraps",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Kings’ Rest"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271520,
+    "name": "Monkey King's Fighting Fists",
+    "note": "",
+    "bonusIds": "",
+    "source": "Tier - Ruby Life Pools (Catalyst)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 251189,
+    "name": "Rootwalker Harness",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271518,
+    "name": "Pantaloons Of The Monkey King",
+    "note": "",
+    "bonusIds": "",
+    "source": "Tier - The Blinding Vale (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 244569,
+    "name": "Silvermoon Agent's Sneakers",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 162544,
+    "name": "Jade Ophidian Band",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 251148,
+    "name": "Pilfered Precious Band",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Den of Nalorakk"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 159617,
+    "name": "Lustrous Golden Plumage",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "King’s Rest"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 250228,
+    "name": "Resonant Bellowstone",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 251192,
+    "name": "Branch Of Pride",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Source / Drop",
+    "itemId": null,
+    "name": "Difficulty",
+    "note": "",
+    "bonusIds": "",
+    "source": "Target Item"
+   },
+   {
+    "slot": "Ula’tek",
+    "itemId": null,
+    "name": "Mythic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Everything"
+   },
+   {
+    "slot": "The Coiled Altar",
+    "itemId": null,
+    "name": "Mythic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Everything (except the 1h weapon)"
+   },
+   {
+    "slot": "The Tidebound Grotto",
+    "itemId": null,
+    "name": "Mythic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Tidepiercer's Bubble Popper"
+   },
+   {
+    "slot": "Ula’tek",
+    "itemId": null,
+    "name": "Heroic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Trinkets + Neck"
+   },
+   {
+    "slot": "Temple of Sethraliss",
+    "itemId": null,
+    "name": "+10 or higher",
+    "note": "",
+    "bonusIds": "",
+    "source": "Tier pieces + Jewellery"
+   }
+  ]
+ }
+}

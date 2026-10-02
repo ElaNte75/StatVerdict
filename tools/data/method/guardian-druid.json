@@ -1,0 +1,456 @@
+{
+ "slug": "guardian-druid",
+ "updated": "",
+ "priority": [
+  {
+   "hero": null,
+   "secondary": [
+    [
+     "haste"
+    ],
+    [
+     "versatility"
+    ],
+    [
+     "crit"
+    ],
+    [
+     "mastery"
+    ]
+   ],
+   "line": "Item Level > Haste > Vers >= Crit > Mastery As always though, if you are looking for the exact offensive value of these stats you should sim yourself."
+  }
+ ],
+ "bestInSlot": {
+  "overall": [
+   {
+    "slot": "Head",
+    "itemId": 271875,
+    "name": "Gaze Of The Coiled Watcher",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Ula’tek (Catalyst)"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 251223,
+    "name": "Somber Spaulders",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271531,
+    "name": "Enigmatic Dreamwatcher's Lunar Raiment",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 251135,
+    "name": "Fury-Fletched Armlets",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 251124,
+    "name": "Gauntlets Of Fevered Defense",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row (Catalyst)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268256,
+    "name": "Sash Of The Forlorn Vessel",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 268225,
+    "name": "Coiled Hex Legguards",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268247,
+    "name": "Breakwater Boots",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 159459,
+    "name": "Ritual Binder's Ring",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Kings’ Rest"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268266,
+    "name": "Alluring Bubbleband",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270175,
+    "name": "Voracious Heart Of Ula'tek",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270165,
+    "name": "Keeper's Seething Core",
+    "note": "",
+    "bonusIds": "",
+    "source": "Entombed Sentinels"
+   },
+   {
+    "slot": "Weapon",
+    "itemId": 268215,
+    "name": "Abyssal Broodfiend's Bardiche",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   }
+  ],
+  "raid": [
+   {
+    "slot": "Head",
+    "itemId": 271875,
+    "name": "Gaze Of The Coiled Watcher",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Ula’tek (Catalyst)"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 271526,
+    "name": "Enigmatic Dreamwatcher's Plumage",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Lost Explorers"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271531,
+    "name": "Enigmatic Dreamwatcher's Lunar Raiment",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 268240,
+    "name": "Restless Spirit Shackles",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nek’zali the Soulcoiler"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271529,
+    "name": "Enigmatic Dreamwatcher's Gauntlets",
+    "note": "",
+    "bonusIds": "",
+    "source": "Entombed Sentinels"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268256,
+    "name": "Sash Of The Forlorn Vessel",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 268225,
+    "name": "Coiled Hex Legguards",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268247,
+    "name": "Breakwater Boots",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268252,
+    "name": "Apex Brute's Claw Ring",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268266,
+    "name": "Alluring Bubbleband",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270175,
+    "name": "Voracious Heart Of Ula'tek",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270173,
+    "name": "Zul'jin's Guillotine Technique",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Weapon",
+    "itemId": 268215,
+    "name": "Abyssal Broodfiend's Bardiche",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   }
+  ],
+  "mythic_plus": [
+   {
+    "slot": "Head",
+    "itemId": 273791,
+    "name": "Spare Speaker's Hood",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Altar of Fangs (Catalyst)"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 251173,
+    "name": "Yoke Of The Charging Bear",
+    "note": "",
+    "bonusIds": "",
+    "source": "Den of Nalorakk"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 251223,
+    "name": "Somber Spaulders",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 159288,
+    "name": "Cloak Of The Restless Tribes",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Kings’ Rest"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 251159,
+    "name": "War Trial Vestments",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Den of Nalorakk (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 251135,
+    "name": "Fury-Fletched Armlets",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 251124,
+    "name": "Gauntlets Of Fevered Defense",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row (Catalyst)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 159301,
+    "name": "Primal Dinomancer's Belt",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Kings’ Rest"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 159313,
+    "name": "Breeches Of The Sacred Hall",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Kings’ Rest"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 251153,
+    "name": "Arctic Explorer's Legwraps",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Den of Nalorakk"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 159459,
+    "name": "Ritual Binder's Ring",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Kings’ Rest"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 273792,
+    "name": "Band Of The Amani Warlord",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 250245,
+    "name": "Tumor Of The Swarm",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 250215,
+    "name": "Freightrunner's Flask",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Weapon",
+    "itemId": 158370,
+    "name": "Twin-Strike Polearm",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Source / Drop",
+    "itemId": null,
+    "name": "Difficulty",
+    "note": "",
+    "bonusIds": "",
+    "source": "Target Item"
+   },
+   {
+    "slot": "Ula’tek",
+    "itemId": null,
+    "name": "Mythic/Heroic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Abyssal Broodfiend's Bardiche"
+   },
+   {
+    "slot": "Ula’tek",
+    "itemId": null,
+    "name": "Mythic/Heroic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Gaze Of The Coiled Watcher"
+   },
+   {
+    "slot": "Ula’tek",
+    "itemId": null,
+    "name": "Mythic/Heroic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Aqirbane Reliquary"
+   },
+   {
+    "slot": "Ula’tek",
+    "itemId": null,
+    "name": "Mythic/Heroic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Voracious Heart Of Ula'tek"
+   },
+   {
+    "slot": "Entombed Sentinels",
+    "itemId": null,
+    "name": "Mythic/Heroic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Keeper's Seething Core"
+   },
+   {
+    "slot": "The Coiled Altar",
+    "itemId": null,
+    "name": "Mythic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Coiled Hex Legguards"
+   },
+   {
+    "slot": "The Coiled Altar",
+    "itemId": null,
+    "name": "Mythic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sash Of The Forlorn Vessel"
+   }
+  ]
+ }
+}

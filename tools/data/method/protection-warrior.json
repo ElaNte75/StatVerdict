@@ -1,0 +1,486 @@
+{
+ "slug": "protection-warrior",
+ "updated": "",
+ "priority": [
+  {
+   "hero": null,
+   "secondary": [
+    [
+     "haste"
+    ],
+    [
+     "crit",
+     "versatility"
+    ],
+    [
+     "mastery"
+    ]
+   ],
+   "line": "Generally speaking, it will be Strength >> Haste > Crit = Vers > Mastery for all situations."
+  }
+ ],
+ "bestInSlot": {
+  "overall": [
+   {
+    "slot": "Slot",
+    "itemId": null,
+    "name": "Item",
+    "note": "",
+    "bonusIds": "",
+    "source": "Source"
+   },
+   {
+    "slot": "Head",
+    "itemId": 268229,
+    "name": "Skullguard Of The Risen Sacrifice",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Nek’zali the Soulcoiler"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 239037,
+    "name": "C'thraxxi Binders Pauldrons",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 268222,
+    "name": "Reckless Spirit Breastplate",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 237834,
+    "name": "Spellbreaker's Bracers",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 268220,
+    "name": "Scaleplate Strangulators",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Twin Fangs (Catalyst)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268259,
+    "name": "Girdle Of Toxic Regret",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271878,
+    "name": "Chausses Of Unbound Rancor",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Ula’tek (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 273777,
+    "name": "Poison-Proof Stompers",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268266,
+    "name": "Alluring Bubbleband",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Tidebound Grotto"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 240949,
+    "name": "Masterwork Sin'dorei Band",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270175,
+    "name": "Voracious Heart Of Ula'tek",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270173,
+    "name": "Zul'jin's Guillotine Technique",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 268209,
+    "name": "Aman'muso, Warlord's Vengeance",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 268196,
+    "name": "Venom-Slashed Scuteward",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Lost Explorers"
+   }
+  ],
+  "raid": [
+   {
+    "slot": "Slot",
+    "itemId": null,
+    "name": "Item",
+    "note": "",
+    "bonusIds": "",
+    "source": "Source"
+   },
+   {
+    "slot": "Head",
+    "itemId": 268229,
+    "name": "Skullguard Of The Risen Sacrifice",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Nek’zali the Soulcoiler"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 239037,
+    "name": "C'thraxxi Binders Pauldrons",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 268222,
+    "name": "Reckless Spirit Breastplate",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 237834,
+    "name": "Spellbreaker's Bracers",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 268220,
+    "name": "Scaleplate Strangulators",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Twin Fangs (Catalyst)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268259,
+    "name": "Girdle Of Toxic Regret",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271878,
+    "name": "Chausses Of Unbound Rancor",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Ula’tek (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268245,
+    "name": "Entombed Cultist's Sabatons",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nek’zali the Soulcoiler"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268266,
+    "name": "Alluring Bubbleband",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Tidebound Grotto"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 240949,
+    "name": "Masterwork Sin'dorei Band",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270175,
+    "name": "Voracious Heart Of Ula'tek",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270173,
+    "name": "Zul'jin's Guillotine Technique",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 268209,
+    "name": "Aman'muso, Warlord's Vengeance",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 268196,
+    "name": "Venom-Slashed Scuteward",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Lost Explorers"
+   }
+  ],
+  "mythic_plus": [
+   {
+    "slot": "Slot",
+    "itemId": null,
+    "name": "Item",
+    "note": "",
+    "bonusIds": "",
+    "source": "Source"
+   },
+   {
+    "slot": "Head",
+    "itemId": 271456,
+    "name": "Tempered Horns Of The Jade Warlord",
+    "note": "",
+    "bonusIds": "",
+    "source": "Tier - Kings’ Rest (Catalyst)"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 251173,
+    "name": "Yoke Of The Charging Bear",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Den of Nalorakk"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 271454,
+    "name": "Raging Pauldrons Of The Jade Warlord",
+    "note": "",
+    "bonusIds": "",
+    "source": "Tier - Temple of Sethraliss (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 193763,
+    "name": "Fireproof Drape",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Ruby Life Pools"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 271459,
+    "name": "Cuirass Of The Jade Warlord",
+    "note": "",
+    "bonusIds": "",
+    "source": "Tier - The Blinding Vale (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 237834,
+    "name": "Spellbreaker's Bracers",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 271457,
+    "name": "Jeweled Gauntlets Of The Jade Warlord",
+    "note": "",
+    "bonusIds": "",
+    "source": "Tier - Den of Nalorakk (Catalyst)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 159418,
+    "name": "Girdle Of Pestilent Purification",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Kings’ Rest"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271455,
+    "name": "Greaves Of The Jade Warlord",
+    "note": "",
+    "bonusIds": "",
+    "source": "Tier- Altar of Fangs (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 273777,
+    "name": "Poison-Proof Stompers",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 159459,
+    "name": "Ritual Binder's Ring",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Kings’ Rest"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 240949,
+    "name": "Masterwork Sin'dorei Band",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafting"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 193762,
+    "name": "Blazebinder's Hoof",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Ruby Life Pools"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 250244,
+    "name": "Permafrost Essence",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Den of Nalorakk"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 251195,
+    "name": "Thorned Reply",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 251150,
+    "name": "Tempest's Shelter",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Den of Nalorakk"
+   },
+   {
+    "slot": "Source / Drop",
+    "itemId": null,
+    "name": "Difficulty",
+    "note": "",
+    "bonusIds": "",
+    "source": "Target Item"
+   },
+   {
+    "slot": "Ula’tek",
+    "itemId": null,
+    "name": "Mythic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Everything"
+   },
+   {
+    "slot": "The Coiled Altar",
+    "itemId": null,
+    "name": "Mythic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Everything"
+   },
+   {
+    "slot": "The Tidebound Grotto",
+    "itemId": null,
+    "name": "Mythic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Shield, Waist, Ring"
+   },
+   {
+    "slot": "Ula’tek",
+    "itemId": null,
+    "name": "Heroic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Trinkets + Neck"
+   },
+   {
+    "slot": "Kings’ Rest",
+    "itemId": null,
+    "name": "+10 or higher",
+    "note": "",
+    "bonusIds": "",
+    "source": "Tier pieces + Jewellery"
+   }
+  ]
+ }
+}

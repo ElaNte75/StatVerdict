@@ -1,0 +1,504 @@
+{
+ "slug": "protection-paladin",
+ "updated": "",
+ "priority": [
+  {
+   "hero": null,
+   "secondary": [
+    [
+     "haste"
+    ],
+    [
+     "crit"
+    ],
+    [
+     "versatility"
+    ],
+    [
+     "mastery"
+    ]
+   ],
+   "line": "Item Level > Haste > Crit > Versatility > Mastery"
+  }
+ ],
+ "bestInSlot": {
+  "overall": [
+   {
+    "slot": "Slot",
+    "itemId": null,
+    "name": "Item",
+    "note": "",
+    "bonusIds": "",
+    "source": "Source"
+   },
+   {
+    "slot": "Head",
+    "itemId": 268229,
+    "name": "Skullguard Of The Risen Sacrifice",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nek’zali the Soulcoiler"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 239037,
+    "name": "C'thraxxi Binders Pauldrons",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 268222,
+    "name": "Reckless Spirit Breastplate",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 159409,
+    "name": "Embalmer's Steadying Bracers",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Kings’ Rest"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 268220,
+    "name": "Scaleplate Strangulators",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Twin Fangs (Catalyst)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268259,
+    "name": "Girdle Of Toxic Regret",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271878,
+    "name": "Chausses Of Unbound Rancor",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Ula’tek (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268245,
+    "name": "Entombed Cultist's Sabatons",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nek’zali the Soulcoiler"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268252,
+    "name": "Apex Brute's Claw Ring",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 273792,
+    "name": "Band Of The Amani Warlord",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270165,
+    "name": "Keeper's Seething Core",
+    "note": "",
+    "bonusIds": "",
+    "source": "Entombed Sentinels"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270173,
+    "name": "Zul'jin's Guillotine Technique",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 268209,
+    "name": "Aman'muso, Warlord's Vengeance",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 268196,
+    "name": "Venom-Slashed Scuteward",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Lost Explorers"
+   }
+  ],
+  "raid": [
+   {
+    "slot": "Slot",
+    "itemId": null,
+    "name": "Item",
+    "note": "",
+    "bonusIds": "",
+    "source": "Source"
+   },
+   {
+    "slot": "Head",
+    "itemId": 268229,
+    "name": "Skullguard Of The Risen Sacrifice",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nek’zali the Soulcoiler"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 271463,
+    "name": "Pauldrons Of The Consecrated Flame",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Lost Explorers"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 268253,
+    "name": "Silken Voodoo Drape",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 268222,
+    "name": "Reckless Spirit Breastplate",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Coiled Altar (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 268239,
+    "name": "Shellbound Bracers",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Lost Explorers"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 268220,
+    "name": "Scaleplate Strangulators",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Twin Fangs (Catalyst)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268259,
+    "name": "Girdle Of Toxic Regret",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271878,
+    "name": "Chausses Of Unbound Rancor",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Ula’tek (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 268245,
+    "name": "Entombed Cultist's Sabatons",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nek’zali the Soulcoiler"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268252,
+    "name": "Apex Brute's Claw Ring",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268266,
+    "name": "Alluring Bubbleband",
+    "note": "",
+    "bonusIds": "",
+    "source": "Nymrissa Wavecaller"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270165,
+    "name": "Keeper's Seething Core",
+    "note": "",
+    "bonusIds": "",
+    "source": "Entombed Sentinels"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 270173,
+    "name": "Zul'jin's Guillotine Technique",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 268209,
+    "name": "Aman'muso, Warlord's Vengeance",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 268196,
+    "name": "Venom-Slashed Scuteward",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Lost Explorers"
+   }
+  ],
+  "mythic_plus": [
+   {
+    "slot": "Slot",
+    "itemId": null,
+    "name": "Item",
+    "note": "",
+    "bonusIds": "",
+    "source": "Source"
+   },
+   {
+    "slot": "Head",
+    "itemId": 239050,
+    "name": "Helm Of The Raptor King",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Kings’ Rest"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 273781,
+    "name": "Strand Of Warding Fangs",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 239037,
+    "name": "C'thraxxi Binders Pauldrons",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss (Catalyst)"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 193763,
+    "name": "Fireproof Drape",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Ruby Life Pools"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 251193,
+    "name": "Taproot Ribs",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "The Blinding Vale (Catalyst)"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 159409,
+    "name": "Embalmer's Steadying Bracers",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Kings’ Rest"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 251214,
+    "name": "Bonds Of The Hash'ura",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Den of Nalorakk (Catalyst)"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 159418,
+    "name": "Girdle Of Pestilent Purification",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Kings’ Rest"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 273776,
+    "name": "Ancient General's Obsidian Pillars",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs (Catalyst)"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 273777,
+    "name": "Poison-Proof Stompers",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 273792,
+    "name": "Band Of The Amani Warlord",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 159459,
+    "name": "Ritual Binder's Ring",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Kings’ Rest"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 250245,
+    "name": "Tumor Of The Swarm",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Trinket",
+    "itemId": 273795,
+    "name": "Coiled Fangstone",
+    "note": "",
+    "bonusIds": "",
+    "source": "Altar of Fangs"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 251195,
+    "name": "Thorned Reply",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Off Hand",
+    "itemId": 251196,
+    "name": "Teldrassil's Sacrifice",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Source / Drop",
+    "itemId": null,
+    "name": "Difficulty",
+    "note": "",
+    "bonusIds": "",
+    "source": "Target Item"
+   },
+   {
+    "slot": "The Coiled Altar",
+    "itemId": null,
+    "name": "Mythic/Heroic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Aman'muso, Warlord's Vengeance"
+   },
+   {
+    "slot": "The Coiled Altar",
+    "itemId": null,
+    "name": "Mythic/Heroic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Zul'jin's Guillotine Technique"
+   },
+   {
+    "slot": "Ula’tek",
+    "itemId": null,
+    "name": "Mythic/Heroic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Aqirbane Reliquary"
+   },
+   {
+    "slot": "Ula’tek",
+    "itemId": null,
+    "name": "Mythic/Heroic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Chausses Of Unbound Rancor"
+   },
+   {
+    "slot": "Entombed Sentinels",
+    "itemId": null,
+    "name": "Mythic/Heroic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Keeper's Seething Core"
+   },
+   {
+    "slot": "The Coiled Altar",
+    "itemId": null,
+    "name": "Mythic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Reckless Spirit Breastplate"
+   },
+   {
+    "slot": "The Coiled Altar",
+    "itemId": null,
+    "name": "Mythic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Girdle Of Toxic Regret"
+   }
+  ]
+ }
+}

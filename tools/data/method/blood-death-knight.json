@@ -1,0 +1,336 @@
+{
+ "slug": "blood-death-knight",
+ "updated": "",
+ "priority": [
+  {
+   "hero": "Deathbringer",
+   "secondary": [
+    [
+     "crit",
+     "versatility",
+     "mastery"
+    ],
+    [
+     "haste"
+    ]
+   ],
+   "line": "Strength > Crit = Vers = Mastery > Haste"
+  },
+  {
+   "hero": "San’layn",
+   "secondary": [
+    [
+     "haste"
+    ],
+    [
+     "crit",
+     "versatility",
+     "mastery"
+    ]
+   ],
+   "line": "Strength > Haste > Crit = Vers = Mastery"
+  }
+ ],
+ "bestInSlot": {
+  "raid": [
+   {
+    "slot": "Slot",
+    "itemId": null,
+    "name": "Item",
+    "note": "",
+    "bonusIds": "",
+    "source": "Source"
+   },
+   {
+    "slot": "Head",
+    "itemId": 251229,
+    "name": "Visor Of The Predator",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 239051,
+    "name": "Pauldrons Of The Great Unifier",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "King’s Rest"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 251190,
+    "name": "Bloodthorn Burnous",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 268222,
+    "name": "Reckless Spirit Breastplate",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 237834,
+    "name": "Spellbreaker's Bracers",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 251221,
+    "name": "Despondent's Gauntlets",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Voidscar Arena"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268259,
+    "name": "Girdle Of Toxic Regret",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271878,
+    "name": "Chausses Of Unbound Rancor",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 159412,
+    "name": "Auric Puddle Stompers",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "King’s Rest"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268249,
+    "name": "Vile Alchemist's Band",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vashnik the Malignant"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 240949,
+    "name": "Masterwork Sin'dorei Band",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Trinket #1",
+    "itemId": 270175,
+    "name": "Voracious Heart Of Ula'tek",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Trinket #2",
+    "itemId": 270173,
+    "name": "Zul'jin's Guillotine Technique",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 268213,
+    "name": "Maze-Roa, Warlord's Fury",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   }
+  ],
+  "mythic_plus": [
+   {
+    "slot": "Slot",
+    "itemId": null,
+    "name": "Item",
+    "note": "",
+    "bonusIds": "",
+    "source": "Source"
+   },
+   {
+    "slot": "Head",
+    "itemId": 268229,
+    "name": "Skullguard Of The Risen Sacrifice",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Nek’zali the Soulcoiler"
+   },
+   {
+    "slot": "Neck",
+    "itemId": 268265,
+    "name": "Aqirbane Reliquary",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Shoulders",
+    "itemId": 239037,
+    "name": "C'thraxxi Binders Pauldrons",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Temple of Sethraliss"
+   },
+   {
+    "slot": "Cloak",
+    "itemId": 251190,
+    "name": "Bloodthorn Burnous",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "The Blinding Vale"
+   },
+   {
+    "slot": "Chest",
+    "itemId": 268222,
+    "name": "Reckless Spirit Breastplate",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Wrist",
+    "itemId": 251133,
+    "name": "Overseer's Vambraces",
+    "note": "",
+    "bonusIds": "13440:12854",
+    "source": "Murder Row"
+   },
+   {
+    "slot": "Gloves",
+    "itemId": 251214,
+    "name": "Bonds Of The Hash'ura",
+    "note": "Tier Set",
+    "bonusIds": "13440:12854",
+    "source": "Den of Nalorakk"
+   },
+   {
+    "slot": "Belt",
+    "itemId": 268259,
+    "name": "Girdle Of Toxic Regret",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Legs",
+    "itemId": 271878,
+    "name": "Chausses Of Unbound Rancor",
+    "note": "Tier Set",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Boots",
+    "itemId": 237828,
+    "name": "Spellbreaker's March",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 268252,
+    "name": "Apex Brute's Claw Ring",
+    "note": "",
+    "bonusIds": "",
+    "source": "Sszorak"
+   },
+   {
+    "slot": "Ring",
+    "itemId": 240949,
+    "name": "Masterwork Sin'dorei Band",
+    "note": "",
+    "bonusIds": "12214:13667:12497:13751:13836",
+    "source": "Crafted"
+   },
+   {
+    "slot": "Trinket #1",
+    "itemId": 270175,
+    "name": "Voracious Heart Of Ula'tek",
+    "note": "",
+    "bonusIds": "",
+    "source": "Ula’tek"
+   },
+   {
+    "slot": "Trinket #2",
+    "itemId": 270173,
+    "name": "Zul'jin's Guillotine Technique",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Main Hand",
+    "itemId": 268213,
+    "name": "Maze-Roa, Warlord's Fury",
+    "note": "",
+    "bonusIds": "",
+    "source": "The Coiled Altar"
+   },
+   {
+    "slot": "Source / Drop",
+    "itemId": null,
+    "name": "Difficulty",
+    "note": "",
+    "bonusIds": "",
+    "source": "Target Item"
+   },
+   {
+    "slot": "Ula’tek",
+    "itemId": null,
+    "name": "Heroic/Mythic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Voracious Heart Of Ula'tek"
+   },
+   {
+    "slot": "The Coiled Altar",
+    "itemId": null,
+    "name": "Heroic/Mythic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Zul'jin's Guillotine Technique"
+   },
+   {
+    "slot": "The Coiled Altar",
+    "itemId": null,
+    "name": "Heroic/Mythic",
+    "note": "",
+    "bonusIds": "",
+    "source": "Maze-Roa, Warlord's Fury"
+   },
+   {
+    "slot": "Altar of Fangs",
+    "itemId": null,
+    "name": "M+10",
+    "note": "",
+    "bonusIds": "",
+    "source": "Vile Writhefang Glaive Aged Interwoven Scaleplate Ancient General's Obsidian Pillars"
+   }
+  ]
+ }
+}
