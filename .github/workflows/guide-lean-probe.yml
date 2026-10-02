@@ -1,0 +1,89 @@
+name: Guide lean probe (tanks)
+
+# Manual only. For each tank, simulates where the guide's Damage stat priority leans
+# (defence, offence or middle) with SimulationCraft (tools/guide_lean_probe.py). One job per
+# tank: a failing tank never stops the others, and "Re-run failed jobs" repeats only that
+# tank. Each job uploads its own result files (even when it fails). Nothing here touches the
+# addon or its generated data.
+on:
+  workflow_dispatch:
+    inputs:
+      specs:
+        description: "Comma-separated spec keys to run (default: the three tanks with a guide Damage priority)"
+        required: false
+        default: "DRUID_GUARDIAN,MONK_BREWMASTER,PALADIN_PROTECTION"
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      specs: ${{ steps.list.outputs.specs }}
+    steps:
+      - id: list
+        env:
+          SPECS: ${{ inputs.specs || 'DRUID_GUARDIAN,MONK_BREWMASTER,PALADIN_PROTECTION' }}
+        run: |
+          echo "specs=$(python3 -c 'import json,os;print(json.dumps([s.strip() for s in os.environ["SPECS"].split(",") if s.strip()]))')" >> "$GITHUB_OUTPUT"
+
+  probe:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        spec: ${{ fromJSON(needs.plan.outputs.specs) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install lupa
+
+      - name: Check out SimulationCraft Midnight
+        uses: actions/checkout@v5
+        with:
+          repository: simulationcraft/simc
+          ref: midnight
+          path: .simc-source
+          fetch-depth: 1
+
+      - name: Identify SimulationCraft revision
+        id: simc-ref
+        shell: bash
+        run: echo "sha=$(git -C .simc-source rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore SimulationCraft build
+        id: simc-cache
+        uses: actions/cache@v5
+        with:
+          path: .simc-build
+          key: ${{ runner.os }}-simc-midnight-${{ steps.simc-ref.outputs.sha }}
+
+      - name: Build SimulationCraft CLI
+        if: steps.simc-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++
+          cmake -S .simc-source -B .simc-build -G Ninja \
+            -DBUILD_GUI=OFF -DSC_NO_NETWORKING=ON -DCMAKE_BUILD_TYPE=Release
+          cmake --build .simc-build --target simc --parallel 2
+
+      - name: Run the probe
+        run: |
+          python tools/guide_lean_probe.py --simc-bin .simc-build/simc --threads 4 \
+            --specs "${{ matrix.spec }}" --out "docs/guide-lean-probe/${{ matrix.spec }}"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guide-lean-${{ matrix.spec }}
+          path: docs/guide-lean-probe/
+          if-no-files-found: warn

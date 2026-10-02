@@ -183,6 +183,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--simc-bin", type=Path, required=True)
     parser.add_argument("--specs", required=True)
     parser.add_argument("--goal", default="MYTHIC_PLUS")
+    parser.add_argument("--fight", default="", help="extra SimC fight lines, comma separated (default: Patchwerk)")
     parser.add_argument("--threads", type=int, default=4)
     parser.add_argument("--out", type=Path, default=Path("docs/guide-lean-probe"))
     args = parser.parse_args(argv)
@@ -191,7 +192,8 @@ def main(argv: list[str] | None = None) -> int:
     specs = build(fetched.sources)
     results: list[dict[str, Any]] = []
     document = {"buildId": fetched.build_id, "results": results}
-    fight = ("fight_style=DungeonSlice",) if args.goal == "MYTHIC_PLUS" else ()
+    # Patchwerk: SimC's DungeonSlice fight has the tank take no damage at all (dtps 0), so it cannot be used here.
+    fight = tuple(args.fight.split(",")) if args.fight else ()
 
     def save() -> None:
         args.out.parent.mkdir(parents=True, exist_ok=True)
