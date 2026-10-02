@@ -4,6 +4,20 @@
  "itemLevel": 334,
  "incomplete": [],
  "results": {
+  "overall/all": {
+   "ratings": {
+    "crit": 1321.0,
+    "haste": 908.0,
+    "mastery": 816.0,
+    "versatility": 237.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 6 listed gems",
+   "simcRecovery": [],
+   "statSheet": ""
+  },
   "raid/all": {
    "ratings": {
     "crit": 1245.0,
@@ -15,7 +29,8 @@
    "problems": [],
    "enchantsNotApplied": [],
    "secondaryGem": "first of 6 listed gems",
-   "simcRecovery": []
+   "simcRecovery": [],
+   "statSheet": ""
   },
   "mythic_plus/all": {
    "ratings": {
@@ -28,7 +43,8 @@
    "problems": [],
    "enchantsNotApplied": [],
    "secondaryGem": "first of 6 listed gems",
-   "simcRecovery": []
+   "simcRecovery": [],
+   "statSheet": ""
   }
  }
 }

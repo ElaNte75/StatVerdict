@@ -6,6 +6,38 @@
   "ring enchant not read from the guide"
  ],
  "results": {
+  "overall/Farseer": {
+   "ratings": {
+    "crit": 645.0,
+    "haste": 1075.0,
+    "mastery": 1262.0,
+    "versatility": 103.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Head: enchant 244005 could not be translated"
+   ],
+   "secondaryGem": "first of 4 listed gems",
+   "simcRecovery": [],
+   "statSheet": ""
+  },
+  "overall/Stormbringer": {
+   "ratings": {
+    "crit": 645.0,
+    "haste": 1075.0,
+    "mastery": 1262.0,
+    "versatility": 103.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Head: enchant 244005 could not be translated"
+   ],
+   "secondaryGem": "first of 4 listed gems",
+   "simcRecovery": [],
+   "statSheet": ""
+  },
   "raid/Farseer": {
    "ratings": {
     "crit": 673.0,
@@ -19,7 +51,8 @@
     "Head: enchant 244005 could not be translated"
    ],
    "secondaryGem": "first of 4 listed gems",
-   "simcRecovery": []
+   "simcRecovery": [],
+   "statSheet": ""
   },
   "raid/Stormbringer": {
    "ratings": {
@@ -34,7 +67,8 @@
     "Head: enchant 244005 could not be translated"
    ],
    "secondaryGem": "first of 4 listed gems",
-   "simcRecovery": []
+   "simcRecovery": [],
+   "statSheet": ""
   },
   "mythic_plus/Farseer": {
    "ratings": {
@@ -49,7 +83,8 @@
     "Head: enchant 244005 could not be translated"
    ],
    "secondaryGem": "first of 4 listed gems",
-   "simcRecovery": []
+   "simcRecovery": [],
+   "statSheet": ""
   },
   "mythic_plus/Stormbringer": {
    "ratings": {
@@ -64,7 +99,8 @@
     "Head: enchant 244005 could not be translated"
    ],
    "secondaryGem": "first of 4 listed gems",
-   "simcRecovery": []
+   "simcRecovery": [],
+   "statSheet": ""
   }
  }
 }

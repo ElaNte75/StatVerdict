@@ -4,6 +4,34 @@
  "itemLevel": 334,
  "incomplete": [],
  "results": {
+  "overall/Single Target": {
+   "ratings": {
+    "crit": 576.0,
+    "haste": 1203.0,
+    "mastery": 1536.0,
+    "versatility": 103.0
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "the one listed gem",
+   "simcRecovery": [],
+   "statSheet": ""
+  },
+  "overall/AOE": {
+   "ratings": {
+    "crit": 576.0,
+    "haste": 1203.0,
+    "mastery": 1536.0,
+    "versatility": 103.0
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "the one listed gem",
+   "simcRecovery": [],
+   "statSheet": ""
+  },
   "raid/Single Target": {
    "ratings": {
     "crit": 642.0,
@@ -15,7 +43,8 @@
    "problems": [],
    "enchantsNotApplied": [],
    "secondaryGem": "the one listed gem",
-   "simcRecovery": []
+   "simcRecovery": [],
+   "statSheet": ""
   },
   "raid/AOE": {
    "ratings": {
@@ -28,7 +57,8 @@
    "problems": [],
    "enchantsNotApplied": [],
    "secondaryGem": "the one listed gem",
-   "simcRecovery": []
+   "simcRecovery": [],
+   "statSheet": ""
   },
   "mythic_plus/Single Target": {
    "ratings": {
@@ -41,7 +71,8 @@
    "problems": [],
    "enchantsNotApplied": [],
    "secondaryGem": "the one listed gem",
-   "simcRecovery": []
+   "simcRecovery": [],
+   "statSheet": ""
   },
   "mythic_plus/AOE": {
    "ratings": {
@@ -54,7 +85,8 @@
    "problems": [],
    "enchantsNotApplied": [],
    "secondaryGem": "the one listed gem",
-   "simcRecovery": []
+   "simcRecovery": [],
+   "statSheet": ""
   }
  }
 }

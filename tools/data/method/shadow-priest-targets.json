@@ -3,5 +3,76 @@
  "updated": "",
  "itemLevel": 334,
  "incomplete": [],
- "results": {}
+ "results": {
+  "overall/Broad Prio": {
+   "ratings": {
+    "crit": 455.0,
+    "haste": 1215.0,
+    "mastery": 1431.0,
+    "versatility": 162.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 3 listed gems",
+   "simcRecovery": [],
+   "statSheet": ""
+  },
+  "overall/Voidweaver ST": {
+   "ratings": {
+    "crit": 455.0,
+    "haste": 1215.0,
+    "mastery": 1431.0,
+    "versatility": 162.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 3 listed gems",
+   "simcRecovery": [],
+   "statSheet": ""
+  },
+  "overall/Voidweaver AoE": {
+   "ratings": {
+    "crit": 455.0,
+    "haste": 1215.0,
+    "mastery": 1431.0,
+    "versatility": 162.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 3 listed gems",
+   "simcRecovery": [],
+   "statSheet": ""
+  },
+  "overall/Archon ST": {
+   "ratings": {
+    "crit": 455.0,
+    "haste": 1215.0,
+    "mastery": 1431.0,
+    "versatility": 162.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 3 listed gems",
+   "simcRecovery": [],
+   "statSheet": ""
+  },
+  "overall/Archon AoE": {
+   "ratings": {
+    "crit": 455.0,
+    "haste": 1215.0,
+    "mastery": 1431.0,
+    "versatility": 162.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "first of 3 listed gems",
+   "simcRecovery": [],
+   "statSheet": ""
+  }
+ }
 }

@@ -4,6 +4,22 @@
  "itemLevel": 334,
  "incomplete": [],
  "results": {
+  "overall/all": {
+   "ratings": {
+    "crit": 1227.0,
+    "haste": 785.0,
+    "mastery": 950.0,
+    "versatility": 103.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Helm: slot not understood"
+   ],
+   "secondaryGem": "no secondary gem listed",
+   "simcRecovery": [],
+   "statSheet": ""
+  },
   "raid/all": {
    "ratings": {
     "crit": 1190.0,
@@ -17,7 +33,8 @@
     "Helm: slot not understood"
    ],
    "secondaryGem": "no secondary gem listed",
-   "simcRecovery": []
+   "simcRecovery": [],
+   "statSheet": ""
   },
   "mythic_plus/all": {
    "ratings": {
@@ -32,7 +49,8 @@
     "Helm: slot not understood"
    ],
    "secondaryGem": "no secondary gem listed",
-   "simcRecovery": []
+   "simcRecovery": [],
+   "statSheet": ""
   }
  }
 }

@@ -6,6 +6,22 @@
   "ring enchant not read from the guide"
  ],
  "results": {
+  "overall/all": {
+   "ratings": {
+    "crit": 877.0,
+    "haste": 969.0,
+    "mastery": 1252.0,
+    "versatility": 206.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Head: enchant 243948 could not be translated"
+   ],
+   "secondaryGem": "first of 2 listed gems",
+   "simcRecovery": [],
+   "statSheet": ""
+  },
   "raid/all": {
    "ratings": {
     "crit": 1025.0,
@@ -19,7 +35,8 @@
     "Head: enchant 243948 could not be translated"
    ],
    "secondaryGem": "first of 2 listed gems",
-   "simcRecovery": []
+   "simcRecovery": [],
+   "statSheet": ""
   },
   "mythic_plus/all": {
    "ratings": {
@@ -34,7 +51,8 @@
     "Head: enchant 243948 could not be translated"
    ],
    "secondaryGem": "first of 2 listed gems",
-   "simcRecovery": []
+   "simcRecovery": [],
+   "statSheet": ""
   }
  }
 }

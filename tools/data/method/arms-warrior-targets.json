@@ -6,6 +6,22 @@
   "ring enchant not read from the guide"
  ],
  "results": {
+  "overall/all": {
+   "ratings": {
+    "crit": 1449.0,
+    "haste": 1293.0,
+    "mastery": 417.0,
+    "versatility": 103.0
+   },
+   "items": 15,
+   "problems": [
+    "unknown slot: Alt. Main Hand"
+   ],
+   "enchantsNotApplied": [],
+   "secondaryGem": "the one listed gem",
+   "simcRecovery": [],
+   "statSheet": ""
+  },
   "raid/all": {
    "ratings": {
     "crit": 1499.0,
@@ -19,7 +35,8 @@
    ],
    "enchantsNotApplied": [],
    "secondaryGem": "the one listed gem",
-   "simcRecovery": []
+   "simcRecovery": [],
+   "statSheet": ""
   },
   "mythic_plus/all": {
    "ratings": {
@@ -34,7 +51,8 @@
    ],
    "enchantsNotApplied": [],
    "secondaryGem": "the one listed gem",
-   "simcRecovery": []
+   "simcRecovery": [],
+   "statSheet": ""
   }
  }
 }

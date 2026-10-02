@@ -3,5 +3,20 @@
  "updated": "",
  "itemLevel": 334,
  "incomplete": [],
- "results": {}
+ "results": {
+  "overall/Frostfire": {
+   "ratings": {
+    "crit": 62.0,
+    "haste": 1407.0,
+    "mastery": 908.0,
+    "versatility": 511.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "no secondary gem listed",
+   "simcRecovery": [],
+   "statSheet": ""
+  }
+ }
 }

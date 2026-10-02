@@ -3,5 +3,20 @@
  "updated": "",
  "itemLevel": 334,
  "incomplete": [],
- "results": {}
+ "results": {
+  "overall/all": {
+   "ratings": {
+    "crit": 753.0,
+    "haste": 1197.0,
+    "mastery": 971.0,
+    "versatility": 206.0
+   },
+   "items": 16,
+   "problems": [],
+   "enchantsNotApplied": [],
+   "secondaryGem": "no secondary gem listed",
+   "simcRecovery": [],
+   "statSheet": ""
+  }
+ }
 }

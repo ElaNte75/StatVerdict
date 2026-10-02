@@ -4,6 +4,22 @@
  "itemLevel": 334,
  "incomplete": [],
  "results": {
+  "overall/all": {
+   "ratings": {
+    "crit": 1199.0,
+    "haste": 489.0,
+    "mastery": 1628.0,
+    "versatility": 103.0
+   },
+   "items": 15,
+   "problems": [],
+   "enchantsNotApplied": [
+    "Head: enchant 244005 could not be translated"
+   ],
+   "secondaryGem": "first of 2 listed gems",
+   "simcRecovery": [],
+   "statSheet": ""
+  },
   "raid/all": {
    "ratings": {
     "crit": 1362.0,
@@ -17,7 +33,8 @@
     "Head: enchant 244005 could not be translated"
    ],
    "secondaryGem": "first of 2 listed gems",
-   "simcRecovery": []
+   "simcRecovery": [],
+   "statSheet": ""
   },
   "mythic_plus/all": {
    "ratings": {
@@ -32,7 +49,8 @@
     "Head: enchant 244005 could not be translated"
    ],
    "secondaryGem": "first of 2 listed gems",
-   "simcRecovery": []
+   "simcRecovery": [],
+   "statSheet": ""
   }
  }
 }
