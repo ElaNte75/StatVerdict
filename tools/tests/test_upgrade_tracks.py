@@ -5,7 +5,9 @@ and 630, with their ItemBonus and ItemScalingConfig rows)."""
 from __future__ import annotations
 
 import csv
+import io
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
 
 from tools.upgrade_tracks import (
@@ -135,6 +137,55 @@ class CollectBonusIdsTests(unittest.TestCase):
             }
         }
         self.assertEqual({12854, 13848, 13847, 12806}, collect_bonus_ids(specs))
+
+
+class FetchRetryTests(unittest.TestCase):
+    """The weekly run once wrote its data without track levels because one read timed out."""
+
+    class Response:
+        def __init__(self, text: str) -> None:
+            self.text = text
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc) -> None:
+            return None
+
+        def read(self) -> bytes:
+            return self.text.encode("utf-8")
+
+    def test_a_timeout_is_retried_and_then_succeeds(self) -> None:
+        import socket
+        from unittest.mock import patch
+
+        from tools import upgrade_tracks
+
+        calls = [socket.timeout("timed out"), socket.timeout("timed out"), self.Response("A,B\n1,2\n")]
+
+        def fake_urlopen(*_args, **_kwargs):
+            outcome = calls.pop(0)
+            if isinstance(outcome, Exception):
+                raise outcome
+            return outcome
+
+        with patch("tools.upgrade_tracks.urllib.request.urlopen", side_effect=fake_urlopen), \
+                patch("tools.upgrade_tracks.time.sleep") as sleep, redirect_stderr(io.StringIO()):
+            rows = upgrade_tracks.fetch_db2_rows("ItemBonus")
+        self.assertEqual([{"A": "1", "B": "2"}], rows)
+        self.assertEqual(2, sleep.call_count)
+
+    def test_it_gives_up_after_the_last_attempt(self) -> None:
+        import socket
+        from unittest.mock import patch
+
+        from tools import upgrade_tracks
+
+        with patch("tools.upgrade_tracks.urllib.request.urlopen", side_effect=socket.timeout("timed out")) as opener, \
+                patch("tools.upgrade_tracks.time.sleep"), redirect_stderr(io.StringIO()):
+            with self.assertRaises(OSError):
+                upgrade_tracks.fetch_db2_rows("ItemBonus", attempts=3)
+        self.assertEqual(3, opener.call_count)
 
 
 if __name__ == "__main__":

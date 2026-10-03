@@ -27,6 +27,7 @@ from __future__ import annotations
 import csv
 import io
 import sys
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
@@ -278,12 +279,22 @@ def collect_bonus_ids(specs: dict[str, dict[str, Any]]) -> set[int]:
     return found
 
 
-def fetch_db2_rows(table: str, timeout: float = 120.0) -> list[dict[str, str]]:
+def fetch_db2_rows(table: str, timeout: float = 120.0, attempts: int = 4, pause: float = 10.0) -> list[dict[str, str]]:
+    """One DB2 table from wago.tools. A timeout or a dropped connection is retried (pause, 2 x pause, ... between
+    the attempts): the weekly run once wrote its data without track levels because one read timed out."""
     url = WAGO_DB2_URL.format(table=table)
     request = urllib.request.Request(url, headers={"User-Agent": "StatVerdict-UpgradeTracks/1.0"})
-    with urllib.request.urlopen(request, timeout=timeout) as response:
-        text = response.read().decode("utf-8")
-    return list(csv.DictReader(io.StringIO(text)))
+    for attempt in range(1, attempts + 1):
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                text = response.read().decode("utf-8")
+            return list(csv.DictReader(io.StringIO(text)))
+        except (urllib.error.URLError, OSError) as exc:
+            if attempt == attempts:
+                raise
+            print(f"{table}: attempt {attempt}/{attempts} failed ({exc}); trying again", file=sys.stderr)
+            time.sleep(pause * attempt)
+    raise AssertionError("unreachable")
 
 
 def fetch_track_groups() -> dict[int, TrackGroup]:
@@ -294,11 +305,11 @@ def fetch_track_groups() -> dict[int, TrackGroup]:
 
 def load_track_swap(specs: dict[str, dict[str, Any]]) -> TrackSwap | None:
     """build_track_swap for every bonus id in `specs`, or None (with the
-    reason on stderr) when the DB2 tables cannot be fetched -- the targets
-    are then written without per-track levels rather than failing."""
+    reason on stderr) when the DB2 tables cannot be fetched. The targets CLI
+    then refuses to write (see --allow-missing-track-levels)."""
     try:
         groups = fetch_track_groups()
     except (urllib.error.URLError, OSError, ValueError, csv.Error) as exc:
-        print(f"Upgrade-track tables unavailable, no per-track levels this run: {exc}", file=sys.stderr)
+        print(f"Upgrade-track tables unavailable: {exc}", file=sys.stderr)
         return None
     return build_track_swap(collect_bonus_ids(specs), groups)

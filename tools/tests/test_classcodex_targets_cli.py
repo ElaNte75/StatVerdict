@@ -79,7 +79,7 @@ class WowheadFallbackCliTests(unittest.TestCase):
                 patch("tools.classcodex_targets.run_simc", side_effect=fake_run_simc), \
                 patch("tools.classcodex_targets_cli.reconstruct_loadout", side_effect=OSError("network down")) as wowhead:
             out = Path(tmp) / "SV_ClassCodexTargets.lua"
-            code = classcodex_targets_cli.main(["--simc-bin", "simc", "--out", str(out)])
+            code = classcodex_targets_cli.main(["--simc-bin", "simc", "--out", str(out), "--allow-missing-track-levels"])
             self.assertTrue(out.exists())
         self.assertEqual(0, code)
         wowhead.assert_called_once()  # only for the spec SimC cannot initialise
@@ -110,11 +110,29 @@ class TrackSwapCliTests(unittest.TestCase):
                 patch("tools.classcodex_targets_cli.load_track_swap", return_value=track_swap) as loader, \
                 patch("tools.classcodex_targets.run_simc", side_effect=lambda *_a, **_k: runs.pop(0)):
             out = Path(tmp) / "SV_ClassCodexTargets.lua"
-            code = classcodex_targets_cli.main(["--simc-bin", "simc", "--out", str(out)])
+            extra = ["--allow-missing-track-levels"] if track_swap is None else []
+            code = classcodex_targets_cli.main(["--simc-bin", "simc", "--out", str(out), *extra])
             namespace = run_addon_namespace(out.read_text(encoding="utf-8"), "t.lua", addon_name="StatVerdict")
         self.assertEqual(0, code)
         loader.assert_called_once_with(self.specs)
         return namespace["ClassCodexTargets"], stderr.getvalue()
+
+    def test_without_the_track_tables_nothing_is_written_and_the_old_file_stays(self) -> None:
+        fetched = FetchResult(build_id="b1", published_at="2026-09-29", sources={})
+        stderr = io.StringIO()
+        with tempfile.TemporaryDirectory() as tmp, redirect_stderr(stderr), redirect_stdout(io.StringIO()), \
+                patch("tools.classcodex_targets_cli.fetch_all", return_value=fetched), \
+                patch("tools.classcodex_targets_cli.build", return_value=self.specs), \
+                patch("tools.classcodex_targets_cli.load_track_swap", return_value=None), \
+                patch("tools.classcodex_targets.run_simc") as simc:
+            out = Path(tmp) / "SV_ClassCodexTargets.lua"
+            out.write_text("OLD GOOD DATA", encoding="utf-8")
+            code = classcodex_targets_cli.main(["--simc-bin", "simc", "--out", str(out)])
+            kept = out.read_text(encoding="utf-8")
+        self.assertEqual(1, code)
+        self.assertEqual("OLD GOOD DATA", kept)
+        simc.assert_not_called()  # it stops before the long SimC run
+        self.assertIn("Refusing to write", stderr.getvalue())
 
     def test_the_file_root_carries_track_swap_and_item_levels(self) -> None:
         from tools.upgrade_tracks import TrackSwap

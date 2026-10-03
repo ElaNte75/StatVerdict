@@ -79,6 +79,12 @@ def main(argv: list[str] | None = None) -> int:
         help="refuse to overwrite --out if the new run covers fewer than this fraction of its "
         "spec/goal/hero-talent contexts (pass 0 to accept a deliberate drop)",
     )
+    parser.add_argument(
+        "--allow-missing-track-levels",
+        action="store_true",
+        help="write the file even when the upgrade-track tables could not be fetched (the addon then cannot show "
+        "Champion / Hero items for the lower tiers); without it the run refuses and the old file stays",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -95,6 +101,11 @@ def main(argv: list[str] | None = None) -> int:
     # Myth -> Hero / Champion 6/6 bonus-id swap from the game's DB2 tables
     # (None when wago.tools is unreachable: then no per-track levels).
     track_swap = load_track_swap(specs)
+    if track_swap is None and not args.allow_missing_track_levels:
+        # Without the swap table every tier shows Myth items: worse than the file already in place.
+        print("Refusing to write: the upgrade-track tables could not be fetched, so the data would have no "
+              "Champion / Hero levels. The existing file stays.", file=sys.stderr)
+        return 1
     result = build_all(
         specs, args.simc_bin, skips=skips, wowhead_reconstruct=wowhead_reconstruct, track_swap=track_swap
     )
