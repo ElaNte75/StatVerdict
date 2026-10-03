@@ -1195,6 +1195,35 @@ class TooltipProvenanceTests(unittest.TestCase):
         self.assertEqual(["PVP"], self.asked)
         self.assertTrue(any("profile data unavailable" in line for line in lines))
 
+    def tooltip_with_line(self, text: str):
+        """A tooltip whose first line already holds `text` (like one the stat ranks have touched)."""
+        self.lua.globals().SV_LINE_TEXT = text
+        return self.lua.execute("""
+        local lines = {}
+        _G["VerdictLineTipTextLeft1"] = { GetText = function() return SV_LINE_TEXT end }
+        return {
+            lines = lines,
+            GetName = function() return "VerdictLineTip" end,
+            NumLines = function() return 1 end,
+            GetItem = function() return nil, "item:1000" end,
+            AddLine = function(self, text) lines[#lines + 1] = text end,
+            Show = function() end,
+        }
+        """)
+
+    def test_a_stat_rank_picture_is_not_mistaken_for_the_verdict(self) -> None:
+        # The MS / OS picture's path holds the addon's folder name; the verdict block must still be added.
+        self.ns.GetTooltipEvaluationContexts = lambda: self.lua.table(goal="PVP")
+        tooltip = self.tooltip_with_line(r"+43 Versatility |cffffd100#4|r |TInterface\AddOns\StatVerdict\Textures\StatRankOS:8:16|t")
+        self.ns.ProcessTooltip(tooltip)
+        self.assertTrue(any("profile data unavailable" in str(tooltip.lines[i]) for i in range(1, len(tooltip.lines) + 1)))
+
+    def test_a_verdict_already_in_the_tooltip_is_not_added_twice(self) -> None:
+        self.ns.GetTooltipEvaluationContexts = lambda: self.lua.table(goal="PVP")
+        tooltip = self.tooltip_with_line("|cffff8000StatVerdict Result|r")
+        self.ns.ProcessTooltip(tooltip)
+        self.assertEqual(0, len(tooltip.lines))
+
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
 class VerdictReferenceLabelTests(unittest.TestCase):

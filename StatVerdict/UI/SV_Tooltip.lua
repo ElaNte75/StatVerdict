@@ -128,7 +128,9 @@ local function TooltipAlreadyHasStatVerdict(tooltip)
     for i = 1, tooltip:NumLines() do
         local line = _G[name .. "TextLeft" .. i]
         local text = line and line:GetText()
-        if type(text) == "string" and string.find(text, PREFIX, 1, true) then
+        -- Pictures set into the text (the MS / OS label of a stat rank) carry the addon's own folder name in their
+        -- path: that is not the verdict.
+        if type(text) == "string" and string.find((text:gsub("|T.-|t", "")), PREFIX, 1, true) then
             return true
         end
     end
