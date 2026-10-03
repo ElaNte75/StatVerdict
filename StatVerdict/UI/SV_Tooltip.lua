@@ -167,6 +167,27 @@ local function RenderMissingOffhandNotice(tooltip, context)
     return true
 end
 
+-- Does the item upgrade this build? The same test the verdict block applies, without drawing anything.
+local function IsUpgradeFor(itemLink, context)
+    local profile = type(context) == "table" and context.profile or nil
+    if type(profile) ~= "table" or profile.invalidGeneratedContext or not ns.BuildComparison then
+        return false
+    end
+    local function check()
+        local comparison = ns.BuildComparison(itemLink, profile)
+        local selected = comparison and not comparison.missingOffhand and comparison.selected or nil
+        return selected ~= nil and selected.isUpgrade == true
+            and (tonumber(selected.deltaScore or selected.rawDeltaScore) or 0) > 0
+    end
+    local ok, result = pcall(function()
+        if ns.WithStatVerdictSnapshotProfile then
+            return ns.WithStatVerdictSnapshotProfile(profile, check)
+        end
+        return check()
+    end)
+    return ok and result == true
+end
+
 local function AddTooltipVerdict(tooltip)
     if IsInternalStatVerdictTooltip(tooltip) then
         return
@@ -300,11 +321,32 @@ local function AddTooltipVerdict(tooltip)
         return buildAndRender()
     end
 
-    if renderContext(primaryContext, false) then
+    -- Which build the verdict is for: the one selected in the window (Main or Off Spec). Alt shows the other one, but
+    -- only when an Off Spec is set: without one there is nothing to switch to. The stat ranks follow the same rule.
+    local hasOff = secondaryContext ~= nil and secondaryContext ~= primaryContext
+        and type(secondaryContext) == "table" and secondaryContext.profile ~= nil
+    local view = ns.GetStatAuditActiveView and ns.GetStatAuditActiveView() or "MAIN"
+    local showOff = hasOff and view == "OFF"
+    local altHeld = hasOff and IsAltKeyDown and IsAltKeyDown() or false
+    if altHeld then
+        showOff = not showOff
+    end
+    local firstContext, firstIsSecondary, otherContext = primaryContext, false, secondaryContext
+    if showOff then
+        firstContext, firstIsSecondary, otherContext = secondaryContext, true, primaryContext
+    end
+
+    if renderContext(firstContext, firstIsSecondary) then
+        -- One line when the other build gains from this item too, so it is not missed.
+        if hasOff and not altHeld and not catalystPreviewing and IsUpgradeFor(itemLink, otherContext) then
+            local name = otherContext.specName or (otherContext.profile and otherContext.profile.specName) or "the other build"
+            tooltip:AddLine("|cff999999Also an upgrade for " .. tostring(name) .. " (hold Alt)|r", 0.6, 0.6, 0.6)
+            tooltip:Show()
+        end
         return
     end
-    if secondaryContext and secondaryContext ~= primaryContext then
-        renderContext(secondaryContext, true)
+    if otherContext and otherContext ~= firstContext then
+        renderContext(otherContext, not firstIsSecondary)
     end
 end
 
