@@ -306,6 +306,12 @@ end
 -- shown in the window ("+73 Critical Strike #1 MS"). Stats the guide calls roughly equal carry the same number.
 -- The build is the one selected in the window (MS or OS, in gold, after the number so it
 -- stands apart from a green stat line); holding Alt shows the other one. Switched off with Features > Stat Ranks (StatVerdictDB.showStatRanks).
+-- Holding Alt over an item the Catalyst can turn into the Best in Slot set piece swaps the tooltip for that piece (same
+-- item level, its own stats and verdict); Alt up puts the item back. While the swap is being built, Alt must not also
+-- flip the build of the stat ranks.
+local catalystPreviewing = false
+local previewOf = setmetatable({}, { __mode = "k" })  -- tooltip -> the item link it was showing before the swap
+
 local RANK_COLOR = "|cffffd100"  -- the game's tooltip gold (Item Level, Vendor, Auction), not the addon's orange
 -- MS / OS are small gold pictures (StatRankMS / StatRankOS in Textures), because tooltip text cannot change
 -- its size inside a line. Size: height 8, width 16 (the pictures are 2:1).
@@ -356,7 +362,7 @@ function ns.AddStatRanksToTooltip(tooltip)
     local hasOff = secondary and secondary.profile and true or false
     local view = ns.GetStatAuditActiveView and ns.GetStatAuditActiveView() or "MAIN"
     local showOff = (view == "OFF" and hasOff) and true or false
-    if hasOff and IsAltKeyDown and IsAltKeyDown() then
+    if hasOff and not catalystPreviewing and IsAltKeyDown and IsAltKeyDown() then
         showOff = not showOff  -- Alt: the other build
     end
     local context = showOff and secondary or primary
@@ -405,22 +411,58 @@ function ns.AddStatRanksToTooltip(tooltip)
     end
 end
 
--- Alt switches between the two builds: redraw the tooltip that is open when Alt goes down or up.
+-- The item string that shows the Best in Slot set piece an item the Catalyst can convert would become, with the
+-- item's own item level and bonus ids; nil when Alt is not held or the item has no Catalyst path. Second value: the
+-- item string of the tooltip as it was.
+local function CatalystPreviewLink(tooltip)
+    if catalystPreviewing then return nil end
+    if not (IsAltKeyDown and IsAltKeyDown()) then return nil end
+    if InCombatLockdown and InCombatLockdown() then return nil end
+    if tooltip ~= _G.GameTooltip or type(tooltip.SetHyperlink) ~= "function" then return nil end
+    local itemLink = GetTooltipItemLink(tooltip)
+    local itemString = type(itemLink) == "string" and itemLink:match("(item:[%-%d:]+)") or nil
+    if not itemString or not ns.GetItemReferenceInfo or not ns.GetTooltipEvaluationContexts then return nil end
+    local primary = ns.GetTooltipEvaluationContexts()
+    local profile = primary and primary.profile or nil
+    local info = profile and ns.GetItemReferenceInfo(itemString, profile) or nil
+    local targetID = info and info.catalystPath and tonumber(info.catalystPath.targetItemID) or nil
+    local previewString = targetID and ns.CatalystTargetItemString and ns.CatalystTargetItemString(itemString, targetID) or nil
+    if not previewString then return nil end
+    return previewString, itemString
+end
+
+-- Alt: redraw the tooltip that is open when Alt goes down or up (the stat ranks show the other build, an item the
+-- Catalyst can convert shows the set piece). Alt up after a swap puts the item itself back.
 local altWatcher = CreateFrame and CreateFrame("Frame") or nil
 if altWatcher then
     altWatcher:RegisterEvent("MODIFIER_STATE_CHANGED")
     altWatcher:SetScript("OnEvent", function(_, _, key)
         if key ~= "LALT" and key ~= "RALT" then return end
-        local db = _G.StatVerdictDB
-        if type(db) == "table" and db.showStatRanks == false then return end
         local tip = _G.GameTooltip
-        if tip and tip:IsShown() and type(tip.RefreshData) == "function" then
+        if not (tip and tip:IsShown()) then return end
+        local original = previewOf[tip]
+        if original and not (IsAltKeyDown and IsAltKeyDown()) then
+            previewOf[tip] = nil
+            pcall(tip.SetHyperlink, tip, original)
+        elseif type(tip.RefreshData) == "function" then
             pcall(tip.RefreshData, tip)
         end
     end)
 end
 
 function ns.ProcessTooltip(tooltip)
+    local previewLink, original = CatalystPreviewLink(tooltip)
+    if previewLink then
+        catalystPreviewing = true
+        local ok = pcall(tooltip.SetHyperlink, tooltip, previewLink)
+        catalystPreviewing = false
+        if ok then
+            previewOf[tooltip] = original  -- the swapped tooltip was filled by this same function, one level down
+            return
+        end
+    elseif not catalystPreviewing then
+        previewOf[tooltip] = nil  -- a fresh tooltip
+    end
     pcall(ns.AddStatRanksToTooltip, tooltip)
     AddTooltipVerdict(tooltip)
 end

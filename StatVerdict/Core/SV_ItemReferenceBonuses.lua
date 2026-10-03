@@ -12,7 +12,8 @@ local TRINKET_TIER_BONUS = {
     D = 0,
 }
 local MAX_RANK_BONUS = 5
--- An item the Catalyst can turn into the BiS set piece counts as that piece.
+-- An item the Catalyst can turn into the BiS set piece would be worth as much as that piece: the tooltip says
+-- so on its own line (an estimate); the verdict itself judges the item as it is.
 local CATALYST_BONUS = BIS_BONUS
 
 -- The slots the Catalyst can convert.
@@ -234,13 +235,17 @@ function ns.GetItemReferenceInfo(itemLink, profile)
     local trinket = ResolveTrinketTier(heroDoc, itemID)
     if not bis and not catalystPath and not trinket then return nil end
 
+    -- bonus: what the item is worth as it is (BiS piece, trinket tier). The Catalyst is not in it: converting costs a
+    -- scarce Spark, so the verdict never assumes it; catalystBonus is what the set piece it can become would add,
+    -- shown on its own line of the tooltip.
     return {
         itemID = itemID,
         goal = goal,
         bis = bis,
         catalystPath = catalystPath,
         trinket = trinket,
-        bonus = (bis and bis.bonus or 0) + (catalystPath and catalystPath.bonus or 0) + (trinket and trinket.bonus or 0),
+        bonus = (bis and bis.bonus or 0) + (trinket and trinket.bonus or 0),
+        catalystBonus = catalystPath and catalystPath.bonus or 0,
     }
 end
 

@@ -80,6 +80,15 @@ local TRINKET_TIER_COLOR = {
     D = "|cff9d9d9d",
 }
 
+-- The item string of the Best in Slot set piece an item the Catalyst can convert becomes: the item's own string
+-- (item level, bonus ids) with the set piece's item id. nil when the link holds no item string.
+function ns.CatalystTargetItemString(itemLink, targetItemID)
+    local itemString = type(itemLink) == "string" and itemLink:match("(item:[%-%d:]+)") or nil
+    targetItemID = tonumber(targetItemID)
+    if not itemString or not targetItemID then return nil end
+    return (itemString:gsub("^item:%d+", "item:" .. targetItemID, 1)), itemString
+end
+
 function ns.RenderTooltipVerdict(tooltip, context, comparison, isSecondary, showApproveHint)
     if not tooltip or not context or not comparison or not comparison.selected then
         return
@@ -109,8 +118,6 @@ function ns.RenderTooltipVerdict(tooltip, context, comparison, isSecondary, show
         local wording = ns.GetReferenceWording and ns.GetReferenceWording(context.profile and context.profile.goal) or nil
         local tag = wording and wording.tag or "BIS"
         AddLine(tooltip, c.white .. "Reference: " .. "|cff00ccff(" .. tag .. ")|r" .. c.reset, 1, 1, 1)
-    elseif referenceInfo and referenceInfo.catalystPath then
-        AddLine(tooltip, c.white .. "Reference: " .. "|cff00ccffGood if converted to the set piece with the Catalyst|r" .. c.reset, 1, 1, 1)
     end
     if referenceInfo and referenceInfo.trinket then
         local trinket = referenceInfo.trinket
@@ -159,6 +166,29 @@ function ns.RenderTooltipVerdict(tooltip, context, comparison, isSecondary, show
         else
             AddLine(tooltip, "|cffffd200Alt-Right-Click to save for " .. tostring(specName) .. "|r", 1, 0.82, 0)
         end
+    end
+
+    -- An item the Catalyst can turn into the Best in Slot set piece: whether that piece, judged with its real
+    -- stats at this item level, comes out better than the item as it is, and the way to see it.
+    if referenceInfo and referenceInfo.catalystPath and not ruleBlocked then
+        local convertedScore = nil
+        local targetLink = ns.CatalystTargetItemString and ns.CatalystTargetItemString(comparison.itemLink, referenceInfo.catalystPath.targetItemID)
+        local converted = targetLink and ns.BuildComparison and ns.BuildComparison(targetLink, context.profile) or nil
+        local convertedSelected = converted and converted.selected or nil
+        if convertedSelected then
+            convertedScore = convertedSelected.deltaScore or convertedSelected.rawDeltaScore
+        end
+        if convertedScore ~= nil then
+            if convertedScore > verdictScore then
+                -- The set piece is the guide's Best in Slot piece for this slot: that is what it becomes.
+                local wording = ns.GetReferenceWording and ns.GetReferenceWording(context.profile and context.profile.goal) or nil
+                local base = wording and wording.base or "Best in Slot"
+                AddLine(tooltip, "|cff00ccff" .. base .. " after the Catalyst|r", 0, 0.8, 1)
+            else
+                AddLine(tooltip, "|cff999999Not better after the Catalyst|r", 0.6, 0.6, 0.6)
+            end
+        end
+        AddLine(tooltip, "|cff999999Hold Alt to preview|r", 0.6, 0.6, 0.6)
     end
 
     tooltip:Show()

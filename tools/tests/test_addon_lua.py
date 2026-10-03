@@ -654,8 +654,9 @@ class CoreProfileTests(unittest.TestCase):
             self.assertEqual(100, info.catalystPath.bonus, link)  # same bonus a BiS item gets
             self.assertEqual(slot, info.catalystPath.slot, link)
             self.assertEqual(target, info.catalystPath.targetItemID, link)
-            self.assertEqual(100, info.bonus, link)
-            self.assertEqual(100, ns.GetItemReferenceBonus(link, profile)[0])
+            self.assertEqual(0, info.bonus, link)  # judged as it is: converting costs a scarce Spark
+            self.assertEqual(100, info.catalystBonus, link)  # what the set piece would add, on its own tooltip line
+            self.assertEqual(0, ns.GetItemReferenceBonus(link, profile)[0])
 
     def test_no_catalyst_rule_when_the_bis_piece_is_not_a_set_piece(self) -> None:
         lua, ns, profile = self.catalyst_runtime()
@@ -691,7 +692,8 @@ class CoreProfileTests(unittest.TestCase):
         self.assertEqual(["clear", ("refresh", "full")], calls)
         info = ns.GetItemReferenceInfo("item:7005", profile)
         self.assertEqual(1006, info.catalystPath.targetItemID)
-        self.assertEqual(100, info.bonus)
+        self.assertEqual(0, info.bonus)
+        self.assertEqual(100, info.catalystBonus)
 
     def order(self, profile) -> list[str]:
         return [profile.secondaryOrder[i] for i in range(1, len(profile.secondaryOrder) + 1)]
@@ -1229,33 +1231,59 @@ class TooltipProvenanceTests(unittest.TestCase):
 class VerdictReferenceLabelTests(unittest.TestCase):
     CATALYST_TEXT = "Good if converted to the set piece with the Catalyst"
 
-    def render(self, reference_info):
+    def render(self, reference_info, converted=None):
+        """converted: the points BuildComparison gives the set piece (None: it gives nothing)."""
         lua = new_runtime()
         ns = lua.table()
+        self.asked_links = []
         lua.execute("C_Item = { GetItemInfo = function() return nil end }")
         ns.Colors = lua.table(white="|cffffffff", reset="|r", green="|cff00ff00", red="|cffff0000", yellow="|cffffff00")
         load_addon_file(lua, ns, "UI/SV_Render.lua")
         ns.GetItemReferenceInfo = lambda link, profile: reference_info(lua) if reference_info else None
+
+        def build_comparison(link, profile):
+            self.asked_links.append(str(link))
+            return lua.table(selected=lua.table(deltaScore=converted)) if converted is not None else None
+
+        ns.BuildComparison = build_comparison
         tooltip = lua.execute("""
         local lines = {}
         return { lines = lines, AddLine = function(self, text) lines[#lines + 1] = text end, Show = function() end }
         """)
         selected = lua.table(isUpgrade=True, deltaScore=5, slotLabel="Head")
         context = lua.table(specName="Blood", profile=lua.table(goal="MYTHIC_PLUS"))
-        ns.RenderTooltipVerdict(tooltip, context, lua.table(selected=selected, itemLink="item:7000"))
+        ns.RenderTooltipVerdict(tooltip, context, lua.table(selected=selected, itemLink="item:7000::::::::90::::1:12854"))
         return [tooltip.lines[i] for i in range(1, len(tooltip.lines) + 1)]
 
-    def test_catalyst_candidate_gets_the_plain_catalyst_line(self) -> None:
-        lines = self.render(lambda lua: lua.table(catalystPath=lua.table(bonus=8, slot="Head", targetItemID=1000)))
-        catalyst = [line for line in lines if self.CATALYST_TEXT in line]
-        self.assertEqual(1, len(catalyst))
-        self.assertTrue(catalyst[0].startswith("|cffffffffReference: "))
+    CATALYST_INFO = staticmethod(lambda lua: lua.table(catalystPath=lua.table(bonus=100, slot="Head", targetItemID=1000)))
+
+    def test_a_better_set_piece_is_called_best_in_slot_with_the_alt_hint(self) -> None:
+        lines = self.render(self.CATALYST_INFO, converted=105)  # the item as it is scores 5
+        self.assertEqual(1, len([line for line in lines if "Best in Slot after the Catalyst" in line]))
+        self.assertTrue(any("Hold Alt to preview" in line for line in lines))
+        better = next(i for i, line in enumerate(lines) if "after the Catalyst" in line and "Not better" not in line)
+        self.assertLess(next(i for i, line in enumerate(lines) if "Verdict Points" in line), better)  # below the verdict
+        self.assertLess(better, next(i for i, line in enumerate(lines) if "Hold Alt" in line))
+        self.assertFalse(any(self.CATALYST_TEXT in line for line in lines))  # the old reference line is gone
         self.assertFalse(any("(BIS)" in line for line in lines))
+        # The set piece is judged at the item's own level and bonus ids, with the set piece's id.
+        self.assertEqual(["item:1000::::::::90::::1:12854"], self.asked_links)
+
+    def test_a_set_piece_that_is_not_better_says_so(self) -> None:
+        lines = self.render(self.CATALYST_INFO, converted=3)
+        self.assertTrue(any("Not better after the Catalyst" in line for line in lines))
+        self.assertFalse(any("Best in Slot after" in line for line in lines))
+        self.assertTrue(any("Hold Alt to preview" in line for line in lines))
+
+    def test_when_the_set_piece_cannot_be_judged_only_the_hint_stays(self) -> None:
+        lines = self.render(self.CATALYST_INFO, converted=None)
+        self.assertFalse(any("after the Catalyst" in line for line in lines))
+        self.assertTrue(any("Hold Alt to preview" in line for line in lines))
 
     def test_bis_item_keeps_the_bis_tag_without_the_catalyst_line(self) -> None:
         lines = self.render(lambda lua: lua.table(bis=lua.table(bonus=8, slot="Head")))
         self.assertTrue(any("(BIS)" in line for line in lines))
-        self.assertFalse(any(self.CATALYST_TEXT in line for line in lines))
+        self.assertFalse(any("On Catalyst" in line for line in lines))
 
     def test_no_reference_means_no_reference_line(self) -> None:
         lines = self.render(None)
