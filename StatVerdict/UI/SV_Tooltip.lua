@@ -306,8 +306,8 @@ end
 -- shown in the window ("+73 Critical Strike #1 MS"). Stats the guide calls roughly equal carry the same number.
 -- The build is the one selected in the window (MS or OS, in gold, after the number so it
 -- stands apart from a green stat line); holding Alt shows the other one. Switched off with Features > Stat Ranks (StatVerdictDB.showStatRanks).
--- Holding Shift over an item the Catalyst can turn into the Best in Slot set piece swaps the tooltip for that piece (same
--- item level, its own stats and verdict); Shift up puts the item back. (Alt is the stat ranks' key: it shows the other
+-- Holding Ctrl over an item the Catalyst can turn into the Best in Slot set piece swaps the tooltip for that piece (same
+-- item level, its own stats and verdict); Ctrl up puts the item back. (Alt is the stat ranks' key: it shows the other
 -- build.) The flag only stops the swapped tooltip from being swapped again.
 local catalystPreviewing = false
 local previewOf = setmetatable({}, { __mode = "k" })  -- tooltip -> the item link it was showing before the swap
@@ -412,11 +412,11 @@ function ns.AddStatRanksToTooltip(tooltip)
 end
 
 -- The item string that shows the Best in Slot set piece an item the Catalyst can convert would become, with the
--- item's own item level and bonus ids; nil when Shift is not held or the item has no Catalyst path. Second value: the
+-- item's own item level and bonus ids; nil when Ctrl is not held or the item has no Catalyst path. Second value: the
 -- item string of the tooltip as it was.
 local function CatalystPreviewLink(tooltip)
     if catalystPreviewing then return nil end
-    if not (IsShiftKeyDown and IsShiftKeyDown()) then return nil end
+    if not (IsControlKeyDown and IsControlKeyDown()) then return nil end
     if InCombatLockdown and InCombatLockdown() then return nil end
     if tooltip ~= _G.GameTooltip or type(tooltip.SetHyperlink) ~= "function" then return nil end
     local itemLink = GetTooltipItemLink(tooltip)
@@ -431,21 +431,22 @@ local function CatalystPreviewLink(tooltip)
     return previewString, itemString
 end
 
--- Alt and Shift: redraw the tooltip that is open when one goes down or up. Alt: the stat ranks show the other build.
--- Shift: an item the Catalyst can convert shows the set piece, and Shift up puts the item itself back.
+-- Alt and Ctrl: redraw the tooltip that is open when one goes down or up. Alt: the stat ranks show the other build.
+-- Ctrl: an item the Catalyst can convert shows the set piece, and Ctrl up puts the item itself back. (Shift is the
+-- game's own item comparison.)
 local modifierWatcher = CreateFrame and CreateFrame("Frame") or nil
 if modifierWatcher then
     modifierWatcher:RegisterEvent("MODIFIER_STATE_CHANGED")
     modifierWatcher:SetScript("OnEvent", function(_, _, key)
         local isAlt = key == "LALT" or key == "RALT"
-        local isShift = key == "LSHIFT" or key == "RSHIFT"
-        if not (isAlt or isShift) then return end
+        local isCtrl = key == "LCTRL" or key == "RCTRL"
+        if not (isAlt or isCtrl) then return end
         local tip = _G.GameTooltip
         if not (tip and tip:IsShown()) then return end
         local original = previewOf[tip]
         if original then
-            -- The set piece is showing: Shift up brings the item back; Alt changes nothing there.
-            if isShift and not (IsShiftKeyDown and IsShiftKeyDown()) then
+            -- The set piece is showing: Ctrl up brings the item back; Alt changes nothing there.
+            if isCtrl and not (IsControlKeyDown and IsControlKeyDown()) then
                 previewOf[tip] = nil
                 pcall(tip.SetHyperlink, tip, original)
             end

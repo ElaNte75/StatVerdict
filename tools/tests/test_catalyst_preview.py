@@ -1,4 +1,4 @@
-"""Holding Shift over an item the Catalyst can convert swaps the tooltip for the Best in Slot set piece it would become."""
+"""Holding Ctrl over an item the Catalyst can convert swaps the tooltip for the Best in Slot set piece it would become."""
 from __future__ import annotations
 
 import unittest
@@ -17,8 +17,8 @@ class CatalystPreviewTests(unittest.TestCase):
         load_addon_file(self.lua, self.ns, "UI/SV_Tooltip.lua")
         lua = self.lua
         lua.execute("""
-        SHIFT = false
-        IsShiftKeyDown = function() return SHIFT end
+        CTRL = false
+        IsControlKeyDown = function() return CTRL end
         SET_CALLS = {}
         FAIL_SET = false
         GameTooltip = {
@@ -48,29 +48,29 @@ class CatalystPreviewTests(unittest.TestCase):
             "function(link) if tostring(link):find('^item:7000') then "
             "return { catalystPath = { targetItemID = 555 }, catalystBonus = 100 } end end")
 
-    def hover(self, link: str, shift: bool, tooltip: str = "GameTooltip"):
-        self.lua.execute(f"SHIFT = {str(shift).lower()}; SET_CALLS = {{}}; PROCESSED = {{}}; GameTooltip.link = '{link}'; GameTooltip.lines = {{}}")
+    def hover(self, link: str, ctrl: bool, tooltip: str = "GameTooltip"):
+        self.lua.execute(f"CTRL = {str(ctrl).lower()}; SET_CALLS = {{}}; PROCESSED = {{}}; GameTooltip.link = '{link}'; GameTooltip.lines = {{}}")
         self.ns.ProcessTooltip(self.lua.eval(tooltip))
         calls = [str(self.lua.eval(f"SET_CALLS[{i}]")) for i in range(1, int(self.lua.eval("#SET_CALLS")) + 1)]
         processed = [str(self.lua.eval(f"PROCESSED[{i}]")) for i in range(1, int(self.lua.eval("#PROCESSED")) + 1)]
         return calls, processed
 
-    def test_shift_over_a_convertible_item_shows_the_set_piece_with_the_same_item_level(self) -> None:
-        calls, processed = self.hover(self.ORIGINAL, shift=True)
+    def test_ctrl_over_a_convertible_item_shows_the_set_piece_with_the_same_item_level(self) -> None:
+        calls, processed = self.hover(self.ORIGINAL, ctrl=True)
         self.assertEqual(["item:555::::::::90::::1:12854"], calls)  # only the id changes: level and bonus ids stay
         self.assertEqual(["item:555::::::::90::::1:12854"], processed)  # only the set piece was filled, not the item
 
     def test_the_swap_happens_once_and_does_not_loop(self) -> None:
-        calls, _ = self.hover(self.ORIGINAL, shift=True)
+        calls, _ = self.hover(self.ORIGINAL, ctrl=True)
         self.assertEqual(1, len(calls))
 
-    def test_without_shift_nothing_is_swapped(self) -> None:
-        calls, processed = self.hover(self.ORIGINAL, shift=False)
+    def test_without_ctrl_nothing_is_swapped(self) -> None:
+        calls, processed = self.hover(self.ORIGINAL, ctrl=False)
         self.assertEqual([], calls)
         self.assertEqual([self.ORIGINAL], processed)
 
     def test_an_item_without_a_catalyst_path_is_never_swapped(self) -> None:
-        calls, processed = self.hover("item:8000::::::::90", shift=True)
+        calls, processed = self.hover("item:8000::::::::90", ctrl=True)
         self.assertEqual([], calls)
         self.assertEqual(["item:8000::::::::90"], processed)
 
@@ -80,28 +80,28 @@ class CatalystPreviewTests(unittest.TestCase):
                   AddLine = function(self, text) self.lines[#self.lines + 1] = text end, Show = function() end,
                   SetHyperlink = function() SET_CALLS[#SET_CALLS + 1] = "other" end }
         """)
-        self.lua.execute("SHIFT = true; SET_CALLS = {}")
+        self.lua.execute("CTRL = true; SET_CALLS = {}")
         self.ns.ProcessTooltip(self.lua.eval("OTHER"))
         self.assertEqual(0, int(self.lua.eval("#SET_CALLS")))
 
     def test_in_combat_nothing_is_swapped(self) -> None:
         self.lua.execute("InCombatLockdown = function() return true end")
-        calls, _ = self.hover(self.ORIGINAL, shift=True)
+        calls, _ = self.hover(self.ORIGINAL, ctrl=True)
         self.assertEqual([], calls)
 
     def test_a_failed_swap_leaves_the_normal_tooltip(self) -> None:
         self.lua.execute("FAIL_SET = true")
-        calls, processed = self.hover(self.ORIGINAL, shift=True)
+        calls, processed = self.hover(self.ORIGINAL, ctrl=True)
         self.assertEqual(1, len(calls))  # tried once
         self.assertEqual([self.ORIGINAL], processed)  # and the item itself is shown as usual
 
     def test_one_pass_only_so_the_stat_ranks_are_not_added_twice(self) -> None:
-        _, processed = self.hover(self.ORIGINAL, shift=True)
+        _, processed = self.hover(self.ORIGINAL, ctrl=True)
         self.assertEqual(1, len(processed))
 
     def test_alt_does_not_swap_it_is_the_stat_ranks_key(self) -> None:
         self.lua.execute("IsAltKeyDown = function() return true end")
-        calls, processed = self.hover(self.ORIGINAL, shift=False)
+        calls, processed = self.hover(self.ORIGINAL, ctrl=False)
         self.assertEqual([], calls)
         self.assertEqual([self.ORIGINAL], processed)
 

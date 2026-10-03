@@ -1257,13 +1257,13 @@ class VerdictReferenceLabelTests(unittest.TestCase):
 
     CATALYST_INFO = staticmethod(lambda lua: lua.table(catalystPath=lua.table(bonus=100, slot="Head", targetItemID=1000)))
 
-    def test_a_better_set_piece_is_called_best_in_slot_with_the_shift_hint(self) -> None:
+    def test_a_better_set_piece_is_called_best_in_slot_with_the_ctrl_hint(self) -> None:
         lines = self.render(self.CATALYST_INFO, converted=105)  # the item as it is scores 5
         self.assertEqual(1, len([line for line in lines if "Best in Slot after the Catalyst" in line]))
-        self.assertTrue(any("Hold Shift to preview" in line for line in lines))
+        self.assertTrue(any("Hold Ctrl to preview" in line for line in lines))
         better = next(i for i, line in enumerate(lines) if "after the Catalyst" in line and "Not better" not in line)
         self.assertLess(next(i for i, line in enumerate(lines) if "Verdict Points" in line), better)  # below the verdict
-        self.assertLess(better, next(i for i, line in enumerate(lines) if "Hold Shift" in line))
+        self.assertLess(better, next(i for i, line in enumerate(lines) if "Hold Ctrl" in line))
         self.assertFalse(any(self.CATALYST_TEXT in line for line in lines))  # the old reference line is gone
         self.assertFalse(any("(BIS)" in line for line in lines))
         # The set piece is judged at the item's own level and bonus ids, with the set piece's id.
@@ -1273,12 +1273,12 @@ class VerdictReferenceLabelTests(unittest.TestCase):
         lines = self.render(self.CATALYST_INFO, converted=3)
         self.assertTrue(any("Not better after the Catalyst" in line for line in lines))
         self.assertFalse(any("Best in Slot after" in line for line in lines))
-        self.assertTrue(any("Hold Shift to preview" in line for line in lines))
+        self.assertTrue(any("Hold Ctrl to preview" in line for line in lines))
 
     def test_when_the_set_piece_cannot_be_judged_only_the_hint_stays(self) -> None:
         lines = self.render(self.CATALYST_INFO, converted=None)
         self.assertFalse(any("after the Catalyst" in line for line in lines))
-        self.assertTrue(any("Hold Shift to preview" in line for line in lines))
+        self.assertTrue(any("Hold Ctrl to preview" in line for line in lines))
 
     def test_bis_item_keeps_the_bis_tag_without_the_catalyst_line(self) -> None:
         lines = self.render(lambda lua: lua.table(bis=lua.table(bonus=8, slot="Head")))

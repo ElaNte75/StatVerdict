@@ -188,7 +188,7 @@ function ns.RenderTooltipVerdict(tooltip, context, comparison, isSecondary, show
                 AddLine(tooltip, "|cff999999Not better after the Catalyst|r", 0.6, 0.6, 0.6)
             end
         end
-        AddLine(tooltip, "|cff999999Hold Shift to preview|r", 0.6, 0.6, 0.6)
+        AddLine(tooltip, "|cff999999Hold Ctrl to preview|r", 0.6, 0.6, 0.6)
     end
 
     tooltip:Show()
