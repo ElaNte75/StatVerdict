@@ -92,6 +92,11 @@ class BuildTrackSwapTests(unittest.TestCase):
         self.assertEqual({"myth": {}, "hero": {}, "champion": {12833: 12838}}, swap.swap)
         self.assertEqual({"hero": [], "champion": []}, swap.unmapped)
 
+    def test_the_top_ids_are_the_six_of_six_of_each_track(self) -> None:
+        # Whatever was observed: this is what an item listed without bonus ids gets at that tier.
+        for observed in ({12806, 12854}, set()):
+            self.assertEqual({"myth": 12854, "hero": 12846, "champion": 12838}, build_track_swap(observed, GROUPS).top)
+
     def test_item_levels_are_the_current_season(self) -> None:
         for observed in ({12806, 12854}, {12806}):
             self.assertEqual({"myth": 334, "hero": 321, "champion": 308}, build_track_swap(observed, GROUPS).item_levels)

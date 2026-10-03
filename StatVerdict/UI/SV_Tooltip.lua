@@ -301,9 +301,14 @@ local function AddTooltipVerdict(tooltip)
 end
 
 -- Stat ranks: every secondary stat on an item tooltip gets its place in the guide's order for the build
--- shown in the window ("+73 Critical Strike #1"). Stats the guide calls roughly equal share one number
--- and carry an "=" ("#2="). Switched off with Features > Stat Ranks (StatVerdictDB.showStatRanks).
-local RANK_COLOR = "|cffffd100"
+-- shown in the window ("+73 Critical Strike #1 MS"). Stats the guide calls roughly equal carry the same number.
+-- The build is the one selected in the window (MS or OS, in orange, after the number so it
+-- stands apart from a green stat line); holding Alt shows the other one. Switched off with Features > Stat Ranks (StatVerdictDB.showStatRanks).
+local RANK_COLOR = "|cffff8000"  -- the addon's orange, as in "StatVerdict Result": all that StatVerdict adds is orange
+-- MS / OS are small orange pictures (StatRankMS / StatRankOS in Textures), because tooltip text cannot change
+-- its size inside a line. Size: height 7, width 14 (the pictures are 2:1).
+local LABEL_PATH = "|TInterface\\AddOns\\StatVerdict\\Textures\\StatRank"
+local LABEL_SIZE = ":7:14|t"
 
 local function PlainText(text)
     return (text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
@@ -341,8 +346,19 @@ function ns.AddStatRanksToTooltip(tooltip)
         return
     end
 
-    local context = ns.GetTooltipEvaluationContexts and (ns.GetTooltipEvaluationContexts()) or nil
-    context = context or (ns.GetEvaluationContext and ns.GetEvaluationContext() or nil)
+    local primary, secondary = nil, nil
+    if ns.GetTooltipEvaluationContexts then
+        primary, secondary = ns.GetTooltipEvaluationContexts()
+    end
+    primary = primary or (ns.GetEvaluationContext and ns.GetEvaluationContext() or nil)
+    local hasOff = secondary and secondary.profile and true or false
+    local view = ns.GetStatAuditActiveView and ns.GetStatAuditActiveView() or "MAIN"
+    local showOff = (view == "OFF" and hasOff) and true or false
+    if hasOff and IsAltKeyDown and IsAltKeyDown() then
+        showOff = not showOff  -- Alt: the other build
+    end
+    local context = showOff and secondary or primary
+    local specLabel = showOff and "OS" or "MS"
     local profile = context and context.profile or nil
     if type(profile) ~= "table" or profile.invalidGeneratedContext or not ns.GetSecondaryDisplayRanks then
         return
@@ -352,7 +368,10 @@ function ns.AddStatRanksToTooltip(tooltip)
     for statKey, entry in pairs(ns.GetSecondaryDisplayRanks(profile.secondaryOrder, profile.equalGroups)) do
         local name = _G[statKey]
         if type(name) == "string" and name ~= "" then
-            stats[#stats + 1] = { name = name, suffix = " " .. RANK_COLOR .. "#" .. entry.rank .. (entry.tied and "=" or "") .. "|r" }
+            stats[#stats + 1] = {
+                name = name,
+                suffix = " " .. RANK_COLOR .. "#" .. entry.rank .. "|r " .. LABEL_PATH .. specLabel .. LABEL_SIZE,
+            }
         end
     end
     if #stats == 0 then
@@ -364,7 +383,7 @@ function ns.AddStatRanksToTooltip(tooltip)
         local line = _G[tooltipName .. "TextLeft" .. index]
         local ok, text = pcall(function() return line and line:GetText() end)
         if ok and type(text) == "string" and not (issecretvalue and issecretvalue(text))
-            and not text:find(RANK_COLOR .. "#", 1, true) then
+            and not text:find(RANK_COLOR, 1, true) then
             local plain = PlainText(text)
             -- The comparison block at the bottom ("If you replace this item...") lists changes, not stats.
             if type(ITEM_DELTA_DESCRIPTION) == "string" and plain:find(ITEM_DELTA_DESCRIPTION, 1, true) then
@@ -382,6 +401,21 @@ function ns.AddStatRanksToTooltip(tooltip)
     if changed and tooltip.Show then
         tooltip:Show()
     end
+end
+
+-- Alt switches between the two builds: redraw the tooltip that is open when Alt goes down or up.
+local altWatcher = CreateFrame and CreateFrame("Frame") or nil
+if altWatcher then
+    altWatcher:RegisterEvent("MODIFIER_STATE_CHANGED")
+    altWatcher:SetScript("OnEvent", function(_, _, key)
+        if key ~= "LALT" and key ~= "RALT" then return end
+        local db = _G.StatVerdictDB
+        if type(db) == "table" and db.showStatRanks == false then return end
+        local tip = _G.GameTooltip
+        if tip and tip:IsShown() and type(tip.RefreshData) == "function" then
+            pcall(tip.RefreshData, tip)
+        end
+    end)
 end
 
 function ns.ProcessTooltip(tooltip)

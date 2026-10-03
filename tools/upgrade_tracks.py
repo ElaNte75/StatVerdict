@@ -161,12 +161,15 @@ class TrackSwap(NamedTuple):
     """swap: {target track: {source bonus id: target 6/6 bonus id}}.
     item_levels: {"myth"|"hero"|"champion": item level of a 6/6 item}.
     unmapped: {target track: sorted source ids above that track with no
-    verified mapping}. track_of: {observed upgrade-track bonus id: track}."""
+    verified mapping}. track_of: {observed upgrade-track bonus id: track}.
+    top: {"myth"|"hero"|"champion": the 6/6 bonus id of the current season}: what an item of that track gets
+    when the guide lists it without any bonus id."""
 
     swap: dict[str, dict[int, int]]
     item_levels: dict[str, int]
     unmapped: dict[str, list[int]]
     track_of: dict[int, str]
+    top: dict[str, int] = {}
 
 
 def _is_above(track: str | None, target: str) -> bool:
@@ -226,7 +229,8 @@ def build_track_swap(observed_ids: Iterable[int], groups: dict[int, TrackGroup])
 
     item_levels = {target: group.max_item_level for target, group in current.items()
                    if group.max_item_level is not None}
-    return TrackSwap(swap, item_levels, unmapped, track_of)
+    top = {target: group.max_bonus_id for target, group in current.items() if group.max_bonus_id is not None}
+    return TrackSwap(swap, item_levels, unmapped, track_of, top)
 
 
 def swap_bonus_ids(bonus_ids: list[int], target: str, track_swap: TrackSwap) -> tuple[list[int], bool, bool]:

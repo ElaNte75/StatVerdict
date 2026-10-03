@@ -59,15 +59,6 @@ local function PaintRow(row, selected, hovered)
     end
 end
 
-local function AddLine(card, y)
-    local line = card:CreateTexture(nil, "ARTWORK")
-    line:SetColorTexture(LINE[1], LINE[2], LINE[3], LINE[4])
-    line:SetHeight(1)
-    line:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, y)
-    line:SetPoint("TOPRIGHT", card, "TOPRIGHT", -MARGIN, y)
-    return line
-end
-
 local function AddText(card, template, y, justify)
     local text = card:CreateFontString(nil, "OVERLAY", template)
     text:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, y)
@@ -166,12 +157,8 @@ local function EnsureCard(frame)
     card:SetBackdropColor(0.018, 0.022, 0.030, 0.96)
     card:SetBackdropBorderColor(0.72, 0.74, 0.78, 0.86)
 
-    card.title = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    card.title:SetPoint("TOPLEFT", card, "TOPLEFT", MARGIN, -14)
-    card.title:SetText(guide.title)
-    card.title:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
-
-    AddLine(card, -36)
+    -- The title: the chip every tab shares (full width of the card, text centred).
+    card.title = ns.PlaceTabTitleChip(card, guide.title).label
 
     card.intro = AddText(card, "GameFontHighlightSmall", -46)
     card.intro:SetHeight(INTRO_HEIGHT)

@@ -363,6 +363,72 @@ function Repository.GetEffectiveStatTargetBin(specKey)
     return (specKey and effectiveBinBySpec[specKey]) or lastEffectiveBin or "top20"
 end
 
+-- The upgrade track the shown tier stands for ("myth" | "hero" | "champion"); nil for PvP gear, which has none.
+function Repository.GetActiveTrack()
+    if ns.GetStatAuditGoalMode and ns.GetStatAuditGoalMode() == "PVP" then return nil end
+    return TRACK_OF_BIN[Repository.GetEffectiveStatTargetBin()]
+end
+
+-- An item the guide lists without bonus ids (about 70 trinkets) is shown at base item level. The ids the guide
+-- gives the same item in another list (another spec or goal; never PvP) are the best answer: the first list
+-- found. Built once per data table.
+local knownBonusIDs, knownBonusIDsRoot = nil, nil
+
+local function EntryBonusList(entry)
+    local item = type(entry) == "table" and entry.item or nil
+    local ids = (type(item) == "table" and item.bonus_ids) or (type(entry) == "table" and entry.bonus_ids) or nil
+    return type(ids) == "table" and #ids > 0 and ids or nil
+end
+
+local function EntryItemID(entry)
+    local item = type(entry) == "table" and entry.item or nil
+    return tonumber(type(item) == "table" and item.item_id or (type(entry) == "table" and entry.item_id) or nil)
+end
+
+local function BuildKnownBonusIDs(root)
+    local index = {}
+    local function note(entry)
+        local itemID, ids = EntryItemID(entry), EntryBonusList(entry)
+        if itemID and ids and not index[itemID] then
+            local copy = {}
+            for position, id in ipairs(ids) do copy[position] = id end
+            index[itemID] = copy
+        end
+    end
+    for _, profile in pairs(type(root) == "table" and root.profiles or {}) do
+        for goal, goalData in pairs(type(profile) == "table" and profile.goals or {}) do
+            if goal ~= "PVP" then
+                for _, context in pairs(type(goalData) == "table" and goalData.heroTalents or {}) do
+                    local bis = type(context) == "table" and context.bis or nil
+                    for _, entry in pairs(type(bis) == "table" and bis.slots or {}) do note(entry) end
+                    for _, entry in ipairs(type(context) == "table" and context.trinkets or {}) do note(entry) end
+                end
+            end
+        end
+    end
+    return index
+end
+
+function Repository.GetKnownBonusIDs(itemID)
+    local root = ns.ClassCodexTargets
+    if knownBonusIDs == nil or knownBonusIDsRoot ~= root then
+        knownBonusIDs, knownBonusIDsRoot = BuildKnownBonusIDs(root), root
+    end
+    local ids = knownBonusIDs[tonumber(itemID)]
+    if not ids then return nil end
+    local copy = {}  -- the caller may change its list; the index stays as built
+    for position, id in ipairs(ids) do copy[position] = id end
+    return copy
+end
+
+-- The 6/6 bonus id of the shown tier's track, from the data root (nil when the data has none).
+function Repository.GetTrackTopBonusID()
+    local track = Repository.GetActiveTrack()
+    local root = ns.ClassCodexTargets
+    local top = type(root) == "table" and root.trackTop or nil
+    return track and type(top) == "table" and tonumber(top[track]) or nil
+end
+
 function Repository.GetActiveTrackSwap()
     if ns.GetStatAuditGoalMode and ns.GetStatAuditGoalMode() == "PVP" then return nil end
     local track = TRACK_OF_BIN[Repository.GetEffectiveStatTargetBin()]

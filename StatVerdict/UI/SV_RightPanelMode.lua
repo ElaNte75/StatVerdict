@@ -64,11 +64,11 @@ local TAB_YELLOW = { 1.0, 0.82, 0.0 }
 local TAB_WHITE = { 0.92, 0.82, 0.20 }
 local LABEL_FONT_SIZE = 11
 local DEFAULT_TOGGLE_HEIGHT = 24
-local CHIP_PAD_X = 18
 local CHIP_MIN_WIDTH = 140
-local CHIP_MAX_WIDTH = 360
 local CHIP_MIN_HEIGHT = 18
 local CHIP_MAX_HEIGHT = 48
+local CHIP_SIDE_MARGIN = 12   -- the gap between a title chip and the card's left and right edge
+local CHIP_TOP = -12          -- from the card's top edge
 
 -- Unified title chip labels (qualifier first — natural English).
 -- Click cycles Main Spec ↔ Off Spec; the text inside the same button updates.
@@ -120,10 +120,6 @@ end
 -- Each panel keeps its own AdvDev keys: bis.* / trinkets.*
 local function LayoutKeyForPanel(panelKind)
     return ResolvePanelKind(panelKind)
-end
-
-local function TitleKindsForLayout(layoutPrefix)
-    return { ResolvePanelKind(layoutPrefix) }
 end
 
 local function TitleForPanel(panelKind, view, _osReady)
@@ -178,17 +174,6 @@ local function FirstNonZeroOffset(...)
     return 0, 0
 end
 
-local function FirstNonZeroWidthDelta(...)
-    for i = 1, select("#", ...) do
-        local key = select(i, ...)
-        if key and ns.GetLayoutSizeDelta then
-            local d = ns.GetLayoutSizeDelta(key) or 0
-            if d ~= 0 then return d end
-        end
-    end
-    return 0
-end
-
 local function HeightDeltaForKey(key)
     if not key then return 0 end
     if ns.GetLayoutHeightDelta then
@@ -210,75 +195,72 @@ local function FirstNonZeroHeightDelta(...)
     return 0
 end
 
--- Width fits the longest label in this chip family (not the current text),
--- so Main/Off Spec and BiS/Trinkets switches do not resize the button.
-local function MeasureStableTitleWidth(button, layoutPrefix)
-    local label = button and button.label
-    if not label or not label.SetText or not label.GetStringWidth then
-        return CHIP_MIN_WIDTH
-    end
-    local saved = label.GetText and label:GetText() or nil
-    local maxW = 0
-    for _, kind in ipairs(TitleKindsForLayout(layoutPrefix)) do
-        local titles = PanelTitles(kind)
-        if titles then
-            for _, key in ipairs({ "MAIN", "OFF" }) do
-                label:SetText(titles[key])
-                local w = label:GetStringWidth() or 0
-                if w > maxW then maxW = w end
-            end
-        end
-    end
-    if saved ~= nil then
-        label:SetText(saved)
-    end
-    return math.floor(maxW + CHIP_PAD_X)
-end
-
-local function ApplyChipSize(button, layoutPrefix)
-    local baseWidth = MeasureStableTitleWidth(button, layoutPrefix)
-    local width = baseWidth
-    if layoutPrefix == "bis" or layoutPrefix == "trinkets" then
-        width = width + FirstNonZeroWidthDelta(
-            layoutPrefix .. ".title.width",
-            layoutPrefix .. ".viewToggle.width",
-            "bisTrinkets.title.width",
-            "bisTrinkets.viewToggle.width"
-        )
-    else
-        width = width + FirstNonZeroWidthDelta(
-            layoutPrefix .. ".title.width",
-            layoutPrefix .. ".viewToggle.width"
-        )
-    end
-    if width < CHIP_MIN_WIDTH then width = CHIP_MIN_WIDTH end
-    if width > CHIP_MAX_WIDTH then width = CHIP_MAX_WIDTH end
-
+-- Every tab's title is one chip as wide as its card, CHIP_SIDE_MARGIN from each edge, text centred.
+-- Height of the chip (the width comes from the two anchors).
+local function ApplyChipHeight(button, layoutPrefix)
     local height = DEFAULT_TOGGLE_HEIGHT
     if layoutPrefix == "bis" or layoutPrefix == "trinkets" then
         height = height + FirstNonZeroHeightDelta(
             layoutPrefix .. ".title.height",
             "bisTrinkets.title.height"
         )
-    else
-        height = height + FirstNonZeroHeightDelta(layoutPrefix .. ".title.height")
     end
     if height < CHIP_MIN_HEIGHT then height = CHIP_MIN_HEIGHT end
     if height > CHIP_MAX_HEIGHT then height = CHIP_MAX_HEIGHT end
-
-    -- Padding = visual inset: Size W/H is the logical footprint.
-    local pad = { top = 0, bottom = 0, left = 0, right = 0 }
-    if ns.GetLayoutPadding then
-        pad = ns.GetLayoutPadding(layoutPrefix .. ".title.pad")
-    end
-    local visW = math.max(20, width - (pad.left or 0) - (pad.right or 0))
-    local visH = math.max(12, height - (pad.top or 0) - (pad.bottom or 0))
-
-    button:SetSize(visW, visH)
-    return width, height, baseWidth, DEFAULT_TOGGLE_HEIGHT
+    button:SetHeight(height)
 end
 
--- Unified title chip (replaces gold FontString + separate Main/Off Spec toggle).
+-- The look every title chip shares: shadow, dark rounded backdrop, centred gold label.
+local function StyleTitleChip(chip, labelText)
+    chip.shadow = chip:CreateTexture(nil, "BACKGROUND")
+    chip.shadow:SetPoint("TOPLEFT", 2, -2)
+    chip.shadow:SetPoint("BOTTOMRIGHT", 3, -3)
+    chip.shadow:SetColorTexture(0, 0, 0, 0.45)
+
+    chip:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = false,
+        edgeSize = 12,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 },
+    })
+    PaintSpecToggleButton(chip, "normal")
+
+    chip.label = chip:CreateFontString(nil, "OVERLAY")
+    chip.label:SetPoint("CENTER", chip, "CENTER", 0, 0)
+    chip.label:SetJustifyH("CENTER")
+    chip.label:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", LABEL_FONT_SIZE, "")
+    chip.label:SetTextColor(TAB_YELLOW[1], TAB_YELLOW[2], TAB_YELLOW[3])
+    chip.label:SetText(labelText or "")
+end
+
+-- Places a chip across the top of its card.
+local function PlaceChipAcrossCard(chip, card, yOffset)
+    chip:ClearAllPoints()
+    chip:SetPoint("TOPLEFT", card, "TOPLEFT", CHIP_SIDE_MARGIN, CHIP_TOP + (yOffset or 0))
+    chip:SetPoint("TOPRIGHT", card, "TOPRIGHT", -CHIP_SIDE_MARGIN, CHIP_TOP + (yOffset or 0))
+end
+
+-- The title chip of a tab without a Main / Off Spec switch (Guide, Features, Manual): the same chip as Best in
+-- Slot and Ranked Trinkets, but not a button. Returns the chip; chip.label is the title text.
+function ns.PlaceTabTitleChip(card, text)
+    if not card then return nil end
+    local chip = card.svTabTitleChip
+    if not chip then
+        chip = CreateFrame("Frame", nil, card, "BackdropTemplate")
+        chip:EnableMouse(false)
+        StyleTitleChip(chip, text)
+        card.svTabTitleChip = chip
+    end
+    chip.label:SetText(text or "")
+    PlaceChipAcrossCard(chip, card, 0)
+    chip:SetHeight(DEFAULT_TOGGLE_HEIGHT)
+    chip:SetFrameLevel((card:GetFrameLevel() or 1) + 6)
+    chip:Show()
+    return chip
+end
+
+-- Unified title chip of Best in Slot and Ranked Trinkets: also the Main Spec / Off Spec switch.
 function ns.EnsureMsOsViewTabs(parent)
     if not parent then return nil end
 
@@ -294,29 +276,7 @@ function ns.EnsureMsOsViewTabs(parent)
         button = CreateFrame("Button", nil, parent, "BackdropTemplate")
         button.svDrawerStyle = 3
         button:SetSize(CHIP_MIN_WIDTH, DEFAULT_TOGGLE_HEIGHT)
-
-        button.shadow = button:CreateTexture(nil, "BACKGROUND")
-        button.shadow:SetPoint("TOPLEFT", 2, -2)
-        button.shadow:SetPoint("BOTTOMRIGHT", 3, -3)
-        button.shadow:SetColorTexture(0, 0, 0, 0.45)
-
-        button:SetBackdrop({
-            bgFile = "Interface\\Buttons\\WHITE8X8",
-            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-            tile = false,
-            edgeSize = 12,
-            insets = { left = 3, right = 3, top = 3, bottom = 3 },
-        })
-        PaintSpecToggleButton(button, "normal")
-
-        button.label = button:CreateFontString(nil, "OVERLAY")
-        button.label:SetPoint("CENTER", button, "CENTER", 0, 0)
-        button.label:SetJustifyH("CENTER")
-        local font = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
-        button.label:SetFont(font, LABEL_FONT_SIZE, "")
-        button.label:SetTextColor(TAB_YELLOW[1], TAB_YELLOW[2], TAB_YELLOW[3])
-        button.label:SetText("Main Spec Best in Slot")
-
+        StyleTitleChip(button, "Main Spec Best in Slot")
         parent.svViewToggle = button
     end
 
@@ -404,7 +364,7 @@ function ns.PlaceMsOsTitleChip(parent, _layoutPrefixIgnored, panelKind)
     parent.svTitlePanelKind = panelKind
     parent.svTitleLayoutPrefix = layoutPrefix
 
-    local x, y = FirstNonZeroOffset(
+    local _, y = FirstNonZeroOffset(
         layoutPrefix .. ".title",
         layoutPrefix .. ".viewToggle",
         layoutPrefix .. ".msTab",
@@ -414,20 +374,8 @@ function ns.PlaceMsOsTitleChip(parent, _layoutPrefixIgnored, panelKind)
     )
 
     ns.SyncMsOsViewTabs(parent)
-    local _, _, chipBaseW, chipBaseH = ApplyChipSize(toggle, layoutPrefix)
-
-    local chipPad = { top = 0, bottom = 0, left = 0, right = 0 }
-    if ns.GetLayoutPadding then
-        chipPad = ns.GetLayoutPadding(layoutPrefix .. ".title.pad")
-    end
-    toggle:ClearAllPoints()
-    toggle:SetPoint(
-        "TOPLEFT",
-        parent,
-        "TOPLEFT",
-        12 + x + (chipPad.left or 0),
-        -12 + y - (chipPad.top or 0)
-    )
+    ApplyChipHeight(toggle, layoutPrefix)
+    PlaceChipAcrossCard(toggle, parent, y)
     toggle:SetFrameLevel((parent:GetFrameLevel() or 1) + 8)
 end
 

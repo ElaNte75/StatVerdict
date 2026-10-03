@@ -1641,7 +1641,7 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         return self.region_left(card, relative) + x
 
     def layout_snapshot(self, card):
-        regions = {"title": card.title, "intro": card.intro, "group title": card.binTitle,
+        regions = {"title chip": card.svTabTitleChip, "intro": card.intro, "group title": card.binTitle,
                    "auto": card.binRows[1], "tier 1": card.binRows[2], "tier 2": card.binRows[3],
                    "tier 3": card.binRows[4],
                    "status line": card.status}
@@ -2083,11 +2083,16 @@ class BisPanelTests(unittest.TestCase):
         names = [lines[i].left for i in range(1, len(lines) + 1)]
         self.assertEqual(["Where to find", "Dungeon: A", "a", "Dungeon: B", "b", "+2 more"], names)
 
-    def test_an_item_the_journal_does_not_list_gets_no_line(self) -> None:
+    def test_an_item_the_journal_does_not_list_says_other_source(self) -> None:
         self.set_sources('{ [999] = { {"A", "a", "D"} } }')
         self.game_knows(GUARDIAN_HEAD_LINK, GUARDIAN_HEAD_SOCKETED_TOOLTIP)
         self.hover(self.refresh(self.guardian_head(), spec_id=104).rows[1])
-        self.assertNotIn("Where to find", [line.left for line in self.shown()])
+        names = [line.left for line in self.shown()]
+        i = names.index("Where to find")
+        self.assertEqual("Other source", names[i + 1])
+        self.assertNotIn("Dungeon: A", names)  # nothing of another item's place is borrowed
+
+    def test_without_the_journal_data_nothing_is_claimed(self) -> None:
         self.ns.ItemSources = None
         self.assertEqual(0, len(self.panel.BuildSourceLines(271528)))
         self.assertEqual(0, len(self.panel.BuildSourceLines(None)))
@@ -2744,6 +2749,7 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
         self.lua = new_runtime()
         self.lua.execute(FRAME_STUB)
         self.ns = self.lua.table()
+        load_addon_file(self.lua, self.ns, "UI/SV_RightPanelMode.lua")  # the title chip every tab shares
         self.ns.GetRightPanelMode = lambda: "options"
         load_addon_file(self.lua, self.ns, "UI/SV_OptionsDrawerPanel.lua")
         self.frame = self.lua.eval("CreateFrame")()
@@ -2996,6 +3002,7 @@ class FeaturesDrawerGeometryTests(unittest.TestCase):
         self.lua = new_runtime()
         self.lua.execute(FRAME_STUB)
         self.ns = self.lua.table()
+        load_addon_file(self.lua, self.ns, "UI/SV_RightPanelMode.lua")  # the title chip every tab shares
         self.ns.GetRightPanelMode = lambda: "options"
         load_addon_file(self.lua, self.ns, "UI/SV_DashboardLayout.lua")
         load_addon_file(self.lua, self.ns, "UI/SV_OptionsDrawerPanel.lua")
@@ -3020,8 +3027,7 @@ class FeaturesDrawerGeometryTests(unittest.TestCase):
 
     def test_titles_and_groups_share_the_left_margin(self) -> None:
         # Titles sit above their block at the block's left edge; the rows are padded inside the block.
-        for region in (self.card.title, self.card.bagMarkersTitle, self.card.bisTooltipTitle,
-                       self.card.trinketTooltipTitle):
+        for region in (self.card.bagMarkersTitle, self.card.bisTooltipTitle, self.card.trinketTooltipTitle):
             self.assertEqual(self.MARGIN, self.last_point(region)[4])
         for region in (self.card.bagChecksBlock, self.card.bisTooltipChecksBlock, self.card.trinketTooltipChecksBlock):
             self.assertEqual(self.MARGIN + self.BLOCK_PAD, self.last_point(region)[4])

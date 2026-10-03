@@ -42,18 +42,23 @@ class StatRankTests(unittest.TestCase):
 
     # ---- the tooltip ------------------------------------------------------------------------------------------------
 
-    def tooltip(self, lines: list[str], *, order=None, groups=None, combat: bool = False, off: bool = False):
+    def tooltip(self, lines: list[str], *, order=None, groups=None, combat: bool = False, off: bool = False,
+                view: str = "MAIN", alt: bool = False, off_spec_order=None):
+        """off: the switch is off. view: the build selected in the window. alt: Alt is held. off_spec_order: the
+        Off Spec build's stat order (None: no Off Spec is selected)."""
         order = order or [CRIT, MASTERY, VERS, HASTE]
         groups = groups if groups is not None else [[2, 3]]
         lua = self.lua
         lua.globals().SV_RANK_LINES = lua.table_from(lines)
         lua.globals().SV_RANK_ORDER = lua.table_from(order)
         lua.globals().SV_RANK_GROUPS = lua.table_from([lua.table_from(g) for g in groups])
+        lua.globals().SV_RANK_OFF_ORDER = lua.table_from(off_spec_order) if off_spec_order else None
         lua.execute(f"""
         ITEM_MOD_CRIT_RATING_SHORT, ITEM_MOD_HASTE_RATING_SHORT = "Critical Strike", "Haste"
         ITEM_MOD_MASTERY_RATING_SHORT, ITEM_MOD_VERSATILITY = "Mastery", "Versatility"
         ITEM_DELTA_DESCRIPTION = "If you replace this item, the following stat changes will occur:"
         InCombatLockdown = function() return {str(combat).lower()} end
+        IsAltKeyDown = function() return {str(alt).lower()} end
         StatVerdictDB = {{ showStatRanks = {"false" if off else "nil"} }}
         local count = #SV_RANK_LINES
         for i = 1, count do
@@ -62,8 +67,12 @@ class StatRankTests(unittest.TestCase):
         for i = count + 1, count + 20 do _G["RankTipTextLeft" .. i] = nil end
         RANK_TIP = {{ NumLines = function() return count end, GetName = function() return "RankTip" end, Show = function() RANK_TIP.shown = true end }}
         SV_RANK_PROFILE = {{ secondaryOrder = SV_RANK_ORDER, equalGroups = SV_RANK_GROUPS }}
+        SV_RANK_OFF_PROFILE = SV_RANK_OFF_ORDER and {{ secondaryOrder = SV_RANK_OFF_ORDER, equalGroups = {{}} }} or nil
+        SV_TEST_NS.GetTooltipEvaluationContexts = function()
+            return {{ profile = SV_RANK_PROFILE }}, SV_RANK_OFF_PROFILE and {{ profile = SV_RANK_OFF_PROFILE }} or nil
+        end
+        SV_TEST_NS.GetStatAuditActiveView = function() return "{view}" end
         """)
-        self.ns.GetTooltipEvaluationContexts = lua.eval("function() return { profile = SV_RANK_PROFILE } end")
         self.ns.AddStatRanksToTooltip(lua.eval("RANK_TIP"))
         return [str(lua.eval(f"RankTipTextLeft{i}.t")) for i in range(1, len(lines) + 1)], bool(lua.eval("RANK_TIP.shown"))
 
@@ -74,10 +83,48 @@ class StatRankTests(unittest.TestCase):
         self.assertTrue(shown)
         self.assertEqual("Aged Interwoven Scaleplate", text[0])
         self.assertEqual("+94 Strength", text[1])  # the primary stat is not ranked
-        self.assertTrue(text[2].endswith("#1|r"))
-        self.assertTrue(text[3].endswith("#2=|r"))  # Versatility: equal to Mastery
-        self.assertTrue(text[4].endswith("#4|r"))
-        self.assertTrue(text[5].endswith("#2=|r"))
+        self.assertTrue(text[2].endswith("|cffff8000#1|r |TInterface\AddOns\StatVerdict\Textures\StatRankMS:7:14|t"))
+        self.assertIn("#2", text[3])  # Versatility and Mastery are equal: the same number
+        self.assertIn("#4", text[4])
+        self.assertIn("#2", text[5])
+
+    def test_equal_stats_just_share_the_number(self) -> None:
+        text, _ = self.tooltip(["+54 Mastery", "+67 Versatility"])
+        for line in text:
+            self.assertIn("#2", line)
+            self.assertNotIn("=", line)
+            self.assertNotIn("(", line)
+
+    def test_the_build_label_comes_after_the_number(self) -> None:
+        text, _ = self.tooltip(["+73 Critical Strike"])
+        self.assertLess(text[0].index("#1"), text[0].index("StatRankMS"))
+        self.assertTrue(text[0].endswith("|t"))
+
+    def test_the_build_shown_is_named_ms_by_default(self) -> None:
+        text, _ = self.tooltip(["+73 Critical Strike"])
+        self.assertIn("StatRankMS", text[0])
+        self.assertNotIn("StatRankOS", text[0])
+
+    def test_with_the_off_spec_selected_in_the_window_the_tooltip_shows_it(self) -> None:
+        text, _ = self.tooltip(["+73 Critical Strike", "+54 Haste"], view="OFF", off_spec_order=[HASTE, CRIT, MASTERY, VERS])
+        self.assertIn("StatRankOS", text[0])
+        self.assertIn("#2", text[0])  # Off Spec: Haste first, Crit second
+        self.assertIn("#1", text[1])
+
+    def test_alt_shows_the_other_build(self) -> None:
+        main_with_alt, _ = self.tooltip(["+73 Critical Strike"], alt=True, off_spec_order=[HASTE, CRIT, MASTERY, VERS])
+        self.assertIn("StatRankOS", main_with_alt[0])
+        off_with_alt, _ = self.tooltip(["+73 Critical Strike"], view="OFF", alt=True, off_spec_order=[HASTE, CRIT, MASTERY, VERS])
+        self.assertIn("StatRankMS", off_with_alt[0])
+        self.assertIn("#1", off_with_alt[0])  # the Main Spec order: Crit first
+
+    def test_alt_without_an_off_spec_changes_nothing(self) -> None:
+        text, _ = self.tooltip(["+73 Critical Strike"], alt=True)
+        self.assertIn("StatRankMS", text[0])
+
+    def test_the_off_spec_view_without_an_off_spec_falls_back_to_main(self) -> None:
+        text, _ = self.tooltip(["+73 Critical Strike"], view="OFF")
+        self.assertIn("StatRankMS", text[0])
 
     def test_the_numbers_do_not_stack_when_the_tooltip_is_processed_again(self) -> None:
         text, _ = self.tooltip(self.ITEM)

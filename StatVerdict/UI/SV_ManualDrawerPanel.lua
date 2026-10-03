@@ -4,7 +4,7 @@ local Panel = {}
 ns.StatVerdictManualDrawerPanel = Panel
 
 local DRAWER_PREFERRED_WIDTH = 300
-local SCROLL_TOP = -34
+local SCROLL_TOP = -40  -- under the title chip (12 + 24 high), with a little air
 local SCROLL_BOTTOM_PAD = 14
 local SCROLL_SIDE_PAD = 10
 local SCROLLBAR_WIDTH = 18
@@ -50,7 +50,7 @@ local MANUAL_LINES = {
     { text = "Best in Slot — the best-in-slot items for the active build (Mythic+, Raid or PvP), with your progress." },
     { text = "Hover a Best in Slot item to see it at its recommended item level, with the recommended gems and enchant." },
     { text = "Features → Best in Slot chooses what that hover shows. Best in Slot tooltip: our compact tooltip; under it, Gems and enchants adds the recommended gems and enchant. Use the game tooltip instead: the game's own item tooltip. Only one of the two tooltips can be on: ticking one turns the other off. With both unticked, hovering shows nothing. Features → Ranked Trinkets works the same way for the trinket list: Ranked Trinkets tooltip is our compact tooltip (name, level, stats), and under it Trinket effect adds the trinket's effect; or Use the game tooltip instead." },
-    { text = "The Best in Slot and Ranked Trinkets tooltips end with Where to find: the dungeon or raid and the boss the item drops from, when the game's Adventure Journal lists it. Crafted items, the Great Vault and the Catalyst are not listed." },
+    { text = "The Best in Slot and Ranked Trinkets tooltips end with Where to find: the dungeon or raid and the boss the item drops from, when the game's Adventure Journal lists it. An item the journal does not list (crafted, vendor, PvP, the Great Vault, the Catalyst or an event) says Other source, with no item level of its own claimed." },
     { text = "Ranked Trinkets — ranked trinket list for the active build." },
     { text = "Features — toggles for bag markers (Upgrade Arrow, MS/OS Labels)." },
     { text = "Guide — the stat priorities, Best in Slot lists and stat targets are copied from the guides, unchanged. Pick Auto (the default: the tier follows your own stats and moves up when you cover about 90% of it) or one fixed tier: Tier 1, Tier 2 or Tier 3 (the most demanding). Main Spec and Off Spec each keep their own choice: with an Off Spec set up, click the checkbox in front of a spec's name in the main window to look at that spec (this changes the view only, never your game spec). The tier in use is shown in the title bar; Best in Slot and trinkets follow it." },
@@ -86,10 +86,8 @@ local function EnsureCard(frame)
     card:SetBackdropBorderColor(0.72, 0.74, 0.78, 0.86)
     card:EnableMouse(true)
 
-    card.title = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    card.title:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -12)
-    card.title:SetText("Manual")
-    card.title:SetTextColor(1.0, 0.82, 0.0)
+    -- The title: the chip every tab shares (full width of the card, text centred).
+    card.title = ns.PlaceTabTitleChip(card, "Manual").label
 
     local scrollName = "StatVerdictManualScroll"
     local scroll = CreateFrame("ScrollFrame", scrollName, card, "UIPanelScrollFrameTemplate")
@@ -236,9 +234,7 @@ function Panel.Apply(frame)
 
     -- Outer pad owns Size W — retire the legacy right-edge width strip.
 
-    local titleX, titleY = Offset("manual.title")
-    card.title:ClearAllPoints()
-    card.title:SetPoint("TOPLEFT", card, "TOPLEFT", 12 + titleX, -12 + titleY)
+    ns.PlaceTabTitleChip(card, "Manual")
 
     card.scroll:ClearAllPoints()
     card.scroll:SetPoint("TOPLEFT", card, "TOPLEFT", SCROLL_SIDE_PAD, SCROLL_TOP)

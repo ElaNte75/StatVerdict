@@ -118,6 +118,8 @@ def main(argv: list[str] | None = None) -> int:
         # (the data itself keeps the Myth ids).
         data["trackSwap"] = track_swap.swap
         data["trackItemLevels"] = track_swap.item_levels
+        # The 6/6 bonus id of each track: an item the guide lists without bonus ids gets its tier's.
+        data["trackTop"] = track_swap.top
     return gate_and_write(data, args.out, NAMESPACE_KEY, write_addon_file, args.min_coverage_ratio)
 
 

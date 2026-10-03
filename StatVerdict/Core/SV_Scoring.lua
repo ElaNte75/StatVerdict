@@ -739,6 +739,9 @@ local function ApplyItemLevelWinGuard(total, rows, candidateStats, equippedStats
     local points = ItemLevelGapPoints(math.abs(gap))
     local guarded
     if gap > 0 then
+        -- Clearly more item level: an upgrade however small its points are (the comparison reads this mark; it
+        -- would otherwise ask for 1% of the equipped score, which a clear item level win can fall short of).
+        rows.itemLevelWin = true
         if total >= points then return total end
         guarded = points
     else

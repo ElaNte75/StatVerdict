@@ -456,17 +456,8 @@ local function EnsureCard(frame)
     card:SetBackdropColor(0.018, 0.022, 0.030, 0.96)
     card:SetBackdropBorderColor(0.72, 0.74, 0.78, 0.86)
 
-    card.title = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    card.title:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -12)
-    card.title:SetText("Features")
-    card.title:SetTextColor(1.0, 0.82, 0.0)
-
-    -- The same hairline under the title as the Guide drawer.
-    card.titleLine = card:CreateTexture(nil, "ARTWORK")
-    card.titleLine:SetColorTexture(LINE[1], LINE[2], LINE[3], LINE[4])
-    card.titleLine:SetHeight(1)
-    card.titleLine:SetPoint("TOPLEFT", card, "TOPLEFT", CONTENT_MARGIN, -36)
-    card.titleLine:SetPoint("TOPRIGHT", card, "TOPRIGHT", -CONTENT_MARGIN, -36)
+    -- The title: the chip every tab shares (full width of the card, text centred).
+    card.title = ns.PlaceTabTitleChip(card, "Features").label
 
     card.bagMarkersTitle = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     card.bagMarkersTitle:SetText("Bag Markers")
@@ -553,7 +544,7 @@ function Panel.Apply(frame)
 
     -- Outer pad owns Size W — retire the legacy right-edge width strip.
 
-    PlaceFeaturesTitle(card, card.title, "options.title", "Features title", CONTENT_MARGIN, -14)
+    ns.PlaceTabTitleChip(card, "Features")
 
     -- Hint about quest / Adventure Guide removed — bags-only is already the behavior.
     if card.hint then

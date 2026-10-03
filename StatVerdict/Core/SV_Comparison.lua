@@ -46,8 +46,12 @@ end
 -- a gain of a few points is a sidegrade, not a reason to show an arrow.
 local MIN_UPGRADE_PERCENT = 1.0
 
--- Clearly more item level (the Item Level Guard lifted the verdict) is an upgrade whatever its size in points.
+-- Clearly more item level (10 or more, outside jewelry and trinkets) is an upgrade whatever its size in points,
+-- whether the Item Level Guard had to lift the verdict or the stats already gave a small positive one.
 local function IsLiftedByItemLevel(deltaRows)
+    if type(deltaRows) == "table" and deltaRows.itemLevelWin == true then
+        return true
+    end
     for _, row in ipairs(deltaRows or {}) do
         if type(row) == "table" and row.statKey == "STATVERDICT_ITEM_LEVEL_GUARD" and (tonumber(row.signedPoints) or 0) > 0 then
             return true

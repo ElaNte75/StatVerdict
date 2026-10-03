@@ -142,10 +142,12 @@ class TrackSwapCliTests(unittest.TestCase):
             {"myth": 334, "hero": 321, "champion": 308},
             {"hero": [], "champion": []},
             {12854: "myth"},
+            {"myth": 12854, "hero": 12846, "champion": 12838},
         )
         data, log = self.run_cli(swap)
         self.assertEqual({"hero": {12854: 12846}, "champion": {12854: 12838}}, data["trackSwap"])
         self.assertEqual({"myth": 334, "hero": 321, "champion": 308}, data["trackItemLevels"])
+        self.assertEqual({"myth": 12854, "hero": 12846, "champion": 12838}, data["trackTop"])
         targets = data["profiles"]["DEATHKNIGHT_FROST"]["goals"]["RAID"]["heroTalents"]["all"]["targets"]
         self.assertEqual({"critical_strike": 0.9, "haste": 1.8}, targets["levels"]["hero"]["statTargets"]["stats"])
         self.assertEqual(308.0, targets["levels"]["champion"]["averageItemLevel"])
