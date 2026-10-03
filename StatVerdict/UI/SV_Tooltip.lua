@@ -302,10 +302,10 @@ end
 
 -- Stat ranks: every secondary stat on an item tooltip gets its place in the guide's order for the build
 -- shown in the window ("+73 Critical Strike #1 MS"). Stats the guide calls roughly equal carry the same number.
--- The build is the one selected in the window (MS or OS, in orange, after the number so it
+-- The build is the one selected in the window (MS or OS, in gold, after the number so it
 -- stands apart from a green stat line); holding Alt shows the other one. Switched off with Features > Stat Ranks (StatVerdictDB.showStatRanks).
-local RANK_COLOR = "|cffff8000"  -- the addon's orange, as in "StatVerdict Result": all that StatVerdict adds is orange
--- MS / OS are small orange pictures (StatRankMS / StatRankOS in Textures), because tooltip text cannot change
+local RANK_COLOR = "|cffffd100"  -- the game's tooltip gold (Item Level, Vendor, Auction), not the addon's orange
+-- MS / OS are small gold pictures (StatRankMS / StatRankOS in Textures), because tooltip text cannot change
 -- its size inside a line. Size: height 8, width 16 (the pictures are 2:1).
 local LABEL_PATH = "|TInterface\\AddOns\\StatVerdict\\Textures\\StatRank"
 local LABEL_SIZE = ":8:16|t"
