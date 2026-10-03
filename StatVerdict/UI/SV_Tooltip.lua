@@ -306,9 +306,9 @@ end
 -- shown in the window ("+73 Critical Strike #1 MS"). Stats the guide calls roughly equal carry the same number.
 -- The build is the one selected in the window (MS or OS, in gold, after the number so it
 -- stands apart from a green stat line); holding Alt shows the other one. Switched off with Features > Stat Ranks (StatVerdictDB.showStatRanks).
--- Holding Alt over an item the Catalyst can turn into the Best in Slot set piece swaps the tooltip for that piece (same
--- item level, its own stats and verdict); Alt up puts the item back. While the swap is being built, Alt must not also
--- flip the build of the stat ranks.
+-- Holding Shift over an item the Catalyst can turn into the Best in Slot set piece swaps the tooltip for that piece (same
+-- item level, its own stats and verdict); Shift up puts the item back. (Alt is the stat ranks' key: it shows the other
+-- build.) The flag only stops the swapped tooltip from being swapped again.
 local catalystPreviewing = false
 local previewOf = setmetatable({}, { __mode = "k" })  -- tooltip -> the item link it was showing before the swap
 
@@ -362,7 +362,7 @@ function ns.AddStatRanksToTooltip(tooltip)
     local hasOff = secondary and secondary.profile and true or false
     local view = ns.GetStatAuditActiveView and ns.GetStatAuditActiveView() or "MAIN"
     local showOff = (view == "OFF" and hasOff) and true or false
-    if hasOff and not catalystPreviewing and IsAltKeyDown and IsAltKeyDown() then
+    if hasOff and IsAltKeyDown and IsAltKeyDown() then
         showOff = not showOff  -- Alt: the other build
     end
     local context = showOff and secondary or primary
@@ -412,11 +412,11 @@ function ns.AddStatRanksToTooltip(tooltip)
 end
 
 -- The item string that shows the Best in Slot set piece an item the Catalyst can convert would become, with the
--- item's own item level and bonus ids; nil when Alt is not held or the item has no Catalyst path. Second value: the
+-- item's own item level and bonus ids; nil when Shift is not held or the item has no Catalyst path. Second value: the
 -- item string of the tooltip as it was.
 local function CatalystPreviewLink(tooltip)
     if catalystPreviewing then return nil end
-    if not (IsAltKeyDown and IsAltKeyDown()) then return nil end
+    if not (IsShiftKeyDown and IsShiftKeyDown()) then return nil end
     if InCombatLockdown and InCombatLockdown() then return nil end
     if tooltip ~= _G.GameTooltip or type(tooltip.SetHyperlink) ~= "function" then return nil end
     local itemLink = GetTooltipItemLink(tooltip)
@@ -431,19 +431,24 @@ local function CatalystPreviewLink(tooltip)
     return previewString, itemString
 end
 
--- Alt: redraw the tooltip that is open when Alt goes down or up (the stat ranks show the other build, an item the
--- Catalyst can convert shows the set piece). Alt up after a swap puts the item itself back.
-local altWatcher = CreateFrame and CreateFrame("Frame") or nil
-if altWatcher then
-    altWatcher:RegisterEvent("MODIFIER_STATE_CHANGED")
-    altWatcher:SetScript("OnEvent", function(_, _, key)
-        if key ~= "LALT" and key ~= "RALT" then return end
+-- Alt and Shift: redraw the tooltip that is open when one goes down or up. Alt: the stat ranks show the other build.
+-- Shift: an item the Catalyst can convert shows the set piece, and Shift up puts the item itself back.
+local modifierWatcher = CreateFrame and CreateFrame("Frame") or nil
+if modifierWatcher then
+    modifierWatcher:RegisterEvent("MODIFIER_STATE_CHANGED")
+    modifierWatcher:SetScript("OnEvent", function(_, _, key)
+        local isAlt = key == "LALT" or key == "RALT"
+        local isShift = key == "LSHIFT" or key == "RSHIFT"
+        if not (isAlt or isShift) then return end
         local tip = _G.GameTooltip
         if not (tip and tip:IsShown()) then return end
         local original = previewOf[tip]
-        if original and not (IsAltKeyDown and IsAltKeyDown()) then
-            previewOf[tip] = nil
-            pcall(tip.SetHyperlink, tip, original)
+        if original then
+            -- The set piece is showing: Shift up brings the item back; Alt changes nothing there.
+            if isShift and not (IsShiftKeyDown and IsShiftKeyDown()) then
+                previewOf[tip] = nil
+                pcall(tip.SetHyperlink, tip, original)
+            end
         elseif type(tip.RefreshData) == "function" then
             pcall(tip.RefreshData, tip)
         end
