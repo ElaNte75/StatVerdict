@@ -251,6 +251,7 @@ end
 local BAG_INDICATOR_OPTIONS = {
     { key = "showUpgradeArrow", label = "Upgrade Arrow" },
     { key = "showMsOsLabels", label = "|cff00ff00MS|r / |cff00ff00OS|r Labels" },
+    { key = "showStatRanks", label = "Stat Ranks on tooltips" },
 }
 
 -- Best in Slot section: what hovering a Best in Slot row shows.

@@ -239,6 +239,37 @@ function ns.GetSecondaryBaseShares(order, equalGroups)
     return byKey, list
 end
 
+-- The place of each secondary stat in the guide's order, as shown on tooltips: { [statKey] = { rank, tied } }.
+-- Stats the guide calls roughly equal (equalGroups) share the number of the highest place in their group.
+function ns.GetSecondaryDisplayRanks(order, equalGroups)
+    local ranks = {}
+    if type(order) ~= "table" then return ranks end
+    for index, statKey in ipairs(order) do
+        if SECONDARY_TARGET_KEY[statKey] then
+            ranks[statKey] = { rank = index, tied = false }
+        end
+    end
+    if type(equalGroups) == "table" then
+        for _, group in ipairs(equalGroups) do
+            local top, members = nil, {}
+            for _, position in ipairs(group) do
+                local entry = ranks[order[position]]
+                if entry then
+                    members[#members + 1] = entry
+                    if not top or position < top then top = position end
+                end
+            end
+            if #members > 1 then
+                for _, entry in ipairs(members) do
+                    entry.rank = top
+                    entry.tied = true
+                end
+            end
+        end
+    end
+    return ranks
+end
+
 local function GetRawTargetSecondaryWeight(profile, statKey)
     local rank = GetSecondaryRank(profile, statKey)
     if not rank then return nil end
@@ -466,6 +497,7 @@ if ratingEventFrame then
         pcall(ratingEventFrame.RegisterEvent, ratingEventFrame, eventName)
     end
     ratingEventFrame:SetScript("OnEvent", function()
+        if ns.ResetContextScan then ns.ResetContextScan() end
         ns.InvalidateCurrentStatRatings()
         if C_Timer and C_Timer.After then
             -- Ratings settle shortly after a gear change; read them again then.

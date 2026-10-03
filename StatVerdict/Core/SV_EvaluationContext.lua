@@ -70,33 +70,66 @@ local function BuildCurrentContext()
     }
 end
 
--- One scan of many items (bags, merchant, journal) asks for the same contexts again and again.
--- Between BeginContextScan and EndContextScan they are built once and reused; every new scan starts
--- empty, so a gear, spec or setting change is picked up by the next scan.
+-- One scan of many items (bags, merchant, journal) or one refresh of the window asks for the same contexts
+-- again and again. Between BeginContextScan and EndContextScan they are built once and reused; every new scan
+-- starts empty, so a gear, spec or setting change is picked up by the next scan. Scans may be nested: the
+-- outermost one owns the cache. A change of the saved selection inside a scan drops what was built (ResetContextScan).
 local contextScan = nil
+local contextScanDepth = 0
 
 function ns.BeginContextScan()
-    contextScan = {}
+    contextScanDepth = contextScanDepth + 1
+    if contextScanDepth == 1 then
+        contextScan = {}
+    end
 end
 
 function ns.EndContextScan()
-    contextScan = nil
+    if contextScanDepth > 0 then
+        contextScanDepth = contextScanDepth - 1
+    end
+    if contextScanDepth == 0 then
+        contextScan = nil
+    end
+end
+
+-- Outside an explicit scan the contexts are still reused within one frame of the game (GetTime does not move
+-- inside a frame): code that asks again and again, such as every Best in Slot row asking for the active
+-- tier, builds the profile once per frame, not once per ask. The next frame starts empty.
+local frameScan, frameScanTime = nil, nil
+
+function ns.ResetContextScan()
+    if contextScan then
+        contextScan = {}
+    end
+    frameScan, frameScanTime = nil, nil
 end
 
 function ns.GetContextScanCache()
-    return contextScan
+    if contextScan then
+        return contextScan
+    end
+    local now = GetTime and GetTime() or nil
+    if not now then
+        return nil
+    end
+    if frameScanTime ~= now then
+        frameScan, frameScanTime = {}, now
+    end
+    return frameScan
 end
 
 function ns.GetEvaluationContext()
-    if contextScan and contextScan.evaluation then
-        return contextScan.evaluation
+    local scan = ns.GetContextScanCache()
+    if scan and scan.evaluation then
+        return scan.evaluation
     end
     local context = BuildCurrentContext()
     if ns.LoadEvaluationProfile then
         context.profile = ns.LoadEvaluationProfile(context)
     end
-    if contextScan then
-        contextScan.evaluation = context
+    if scan then
+        scan.evaluation = context
     end
     return context
 end

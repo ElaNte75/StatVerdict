@@ -15,6 +15,7 @@ frame:RegisterEvent("TRAIT_CONFIG_UPDATED")
 frame:RegisterEvent("TRAIT_SUB_TREE_CHANGED")
 
 frame:SetScript("OnEvent", function()
+    if ns.ResetContextScan then ns.ResetContextScan() end
     if ns.RefreshUpgradeIndicators then
         ns.RefreshUpgradeIndicators()
     end

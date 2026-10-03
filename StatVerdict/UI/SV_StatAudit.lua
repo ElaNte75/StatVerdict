@@ -881,7 +881,8 @@ function ns.GetStatAuditGoalMode()
     return GetEffectiveGoalMode(GetSavedSelection())
 end
 
-SaveSelection = function(selection)
+-- keepContexts: the caller only normalizes the selection (GetTooltipEvaluationContexts), which changes no context.
+SaveSelection = function(selection, keepContexts)
     local db = EnsureSavedDB()
     local key = GetCharacterKey()
     db.statAuditSelectionByCharacter[key] = db.statAuditSelectionByCharacter[key] or {}
@@ -897,6 +898,8 @@ SaveSelection = function(selection)
     db.statAuditSelectionByCharacter[key].activeView = (selection.activeView == "OFF") and "OFF" or "MAIN"
     db.statAuditSelectionByCharacter[key].goalMode = NormalizeRequiredGoalMode(selection.goalMode)
     db.statAuditSelectionByCharacter[key].secondaryGoalMode = NormalizeOptionalGoalMode(selection.secondaryGoalMode)
+    -- A new selection means new contexts: drop what the running scan has built.
+    if not keepContexts and ns.ResetContextScan then ns.ResetContextScan() end
 end
 
 local function ApplyToggleLabelColors(selection)
@@ -1080,7 +1083,7 @@ function ns.GetTooltipEvaluationContexts()
     if selection.secondaryEnabled and secondarySpecID and not duplicateBuild then
         secondaryContext = BuildContextForSpec(baseContext, secondarySpecID, selection, selection.secondaryGoalMode)
     end
-    SaveSelection(selection)
+    SaveSelection(selection, true)
     if scan then
         scan.tooltipReady, scan.tooltipPrimary, scan.tooltipSecondary = true, primaryContext, secondaryContext
     end
@@ -3330,6 +3333,18 @@ UpdateFrame = function()
 	if frame.RefreshInlineEditors then
 	    frame.RefreshInlineEditors()
 	end
+end
+
+-- One refresh of the window builds the evaluation contexts once. Every Best in Slot and trinket row asks for the
+-- active tier, and each ask used to rebuild the whole profile (about 10 ms; 250 asks froze the game for seconds).
+do
+    local refreshBody = UpdateFrame
+    UpdateFrame = function(...)
+        ns.BeginContextScan()
+        local ok, err = pcall(refreshBody, ...)
+        ns.EndContextScan()
+        if not ok then error(err, 0) end
+    end
 end
 
 function ns.RequestStatAuditRefresh()

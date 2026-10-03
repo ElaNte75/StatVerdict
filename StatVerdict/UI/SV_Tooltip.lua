@@ -300,7 +300,92 @@ local function AddTooltipVerdict(tooltip)
     end
 end
 
+-- Stat ranks: every secondary stat on an item tooltip gets its place in the guide's order for the build
+-- shown in the window ("+73 Critical Strike #1"). Stats the guide calls roughly equal share one number
+-- and carry an "=" ("#2="). Switched off with Features > Stat Ranks (StatVerdictDB.showStatRanks).
+local RANK_COLOR = "|cffffd100"
+
+local function PlainText(text)
+    return (text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+end
+
+local function EscapePattern(text)
+    return (text:gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%0"))
+end
+
+-- A whole stat line: a number and the stat's name, nothing else ("+73 Critical Strike"). The name is the game's
+-- own word for the stat, so this works in every language and skips enchant and effect text.
+local function IsStatLine(plain, name)
+    local escaped = EscapePattern(name)
+    local between = plain:match("^%s*[%+%-]?[%d%.,]+(.-)" .. escaped .. "%s*$")
+    if between ~= nil then
+        return #between <= 4 and not between:find("%d")
+    end
+    local after = plain:match("^%s*" .. escaped .. "(.-)[%+%-]?[%d%.,]+%s*$")
+    return after ~= nil and #after <= 4 and not after:find("%d")
+end
+
+function ns.AddStatRanksToTooltip(tooltip)
+    if not tooltip or type(tooltip.NumLines) ~= "function" or type(tooltip.GetName) ~= "function" then
+        return
+    end
+    local db = _G.StatVerdictDB
+    if type(db) == "table" and db.showStatRanks == false then
+        return
+    end
+    if InCombatLockdown and InCombatLockdown() then
+        return
+    end
+    local tooltipName = tooltip:GetName()
+    if type(tooltipName) ~= "string" or tooltipName == "" or IsInternalStatVerdictTooltip(tooltip) then
+        return
+    end
+
+    local context = ns.GetTooltipEvaluationContexts and (ns.GetTooltipEvaluationContexts()) or nil
+    context = context or (ns.GetEvaluationContext and ns.GetEvaluationContext() or nil)
+    local profile = context and context.profile or nil
+    if type(profile) ~= "table" or profile.invalidGeneratedContext or not ns.GetSecondaryDisplayRanks then
+        return
+    end
+
+    local stats = {}
+    for statKey, entry in pairs(ns.GetSecondaryDisplayRanks(profile.secondaryOrder, profile.equalGroups)) do
+        local name = _G[statKey]
+        if type(name) == "string" and name ~= "" then
+            stats[#stats + 1] = { name = name, suffix = " " .. RANK_COLOR .. "#" .. entry.rank .. (entry.tied and "=" or "") .. "|r" }
+        end
+    end
+    if #stats == 0 then
+        return
+    end
+
+    local changed = false
+    for index = 1, tooltip:NumLines() do
+        local line = _G[tooltipName .. "TextLeft" .. index]
+        local ok, text = pcall(function() return line and line:GetText() end)
+        if ok and type(text) == "string" and not (issecretvalue and issecretvalue(text))
+            and not text:find(RANK_COLOR .. "#", 1, true) then
+            local plain = PlainText(text)
+            -- The comparison block at the bottom ("If you replace this item...") lists changes, not stats.
+            if type(ITEM_DELTA_DESCRIPTION) == "string" and plain:find(ITEM_DELTA_DESCRIPTION, 1, true) then
+                break
+            end
+            for _, stat in ipairs(stats) do
+                if IsStatLine(plain, stat.name) then
+                    line:SetText(text .. stat.suffix)
+                    changed = true
+                    break
+                end
+            end
+        end
+    end
+    if changed and tooltip.Show then
+        tooltip:Show()
+    end
+end
+
 function ns.ProcessTooltip(tooltip)
+    pcall(ns.AddStatRanksToTooltip, tooltip)
     AddTooltipVerdict(tooltip)
 end
 

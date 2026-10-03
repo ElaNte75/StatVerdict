@@ -2780,7 +2780,10 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
         self.check()
         card = self.frame.optionsDrawerCard
         self.assertEqual(3 * 24 - 2 + 6, card.bisTooltipChecksBlock._height)
-        self.assertEqual(2 * 24 - 2, card.bagChecksBlock._height)
+        # Bag Markers: Upgrade Arrow, MS / OS Labels and Stat Ranks. Three rows still fit inside the block height
+        # the Best in Slot block sets for every block, so adding the row moves nothing.
+        self.assertEqual(3 * 24 - 2, card.bagChecksBlock._height)
+        self.assertLessEqual(card.bagChecksBlock._height, card.bisTooltipChecksBlock._height)
 
     def states(self):
         """(checked, active) for options 1, 2, 3."""

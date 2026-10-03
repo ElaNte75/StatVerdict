@@ -759,6 +759,7 @@ function Repository.InvalidateProviderViews()
     for goal in pairs(providerViewSignature) do
         providerViewSignature[goal] = nil
     end
+    if ns.ResetContextScan then ns.ResetContextScan() end
 end
 
 function Repository.GetProviderView(goal)
