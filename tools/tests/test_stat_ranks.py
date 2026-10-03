@@ -83,7 +83,7 @@ class StatRankTests(unittest.TestCase):
         self.assertTrue(shown)
         self.assertEqual("Aged Interwoven Scaleplate", text[0])
         self.assertEqual("+94 Strength", text[1])  # the primary stat is not ranked
-        self.assertTrue(text[2].endswith("|cffff8000#1|r |TInterface\AddOns\StatVerdict\Textures\StatRankMS:7:14|t"))
+        self.assertTrue(text[2].endswith("|cffff8000#1|r |TInterface\AddOns\StatVerdict\Textures\StatRankMS:8:16|t"))
         self.assertIn("#2", text[3])  # Versatility and Mastery are equal: the same number
         self.assertIn("#4", text[4])
         self.assertIn("#2", text[5])

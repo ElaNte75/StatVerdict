@@ -306,9 +306,9 @@ end
 -- stands apart from a green stat line); holding Alt shows the other one. Switched off with Features > Stat Ranks (StatVerdictDB.showStatRanks).
 local RANK_COLOR = "|cffff8000"  -- the addon's orange, as in "StatVerdict Result": all that StatVerdict adds is orange
 -- MS / OS are small orange pictures (StatRankMS / StatRankOS in Textures), because tooltip text cannot change
--- its size inside a line. Size: height 7, width 14 (the pictures are 2:1).
+-- its size inside a line. Size: height 8, width 16 (the pictures are 2:1).
 local LABEL_PATH = "|TInterface\\AddOns\\StatVerdict\\Textures\\StatRank"
-local LABEL_SIZE = ":7:14|t"
+local LABEL_SIZE = ":8:16|t"
 
 local function PlainText(text)
     return (text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
