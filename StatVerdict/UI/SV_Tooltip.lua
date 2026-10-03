@@ -1,6 +1,12 @@
 local addonName, ns = ...
 
 local PREFIX = "StatVerdict"
+
+-- The Catalyst preview (see below, at the stat ranks): true while the tooltip is being filled with the set piece, and
+-- the tooltip -> item link it was showing before the swap. The set piece is not an item the player owns, so nothing
+-- about saving it is offered while it shows.
+local catalystPreviewing = false
+local previewOf = setmetatable({}, { __mode = "k" })
 local lastVerdictMemory = {
     itemLink = nil,
     context = nil,
@@ -179,7 +185,7 @@ local function AddTooltipVerdict(tooltip)
         return
     end
 
-    local fromBags = ns.IsTooltipFromPlayerBags and ns.IsTooltipFromPlayerBags(tooltip) or false
+    local fromBags = (not catalystPreviewing) and ns.IsTooltipFromPlayerBags and ns.IsTooltipFromPlayerBags(tooltip) or false
 
     local primaryContext, secondaryContext = nil, nil
     if ns.GetTooltipEvaluationContexts then
@@ -309,9 +315,6 @@ end
 -- Holding Ctrl over an item the Catalyst can turn into the Best in Slot set piece swaps the tooltip for that piece (same
 -- item level, its own stats and verdict); Ctrl up puts the item back. (Alt is the stat ranks' key: it shows the other
 -- build.) The flag only stops the swapped tooltip from being swapped again.
-local catalystPreviewing = false
-local previewOf = setmetatable({}, { __mode = "k" })  -- tooltip -> the item link it was showing before the swap
-
 local RANK_COLOR = "|cffffd100"  -- the game's tooltip gold (Item Level, Vendor, Auction), not the addon's orange
 -- MS / OS are small gold pictures (StatRankMS / StatRankOS in Textures), because tooltip text cannot change
 -- its size inside a line. Size: height 8, width 16 (the pictures are 2:1).

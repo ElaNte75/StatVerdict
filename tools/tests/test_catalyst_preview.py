@@ -105,6 +105,15 @@ class CatalystPreviewTests(unittest.TestCase):
         self.assertEqual([], calls)
         self.assertEqual([self.ORIGINAL], processed)
 
+    def test_the_set_piece_is_never_offered_for_saving(self) -> None:
+        # Saving works on items the player owns: while the set piece shows, the tooltip is not "from the bags".
+        self.lua.execute("BAG_CHECKS = 0")
+        self.ns.IsTooltipFromPlayerBags = self.lua.eval("function() BAG_CHECKS = BAG_CHECKS + 1 return true end")
+        self.hover(self.ORIGINAL, ctrl=True)
+        self.assertEqual(0, int(self.lua.eval("BAG_CHECKS")))  # the set piece pass never asked
+        self.hover(self.ORIGINAL, ctrl=False)
+        self.assertGreater(int(self.lua.eval("BAG_CHECKS")), 0)  # the item itself still does
+
 
 if __name__ == "__main__":
     unittest.main()
