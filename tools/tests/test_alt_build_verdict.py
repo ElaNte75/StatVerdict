@@ -1,5 +1,5 @@
-"""The verdict block is for the build selected in the window; Alt shows the other one, only when an Off Spec is set;
-a build that gains from the item too gets one grey line."""
+"""The verdict block is for the Main Spec first; Alt shows the other one, only when an Off Spec is set;
+a build that gains from the item too gets one gold line."""
 from __future__ import annotations
 
 import unittest
@@ -15,12 +15,11 @@ class AltBuildVerdictTests(unittest.TestCase):
         load_addon_file(self.lua, self.ns, "UI/SV_Tooltip.lua")
         lua = self.lua
         lua.execute("""
-        ALT, VIEW, RENDERED = false, "MAIN", {}
-        IsAltKeyDown = function() return ALT end
+        RENDERED, LINK = {}, 1000
         TIP = { lines = {} }
         function TIP:GetName() return "AltVerdictTip" end
         function TIP:NumLines() return #self.lines end
-        function TIP:GetItem() return "Item", "item:1000" end
+        function TIP:GetItem() return "Item", "item:" .. LINK end
         function TIP:AddLine(text)
             self.lines[#self.lines + 1] = text
             _G["AltVerdictTipTextLeft" .. #self.lines] = { GetText = function() return text end }
@@ -29,7 +28,6 @@ class AltBuildVerdictTests(unittest.TestCase):
         -- A build gains from the item when its profile says so.
         UPGRADES = { Blood = true, Frost = true }
         """)
-        self.ns.GetStatAuditActiveView = lambda: str(lua.eval("VIEW"))
         self.ns.ProfileRepository = lua.table(GetDataProvenance=lambda goal=None: lua.table(available=True))
         self.ns.BuildComparison = lua.eval(
             "function(link, profile) return { selected = { isUpgrade = UPGRADES[profile.specName] == true, deltaScore = 5 } } end")
@@ -49,9 +47,13 @@ class AltBuildVerdictTests(unittest.TestCase):
         self.ns.GetTooltipEvaluationContexts = lua.eval(
             "function() return BLOOD" + (", FROST" if off_spec else "") + " end")
 
-    def hover(self, view="MAIN", alt=False, upgrades=("Blood", "Frost")):
+    def hover(self, alt=False, upgrades=("Blood", "Frost"), same_item=False):
         lua = self.lua
-        lua.execute(f"VIEW = '{view}'; ALT = {str(alt).lower()}; RENDERED = {{}}; TIP.lines = {{}}")
+        if not same_item:
+            lua.execute("LINK = LINK + 1")  # every hover is another item unless said otherwise
+        lua.execute(f"RENDERED = {{}}; TIP.lines = {{}}")
+        if alt:
+            self.ns.ToggleOtherBuild(lua.eval("TIP"))  # Alt pressed once
         lua.execute("UPGRADES = { " + ", ".join(f"{name} = true" for name in upgrades) + " }")
         self.ns.ProcessTooltip(lua.eval("TIP"))
         rendered = [str(lua.eval(f"RENDERED[{i}]")) for i in range(1, int(lua.eval("#RENDERED")) + 1)]
@@ -59,42 +61,51 @@ class AltBuildVerdictTests(unittest.TestCase):
         return rendered, lines
 
     def test_the_selected_build_is_shown_by_default(self) -> None:
-        rendered, _ = self.hover(view="MAIN")
+        rendered, _ = self.hover()
         self.assertEqual(["Blood:primary"], rendered)
-        rendered, _ = self.hover(view="OFF")
-        self.assertEqual(["Frost:secondary"], rendered)
 
     def test_alt_shows_the_other_build(self) -> None:
-        rendered, lines = self.hover(view="MAIN", alt=True)
+        rendered, lines = self.hover(alt=True)
         self.assertEqual(["Frost:secondary"], rendered)
-        self.assertFalse(any("hold Alt" in line for line in lines))  # no hint while it is shown
-        rendered, _ = self.hover(view="OFF", alt=True)
-        self.assertEqual(["Blood:primary"], rendered)
+        self.assertFalse(any("- Alt" in line for line in lines))  # no hint while it is shown
 
     def test_without_an_off_spec_alt_does_nothing(self) -> None:
         self.set_builds(off_spec=False)
-        rendered, lines = self.hover(view="MAIN", alt=True)
-        self.assertEqual(["Blood:primary"], rendered)
-        rendered, lines = self.hover(view="OFF", alt=False)  # a stale "OFF" view without an Off Spec
+        rendered, lines = self.hover(alt=True)
         self.assertEqual(["Blood:primary"], rendered)
         self.assertFalse(any("Also an upgrade" in line for line in lines))
 
-    def test_a_build_that_gains_too_gets_one_grey_line(self) -> None:
-        _, lines = self.hover(view="MAIN", upgrades=("Blood", "Frost"))
-        hints = [line for line in lines if "Also an upgrade for Frost (hold Alt)" in line]
+    def test_a_build_that_gains_too_gets_one_gold_line(self) -> None:
+        _, lines = self.hover(upgrades=("Blood", "Frost"))
+        hints = [line for line in lines if "Also an upgrade for Frost - Alt" in line]
         self.assertEqual(1, len(hints))
         self.assertIs(True, lines[-1] == hints[0])  # at the very end
-        _, lines = self.hover(view="OFF", upgrades=("Blood", "Frost"))
-        self.assertEqual(1, len([line for line in lines if "Also an upgrade for Blood (hold Alt)" in line]))
 
     def test_no_line_when_the_other_build_does_not_gain(self) -> None:
-        _, lines = self.hover(view="MAIN", upgrades=("Blood",))
+        _, lines = self.hover(upgrades=("Blood",))
         self.assertFalse(any("Also an upgrade" in line for line in lines))
 
     def test_a_build_with_nothing_falls_back_to_the_other(self) -> None:
-        rendered, _ = self.hover(view="MAIN", upgrades=("Frost",))
+        rendered, _ = self.hover(upgrades=("Frost",))
         self.assertEqual(["Frost:secondary"], rendered)  # Blood has nothing to say, Frost does
-        rendered, _ = self.hover(view="OFF", upgrades=("Blood",))
+        rendered, _ = self.hover(upgrades=("Blood",))
+        self.assertEqual(["Blood:primary"], rendered)  # and the Main Spec comes first when it has something to say
+
+    def test_alt_is_a_switch_pressed_again_it_goes_back(self) -> None:
+        self.hover(alt=True)
+        rendered, _ = self.hover(same_item=True)  # still on: no new press needed
+        self.assertEqual(["Frost:secondary"], rendered)
+        rendered, _ = self.hover(alt=True, same_item=True)  # second press
+        self.assertEqual(["Blood:primary"], rendered)
+
+    def test_the_switch_is_forgotten_when_another_item_opens(self) -> None:
+        lua = self.lua
+        lua.execute("GameTooltip = TIP")  # the reset only watches the game's own tooltip
+        self.hover(alt=True)
+        rendered, _ = self.hover()  # another item
+        self.assertEqual(["Blood:primary"], rendered)
+        lua.execute("LINK = LINK - 1")
+        rendered, _ = self.hover(same_item=True)  # back on the first one: its real tooltip
         self.assertEqual(["Blood:primary"], rendered)
 
 

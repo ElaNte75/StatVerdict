@@ -33,6 +33,10 @@ local function IsInternalStatVerdictTooltip(tooltip)
     return type(name) == "string" and string.find(name, "StatVerdict", 1, true) == 1
 end
 
+-- Alt is a switch: one press shows the other build for the item under the mouse, the next press goes back. The
+-- choice belongs to that one item (its link; its Catalyst set piece preview counts as the same item) and is dropped when the tooltip closes or another item opens.
+local otherBuildLink = nil
+
 local function GetTooltipItemLink(tooltip)
     if not tooltip then
         return nil
@@ -321,13 +325,12 @@ local function AddTooltipVerdict(tooltip)
         return buildAndRender()
     end
 
-    -- Which build the verdict is for: the one selected in the window (Main or Off Spec). Alt shows the other one, but
+    -- Which build the verdict is for: the Main Spec first, whatever the window shows. Alt switches to the Off Spec, but
     -- only when an Off Spec is set: without one there is nothing to switch to. The stat ranks follow the same rule.
     local hasOff = secondaryContext ~= nil and secondaryContext ~= primaryContext
         and type(secondaryContext) == "table" and secondaryContext.profile ~= nil
-    local view = ns.GetStatAuditActiveView and ns.GetStatAuditActiveView() or "MAIN"
-    local showOff = hasOff and view == "OFF"
-    local altHeld = hasOff and IsAltKeyDown and IsAltKeyDown() or false
+    local showOff = false
+    local altHeld = hasOff and otherBuildLink ~= nil and (otherBuildLink == itemLink or catalystPreviewing == true)
     if altHeld then
         showOff = not showOff
     end
@@ -337,10 +340,10 @@ local function AddTooltipVerdict(tooltip)
     end
 
     if renderContext(firstContext, firstIsSecondary) then
-        -- One line when the other build gains from this item too, so it is not missed.
+        -- One gold line (important, not a side hint) when the other build gains from this item too, so it is not missed.
         if hasOff and not altHeld and not catalystPreviewing and IsUpgradeFor(itemLink, otherContext) then
             local name = otherContext.specName or (otherContext.profile and otherContext.profile.specName) or "the other build"
-            tooltip:AddLine("|cff999999Also an upgrade for " .. tostring(name) .. " (hold Alt)|r", 0.6, 0.6, 0.6)
+            tooltip:AddLine("|cffffd200Also an upgrade for " .. tostring(name) .. " - Alt|r", 1, 0.82, 0)
             tooltip:Show()
         end
         return
@@ -405,10 +408,10 @@ function ns.AddStatRanksToTooltip(tooltip)
     end
     primary = primary or (ns.GetEvaluationContext and ns.GetEvaluationContext() or nil)
     local hasOff = secondary and secondary.profile and true or false
-    local view = ns.GetStatAuditActiveView and ns.GetStatAuditActiveView() or "MAIN"
-    local showOff = (view == "OFF" and hasOff) and true or false
-    if hasOff and IsAltKeyDown and IsAltKeyDown() then
-        showOff = not showOff  -- Alt: the other build
+    local showOff = false
+    local shownLink = GetTooltipItemLink(tooltip)
+    if hasOff and otherBuildLink ~= nil and (otherBuildLink == shownLink or catalystPreviewing == true) then
+        showOff = not showOff  -- Alt pressed: the other build
     end
     local context = showOff and secondary or primary
     local specLabel = showOff and "OS" or "MS"
@@ -476,20 +479,34 @@ local function CatalystPreviewLink(tooltip)
     return previewString, itemString
 end
 
+-- The Alt switch for the item under the mouse; true when it was flipped.
+function ns.ToggleOtherBuild(tooltip)
+    local link = GetTooltipItemLink(tooltip)
+    if not link then return false end
+    otherBuildLink = (otherBuildLink ~= link) and link or nil
+    return true
+end
+
 -- Alt and Ctrl: redraw the tooltip that is open when one goes down or up. Alt: the stat ranks show the other build.
 -- Ctrl: an item the Catalyst can convert shows the set piece, and Ctrl up puts the item itself back. (Shift is the
 -- game's own item comparison.)
 local modifierWatcher = CreateFrame and CreateFrame("Frame") or nil
 if modifierWatcher then
     modifierWatcher:RegisterEvent("MODIFIER_STATE_CHANGED")
-    modifierWatcher:SetScript("OnEvent", function(_, _, key)
+    modifierWatcher:SetScript("OnEvent", function(_, _, key, down)
         local isAlt = key == "LALT" or key == "RALT"
         local isCtrl = key == "LCTRL" or key == "RCTRL"
         if not (isAlt or isCtrl) then return end
         local tip = _G.GameTooltip
         if not (tip and tip:IsShown()) then return end
         local original = previewOf[tip]
-        if original then
+        if isAlt then
+            -- Only a key going down flips the switch; a key coming up changes nothing.
+            if down ~= 1 or original or (InCombatLockdown and InCombatLockdown()) then return end
+            if ns.ToggleOtherBuild(tip) and type(tip.RefreshData) == "function" then
+                pcall(tip.RefreshData, tip)
+            end
+        elseif original then
             -- The set piece is showing: Ctrl up brings the item back; Alt changes nothing there.
             if isCtrl and not (IsControlKeyDown and IsControlKeyDown()) then
                 previewOf[tip] = nil
@@ -501,7 +518,14 @@ if modifierWatcher then
     end)
 end
 
+if _G.GameTooltip and _G.GameTooltip.HookScript then
+    _G.GameTooltip:HookScript("OnHide", function() otherBuildLink = nil end)
+end
+
 function ns.ProcessTooltip(tooltip)
+    if otherBuildLink ~= nil and not catalystPreviewing and tooltip == _G.GameTooltip and otherBuildLink ~= GetTooltipItemLink(tooltip) then
+        otherBuildLink = nil  -- another item: back to its real tooltip
+    end
     local previewLink, original = CatalystPreviewLink(tooltip)
     if previewLink then
         catalystPreviewing = true

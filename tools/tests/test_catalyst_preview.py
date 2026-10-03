@@ -100,7 +100,7 @@ class CatalystPreviewTests(unittest.TestCase):
         self.assertEqual(1, len(processed))
 
     def test_alt_does_not_swap_it_is_the_stat_ranks_key(self) -> None:
-        self.lua.execute("IsAltKeyDown = function() return true end")
+        self.lua.execute("IsAltKeyDown = function() return true end")  # even a held Alt does not swap
         calls, processed = self.hover(self.ORIGINAL, ctrl=False)
         self.assertEqual([], calls)
         self.assertEqual([self.ORIGINAL], processed)

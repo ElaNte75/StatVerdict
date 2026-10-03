@@ -49,6 +49,15 @@ local function IsInCombat()
     return type(InCombatLockdown) == "function" and InCombatLockdown()
 end
 
+-- Saved loadouts are shared by every character of the account (keyed by spec), so each one remembers which
+-- character made it. Only that character can say whether its items are gone.
+local function CurrentCharacterGUID()
+    if type(UnitGUID) ~= "function" then return nil end
+    local ok, guid = pcall(UnitGUID, "player")
+    if ok and type(guid) == "string" and not (issecretvalue and issecretvalue(guid)) then return guid end
+    return nil
+end
+
 local function EnsureDB()
     StatVerdictDB = StatVerdictDB or {}
     StatVerdictDB.specSnapshots = StatVerdictDB.specSnapshots or {}
@@ -460,6 +469,7 @@ local function EnsureVirtualLoadout(specID)
             stats = {},
             displayStats = {},
             source = "virtual_loadout",
+            characterGUID = CurrentCharacterGUID(),
         }
         db.bySpecID[key] = snapshot
     end
@@ -563,6 +573,12 @@ function ns.ApproveItemIntoVirtualLoadout(itemLink, profile, slotID)
     snapshot.source = "approve"
     snapshot.lastApprovedSlot = targetSlot
     snapshot.lastApprovedLink = itemLink
+    -- Marked by the player: these are the pieces put on when this spec is switched to.
+    snapshot.marked = type(snapshot.marked) == "table" and snapshot.marked or {}
+    snapshot.marked[tostring(targetSlot)] = itemLink
+    if equipLocation and TWO_HAND_EQUIP_LOCATIONS[equipLocation] and targetSlot == INVSLOT_MAINHAND then
+        snapshot.marked[tostring(INVSLOT_OFFHAND)] = nil
+    end
 
     NotifyVirtualLoadoutChanged()
 
@@ -608,6 +624,7 @@ function ns.RemoveItemFromVirtualLoadout(itemLink, profile)
     if not removedSlot then
         return false, "This item is not saved in that loadout."
     end
+    if type(snapshot.marked) == "table" then snapshot.marked[tostring(removedSlot)] = nil end
 
     -- Approving a two-hander clears the off-hand slot; removing it restores the
     -- worn off-hand so the loadout matches the character again.
@@ -705,8 +722,10 @@ function ns.CaptureActiveSpecSnapshot()
         stats = stats,
         displayStats = displayStats,
         source = source,
+        characterGUID = CurrentCharacterGUID(),
         lastApprovedSlot = previous and previous.lastApprovedSlot or nil,
         lastApprovedLink = previous and previous.lastApprovedLink or nil,
+        marked = previous and previous.marked or nil,
     }
 
     return db.bySpecID[specKey]
@@ -772,12 +791,16 @@ function ns.PruneVanishedLoadoutItems()
     if not activeSpecID then return 0, false end
     local db = EnsureDB()
     local activeKey = tostring(activeSpecID)
+    local myGUID = CurrentCharacterGUID()
+    if not myGUID then return 0, false end
     local now = Now()
     local changed, pending = 0, false
 
     for specKey, snapshot in pairs(db.bySpecID) do
         local equipment = type(snapshot) == "table" and snapshot.equipment or nil
-        if specKey ~= activeKey and type(equipment) == "table" then
+        -- Only this character's own loadouts: the bags here say nothing about another character's gear, and a
+        -- loadout saved before the character was recorded is never touched.
+        if specKey ~= activeKey and type(equipment) == "table" and snapshot.characterGUID == myGUID then
             -- The table is only changed after the walk over it (adding a key while walking is not allowed).
             local gone = {}
             for slotKey, link in pairs(equipment) do
@@ -806,6 +829,7 @@ function ns.PruneVanishedLoadoutItems()
                     and type(GetInventoryItemLink) == "function" then
                     equipment[tostring(INVSLOT_OFFHAND)] = GetInventoryItemLink("player", INVSLOT_OFFHAND)
                 end
+                if type(snapshot.marked) == "table" then snapshot.marked[entry.slotKey] = nil end
                 if snapshot.lastApprovedLink and GetItemIDFromLink(snapshot.lastApprovedLink) == entry.itemID then
                     snapshot.lastApprovedLink, snapshot.lastApprovedSlot = nil, nil
                 end
@@ -877,6 +901,55 @@ local function RequestRefresh()
     end
 end
 
+-- Switching spec puts on the pieces the player marked for the new spec (Alt-click) and that are in the bags.
+-- Every other slot keeps what is worn. Only after a real spec change, never in combat, never at login.
+local EQUIP_AFTER_SPEC_DELAY = 2.5
+local lastSpecID = nil
+
+function ns.EquipMarkedLoadoutItems()
+    if IsInCombat() then return 0 end
+    local specID = GetActiveSpecID()
+    if not specID then return 0 end
+    local snapshot = EnsureDB().bySpecID[tostring(specID)]
+    local marked = type(snapshot) == "table" and snapshot.marked or nil
+    local equipment = type(snapshot) == "table" and snapshot.equipment or nil
+    local equipItem = (type(C_Item) == "table" and C_Item.EquipItemByName) or EquipItemByName
+    if type(marked) ~= "table" or type(equipment) ~= "table" or type(equipItem) ~= "function" then return 0 end
+
+    local slots = {}
+    for slotKey in pairs(marked) do
+        local slotID = SafeNumber(slotKey)
+        if slotID then slots[#slots + 1] = slotID end
+    end
+    table.sort(slots)  -- the main hand before the off hand
+    local equipped = 0
+    for _, slotID in ipairs(slots) do
+        local key = tostring(slotID)
+        local link = marked[key]
+        local worn = type(GetInventoryItemLink) == "function" and GetInventoryItemLink("player", slotID) or nil
+        if type(link) == "string" and equipment[key] == link
+            and not (worn and SnapshotLinksMatch(worn, link)) and ItemLinkInPlayerBags(link) then
+            if pcall(equipItem, link, slotID) then
+                equipped = equipped + 1
+                SayLoadoutChange(link .. " was put on from the " .. SpecNameByID(specID) .. " loadout.")
+            end
+        end
+    end
+    return equipped
+end
+
+local function NoteSpecChange()
+    local specID = GetActiveSpecID()
+    if not specID then return end
+    local changed = lastSpecID ~= nil and lastSpecID ~= specID
+    lastSpecID = specID
+    if changed and type(C_Timer) == "table" and type(C_Timer.After) == "function" then
+        C_Timer.After(EQUIP_AFTER_SPEC_DELAY, function()
+            if GetActiveSpecID() == specID then ns.EquipMarkedLoadoutItems() end
+        end)
+    end
+end
+
 local function ScheduleCapture()
     if IsInCombat() then return end
     captureScheduleToken = captureScheduleToken + 1
@@ -909,6 +982,10 @@ RegisterEventSafe(frame, "TRAIT_SUB_TREE_CHANGED")
 frame:SetScript("OnEvent", function(_, event, unit)
     if event == "UNIT_STATS" and unit ~= "player" then
         return
+    end
+    if event == "PLAYER_SPECIALIZATION_CHANGED" or event == "ACTIVE_PLAYER_SPECIALIZATION_CHANGED"
+        or event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_LOGIN" then
+        NoteSpecChange()
     end
     ScheduleCapture()
 end)

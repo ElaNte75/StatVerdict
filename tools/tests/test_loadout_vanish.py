@@ -19,9 +19,10 @@ worn = {}                                                     -- slotID -> link
 GetInventoryItemLink = function(unit, slot) return worn[slot] end
 CreateFrame = function() return { RegisterEvent = function() end, SetScript = function() end } end
 C_Timer = { After = function() end }
+UnitGUID = function() return "Player-1-ME" end
 StatVerdictDB = { specSnapshots = { version = 1, revision = 0, bySpecID = {
-    ["200"] = { specID = 200, revision = 1, equipment = { ["2"] = "|Hitem:111::|h[Thorny]|h", ["16"] = "|Hitem:222::|h[Axe]|h" } },
-    ["100"] = { specID = 100, revision = 1, equipment = { ["2"] = "|Hitem:111::|h[Thorny]|h" } },
+    ["200"] = { specID = 200, revision = 1, characterGUID = "Player-1-ME", equipment = { ["2"] = "|Hitem:111::|h[Thorny]|h", ["16"] = "|Hitem:222::|h[Axe]|h" } },
+    ["100"] = { specID = 100, revision = 1, characterGUID = "Player-1-ME", equipment = { ["2"] = "|Hitem:111::|h[Thorny]|h" } },
 } } }
 """
 
@@ -65,6 +66,21 @@ class LoadoutVanishTests(unittest.TestCase):
         self.lua.execute("clock = clock + 4")
         self.run_check()
         self.assertIsNone(self.slot(200, 2))
+
+    def test_another_characters_loadout_is_never_touched(self):
+        self.lua.execute('StatVerdictDB.specSnapshots.bySpecID["200"].characterGUID = "Player-1-OTHER"')
+        self.run_check()
+        self.lua.execute("clock = clock + 4")
+        self.assertEqual(self.run_check()[0], 0)
+        self.assertIn("111", self.slot(200, 2))
+        self.assertEqual(self.lua.eval("#chat"), 0)
+
+    def test_a_loadout_saved_before_characters_were_recorded_is_never_touched(self):
+        self.lua.execute('StatVerdictDB.specSnapshots.bySpecID["200"].characterGUID = nil')
+        self.run_check()
+        self.lua.execute("clock = clock + 4")
+        self.assertEqual(self.run_check()[0], 0)
+        self.assertIn("111", self.slot(200, 2))
 
     def test_the_active_spec_is_not_touched(self):
         self.run_check()

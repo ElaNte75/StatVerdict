@@ -4,9 +4,11 @@ local function Colors()
     return ns.Colors
 end
 
-local function AddLine(tooltip, text, r, g, b)
+-- Lines do not wrap: the tooltip grows a little instead, so short wording is the way to keep it narrow. Only long
+-- prose (wrap = true) may fold.
+local function AddLine(tooltip, text, r, g, b, wrap)
     if tooltip and text then
-        tooltip:AddLine(text, r, g, b, true)
+        tooltip:AddLine(text, r, g, b, wrap == true)
     end
 end
 
@@ -112,7 +114,8 @@ function ns.RenderTooltipVerdict(tooltip, context, comparison, isSecondary, show
 
     local specLine = BuildSpecLine(context)
     if specLine then
-        AddLine(tooltip, specLine)
+        -- Which of the two builds this is, in the gold of the save hints.
+        AddLine(tooltip, "|cffffd200" .. (isSecondary and "Off Spec" or "Main Spec") .. "|r " .. specLine)
     end
     if referenceInfo and referenceInfo.bis then
         local wording = ns.GetReferenceWording and ns.GetReferenceWording(context.profile and context.profile.goal) or nil
@@ -138,34 +141,24 @@ function ns.RenderTooltipVerdict(tooltip, context, comparison, isSecondary, show
         and ns.ShouldUseEquipmentSnapshot
         and ns.ShouldUseEquipmentSnapshot(context.profile)
     local baselineLabel = usesSnapshot and "virtual loadout" or "equipped"
+    -- The verdict points close the "Better than ..." line, so there is no separate points line.
+    local pointsText = ""
+    if verdictScoreText then
+        local valueColor = verdictScore >= 0 and c.green or c.red
+        pointsText = " " .. valueColor .. verdictScoreText .. (ruleBlocked and " raw" or "") .. c.reset
+    end
     if selected.setComparison and (selected.equippedMainLink or selected.equippedOffLink) then
-        AddLine(tooltip, c.white .. (ruleBlocked and ("Would replace " .. baselineLabel .. " set:") or ("Better than " .. baselineLabel .. " set:")) .. c.reset, 1, 1, 1)
+        AddLine(tooltip, c.white .. (ruleBlocked and ("Would replace " .. baselineLabel .. " set:") or ("Better than " .. baselineLabel .. " set:")) .. c.reset .. pointsText, 1, 1, 1)
         local mainName = GetColoredItemName(selected.equippedMainLink) or GetItemNameFromLink(selected.equippedMainLink) or "Main Hand"
         local offName = GetColoredItemName(selected.equippedOffLink) or GetItemNameFromLink(selected.equippedOffLink) or "Off Hand"
         AddLine(tooltip, c.white .. "Main Hand: " .. c.reset .. mainName, 1, 1, 1)
         AddLine(tooltip, c.white .. "Off Hand: " .. c.reset .. offName, 1, 1, 1)
     else
-        AddLine(tooltip, c.white .. (ruleBlocked and ("Would replace " .. baselineLabel .. ":") or ("Better than " .. baselineLabel .. ":")) .. c.reset, 1, 1, 1)
+        AddLine(tooltip, c.white .. (ruleBlocked and ("Would replace " .. baselineLabel .. ":") or ("Better than " .. baselineLabel .. ":")) .. c.reset .. pointsText, 1, 1, 1)
         AddLine(tooltip, targetName, 1, 1, 1)
     end
-    if verdictScoreText then
-        local signedValue = verdictScore
-        local valueColor = signedValue >= 0 and c.green or c.red
-        local verdictLabel = ruleBlocked and "Raw Verdict Points: " or "Verdict Points: "
-        local verdictLine = c.white .. verdictLabel .. valueColor .. verdictScoreText
-        AddLine(tooltip, verdictLine .. c.reset, 1, 1, 1)
-    end
     if selected.ruleReason then
-        AddLine(tooltip, c.yellow .. "Reason: " .. selected.ruleReason .. c.reset, 1, 0.85, 0.2)
-    end
-
-    if showApproveHint and not ruleBlocked then
-        local specName = context.specName or (context.profile and context.profile.specName) or "this build"
-        if isSecondary then
-            AddLine(tooltip, "|cffffd200Alt-Left-Click to save for " .. tostring(specName) .. " (Off Spec)|r", 1, 0.82, 0)
-        else
-            AddLine(tooltip, "|cffffd200Alt-Right-Click to save for " .. tostring(specName) .. "|r", 1, 0.82, 0)
-        end
+        AddLine(tooltip, c.yellow .. "Reason: " .. selected.ruleReason .. c.reset, 1, 0.85, 0.2, true)
     end
 
     -- An item the Catalyst can turn into the Best in Slot set piece: whether that piece, judged with its real
@@ -189,6 +182,11 @@ function ns.RenderTooltipVerdict(tooltip, context, comparison, isSecondary, show
             end
         end
         AddLine(tooltip, "|cff999999Hold Ctrl to preview|r", 0.6, 0.6, 0.6)
+    end
+
+    -- Last line: which click saves the item (the spec is already named above).
+    if showApproveHint and not ruleBlocked then
+        AddLine(tooltip, "|cff999999" .. (isSecondary and "Alt-Left-Click" or "Alt-Right-Click") .. ": save|r", 0.6, 0.6, 0.6)
     end
 
     tooltip:Show()

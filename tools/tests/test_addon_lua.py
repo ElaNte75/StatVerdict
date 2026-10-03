@@ -1262,7 +1262,7 @@ class VerdictReferenceLabelTests(unittest.TestCase):
         self.assertEqual(1, len([line for line in lines if "Best in Slot after the Catalyst" in line]))
         self.assertTrue(any("Hold Ctrl to preview" in line for line in lines))
         better = next(i for i, line in enumerate(lines) if "after the Catalyst" in line and "Not better" not in line)
-        self.assertLess(next(i for i, line in enumerate(lines) if "Verdict Points" in line), better)  # below the verdict
+        self.assertLess(next(i for i, line in enumerate(lines) if "Better than" in line), better)  # below the verdict
         self.assertLess(better, next(i for i, line in enumerate(lines) if "Hold Ctrl" in line))
         self.assertFalse(any(self.CATALYST_TEXT in line for line in lines))  # the old reference line is gone
         self.assertFalse(any("(BIS)" in line for line in lines))
