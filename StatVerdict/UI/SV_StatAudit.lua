@@ -292,6 +292,7 @@ end
 local function EnsureAuditInteractionBlocker()
     if AuditInteractionBlocker then return AuditInteractionBlocker end
     local blocker = CreateFrame("Frame", ns.UIName and ns.UIName("StatVerdictAuditInteractionBlocker") or "StatVerdictAuditInteractionBlocker", UIParent, "BackdropTemplate")
+    blocker.svOwnedWindow = true
     blocker:Hide()
     blocker:SetFrameStrata("FULLSCREEN_DIALOG")
     blocker:SetFrameLevel(2000)
@@ -573,6 +574,8 @@ local GetCharacterKey
 
 local function EnsureSavedDB()
     _G.StatVerdictDB = _G.StatVerdictDB or {}
+    -- The layout seed (once per player) must be in place before the window's layout is read.
+    if ns.EnsureLayoutDB then ns.EnsureLayoutDB() end
     _G.StatVerdictDB.statAuditLayout = _G.StatVerdictDB.statAuditLayout or {}
     _G.StatVerdictDB.statAuditSelection = _G.StatVerdictDB.statAuditSelection or {}
     _G.StatVerdictDB.statAuditCustom = _G.StatVerdictDB.statAuditCustom or {}
@@ -648,8 +651,11 @@ end
 -- Does not overwrite the remembered user position unless persistUserPos is true.
 local function FitWindowOnScreen(frame, persistUserPos)
     if not frame or not UIParent then return end
-    local pw = UIParent:GetWidth() or 0
-    local ph = UIParent:GetHeight() or 0
+    -- The window's own units are larger or smaller than the screen's by its scale (Options > Window size).
+    local scale = tonumber(frame.GetScale and frame:GetScale()) or 1
+    if scale <= 0 then scale = 1 end
+    local pw = (UIParent:GetWidth() or 0) / scale
+    local ph = (UIParent:GetHeight() or 0) / scale
     local fw = frame:GetWidth() or 0
     local fh = frame:GetHeight() or 0
     if pw <= 0 or ph <= 0 or fw <= 0 or fh <= 0 then return end
@@ -680,6 +686,20 @@ local function FitWindowOnScreen(frame, persistUserPos)
     if persistUserPos then
         SaveWindowPosition(frame)
     end
+end
+
+-- Options > Window > Window size changed: the window takes the new size and stays where it is, on the screen.
+function ns.ApplyWindowScale()
+    local frame = AuditFrame
+    if not frame then return end
+    local ratio, left, top = ns.ChangeWindowScale(frame)
+    if not ratio then return end
+    if left and top then
+        frame.svUserWindowPos = { x = left, y = top }
+        SyncDevTopLeftBase(frame, left, top)
+    end
+    FitWindowOnScreen(frame, true)
+    if ns.RequestStatAuditRefresh then ns.RequestStatAuditRefresh() end
 end
 
 -- Re-apply remembered user spot after panel width changes, then fit if overflowing.
@@ -1299,6 +1319,10 @@ end
 local function EnsureFrame()
     if AuditFrame then return AuditFrame end
     local frame = CreateFrame("Frame", ns.UIName and ns.UIName("StatVerdictStatAuditFrame") or "StatVerdictStatAuditFrame", UIParent, "BackdropTemplate")
+    -- Before any child exists, so every part of the window starts on the same layer.
+    if ns.ApplyAlwaysOnTop then ns.ApplyAlwaysOnTop(frame) end
+    -- The saved size, before the window is placed (its saved spot is in its own units).
+    if ns.GetWindowScale then frame:SetScale(ns.GetWindowScale()) end
     if ns.ApplyStatVerdictWindowChrome then
         ns.ApplyStatVerdictWindowChrome(frame, {
             close = true,
@@ -2638,6 +2662,9 @@ local function SetSpecTitle(frame, which, text)
     if not fs then return end
     local selection = GetSavedSelection()
     local choosable = type(selection) == "table" and selection.secondaryEnabled == true
+    -- Compact Mode shows one table and has its own view button: no checkbox in front of the title.
+    local layout = ns.StatVerdictDashboardLayout
+    if layout and layout.IsCompact and layout.IsCompact() then choosable = false end
     local view = (ns.GetStatAuditActiveView and ns.GetStatAuditActiveView()) or "MAIN"
     fs:SetText(ns.SpecTitleText(text, which, view, choosable))
     fs.svSpecChoosable = choosable

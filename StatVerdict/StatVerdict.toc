@@ -2,7 +2,7 @@
 ## Title: StatVerdict
 ## Notes: Gear verdicts for your Main Spec and Off Spec builds.
 ## Author: Gchris
-## Version: 1.1.1
+## Version: 2.0.40
 ## SavedVariables: StatVerdictDB
 ## IconTexture: Interface\Icons\Ability_Mage_BrainFreeze
 ## AddonCompartmentFunc: StatVerdict_OnAddonCompartmentClick

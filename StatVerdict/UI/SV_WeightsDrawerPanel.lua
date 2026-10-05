@@ -246,7 +246,7 @@ function Panel.Toggle()
     if ns.ToggleRightPanelMode then ns.ToggleRightPanelMode("weights") end
 end
 
--- The drawer copies the padding of the Features drawer, so its outline sits exactly
+-- The drawer copies the padding of the Options drawer, so its outline sits exactly
 -- like the other drawers; a padding set on this drawer itself wins.
 function Panel.GetCardPad()
     local function pad(key)

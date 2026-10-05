@@ -266,9 +266,9 @@ local PANEL_TOGGLE_BUTTONS = {
     {
         mode = "options",
         field = "optionsDrawerButton",
-        label = "Features",
+        label = "Options",
         layoutKey = "setup.optionsButton",
-        defaultY = -410,  -- 8px further down than a plain step: Features and Manual are the addon's own, apart from the three guide buttons above
+        defaultY = -410,  -- 8px further down than a plain step: Options and Manual are the addon's own, apart from the three guide buttons above
     },
     {
         mode = "manual",
@@ -279,50 +279,55 @@ local PANEL_TOGGLE_BUTTONS = {
     },
 }
 
-local function PositionPanelToggleButtons(frame, card)
+-- Label, colour and click of one panel button (Guide, Best in Slot, Ranked Trinkets, Options, Manual).
+local function ConfigurePanelToggleButton(button, spec)
     local activeMode = ns.GetRightPanelMode and ns.GetRightPanelMode() or nil
+    local active = activeMode == spec.mode
+    local label = spec.label
+    if spec.mode == "bis" and ns.GetReferenceWording then
+        label = ns.GetReferenceWording().button
+    end
+    button.label:SetText(label)
+    if active then
+        button.label:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+    else
+        button.label:SetTextColor(WHITE[1], WHITE[2], WHITE[3])
+    end
+    button:SetAlpha(1)
+    button:SetScript("OnClick", function()
+        if ns.ToggleRightPanelMode then
+            ns.ToggleRightPanelMode(spec.mode)
+        end
+    end)
+    button:SetScript("OnEnter", function(self)
+        PaintDrawerToggleButton(self, "hover")
+        if spec.tooltip and GameTooltip then
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(label, 1.0, 0.82, 0.0)
+            GameTooltip:AddLine(spec.tooltip, 0.85, 0.85, 0.85, true)
+            GameTooltip:Show()
+        end
+    end)
+    button:SetScript("OnLeave", function(self)
+        PaintDrawerToggleButton(self, "normal")
+        if GameTooltip then GameTooltip:Hide() end
+    end)
+    button:SetScript("OnMouseDown", function(self)
+        PaintDrawerToggleButton(self, "pushed")
+    end)
+    button:SetScript("OnMouseUp", function(self)
+        if self:IsMouseOver() then
+            PaintDrawerToggleButton(self, "hover")
+        else
+            PaintDrawerToggleButton(self, "normal")
+        end
+    end)
+end
+
+local function PositionPanelToggleButtons(frame, card)
     for _, spec in ipairs(PANEL_TOGGLE_BUTTONS) do
         local button = EnsureDrawerToggleButton(card, spec.field)
-        local active = activeMode == spec.mode
-        local label = spec.label
-        if spec.mode == "bis" and ns.GetReferenceWording then
-            label = ns.GetReferenceWording().button
-        end
-        button.label:SetText(label)
-        if active then
-            button.label:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
-        else
-            button.label:SetTextColor(WHITE[1], WHITE[2], WHITE[3])
-        end
-        button:SetAlpha(1)
-        button:SetScript("OnClick", function()
-            if ns.ToggleRightPanelMode then
-                ns.ToggleRightPanelMode(spec.mode)
-            end
-        end)
-        button:SetScript("OnEnter", function(self)
-            PaintDrawerToggleButton(self, "hover")
-            if spec.tooltip and GameTooltip then
-                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                GameTooltip:SetText(label, 1.0, 0.82, 0.0)
-                GameTooltip:AddLine(spec.tooltip, 0.85, 0.85, 0.85, true)
-                GameTooltip:Show()
-            end
-        end)
-        button:SetScript("OnLeave", function(self)
-            PaintDrawerToggleButton(self, "normal")
-            if GameTooltip then GameTooltip:Hide() end
-        end)
-        button:SetScript("OnMouseDown", function(self)
-            PaintDrawerToggleButton(self, "pushed")
-        end)
-        button:SetScript("OnMouseUp", function(self)
-            if self:IsMouseOver() then
-                PaintDrawerToggleButton(self, "hover")
-            else
-                PaintDrawerToggleButton(self, "normal")
-            end
-        end)
+        ConfigurePanelToggleButton(button, spec)
 
         PlaceSetupChild(frame, card, button, {
             key = spec.layoutKey,
@@ -341,6 +346,197 @@ local function PositionPanelToggleButtons(frame, card)
             frame.statVerdictSetupResizeRegions[spec.layoutKey .. ".width"]:Hide()
         end
     end
+end
+
+-- Compact Mode: the panel buttons that stay (Manual lives in Options), in one row under the table.
+local COMPACT_BUTTON_MODES = { "weights", "bis", "trinkets", "options" }
+local COMPACT_BUTTON_GAP = 6
+local COMPACT_DROPDOWNS = {
+    { key = "setup.buildDropdown", defaultY = -54 },
+    { key = "setup.mainDropdown", defaultY = -104 },
+    { key = "setup.offGoalDropdown", defaultY = -178 },
+    { key = "setup.offDropdown", defaultY = -228 },
+}
+local COMPACT_TOGGLE_H = 24 -- the same height as the buttons of the row
+local COMPACT_TOGGLE_GAP = 8
+local COMPACT_BOTTOM_MARGIN = 10 -- between the view button and the card's bottom edge
+
+-- How far down the card the lowest dropdown reaches (its bottom edge, from the card's top).
+function Panel.GetCompactDropdownBottom()
+    local bottom = 0
+    for _, dropdown in ipairs(COMPACT_DROPDOWNS) do
+        local _, dy = Offset(dropdown.key)
+        local height = 26 + HeightDelta(dropdown.key .. ".height")
+        bottom = math.max(bottom, -(dropdown.defaultY + (tonumber(dy) or 0)) + height)
+    end
+    return bottom
+end
+
+-- Height of the left card in Compact Mode: the dropdowns and the view button under them.
+function Panel.GetCompactHeight()
+    local pad = Padding("setup.pad")
+    return (pad.top or 0) + Panel.GetCompactDropdownBottom() + COMPACT_TOGGLE_GAP + COMPACT_TOGGLE_H
+        + COMPACT_BOTTOM_MARGIN + (pad.bottom or 0)
+end
+
+local function SpecForMode(mode)
+    for _, spec in ipairs(PANEL_TOGGLE_BUTTONS) do
+        if spec.mode == mode then return spec end
+    end
+    return nil
+end
+
+local function HideVerticalPanelControls(card)
+    if card.optionsTitle then card.optionsTitle:Hide() end
+    local host = card._svTitleHosts and card._svTitleHosts.optionsTitle
+    if host then host:Hide() end
+    for _, spec in ipairs(PANEL_TOGGLE_BUTTONS) do
+        if card[spec.field] then card[spec.field]:Hide() end
+    end
+end
+
+local function HideCompactControls(frame, card)
+    for _, mode in ipairs(COMPACT_BUTTON_MODES) do
+        local spec = SpecForMode(mode)
+        local button = spec and frame["compact_" .. spec.field]
+        if button then button:Hide() end
+    end
+    if card.compactViewButton then card.compactViewButton:Hide() end
+end
+
+local function PositionCompactButtons(frame)
+    local layout = ns.StatVerdictDashboardLayout
+    local left, top, width, height = layout.GetCompactButtonRow(frame)
+    local count = #COMPACT_BUTTON_MODES
+    local buttonWidth = math.floor((width - (count - 1) * COMPACT_BUTTON_GAP) / count)
+    for index, mode in ipairs(COMPACT_BUTTON_MODES) do
+        local spec = SpecForMode(mode)
+        local button = EnsureDrawerToggleButton(frame, "compact_" .. spec.field)
+        ConfigurePanelToggleButton(button, spec)
+        button:ClearAllPoints()
+        button:SetPoint("TOPLEFT", frame, "TOPLEFT", left + (index - 1) * (buttonWidth + COMPACT_BUTTON_GAP), top)
+        button:SetSize(buttonWidth, height)
+        button:SetFrameLevel((frame:GetFrameLevel() or 1) + 8)
+        button:Show()
+    end
+end
+
+-- Under the dropdowns: switches which table the compact window shows. Only while an Off Spec is set up.
+local function PositionCompactViewButton(frame, card)
+    local layout = ns.StatVerdictDashboardLayout
+    local button = EnsureDrawerToggleButton(card, "compactViewButton")
+    if not layout.OffSpecReady() then
+        button:Hide()
+        return
+    end
+    -- One line saying what a click does; the headings above the dropdowns show which spec is in view.
+    local showingOff = layout.CompactView() == "OFF"
+    button.label:SetText(showingOff and "Show Main Spec" or "Show Off Spec")
+    button.label:SetTextColor(WHITE[1], WHITE[2], WHITE[3])
+    button:SetScript("OnClick", function()
+        if ns.SetStatAuditActiveView then
+            ns.SetStatAuditActiveView(layout.CompactView() == "OFF" and "MAIN" or "OFF")
+        end
+    end)
+    button:SetScript("OnEnter", function(self)
+        PaintDrawerToggleButton(self, "hover")
+        if GameTooltip then
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText("Spec view", 1.0, 0.82, 0.0)
+            GameTooltip:AddLine("Switch the table between your Main Spec and your Off Spec. The heading of the spec in view is gold. Best in Slot and Ranked Trinkets follow it.", 0.85, 0.85, 0.85, true)
+            GameTooltip:Show()
+        end
+    end)
+    button:SetScript("OnLeave", function(self)
+        PaintDrawerToggleButton(self, "normal")
+        if GameTooltip then GameTooltip:Hide() end
+    end)
+    local cardWidth = 226 + SizeDelta("setup.width")
+    -- On the same line as the row of panel buttons: the same top, the same height.
+    local _, rowTop, _, rowHeight = layout.GetCompactButtonRow(frame)
+    local cardLeft = layout.GetSetupCardLeft() + (Padding("setup.pad").left or 0)
+    button:ClearAllPoints()
+    button:SetPoint("TOPLEFT", frame, "TOPLEFT", cardLeft + 12, rowTop)
+    button:SetSize(math.max(60, math.min(190, cardWidth - 24 - (Padding("setup.pad").left or 0))), rowHeight)
+    button:SetFrameLevel((card:GetFrameLevel() or 1) + 6)
+    button:Show()
+end
+
+-- The strip that stands for the folded-away left column: the mouse on it opens the column over the table.
+local function PositionLeftStrip(frame, card)
+    local layout = ns.StatVerdictDashboardLayout
+    local strip = frame.svLeftStrip
+    if not (layout and layout.IsLeftAutoHidden and layout.IsLeftAutoHidden()) then
+        if strip then strip:Hide() end
+        return
+    end
+    if not strip then
+        strip = CreateFrame("Button", nil, frame, "BackdropTemplate")
+        strip:SetBackdrop({
+            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            tile = true,
+            tileSize = 16,
+            edgeSize = 8,
+            insets = { left = 0, right = 0, top = 2, bottom = 2 },
+        })
+        strip:SetBackdropColor(0.018, 0.022, 0.030, 0.96)
+        strip:SetBackdropBorderColor(0.72, 0.74, 0.78, 0.86)
+        strip.label = strip:CreateFontString(nil, "OVERLAY")
+        strip.label:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", 14, "")
+        strip.label:SetPoint("CENTER", strip, "CENTER", 0, 0)
+        strip.label:SetText(">>")
+        strip.label:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+        strip:SetScript("OnEnter", function(self)
+            layout.SetLeftOpen(frame, true)
+            if GameTooltip then
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetText("Main Spec / Off Spec builds", 1.0, 0.82, 0.0)
+                GameTooltip:AddLine("Shown while the mouse is here. Turn the folding off under Options.", 0.85, 0.85, 0.85, true)
+                GameTooltip:Show()
+            end
+        end)
+        strip:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+        -- The column folds away again shortly after the mouse leaves it (not while a dropdown menu is open).
+        local away = 0
+        strip:SetScript("OnUpdate", function(self, elapsed)
+            if not frame.svLeftOpen then return end
+            local over = self:IsMouseOver() or (frame.settingsCard and frame.settingsCard:IsMouseOver())
+                or (ns.IsChipDropdownOpen and ns.IsChipDropdownOpen())
+            if over then
+                away = 0
+            else
+                away = away + (elapsed or 0)
+                if away >= 0.35 then
+                    away = 0
+                    layout.SetLeftOpen(frame, false)
+                end
+            end
+        end)
+        frame.svLeftStrip = strip
+    end
+    local left, top, width, height = layout.GetLeftStripRect(frame)
+    strip:ClearAllPoints()
+    strip:SetPoint("TOPLEFT", frame, "TOPLEFT", left, top)
+    strip:SetSize(width, height)
+    strip:SetFrameLevel((frame:GetFrameLevel() or 1) + 8)
+    strip:Show()
+end
+
+-- Compact Mode: the heading of the build in view is gold, the other white (they swap with the view). Otherwise both are gold.
+local function PaintBuildHeadings(card)
+    local layout = ns.StatVerdictDashboardLayout
+    local view = layout and layout.CompactView and layout.CompactView() or nil
+    local function paint(fontString, inView)
+        if not fontString then return end
+        if view == nil or inView then
+            fontString:SetTextColor(1.0, 0.82, 0.0)
+        else
+            fontString:SetTextColor(1.0, 1.0, 1.0)
+        end
+    end
+    paint(card.title, view ~= "OFF")
+    paint(card.offTitle, view == "OFF")
 end
 
 function Panel.Apply(frame, controls)
@@ -375,7 +571,7 @@ function Panel.Apply(frame, controls)
     end
 
     -- Whole card is the move target (Panel 1).
-    -- Panel chrome border is always visible (not AdvDev-only).
+    -- Panel chrome border is always visible.
     if ns.SetBorderColor then
         ns.SetBorderColor(card, 0.72, 0.74, 0.78, 0.86)
     elseif card.SetBackdropBorderColor then
@@ -492,7 +688,8 @@ function Panel.Apply(frame, controls)
         })
     end
 
-    if card.optionsTitle then
+    local compact = ns.StatVerdictDashboardLayout and ns.StatVerdictDashboardLayout.IsCompact and ns.StatVerdictDashboardLayout.IsCompact()
+    if card.optionsTitle and not compact then
         card.optionsTitle:SetText("Panels")
         local host, tw, th = EnsureTitleHost(card, "optionsTitle", card.optionsTitle, "Panels")
         PlaceSetupChild(frame, card, host, {
@@ -514,8 +711,17 @@ function Panel.Apply(frame, controls)
         visibility:Hide()
     end
 
+    PositionLeftStrip(frame, card)
+    PaintBuildHeadings(card)
     HideLegacyBagMarkerControls(card)
-    PositionPanelToggleButtons(frame, card)
+    if compact then
+        HideVerticalPanelControls(card)
+        PositionCompactButtons(frame)
+        PositionCompactViewButton(frame, card)
+    else
+        HideCompactControls(frame, card)
+        PositionPanelToggleButtons(frame, card)
+    end
 
     -- Main/Off view checkboxes retired: dual progress will be visible together later.
     if card.mainViewToggle then card.mainViewToggle:Hide() end

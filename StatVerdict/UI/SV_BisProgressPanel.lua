@@ -655,7 +655,7 @@ local function ScanOwnedItemLevels()
     return equippedCounts, bagCounts, equippedLevels, bagLevels
 end
 
--- Features → Best in Slot toggles. Unset counts as on.
+-- Options → Best in Slot toggles. Unset counts as on.
 local function BisOptionOn(key)
     local db = _G and _G.StatVerdictDB
     return type(db) ~= "table" or db[key] ~= false
@@ -1063,7 +1063,7 @@ local function ShowItemTooltip(row)
         GameTooltip:Show()
         return
     end
-    -- Ranked Trinkets: the same three choices as Best in Slot (Features drawer): our
+    -- Ranked Trinkets: the same three choices as Best in Slot (Options drawer): our
     -- tooltip (unset = on), the game's item tooltip (only when chosen), or nothing.
     if not row.itemLink then return end
     if BisOptionOn("showTrinketTooltip") then
@@ -1138,7 +1138,7 @@ local function OwnershipState(itemID, occurrence, equippedCounts, bagCounts)
 end
 
 local ROW_LAYOUT_VERSION = 10
--- Title chip sits near TOP (-12). List content starts below it; AdvDev can nudge further.
+-- Title chip sits near TOP (-12). List content starts below it.
 local CONTENT_TOP_BASE = -50
 local ROW_PITCH = 21
 local ROW_HEIGHT = 20
@@ -1146,6 +1146,40 @@ local ROW_PITCH_MIN = 14
 -- "BiS Progress: x/16" sits SUMMARY_BOTTOM above the card bottom; rows stop FOOTER_GAP above it.
 local SUMMARY_BOTTOM = 12
 local FOOTER_GAP = 4
+local FLOAT_AIR = 8
+
+-- Where the list starts and stops inside the card: a floating panel has a two-line title above it and its Close button
+-- below it, so both insets are larger. A docked panel keeps the usual ones.
+local function ContentTopInset(card)
+    return (card and card.svTopInset) or -CONTENT_TOP_BASE
+end
+
+local function ContentBottomInset(card)
+    return (card and card.svBottomInset) or 0
+end
+
+local function AnchorContentHost(card, host)
+    host:ClearAllPoints()
+    host:SetPoint("TOPLEFT", card, "TOPLEFT", 0, -ContentTopInset(card))
+    host:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", 0, ContentBottomInset(card))
+end
+
+-- Sets the insets, and how high a floating panel has to be for all its rows at the usual 21 px with air around them.
+local function FitToWindowLayout(card, shown)
+    local layout = ns.StatVerdictDashboardLayout
+    if layout and layout.IsCompact and layout.IsCompact() and layout.FLOAT_BUTTON then
+        card.svTopInset = -CONTENT_TOP_BASE + (layout.FLOAT_TITLE_EXTRA or 0)
+        card.svBottomInset = layout.GetFloatingBand()
+        local rows = math.max(1, tonumber(shown) or 1)
+        local need = card.svTopInset + (rows - 1) * ROW_PITCH + ROW_HEIGHT + FOOTER_GAP + 12 + SUMMARY_BOTTOM
+            + card.svBottomInset + FLOAT_AIR
+        card.svFloatingHeight = need
+        card:SetHeight(need)
+    else
+        card.svTopInset, card.svBottomInset, card.svFloatingHeight = nil, nil, nil
+    end
+    if card.contentHost then AnchorContentHost(card, card.contentHost) end
+end
 
 -- Row spacing for the Best in Slot and Ranked Trinkets lists: the usual 21 px,
 -- tightened only as much as needed so every row ends above the footer line.
@@ -1160,7 +1194,7 @@ local function RowPitchFor(card, fitToCard)
     end
     local summaryHeight = card.summary and card.summary.GetStringHeight and SafeNumber(card.summary:GetStringHeight()) or 12
     if not summaryHeight or summaryHeight < 12 then summaryHeight = 12 end
-    local available = cardHeight + CONTENT_TOP_BASE - SUMMARY_BOTTOM - summaryHeight - FOOTER_GAP
+    local available = cardHeight - ContentTopInset(card) - ContentBottomInset(card) - SUMMARY_BOTTOM - summaryHeight - FOOTER_GAP
     if (count - 1) * ROW_PITCH + ROW_HEIGHT <= available then
         return ROW_PITCH, ROW_HEIGHT
     end
@@ -1195,8 +1229,7 @@ local function EnsureContentHost(card)
 
     host = CreateFrame("Frame", nil, card)
     host:EnableMouse(false)
-    host:SetPoint("TOPLEFT", card, "TOPLEFT", 0, CONTENT_TOP_BASE)
-    host:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", 0, 0)
+    AnchorContentHost(card, host)
 
     for _, row in ipairs(card.rows or {}) do
         row:SetParent(host)
@@ -1216,16 +1249,13 @@ local function LayoutContentHost(card)
     local host = EnsureContentHost(card)
     if not host then return end
 
-    -- Content host is not an AdvDev target — orphan cyan boxes over the list.
-    if ns.SetBorderColor then
+        if ns.SetBorderColor then
         ns.SetBorderColor(host, 0, 0, 0, 0)
     elseif host.SetBackdropBorderColor then
         host:SetBackdropBorderColor(0, 0, 0, 0)
     end
 
-    host:ClearAllPoints()
-    host:SetPoint("TOPLEFT", card, "TOPLEFT", 0, CONTENT_TOP_BASE)
-    host:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", 0, 0)
+    AnchorContentHost(card, host)
     host:Show()
     if host.SetBackdrop then
         host:SetBackdrop(nil)
@@ -1375,7 +1405,7 @@ function Panel.Apply(frame)
         card:SetPoint("TOPLEFT", frame, "TOPLEFT", panelX, -34)
         card:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", panelX, 14)
     end
-    -- Whole card is the AdvDev target: Move X (shared dock) + Size W + Padding.
+    -- Whole card: Move X (shared dock) + Size W + Padding.
     if ns.ApplyRightDrawerCard then
         local baseW
         if showTrinkets then
@@ -1604,6 +1634,7 @@ function Panel.Refresh(frame, profile)
         -- Same fit as Best in Slot: 21 px rows unless a long list would reach the footer.
         card.fitRowsToCard = true
         card.shownRowCount = shown
+        FitToWindowLayout(card, shown)
         PlaceRows(card, card.contentHost)
         card.summary:SetText(string.format("Trinkets: %d ranked · Owned %d/%d", shown, owned, shown))
         card.summary:SetTextColor(1.00, 0.82, 0.20)
@@ -1665,6 +1696,7 @@ function Panel.Refresh(frame, profile)
     end
     card.fitRowsToCard = true
     card.shownRowCount = total
+    FitToWindowLayout(card, total)
     PlaceRows(card, card.contentHost)
 
     local wording = ns.GetReferenceWording and ns.GetReferenceWording() or nil

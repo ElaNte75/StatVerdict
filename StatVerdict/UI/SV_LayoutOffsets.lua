@@ -1,270 +1,476 @@
 local addonName, ns = ...
 
 -- Public layout offsets: seed tuned defaults and expose read/write helpers.
-local RESTORED_DEV_DASHBOARD_OFFSETS = {
-["stats.summary.devSummaryItemDiffRegion"] = {
-["y"] = 1,
-["x"] = -3,
+-- The layout every new install starts from: the owner's tuned window (taller, wider, buttons placed). Since layout seed 2.
+-- Do not edit by hand; it was copied from the owner's saved layout (without the lock flags of the old layout dev tools).
+local DEFAULT_DASHBOARD_OFFSETS = {
+["bis.card.pad"] = {
+["bottom"] = 5,
+["left"] = 0,
+["right"] = 0,
+["top"] = 5,
 },
-["setup.offDropdown"] = {
-["y"] = 60,
+["bis.title"] = {
+["x"] = -10,
+["y"] = 0,
+},
+["bis.title.height"] = {
+["height"] = -4,
+},
+["bis.title.pad"] = {
+["bottom"] = 0,
+["left"] = 5,
+["right"] = 5,
+["top"] = 0,
+},
+["bis.title.width"] = {
+["width"] = 163,
+},
+["bisTrinkets.content"] = {
 ["x"] = 0,
+["y"] = 10,
 },
-["setup.width"] = {
-["width"] = -64,
-},
-["stats.summary.armor.value"] = {
-["y"] = -9,
-["x"] = -87,
-},
-["stats.column.progress.width"] = {
-["width"] = -56,
-},
-["stats.column.stat"] = {
-["y"] = 0,
-["x"] = -20,
-},
-["stats.header.liveModifier"] = {
-["y"] = 0,
-["x"] = -171,
-},
-["stats.summary.stamina.value"] = {
-["y"] = -5,
-["x"] = -87,
-},
-["stats.summary.bis.owned"] = {
-["y"] = -3,
-["x"] = -69,
-},
-["setup.optionsTitle"] = {
-["y"] = 93,
-["x"] = 2,
-},
-["setup.buildDropdown.width"] = {
-["width"] = -65,
-},
-["stats.table"] = {
-["y"] = 0,
-["x"] = 6,
-},
-["stats.header.priority"] = {
-["y"] = 0,
-["x"] = -8,
-},
-["setup.mainDropdown"] = {
-["y"] = 32,
-["x"] = 0,
-},
-["stats.summary.item.diff"] = {
-["y"] = 3,
-["x"] = -56,
-},
-["stats.table.width"] = {
-["width"] = -178,
-},
-["stats.summary.item.target"] = {
-["y"] = 0,
-["x"] = -77,
-},
-["setup.offTitle"] = {
-["y"] = 55,
-["x"] = 4,
-},
-["setup.offHeroDropdown"] = {
-["y"] = -14,
-["x"] = -4,
-},
-["stats.summary.item.value"] = {
-["y"] = 1,
-["x"] = -88,
-},
-["stats.summary.bis.label"] = {
-["y"] = 2,
-["x"] = 18,
-},
-["stats.column.progress"] = {
-["y"] = 0,
-["x"] = -100,
-},
-["stats.column.priority"] = {
-["y"] = 0,
-["x"] = -15,
-},
-["setup.mainHeroDropdown"] = {
-["y"] = -220,
-["x"] = -9,
-},
-["setup.offDropdown.width"] = {
-["width"] = -65,
-},
-["stats.summary.bis.total"] = {
-["y"] = -3,
-["x"] = -71,
-},
-["setup.offViewToggle"] = {
-["y"] = 0,
-["x"] = 11,
-},
-["setup.offHeroDropdown.width"] = {
-["width"] = -68,
-},
-["setup.mainTitle"] = {
-["y"] = -2,
-["x"] = 4,
-},
-["stats.summary.card.height"] = {
-["height"] = 19,
+["bisTrinkets.content.pad"] = {
+["bottom"] = 0,
+["left"] = 0,
+["right"] = 0,
+["top"] = 0,
 },
 ["dashboard.width"] = {
-["width"] = -287,
+["width"] = -16,
 },
-["stats.column.liveModifier"] = {
-["y"] = 0,
-["x"] = -186,
+["manual.card.pad"] = {
+["bottom"] = 5,
+["left"] = 0,
+["right"] = 0,
+["top"] = 5,
 },
-["stats.summary.title"] = {
+["options.card.pad"] = {
+["bottom"] = 5,
+["left"] = 0,
+["right"] = 0,
+["top"] = 5,
+},
+["right.card"] = {
+["x"] = -5,
 ["y"] = 0,
-["x"] = 3,
+},
+["screen.1"] = {
+["x"] = 2,
+["y"] = 40,
+},
+["screen.1.msStats"] = {
+["x"] = 1,
+["y"] = -3,
+},
+["screen.1.msStats.average"] = {
+["x"] = 18,
+["y"] = -4,
+},
+["screen.1.msStats.average.height"] = {
+["height"] = 0,
+},
+["screen.1.msStats.average.width"] = {
+["width"] = 125,
+},
+["screen.1.msStats.width"] = {
+["width"] = -2,
+},
+["screen.1.width"] = {
+["width"] = -127,
+},
+["screen.2"] = {
+["x"] = 2,
+["y"] = 41,
+},
+["screen.2.box.1"] = {
+["x"] = 1,
+["y"] = -1,
+},
+["screen.2.box.1.height"] = {
+["height"] = -17,
+},
+["screen.2.box.1.width"] = {
+["width"] = -2,
+},
+["screen.2.osStats.average"] = {
+["x"] = 18,
+["y"] = -5,
+},
+["screen.2.osStats.average.width"] = {
+["width"] = 125,
+},
+["screen.2.width"] = {
+["width"] = -127,
+},
+["setup.bisButton"] = {
+["_abs"] = false,
+["x"] = -2,
+["y"] = 68,
+},
+["setup.bisButton.width"] = {
+["width"] = -32,
 },
 ["setup.buildDropdown"] = {
-["y"] = 14,
+["_abs"] = false,
 ["x"] = 0,
+["y"] = 17,
 },
-["setup.visibility.width"] = {
-["width"] = -65,
-},
-["stats.summary.devSummaryItemSlashRegion"] = {
-["y"] = 5,
-["x"] = -4,
-},
-["setup.visibility"] = {
-["y"] = 72,
-["x"] = 0,
-},
-["stats.summary.armor.label"] = {
-["y"] = -9,
-["x"] = 39,
-},
-["stats.summary.speed.value"] = {
-["y"] = -5,
-["x"] = -159,
-},
-["stats.summary.avoidance.value"] = {
-["y"] = -1,
-["x"] = -158,
-},
-["stats.summary.leech.value"] = {
-["y"] = 1,
-["x"] = -158,
+["setup.buildDropdown.width"] = {
+["width"] = -53,
 },
 ["setup.card"] = {
-["y"] = 0,
 ["x"] = 0,
+["y"] = 0,
 },
-["stats.summary.leech.label"] = {
-["y"] = 1,
-["x"] = -78,
+["setup.height"] = {
+["height"] = 50,
 },
-["stats.summary.bis.slash"] = {
-["y"] = -3,
-["x"] = -69,
-},
-["stats.summary.speed.label"] = {
-["y"] = -5,
-["x"] = -78,
+["setup.mainDropdown"] = {
+["_abs"] = false,
+["x"] = 0,
+["y"] = 38,
 },
 ["setup.mainDropdown.width"] = {
-["width"] = -66,
+["width"] = -53,
 },
-["stats.summary.avoidance.label"] = {
-["y"] = -1,
-["x"] = -78,
-},
-["bis.width"] = {
-["width"] = 0,
-},
-["stats.summary.item.label"] = {
-["y"] = 1,
-["x"] = 39,
-},
-["stats.summary.stamina.label"] = {
-["y"] = -5,
-["x"] = 39,
-},
-["stats.summary.item.slash"] = {
+["setup.mainTitle"] = {
+["_abs"] = false,
+["x"] = 2,
 ["y"] = 0,
-["x"] = -75,
 },
-["stats.summary.width"] = {
-["width"] = -26,
+["setup.manualButton"] = {
+["_abs"] = false,
+["x"] = -2,
+["y"] = 91,
 },
-["stats.summary.primary.value"] = {
-["y"] = -1,
-["x"] = -88,
+["setup.manualButton.width"] = {
+["width"] = -32,
 },
-["stats.summary.primary.current"] = {
-["y"] = 4,
-["x"] = -91,
+["setup.offDropdown"] = {
+["_abs"] = false,
+["x"] = 0,
+["y"] = 69,
 },
-["stats.summary.card"] = {
-["y"] = 62,
-["x"] = 6,
-},
-["stats.summary.bis.current"] = {
-["y"] = 16,
-["x"] = -70,
-},
-["stats.summary.devSummaryItemTargetRegion"] = {
-["y"] = 1,
-["x"] = -1,
+["setup.offDropdown.width"] = {
+["width"] = -52,
 },
 ["setup.offGoalDropdown"] = {
-["y"] = 42,
+["_abs"] = false,
 ["x"] = 0,
-},
-["bis.card"] = {
-["y"] = 0,
-["x"] = -200,
-},
-["stats.card"] = {
-["y"] = 0,
-["x"] = 0,
-},
-["stats.summary.item.current"] = {
-["y"] = 0,
-["x"] = -75,
-},
-["stats.summary.primary.label"] = {
-["y"] = -1,
-["x"] = 39,
-},
-["stats.header.stat"] = {
-["y"] = 0,
-["x"] = -57,
+["y"] = 48,
 },
 ["setup.offGoalDropdown.width"] = {
-["width"] = -65,
+["width"] = -52,
+},
+["setup.offTitle"] = {
+["_abs"] = false,
+["x"] = 2,
+["y"] = 53,
+},
+["setup.optionsButton"] = {
+["_abs"] = false,
+["x"] = -2,
+["y"] = 93,
+},
+["setup.optionsButton.width"] = {
+["width"] = -32,
+},
+["setup.optionsTitle"] = {
+["_abs"] = false,
+["x"] = 2,
+["y"] = 90,
+},
+["setup.pad"] = {
+["bottom"] = 5,
+["left"] = 5,
+["right"] = 0,
+["top"] = 5,
+},
+["setup.summaryButton"] = {
+["_abs"] = false,
+["x"] = -2,
+["y"] = 153,
+},
+["setup.summaryButton.width"] = {
+["width"] = -32,
+},
+["setup.trinketsButton"] = {
+["_abs"] = false,
+["x"] = -2,
+["y"] = 67,
+},
+["setup.trinketsButton.width"] = {
+["width"] = -32,
+},
+["setup.width"] = {
+["width"] = -61,
+},
+["stats.average"] = {
+["x"] = 110,
+["y"] = 201,
+},
+["stats.average.width"] = {
+["width"] = -3,
+},
+["stats.card"] = {
+["x"] = 0,
+["y"] = 0,
+},
+["stats.cardTitle"] = {
+["x"] = 676,
+["y"] = 147,
+},
+["stats.column.current"] = {
+["x"] = 1,
+["y"] = 0,
+},
+["stats.column.liveModifier"] = {
+["x"] = -112,
+["y"] = -11,
+},
+["stats.column.liveModifier.width"] = {
+["width"] = -18,
+},
+["stats.column.priority"] = {
+["x"] = -12,
+["y"] = -11,
+},
+["stats.column.priority.width"] = {
+["width"] = -10,
+},
+["stats.column.progress"] = {
+["x"] = -106,
+["y"] = -11,
+},
+["stats.column.stat"] = {
+["x"] = -27,
+["y"] = -11,
+},
+["stats.column.stat.width"] = {
+["width"] = -66,
+},
+["stats.column.target"] = {
+["x"] = 83,
+["y"] = 0,
+},
+["stats.headerText.current"] = {
+["x"] = 11,
+["y"] = 0,
+},
+["stats.headerText.priority"] = {
+["x"] = 2,
+["y"] = 0,
+},
+["stats.headerText.stat"] = {
+["x"] = -4,
+["y"] = 0,
+},
+["stats.height"] = {
+["height"] = 50,
+},
+["stats.mainContent"] = {
+["x"] = 692,
+["y"] = -214,
+},
+["stats.offContent"] = {
+["x"] = -218,
+["y"] = 495,
+},
+["stats.offContent.height"] = {
+["height"] = -20,
+},
+["stats.offContent.width"] = {
+["width"] = -142,
+},
+["stats.offSpecTitle"] = {
+["x"] = 0,
+["y"] = 45,
+},
+["stats.offSpecTitle.width"] = {
+["width"] = -115,
+},
+["stats.pad"] = {
+["bottom"] = 5,
+["left"] = 5,
+["right"] = 0,
+["top"] = 5,
+},
+["stats.specTitle"] = {
+["x"] = -1,
+["y"] = 26,
+},
+["stats.specTitle.width"] = {
+["width"] = -115,
+},
+["stats.table.width"] = {
+["width"] = 20,
 },
 ["stats.width"] = {
-["width"] = -169,
+["width"] = -106,
 },
-["stats.header.progress"] = {
+["summary.attributes"] = {
+["x"] = 5,
+["y"] = -2,
+},
+["summary.attributes.width"] = {
+["width"] = 0,
+},
+["summary.attributesTitle"] = {
+["x"] = 5,
+["y"] = -3,
+},
+["summary.attributesTitle.width"] = {
+["width"] = 0,
+},
+["summary.card.pad"] = {
+["bottom"] = 5,
+["left"] = 0,
+["right"] = 0,
+["top"] = 5,
+},
+["summary.enhancements"] = {
+["x"] = 5,
+["y"] = -1,
+},
+["summary.enhancements.width"] = {
+["width"] = 0,
+},
+["summary.enhancementsTitle"] = {
+["x"] = 5,
+["y"] = -2,
+},
+["summary.enhancementsTitle.width"] = {
+["width"] = 0,
+},
+["summary.itemLevel"] = {
+["x"] = 5,
 ["y"] = 0,
-["x"] = -101,
 },
-["setup.mainHeroDropdown.width"] = {
-["width"] = -64,
+["summary.itemLevel.width"] = {
+["width"] = 0,
+},
+["summary.svTitle"] = {
+["x"] = 5,
+["y"] = -3,
+},
+["summary.svTitle.width"] = {
+["width"] = 0,
+},
+["summary.svValues"] = {
+["x"] = 5,
+["y"] = -1,
+},
+["summary.svValues.width"] = {
+["width"] = 0,
+},
+["summary.title"] = {
+["x"] = 0,
+["y"] = 0,
+},
+["summary.title.height"] = {
+["height"] = -4,
+},
+["summary.title.width"] = {
+["width"] = -9,
+},
+["summary.width"] = {
+["width"] = -97,
+},
+["trinkets.card.pad"] = {
+["bottom"] = 5,
+["left"] = 0,
+["right"] = 0,
+["top"] = 5,
+},
+["trinkets.title"] = {
+["x"] = -10,
+["y"] = 0,
+},
+["trinkets.title.height"] = {
+["height"] = -4,
+},
+["trinkets.title.pad"] = {
+["bottom"] = 0,
+["left"] = 5,
+["right"] = 5,
+["top"] = 0,
+},
+["trinkets.title.width"] = {
+["width"] = 69,
 },
 }
 
-local function TableHasEntries(value)
-    if type(value) ~= "table" then return false end
-    return next(value) ~= nil
-end
+-- The window's own layout (title, menus, buttons, border) the add-on was tuned on; copied from the owner's saved layout.
+local DEFAULT_STAT_AUDIT_LAYOUT = {
+    applyBtnX = -92,
+    applyBtnY = 15,
+    aspectLabelFontSize = 11,
+    autoHeroToggleX = 170,
+    autoHeroToggleY = -74,
+    avgProgressFontSize = 12,
+    avgProgressX = 14,
+    avgProgressY = 20,
+    borderAlpha = 0.35,
+    buttonHeight = 22,
+    buttonWidth = 80,
+    defaultBtnX = -10,
+    defaultBtnY = 15,
+    dropdownScale = 1,
+    dropdownWidth = 108,
+    editBtnX = -95,
+    editBtnY = 15,
+    extraHeight = 0,
+    frameExtraHeight = 0,
+    frameWidth = 732,
+    goalDropdownScale = 1,
+    goalDropdownWidth = 112,
+    goalDropdownX = -260,
+    goalDropdownY = -55,
+    goalLabelX = -325,
+    goalLabelY = -40,
+    offspecToggleFontSize = 15,
+    offspecToggleX = 18,
+    offspecToggleY = -75,
+    primaryDropdownScale = 1,
+    primaryDropdownWidth = 130,
+    primaryDropdownX = -129,
+    primaryDropdownY = -55,
+    primaryLabelX = -175,
+    primaryLabelY = -40,
+    sampleLineFontSize = 11,
+    sampleLineX = 221,
+    sampleLineY = 21,
+    secondaryDropdownScale = 1,
+    secondaryDropdownWidth = 130,
+    secondaryDropdownX = 3,
+    secondaryDropdownY = -55,
+    secondaryLabelX = -53,
+    secondaryLabelY = -40,
+    secondaryTitleX = 18,
+    secondaryTitleY = -40,
+    titleFontSize = 12,
+    titleWidth = 674,
+    titleX = 18,
+    titleY = -25,
+    width = 688,
+    x = 23,
+    y = -112,
+}
+
+local DEFAULT_SPEC_TITLE_FONT_SIZE = 13
+
+-- Saved entries of the removed layout dev tools and of their one-time fixes. Nothing reads them any more.
+local LEFTOVER_DEV_KEYS = {
+    "advancedDevelopmentMode", "devDashboardHidden", "devDashboardHiddenUndo", "devDashboardOffsetsUndo",
+    "devLayoutPadPosition", "devDashboardLayoutSchemaVersion", "devDashboardOffsetsRestoredFromBackup",
+    "layoutWeightsKeysMoved", "devFlushDockFrames12Fix", "devAbsoluteStackFrames12Fix", "devBisWidthAutoFix",
+    "devSingleGutterBetweenCardsFix", "devStatsCardDockFix", "devUniformPanelGutterFix", "devScreen2FromOffTable",
+}
 
 local function CopyRecoveredOffsets(target)
     if type(target) ~= "table" then return end
-    for key, value in pairs(RESTORED_DEV_DASHBOARD_OFFSETS) do
+    for key, value in pairs(DEFAULT_DASHBOARD_OFFSETS) do
         if type(value) == "table" then
             target[key] = {}
             for field, fieldValue in pairs(value) do
@@ -277,81 +483,21 @@ end
 function ns.EnsureLayoutDB()
     _G.StatVerdictDB = _G.StatVerdictDB or {}
     _G.StatVerdictDB.devDashboardOffsets = _G.StatVerdictDB.devDashboardOffsets or {}
-    -- The Mode drawer's saved positions used to be stored as "benchmark.*"; move them to "weights.*".
-    if _G.StatVerdictDB.layoutWeightsKeysMoved ~= true then
-        local saved = _G.StatVerdictDB.devDashboardOffsets
-        local moves = {}
-        for key, value in pairs(saved) do
-            if type(key) == "string" and key:sub(1, 10) == "benchmark." then
-                moves[#moves + 1] = { key, "weights." .. key:sub(11), value }
-            end
-        end
-        for _, move in ipairs(moves) do
-            if saved[move[2]] == nil then saved[move[2]] = move[3] end
-            saved[move[1]] = nil
-        end
-        _G.StatVerdictDB.layoutWeightsKeysMoved = true
-    end
-    if not TableHasEntries(_G.StatVerdictDB.devDashboardOffsets) and _G.StatVerdictDB.devDashboardOffsetsRestoredFromBackup ~= true then
+    -- Layout seed 2 (once, for everyone): every player gets the layout the add-on was tuned on. The add-on has no setting that
+    -- changes these sizes and positions (only the old layout dev tools did, which are gone), so nothing a player chose is lost. The window position,
+    -- the saved builds and every other setting are not touched.
+    if _G.StatVerdictDB.layoutSeedVersion ~= 2 then
+        _G.StatVerdictDB.devDashboardOffsets = {}
         CopyRecoveredOffsets(_G.StatVerdictDB.devDashboardOffsets)
-        _G.StatVerdictDB.devDashboardOffsetsRestoredFromBackup = true
-    end
-    if _G.StatVerdictDB.devBisWidthAutoFix ~= true then
-        local bisWidth = _G.StatVerdictDB.devDashboardOffsets["bis.width"]
-        if type(bisWidth) == "table" and tonumber(bisWidth.width) and tonumber(bisWidth.width) < 0 then
-            bisWidth.width = 0
+        _G.StatVerdictDB.statAuditLayout = {}
+        for key, value in pairs(DEFAULT_STAT_AUDIT_LAYOUT) do
+            _G.StatVerdictDB.statAuditLayout[key] = value
         end
-        local trinketsWidth = _G.StatVerdictDB.devDashboardOffsets["trinkets.width"]
-        if type(trinketsWidth) == "table" and tonumber(trinketsWidth.width) and tonumber(trinketsWidth.width) < 0 then
-            trinketsWidth.width = 0
+        _G.StatVerdictDB.specTitleFontSize = DEFAULT_SPEC_TITLE_FONT_SIZE
+        for _, key in ipairs(LEFTOVER_DEV_KEYS) do
+            _G.StatVerdictDB[key] = nil
         end
-        _G.StatVerdictDB.devBisWidthAutoFix = true
-    end
-    if _G.StatVerdictDB.devStatsCardDockFix ~= true then
-        local statsCard = _G.StatVerdictDB.devDashboardOffsets["stats.card"]
-        if type(statsCard) == "table" then
-            statsCard.x = 0
-        end
-        _G.StatVerdictDB.devStatsCardDockFix = true
-    end
-    if _G.StatVerdictDB.devSingleGutterBetweenCardsFix ~= true then
-        local statsCard = _G.StatVerdictDB.devDashboardOffsets["stats.card"]
-        if type(statsCard) == "table" then
-            statsCard.x = 0
-        end
-        _G.StatVerdictDB.devSingleGutterBetweenCardsFix = true
-    end
-    if _G.StatVerdictDB.devAbsoluteStackFrames12Fix ~= true then
-        local statsCard = _G.StatVerdictDB.devDashboardOffsets["stats.card"]
-        if type(statsCard) == "table" then
-            statsCard.x = 0
-        end
-        _G.StatVerdictDB.devAbsoluteStackFrames12Fix = true
-    end
-    if _G.StatVerdictDB.devUniformPanelGutterFix ~= true then
-        for _, key in ipairs({ "setup.card", "stats.card" }) do
-            local entry = _G.StatVerdictDB.devDashboardOffsets[key]
-            if type(entry) == "table" then
-                entry.y = 0
-            end
-        end
-        _G.StatVerdictDB.devUniformPanelGutterFix = true
-    end
-    if _G.StatVerdictDB.devScreen2FromOffTable ~= true then
-        local db = _G.StatVerdictDB.devDashboardOffsets
-        local off = db["stats.offTable"]
-        if type(db["screen.2"]) ~= "table" and type(off) == "table" then
-            db["screen.2"] = { x = tonumber(off.x) or 0, y = tonumber(off.y) or 0 }
-        end
-        local offW = db["stats.offTable.width"]
-        if type(db["screen.2.width"]) ~= "table" and type(offW) == "table" then
-            db["screen.2.width"] = { width = tonumber(offW.width) or 0 }
-        end
-        local offH = db["stats.offTable.height"]
-        if type(db["screen.2.height"]) ~= "table" and type(offH) == "table" then
-            db["screen.2.height"] = { height = tonumber(offH.height) or 0 }
-        end
-        _G.StatVerdictDB.devScreen2FromOffTable = true
+        _G.StatVerdictDB.layoutSeedVersion = 2
     end
     return _G.StatVerdictDB.devDashboardOffsets
 end

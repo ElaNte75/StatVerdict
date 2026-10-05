@@ -1,6 +1,7 @@
 ﻿local addonName, ns = ...
 
-ns.VERSION = "1.1.1"
+ns.VERSION = "2.0.40"
+ns.RELEASE_DATE = "2026-10-05"  -- the day this version was last updated; shown when the mouse is over the title
 
 local frame = CreateFrame("Frame")
 ns.Frame = frame

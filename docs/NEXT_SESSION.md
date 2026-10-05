@@ -1,8 +1,8 @@
-# StatVerdict — where we stand (written 2026-10-03). The ONLY notes file: replace it, never add another.
+# StatVerdict — where we stand (written 2026-10-05, version 2.0.40). The ONLY notes file: replace it, never add another.
 
 Read this first, then `git log --oneline -25`, then `StatVerdict/VERIFICATION.md` (the in-game checklist).
 When this file is rewritten, delete what is no longer true. Release notes live in `docs/changelog/`, one file per version
-(`<version>_<date>.md`; the one being prepared ends in `_pending`).
+(`<version>_<date>.md`; one being prepared ends in `_pending`).
 
 ## Who and how (read twice)
 - Owner: Gchris (GitHub `ElaNte75/StatVerdict`). A non-programmer product owner who reads on a phone, in Greek.
@@ -15,46 +15,78 @@ When this file is rewritten, delete what is no longer true. Release notes live i
 - He prefers things explained by what he sees (tooltip lines, tabs), not by code. Show the expected result as a short text sample.
 
 ## How we work now
-- We edit the addon **directly in the game folder** `D:\Battlenet Games\World of Warcraft\_retail_\Interface\AddOns\StatVerdict` (a copy, not a link).
-  The owner presses a macro that does `/reload`. Changed file LIST (`.toc`) or NEW files (textures) need a full game restart.
-- When the owner says it is good: copy the changed files into `C:\Users\ElaNte\Desktop\Projects\StatVerdict\StatVerdict`, run
-  `python -m unittest discover -s tools/tests` (needs `pip install lupa`), commit with named files (never `git add -A`), push `main` and
-  `main:main-myh77p`, wait for the Tests workflow. Keep the two copies identical (compare ignoring CR). Before copying anything from the game
-  folder, `git pull` first: the weekly bot changes the version lines and the data file in the repo.
-- Temporary diagnostics go in the game copy only, marked TEMP, and are removed before copying. A timer that wraps only our own `ns.*` functions
-  found the freezes; `/run print(C_AddOnProfiler.GetAddOnMetric("StatVerdict", Enum.AddOnProfilerMetric.PeakTime))` gives the peak.
-  **Never wrap or replace game functions** (it taints Blizzard code: a PersonalResourceDisplay error appeared).
-- A debug WINDOW (an EditBox in a frame) is better than chat output: chat scrolls too fast to copy.
-- CI runs Python 3.12; the PC runs 3.14. Do not use `Path.read_text(newline=...)` (3.13+). Files mix CRLF/LF: edit with byte-safe code.
-  A copy into the project can fail once with "Permission denied" (a Windows lock); retry.
+- The repo `C:\Users\ElaNte\Desktop\Projects\StatVerdict_Addon` is the one place to edit. The game folder
+  `D:\Battlenet Games\World of Warcraft\_retail_\Interface\AddOns\StatVerdict` is a COPY the owner tests in: after every change copy the changed
+  files there (compare ignoring CR; `diff -rq --strip-trailing-cr StatVerdict "<game folder>"`). The owner presses a macro that does `/reload`.
+  Changed file LIST (`.toc`) or NEW files (textures) need a full game restart.
+- When the owner says it is good: run `python -m unittest discover -s tools/tests` (needs `pip install lupa`), commit with named files (never
+  `git add -A`), `git pull --rebase` first (the weekly bot changes the version lines and the data file), push `main` and `main:main-myh77p`, wait for the
+  Tests workflow. His own wording: he says "ok" when something is good; do not commit before he does.
+- Temporary diagnostics go in the game copy only, marked TEMP, and are removed before copying. **Never wrap or replace game functions** (it taints
+  Blizzard code). A debug WINDOW (an EditBox in a frame) is better than chat output.
+- CI runs Python 3.12; the PC runs 3.14. Do not use `Path.read_text(newline=...)` (3.13+). Files mix CRLF/LF: edit with byte-safe code (read bytes,
+  replace `\r\n`, write back). In this shell a Python string with a backslash-n written through a heredoc can turn into a real newline: write scripts
+  to a file or build the escape with `chr(92)`. The lupa test harness (`FRAME_STUB` in `tools/tests/test_addon_lua.py`) returns the object itself for
+  any PascalCase method it does not know and records some setters (`_width`, `_height`, `points`, `_color`, `_font`, `_parent`, `_scale`, `_strata`...);
+  `ClearAllPoints` does NOT clear `points` there, so look at the last point. A fake frame in a test often needs its own `GetPoint`/`GetWidth`.
 - The permission classifier once blocked a script that rewrote test files; the owner said go and it passed. Do not work around a block: ask.
 
 ## Release state and versions
-- **1.1.0 is on CurseForge** (old numbering). The owner uploads by hand: `StatVerdict Ship (no bump).bat` builds `StatVerdict-<version>.zip` on his Desktop
-  (it is built from the PROJECT folder, so the copies must match). `StatVerdict Ship.bat` also bumps the version: do not use it any more.
-- **Version scheme (owner's rule): `MAJOR.MINOR.WEEK`.** A data-only release changes only WEEK (weeks turn over on Wednesday, the weekly reset;
-  a missed week is skipped in the number). A functional change raises MINOR (a big one raises MAJOR and zeroes MINOR). New year: WEEK restarts
-  at 1 and MINOR goes up by one, so the version never goes backwards. Published versions keep their numbers.
-- **The repo is at 1.1.1 (pending, not uploaded).** It has functional changes, so at upload time it becomes `1.2.<week>`: rename the toc `## Version`,
-  `ns.VERSION` in `StatVerdict.lua`, the `(vX.Y.Z)` in `StatVerdict/STORE.md` line 1, and `docs/changelog/1.1.1_pending.md` to
-  `<version>_<upload date>.md` (git mv). The owner says "ετοιμάζω την 1.1.1" -> do that, check the two copies match, push.
+- **Version scheme (owner's rule): `MAJOR.MINOR.WEEK`.** A data-only release changes only WEEK (weeks turn over on Wednesday, the weekly reset, see
+  `tools/release_prep.py: reset_week`; a missed week is skipped in the number). A functional change raises MINOR (a big one raises MAJOR and zeroes
+  MINOR). New year: WEEK restarts at 1 and MINOR goes up by one. Published versions keep their numbers.
+- **The repo is at 2.0.40 (2026-10-05, a Monday, so week 40; Wednesday 2026-10-07 starts week 41), not yet on CurseForge** (1.1.0 is). The changelog is
+  `docs/changelog/2.0.40_2026-10-05.md` (also pasted in `StatVerdict/STORE.md`). The owner uploads by hand: `StatVerdict Ship (no bump).bat` builds
+  `StatVerdict-<version>.zip` on his Desktop from the repo's `StatVerdict` folder. `StatVerdict Ship.bat` also bumps the version: do not use it.
+  Bump helper: `release_prep.write_version(root, version, date)` sets the toc, `ns.VERSION`, `ns.RELEASE_DATE` and the `(vX.Y.Z)` in STORE.md.
 - **Every Wednesday ~15:00 Greek time** `.github/workflows/classcodex-live-refresh.yml` refreshes the guide data and, when it changed, runs
   `tools/release_prep.py` (bumps WEEK, writes the changelog file) and opens a GitHub issue ("Ώρα για ανέβασμα ...") that GitHub mails to the owner.
-  While a `_pending` release exists it only adds a data line to it. It never publishes. Issue #1 is open: it waits for the 1.1.1 upload.
-- The data pipeline now refuses to write targets without the upgrade-track tables (`--allow-missing-track-levels` overrides) and retries the
-  fetch 4 times. Reason: one wago.tools timeout once produced data without `trackSwap`, and Best in Slot showed Myth items for every tier.
-  The data root now also carries `trackTop` (the 6/6 bonus id of each track).
+  Next one: 2.0.41. It never publishes. GitHub issue #1 ("waits for the 1.1.1 upload") may still be open: the owner can close it after uploading.
+- The data pipeline refuses to write targets without the upgrade-track tables (`--allow-missing-track-levels` overrides) and retries the fetch 4 times.
+  The data root also carries `trackTop` (the 6/6 bonus id of each track).
 - GitHub e-mail: only failed workflows (set by the owner). Do not add experiment workflows.
 
-## What 1.1.1 contains (see `docs/changelog/1.1.1_pending.md`, also in `StatVerdict/STORE.md`)
-Fixed: vanished gear leaves saved loadouts (NOT verified in game); Adventure Guide tab flicker (GameTooltip click hook removed: it stole the mouse);
-freezes when equipping, opening the window, or inspecting (evaluation contexts built once per scan / per game frame);
-"10+ item levels always wins" now also when the points are small. New: `/sv ag`, `/sv mouse`; stat ranks on item tooltips; one full-width title chip on
-every tab; Best in Slot / Ranked Trinkets follow the shown tier incl. trinkets listed without bonus ids and "Other source"; Catalyst handling; Alt build switch.
+## What 2.0.40 contains (the changelog file has the full text)
+Fixed: vanished gear leaves saved loadouts (NOT verified in game); Adventure Guide tab flicker; freezes when equipping, opening the window, inspecting;
+"10+ item levels always wins" also when the points are small; Best in Slot / Ranked Trinkets follow the shown tier. **The window now looks the same for every
+player** (see below). New: `/sv ag`, `/sv mouse`; stat ranks on tooltips; Alt = other build, Ctrl = Catalyst preview; marked pieces put on at respec; the
+Features tab became **Options** with a new look, **Always on top**, **Compact Mode**, **Auto-hide the left side**, **Window size**, the Manual's **Text size**.
+
+## How the window works now (built 2026-10-05, all verified in the game by the owner except where noted)
+- **Layout seed.** A fresh install used to get a window 50 units shorter than the owner's (old seed in `UI/SV_LayoutOffsets.lua`, 67 keys, against his 135).
+  Now `layoutSeedVersion = 2`: once per player `devDashboardOffsets` (`DEFAULT_DASHBOARD_OFFSETS`, 105 keys), `statAuditLayout` (`DEFAULT_STAT_AUDIT_LAYOUT`) and
+  `specTitleFontSize = 13` are replaced by the owner's tuned values, and the leftovers of the removed AdvDev dev tools are deleted from the saved file
+  (`LEFTOVER_DEV_KEYS`). Window position, builds and every other setting are not touched. The AdvDev tools no longer exist; nothing writes those keys any more.
+- **Always on top** (`ns.ApplyAlwaysOnTop`, `UI/SV_WindowChrome.lua`): off by default. Off = the window is in front (strata HIGH) while the player works in it and
+  goes to BACKGROUND on any click elsewhere (`GLOBAL_MOUSE_DOWN`); a click on it, on a panel window of its own, or on an object marked `svOwnedWindow`
+  (dropdown menus, blocker) brings it back. On = HIGH always. Other add-ons on higher layers (Liatrix...) cannot be covered, deliberately: going higher would
+  cover the game's own pop-ups.
+- **Options drawer** (`UI/SV_OptionsDrawerPanel.lua`): four dark cards (WINDOW, BAG ITEMS AND TOOLTIPS, BEST IN SLOT, RANKED TRINKETS), a switch per row (gold
+  on), a grey line under rows that need one, a scroll frame; 320 wide for everyone (the old saved -69 narrowing was dropped). Child choices (Gems and
+  enchants, Trinket effect, Auto-hide) hang from a gold line; Auto-hide is locked and shown unticked while Compact Mode is off (its saved choice is kept).
+  The switch rows keep an invisible `CheckButton` per choice (`bagIndicatorChecks[key]`, `svRow`, `svSelected`, `svLocked`): tests rely on that.
+- **Compact Mode** (`compactMode`, off by default; `Layout.IsCompact()` in `UI/SV_DashboardLayout.lua`): one stat table at a time (`Layout.CompactView()`),
+  the Show Off Spec / Show Main Spec button under the dropdowns, the four panel buttons in one row inside the stats card, no Manual button (Options has
+  a Manual button), window 281 high instead of 449, headings of the build in view gold, no checkbox in the spec titles. The Off table takes the Main table's
+  place AND its inner offset (`ApplyCompactViews`), so nothing jumps. The Main title is hidden in the Off view and shown again next pass.
+- **Panels in Compact Mode are windows of their own** (`Layout.AnchorFloatingPanel`): children of `UIParent`, top level, same strata and scale as the main
+  window (`ns.SyncFloatingPanelStrata`), hidden with it, draggable, saved position `floatingPanelPos`, a Close button bottom right (no X), Manual left of
+  Close in Options, titles "StatVerdict Guide"..., Best in Slot / Ranked Trinkets have a two-line title and work out their own height
+  (`FitToWindowLayout` in `UI/SV_BisProgressPanel.lua`). Docked again when Compact Mode is off (`ReleaseFloatingPanel` puts the card back under the window).
+  Only one panel is ever open (`ns.SetRightPanelMode`).
+- **Auto-hide the left side**: a 22-wide strip `>>`; the mouse on it opens the left card over the table on strata DIALOG (`Layout.SetLeftOpen`), it folds away
+  0.35 s after the mouse leaves, not while a dropdown menu is open (`ns.IsChipDropdownOpen`). A small "(Main Spec)"/"(Off Spec)" tag follows the table title
+  (`Layout.UpdateSpecTag`). The window is never narrower than its title bar (`ns.GetTitleBarMinWidth`).
+- **Window size** (`windowScale` for the normal window, `windowScaleCompact` for Compact Mode, which follows the normal one until chosen; 75..100, default **85**,
+  step 5): `ns.GetWindowScale`, `ns.ChangeWindowScale` (keeps the top left corner, scales `floatingPanelPos`), `ns.ApplyWindowScale`; applied when the mouse lets go
+  of the slider (`ns.CreateStepSlider` in `UI/SV_RightPanelMode.lua`, with a faint line per step). Dropdown menus take the dropdown's scale. NOT verified: whether
+  `GetLeft()` is in the frame's own units on every game build (the scale change assumes it is).
+- **Manual** (`UI/SV_ManualDrawerPanel.lua`): a Text size slider (100..200, `manualTextScale`) scales the font sizes, the spacing and the width (and the height of a
+  floating Manual); it has new sections "Window and Compact Mode" and "Item tooltips".
 
 ## Tooltip behaviour built on 2026-10-02/03 (all in `UI/SV_Tooltip.lua`, `UI/SV_Render.lua`, `Core/SV_ItemReferenceBonuses.lua`)
 - **Stat ranks:** `+73 Critical Strike #1 [MS]`: gold number, then a gold MS/OS picture (`Textures/StatRankMS|OS.tga`, size 8x16 in `LABEL_SIZE`).
-  Equal stats (guide "equal groups") share the same number. Switch: Features > "Stat Ranks on tooltips" (`StatVerdictDB.showStatRanks`).
+  Equal stats (guide "equal groups") share the same number. Switch: Options > "Stat Ranks on tooltips" (`StatVerdictDB.showStatRanks`).
   Not drawn in combat. The comparison block "If you replace this item..." is skipped. Matching uses the game's own stat words (works in every language).
 - **Which build:** the one selected in the window (Main/Off). **Alt held shows the other build** (ranks AND the whole verdict block), only when an Off Spec is set.
   One grey line "Also an upgrade for <spec> (hold Alt)" when the other build gains too. `RefreshData` redraws on Alt press/release (MODIFIER_STATE_CHANGED).
@@ -67,18 +99,17 @@ every tab; Best in Slot / Ranked Trinkets follow the shown tier incl. trinkets l
 - **Pitfall found:** the verdict block is skipped when the tooltip "already has a StatVerdict line" (`TooltipAlreadyHasStatVerdict`). Texture escapes
   hold the folder name `StatVerdict` in their path, so that check now strips `|T...|t` first. Any text we add to a tooltip must be checked against it.
 
-## Unpushed local work (push when the owner says OK, or now: push to main is pre-authorised)
-Commits after `f2629df` (origin/main when this was written): Catalyst on Shift then Ctrl; no saving in preview; Alt shows the other build's verdict.
-Tests: 591 pass. The weekly bot may have added data/version commits on origin: `git pull --rebase` first.
-
-## Waiting for the owner's answer
-1. **Key hints** ("yes" given in principle, not yet built): Features row label `Stat Ranks (Alt: other build)` and a short "Tooltip keys" section in the
-   Manual (Alt = other build; Ctrl = Catalyst preview). Mind the Features geometry tests (nothing may move; the label must fit).
-2. **Features tab beautification** is the next job the owner asked for (he finds it plain). Ask what looks ugly (frames, spacing, colours) first.
-3. `StatVerdict/STORE.md` still holds a copy of the 1.1.1 changelog next to `docs/changelog/`: remove it from STORE.md so there is one source? (asked, no answer)
-4. Delete the old remote branch `worktree-keylevel-bracket-benchmarks` (16 commits not in main, old Mythic+ benchmark work)? (asked, no answer)
-5. Items showing a wrong item level: ask for the item name and the tier selected; trinkets without track info borrow ids from another list, else
-   dungeon/raid drops get the shown tier's 6/6 id (`Repository.GetKnownBonusIDs`, `GetTrackTopBonusID`); crafted/vendor/event/PvP say "Other source".
+## Open items
+1. **User report** (CurseForge comment by Phaselord, 2026-10-04: window "loaded compact and laying over itself"): the owner asked for a screenshot, UI scale,
+   resolution, language and UI add-ons; no answer yet. The likely cause (fresh installs got a different, shorter layout) is fixed in 2.0.40. If they answer and
+   it is still unclear, build `/sv info` (a window with UI scale, resolution, locale, font-changing add-ons); it would stay like `/sv mouse`. An extra
+   release inside the same week is allowed when it fixes a real user problem.
+2. The owner may make Compact Mode the default later, after more players have seen it. Not decided.
+3. The owner reported "a malfunction found while searching" that is not about this work: ask him for it first thing.
+4. Tooltip keys in the Manual are written. `StatVerdict/STORE.md` still holds a copy of the changelog next to `docs/changelog/`: one source only? (asked, no answer)
+5. Delete the old remote branch `worktree-keylevel-bracket-benchmarks` (16 commits not in main, old Mythic+ benchmark work)? (asked, no answer)
+6. Items showing a wrong item level: ask for the item name and the tier selected; trinkets without track info borrow ids from another list, else dungeon/raid
+   drops get the shown tier's 6/6 id (`Repository.GetKnownBonusIDs`, `GetTrackTopBonusID`); crafted/vendor/event/PvP say "Other source".
 
 ## Tooling that stays (feeds the addon)
 - `tools/classcodex_*.py`, `spec_catalog.py`, `simc_stat_engine.py`, `wowhead_stat_engine.py`, `upgrade_tracks.py`, `lua_render.py`: the weekly data pipeline
@@ -86,7 +117,7 @@ Tests: 591 pass. The weekly bot may have added data/version commits on origin: `
 - `tools/item_sources.py`, `tools/blizzard_item_pool.py`, `tools/data/blizzard_item_pool.json`: the "Where to find" data (run by hand, needs Blizzard keys from the environment).
 - `tools/item_check_verdict.py`: despite the name, the harness that loads the whole addon in lupa for the scoring and tooltip tests.
 - `tools/method_guides.py`, `method_targets.py`, `tools/data/method/`: Method as a second guide source (below).
-- `.github/workflows/tests.yml`, `tools/tests/` (591 tests). Test pitfalls: lupa makes a new Python wrapper for every Lua table read (use `rawequal`);
+- `.github/workflows/tests.yml`, `tools/tests/` (788 tests). Test pitfalls: lupa makes a new Python wrapper for every Lua table read (use `rawequal`);
   the shared `verdict.CHARACTER` dict must be restored after a test changes it; `FRAME_STUB` frames keep old anchors after `ClearAllPoints`.
 
 ## Guardrails (the owner's rules)

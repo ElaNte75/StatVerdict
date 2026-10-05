@@ -571,7 +571,7 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
     if cardWidth < 220 then cardWidth = 220 end
     if cardWidth > 1200 then cardWidth = 1200 end
     card:SetWidth(cardWidth)
-    -- Move / size / padding from AdvDev Stat Progress controls.
+    -- Move / size / padding from the saved layout.
     if ns.StatVerdictDashboardLayout and ns.StatVerdictDashboardLayout.AnchorStatsCard then
         ns.StatVerdictDashboardLayout.AnchorStatsCard(card, frame)
     elseif ns.StatVerdictDashboardLayout and ns.StatVerdictDashboardLayout.AnchorAfterPreviousCard and frame.settingsCard then
@@ -587,7 +587,7 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
     end
 
     -- Whole Stat Progress card: click empty space inside to select. One border turns yellow when selected.
-    -- Panel chrome border is always visible (not AdvDev-only).
+    -- Panel chrome border is always visible.
     if ns.SetBorderColor then
         ns.SetBorderColor(card, 0.72, 0.74, 0.78, 0.86)
     elseif card.SetBackdropBorderColor then
@@ -691,7 +691,7 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
         end
     end
 
-    -- Screen 1: child of Panel 2. Move/Size/Pad via AdvDev. Lock binds layout to Panel 2.
+    -- Screen 1: child of Panel 2.
     local screenPad = { top = 0, bottom = 0, left = 0, right = 0 }
     if ns.GetLayoutPadding then
         screenPad = ns.GetLayoutPadding("screen.1.pad")
@@ -747,9 +747,6 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
     if fixedRows > 12 then fixedRows = 12 end
     frame.svFixedSlotRows = fixedRows
     frame.svStatScreenHeight = tableH
-
-    -- Edit-only: "screen 1" badge (Lock/Unlock is on the AdvDev pad only).
-
 
     -- Average Progress: child of MS stats (moves with Screen 1 → MS stats).
     if frame.avgProgressText then
@@ -908,7 +905,7 @@ function Panel.Apply(frame, gridX, gridTopY, visibleRows, rowHeight)
 
     EnsureOffSpecEmptyHint(frame)
 
-    -- Off Spec title: independent AdvDev target on Panel 2.
+    -- Off Spec title: independent of Panel 2's layout.
     if frame.secondarySubtitle then
         local titleX, titleY = Offset("stats.offSpecTitle")
         local titlePad = Padding("stats.offSpecTitle.pad")

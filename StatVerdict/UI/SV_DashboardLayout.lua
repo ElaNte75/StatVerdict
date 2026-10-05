@@ -52,6 +52,34 @@ local function Clamp(value, minValue, maxValue)
     return value
 end
 
+-- Compact Mode (Options > Window): one stat table at a time, the panel buttons in one row under it.
+local COMPACT_ROW_GAP = 8
+local COMPACT_BUTTON_ROW_H = 24
+local COMPACT_ROW_INSET = 8 -- the button row stops this far from the card's edges
+local COMPACT_STATS_BOTTOM_MARGIN = 10
+local COMPACT_SETUP_FALLBACK_H = 242
+
+function Layout.IsCompact()
+    local db = _G.StatVerdictDB
+    return type(db) == "table" and db.compactMode == true
+end
+
+-- True while an Off Spec is set up (a spec chosen): only then is there a second table to switch to.
+function Layout.OffSpecReady()
+    local selection = ns.GetSavedStatAuditSelection and ns.GetSavedStatAuditSelection() or nil
+    return type(selection) == "table" and selection.secondaryEnabled == true
+        and type(selection.secondarySpecID) == "number" and selection.secondarySpecID > 0
+end
+
+-- The table the compact window shows: "OFF" only while an Off Spec is set up and selected, else "MAIN"; nil when not compact.
+function Layout.CompactView()
+    if not Layout.IsCompact() then return nil end
+    if Layout.OffSpecReady() and ns.GetStatAuditActiveView and ns.GetStatAuditActiveView() == "OFF" then
+        return "OFF"
+    end
+    return "MAIN"
+end
+
 local function ColumnWidth(column)
     local base = tonumber(column and column.width) or 1
     if base <= 1 then return base end
@@ -116,7 +144,8 @@ function Layout.GetRightPanelWidth(frame)
         local baseWidth = preferred or 300
         local delta = SizeDelta("manual.width")
         if preferred and delta < 0 then delta = 0 end
-        return Clamp(baseWidth + delta, 200, 520)
+        -- The Manual can be made bigger (its own text size slider), so it is allowed to be wide.
+        return Clamp(baseWidth + delta, 200, 1100)
     end
     if mode == "weights" then
         if ns.StatVerdictWeightsDrawerPanel and ns.StatVerdictWeightsDrawerPanel.GetPreferredWidth then
@@ -178,8 +207,24 @@ function Layout.GetSetupCardLeft()
     return STACK_ORIGIN_X + (tonumber(setupX) or 0)
 end
 
-function Layout.GetSetupCardWidth(frame)
+-- The left card's own width.
+function Layout.GetSetupCardRealWidth()
     return Clamp(SETUP_CARD_BASE_WIDTH + SizeDelta("setup.width"), 80, 700)
+end
+
+-- Compact Mode with "Auto-hide the left side": the left card folds away behind a thin strip, and the window only
+-- makes room for the strip.
+local LEFT_STRIP_WIDTH = 22
+
+function Layout.IsLeftAutoHidden()
+    local db = _G.StatVerdictDB
+    return Layout.IsCompact() and type(db) == "table" and db.autoHideLeft == true
+end
+
+-- The room the left column takes in the window: its card, or only the strip.
+function Layout.GetSetupCardWidth(frame)
+    if Layout.IsLeftAutoHidden() then return LEFT_STRIP_WIDTH end
+    return Layout.GetSetupCardRealWidth()
 end
 
 -- Right edge of Panel 1's logical span (Size W only). Panel 2 starts here.
@@ -195,13 +240,19 @@ function Layout.GetSetupCardPad()
     return { top = 0, bottom = 0, left = 0, right = 0 }
 end
 
-function Layout.GetSetupCardHeight(frame)
+local function NormalSetupCardHeight()
     local base = 360
     local delta = 0
     if ns.GetLayoutHeightDelta then
         delta = ns.GetLayoutHeightDelta("setup.height") or 0
     end
     return Clamp(base + delta, 120, 1200)
+end
+
+-- In Compact Mode both cards are as high as the taller one needs, so their outlines line up like in the normal window.
+function Layout.GetSetupCardHeight(frame)
+    if Layout.IsCompact() then return Layout.GetCompactCardHeight() end
+    return NormalSetupCardHeight()
 end
 
 -- Panel 1: Size W/H is the logical footprint (used for layout/neighbors).
@@ -212,12 +263,39 @@ function Layout.AnchorSetupCard(card, frame)
     local cardX, cardY = Offset("setup.card")
     cardY = tonumber(cardY) or 0
     local left = Layout.GetSetupCardLeft() + (pad.left or 0)
-    local width = math.max(40, Layout.GetSetupCardWidth(frame) - (pad.left or 0) - (pad.right or 0))
+    local width = math.max(40, Layout.GetSetupCardRealWidth() - (pad.left or 0) - (pad.right or 0))
     local height = math.max(40, Layout.GetSetupCardHeight(frame) - (pad.top or 0) - (pad.bottom or 0))
     local top = -(WELL_TOP) + cardY - (pad.top or 0)
     card:ClearAllPoints()
     card:SetPoint("TOPLEFT", frame, "TOPLEFT", left, top)
     card:SetSize(width, height)
+end
+
+-- Where the strip of the folded-away left column goes: left, top (negative), width, height.
+function Layout.GetLeftStripRect(frame)
+    local pad = Layout.GetSetupCardPad()
+    local _, cardY = Offset("setup.card")
+    local left = Layout.GetSetupCardLeft() + (pad.left or 0)
+    local width = math.max(10, LEFT_STRIP_WIDTH - (pad.left or 0) - (pad.right or 0))
+    local height = math.max(40, Layout.GetSetupCardHeight(frame) - (pad.top or 0) - (pad.bottom or 0))
+    return left, -(WELL_TOP) + (tonumber(cardY) or 0) - (pad.top or 0), width, height
+end
+
+-- The folded-away left column opens over the table, or folds away again.
+function Layout.SetLeftOpen(frame, open)
+    if not frame then return end
+    frame.svLeftOpen = open == true
+    local card = frame.settingsCard
+    if not card then return end
+    if frame.svLeftOpen then
+        -- Above everything of the table (its bars and texts sit on higher levels of the window's own layer).
+        card:SetFrameStrata("DIALOG")
+        card:SetFrameLevel((frame:GetFrameLevel() or 1) + 30)
+        card:Show()
+    else
+        card:Hide()
+        card:SetFrameStrata(frame:GetFrameStrata() or "MEDIUM")
+    end
 end
 
 function Layout.GetStatsCardWidth(frame)
@@ -241,13 +319,48 @@ function Layout.GetStatsCardPlacedLeft(frame)
     return Layout.GetStatsCardLeft(frame) + (tonumber(cardX) or 0)
 end
 
-function Layout.GetStatsCardHeight(frame)
+local function NormalStatsCardHeight()
     local base = 360
     local delta = 0
     if ns.GetLayoutHeightDelta then
         delta = ns.GetLayoutHeightDelta("stats.height") or 0
     end
     return Clamp(base + delta, 120, 1200)
+end
+
+-- From the top of the stats card to the bottom of its one table (the table box as placed by its saved offset).
+local function CompactTableBottom()
+    local _, screenY = Offset("screen.1")
+    local screenH = 160 + (ns.GetLayoutHeightDelta and ns.GetLayoutHeightDelta("screen.1.height") or 0)
+    return 70 - (tonumber(screenY) or 0) + screenH
+end
+
+-- The stats card in Compact Mode: the one table and, inside the same outline, the row of panel buttons under it.
+local function CompactStatsCardHeight()
+    local pad = Layout.GetStatsCardPad()
+    return (pad.top or 0) + CompactTableBottom() + COMPACT_ROW_GAP + COMPACT_BUTTON_ROW_H
+        + COMPACT_STATS_BOTTOM_MARGIN + (pad.bottom or 0)
+end
+
+-- Both cards in Compact Mode: whichever needs more room (the left card holds the dropdowns and the view button).
+function Layout.GetCompactCardHeight()
+    local panel = ns.StatVerdictSettingsPanel
+    local setupNeeds = (panel and panel.GetCompactHeight and panel.GetCompactHeight()) or COMPACT_SETUP_FALLBACK_H
+    return Clamp(math.max(setupNeeds, CompactStatsCardHeight()), 120, 1200)
+end
+
+function Layout.GetStatsCardHeight(frame)
+    if Layout.IsCompact() then return Layout.GetCompactCardHeight() end
+    return NormalStatsCardHeight()
+end
+
+-- Where the compact button row goes: left, top (negative, from the window top), width, height. It sits inside the stats card.
+function Layout.GetCompactButtonRow(frame)
+    local pad = Layout.GetStatsCardPad()
+    local left = Layout.GetStatsCardPlacedLeft(frame) + (pad.left or 0) + COMPACT_ROW_INSET
+    local width = Layout.GetStatsCardWidth(frame) - (pad.left or 0) - (pad.right or 0) - 2 * COMPACT_ROW_INSET
+    local top = -(WELL_TOP + (pad.top or 0) + CompactTableBottom() + COMPACT_ROW_GAP)
+    return left, top, width, COMPACT_BUTTON_ROW_H
 end
 
 function Layout.GetGridX(frame)
@@ -299,6 +412,14 @@ function Layout.AnchorAfterPreviousCard(card, previousCard, frame, extraGap, yOf
     local g = Layout.GetPanelGutter() + (tonumber(extraGap) or 0)
     local y = tonumber(yOffset) or 0
     pad = pad or ZERO_PAD
+    if previousCard and previousCard == frame.statProgressCard then
+        if Layout.IsCompact() then
+            -- Compact Mode: the side panel is its own window, free to move; the main window does not grow for it.
+            Layout.AnchorFloatingPanel(card, frame)
+            return
+        end
+        Layout.ReleaseFloatingPanel(card)
+    end
     if previousCard then
         local prevPad = ZERO_PAD
         if previousCard == frame.statProgressCard then
@@ -320,6 +441,224 @@ function Layout.AnchorAfterPreviousCard(card, previousCard, frame, extraGap, yOf
     Layout.AnchorOuterCard(card, frame, WELL_PAD + Layout.GetPanelGutter(), pad)
 end
 
+-- Floating side panels (Compact Mode) ---------------------------------------------------------------------------------
+local FLOAT_GAP = 6
+local FLOAT_FALLBACK_WIDTH = 320
+
+-- The buttons at the bottom right of a floating panel: Close in the corner (every panel), Manual to its left (Options).
+Layout.FLOAT_BUTTON = { width = 70, height = 24, margin = 14, bottom = 12, gap = 6 }
+
+function ns.CreateFloatingButton(card, label, onClick)
+    local size = Layout.FLOAT_BUTTON
+    local button = CreateFrame("Button", nil, card, "BackdropTemplate")
+    button:SetSize(size.width, size.height)
+    button:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = false,
+        edgeSize = 12,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 },
+    })
+    button:SetBackdropColor(0.10, 0.10, 0.12, 0.92)
+    button:SetBackdropBorderColor(0.38, 0.38, 0.40, 0.92)
+    button.label = button:CreateFontString(nil, "OVERLAY")
+    button.label:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", 11, "")
+    button.label:SetPoint("CENTER", button, "CENTER", 0, 0)
+    button.label:SetText(label)
+    button.label:SetTextColor(0.82, 0.82, 0.82)
+    button:SetScript("OnEnter", function(self) self:SetBackdropColor(0.14, 0.14, 0.16, 0.95) end)
+    button:SetScript("OnLeave", function(self) self:SetBackdropColor(0.10, 0.10, 0.12, 0.92) end)
+    button:SetScript("OnClick", onClick)
+    return button
+end
+
+-- The room under the content of a floating panel for its Close button: the button, the distance from the bottom, some air.
+function Layout.GetFloatingBand()
+    local size = Layout.FLOAT_BUTTON
+    return size.bottom + size.height + 8
+end
+
+-- Best in Slot and Ranked Trinkets: the title chip holds two lines in a window of its own (this much higher).
+Layout.FLOAT_TITLE_EXTRA = 16
+
+-- The panel's title in a window of its own, or its plain title when docked.
+local function RefreshPanelTitle(card)
+    local chip = card.svTabTitleChip
+    if chip and chip.svBaseText and chip.label and ns.PanelTitleText then
+        chip.label:SetText(ns.PanelTitleText(chip.svBaseText))
+    end
+end
+
+-- As high as a docked panel in the normal window (the window's top and bottom bands left out).
+function Layout.GetFloatingPanelHeight()
+    local inner = math.max(NormalSetupCardHeight(), NormalStatsCardHeight())
+    local windowHeight = WELL_TOP + inner + WELL_PAD
+    return windowHeight - (WELL_TOP + Layout.GetPanelGutter()) - (WELL_PAD + Layout.GetPanelGutter())
+end
+
+local function ScreenSize()
+    local width = UIParent and UIParent.GetWidth and tonumber(UIParent:GetWidth()) or 1920
+    local height = UIParent and UIParent.GetHeight and tonumber(UIParent:GetHeight()) or 1080
+    return width, height
+end
+
+-- The panel's units against the screen's: a window made smaller (Options > Window size) has bigger units.
+local function RelativeScale(card)
+    local own = card and card.GetEffectiveScale and tonumber(card:GetEffectiveScale())
+    local screen = UIParent and UIParent.GetEffectiveScale and tonumber(UIParent:GetEffectiveScale())
+    if own and screen and screen > 0 and own > 0 then return own / screen end
+    return 1
+end
+
+-- Keeps a panel of this size (left, top) fully on the screen. scale: the panel's units against the screen's.
+function Layout.ClampFloatingPosition(left, top, width, height, scale)
+    local screenW, screenH = ScreenSize()
+    scale = tonumber(scale) or 1
+    if scale <= 0 then scale = 1 end
+    screenW, screenH = screenW / scale, screenH / scale
+    left = Clamp(left, 0, math.max(0, screenW - width))
+    top = Clamp(top, math.min(height, screenH), screenH)
+    return left, top
+end
+
+-- Where a panel opens when the player never moved one: beside the window (right, else left), level with its top.
+local function DefaultFloatingPosition(frame, width, height, scale)
+    local screenW = ScreenSize() / (tonumber(scale) or 1)
+    local right, left, top = frame.GetRight and frame:GetRight(), frame.GetLeft and frame:GetLeft(), frame.GetTop and frame:GetTop()
+    if not (tonumber(right) and tonumber(left) and tonumber(top)) then return 60, select(2, ScreenSize()) - 60 end
+    local x = right + FLOAT_GAP
+    if x + width > screenW then x = left - FLOAT_GAP - width end
+    return x, top - (WELL_TOP + Layout.GetPanelGutter()) + WELL_TOP
+end
+
+local function SaveFloatingPosition(card)
+    local left, top = card:GetLeft(), card:GetTop()
+    if tonumber(left) and tonumber(top) then
+        _G.StatVerdictDB = _G.StatVerdictDB or {}
+        _G.StatVerdictDB.floatingPanelPos = { x = left, y = top }
+    end
+end
+
+-- The drag, the close button: what makes a drawer card a window of its own. Made once per card.
+local function EnsureFloatingChrome(card)
+    if not card.svFloatingChrome then
+        card.svFloatingChrome = true
+        card:SetScript("OnDragStart", function(self) self:StartMoving() end)
+        card:SetScript("OnDragStop", function(self)
+            self:StopMovingOrSizing()
+            SaveFloatingPosition(self)
+        end)
+        card.svCloseButton = ns.CreateFloatingButton(card, "Close", function()
+            if ns.SetRightPanelMode then ns.SetRightPanelMode(nil) end
+        end)
+        card.svCloseButton:ClearAllPoints()
+        card.svCloseButton:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -Layout.FLOAT_BUTTON.margin, Layout.FLOAT_BUTTON.bottom)
+    end
+    if not card.svFloating then
+        card.svFloating = true
+        card:SetMovable(true)
+        card:SetClampedToScreen(true)
+        card:EnableMouse(true)
+        card:RegisterForDrag("LeftButton")
+    end
+    card.svCloseButton:SetFrameLevel((card:GetFrameLevel() or 1) + 20)
+    card.svCloseButton:Show()
+    -- The title chip of Best in Slot / Ranked Trinkets is a button: it hands a drag on to the window.
+    local chip = card.svViewToggle
+    if chip and not chip.svDragForwarded then
+        chip.svDragForwarded = true
+        chip:RegisterForDrag("LeftButton")
+        chip:SetScript("OnDragStart", function() card:StartMoving() end)
+        chip:SetScript("OnDragStop", function()
+            card:StopMovingOrSizing()
+            SaveFloatingPosition(card)
+        end)
+    end
+end
+
+-- The panel windows of the main window: they follow its layer (strata) and size, and go when it goes.
+function ns.SyncFloatingPanelStrata(frame, strata)
+    for _, card in ipairs(frame and frame.svFloatingCards or {}) do
+        card:SetFrameStrata(strata)
+    end
+end
+
+local function RegisterFloatingCard(frame, card)
+    frame.svFloatingCards = frame.svFloatingCards or {}
+    for _, known in ipairs(frame.svFloatingCards) do
+        if known == card then return end
+    end
+    frame.svFloatingCards[#frame.svFloatingCards + 1] = card
+    if not frame.svFloatingHideHooked then
+        frame.svFloatingHideHooked = true
+        -- The panel windows are not children of the main window any more, so they have to be sent away with it.
+        frame:HookScript("OnHide", function(self)
+            for _, panel in ipairs(self.svFloatingCards or {}) do
+                if panel.svFloating then panel:Hide() end
+            end
+        end)
+    end
+end
+
+-- The panel windows only show while the main window does.
+function Layout.HideFloatingPanelsWithTheWindow(frame)
+    if frame.IsShown and frame:IsShown() then return end
+    for _, card in ipairs(frame.svFloatingCards or {}) do
+        if card.svFloating then card:Hide() end
+    end
+end
+
+function Layout.AnchorFloatingPanel(card, frame)
+    if not (card and frame) then return end
+    -- A window of its own: a child of the screen, not of the main window, and a top level one, so a click brings it (all of
+    -- it) in front of the main window and the main window in front of it, like two windows of the game. It keeps the main
+    -- window's layer and size.
+    local newlyFloating = not card.svFloating
+    if card.GetParent and card:GetParent() ~= UIParent then card:SetParent(UIParent) end
+    card.svWindow = frame
+    card:SetToplevel(true)
+    card:SetScale(tonumber(frame.GetScale and frame:GetScale()) or 1)
+    card:SetFrameStrata((frame.GetFrameStrata and frame:GetFrameStrata()) or "MEDIUM")
+    RegisterFloatingCard(frame, card)
+    local width = tonumber(card.preferredWidth) or tonumber(card.GetWidth and card:GetWidth()) or FLOAT_FALLBACK_WIDTH
+    if width < 100 then width = FLOAT_FALLBACK_WIDTH end
+    -- A panel that knows how high its content is (Best in Slot, Ranked Trinkets) says so; the rest are as high as a docked one.
+    local height = tonumber(card.svFloatingHeight) or Layout.GetFloatingPanelHeight()
+    local saved = _G.StatVerdictDB and _G.StatVerdictDB.floatingPanelPos
+    local x, y
+    if type(saved) == "table" and tonumber(saved.x) and tonumber(saved.y) then
+        x, y = tonumber(saved.x), tonumber(saved.y)
+    else
+        x, y = DefaultFloatingPosition(frame, width, height, RelativeScale(card))
+    end
+    x, y = Layout.ClampFloatingPosition(x, y, width, height, RelativeScale(card))
+    card:ClearAllPoints()
+    card:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x, y)
+    card:SetHeight(height)
+    EnsureFloatingChrome(card)
+    RefreshPanelTitle(card)
+    if newlyFloating and card.Raise then card:Raise() end  -- a panel that has just opened is in front
+end
+
+-- Back to a docked panel: no close button, no drag.
+function Layout.ReleaseFloatingPanel(card)
+    if not (card and card.svFloating) then return end
+    card.svFloating = false
+    card:SetMovable(false)
+    card:RegisterForDrag()
+    card:EnableMouse(false)
+    if card.svCloseButton then card.svCloseButton:Hide() end
+    -- Docked again: a part of the main window, as before.
+    local window = card.svWindow
+    if window then
+        card:SetParent(window)
+        card:SetToplevel(false)
+        card:SetScale(1)
+        card:SetFrameLevel(math.max(1, (window:GetFrameLevel() or 1) - 1))
+    end
+    RefreshPanelTitle(card)
+end
+
 function Layout.GetRightPanelX(frame)
     -- Logical right of Panel 2 (Size W only; padding is a visual inset).
     local statsRight = Layout.GetStatsCardPlacedLeft(frame)
@@ -330,7 +669,7 @@ function Layout.GetRightPanelX(frame)
     return base + (tonumber(dock) or 0)
 end
 
--- Extra gap past the normal gutter for AdvDev right-dock nudge.
+-- Extra gap past the normal gutter for the right dock.
 -- Negative values pull the drawer left (closer to / over Panel 2).
 function Layout.GetRightPanelExtraGap()
     return tonumber(SharedRightDockX()) or 0
@@ -347,16 +686,17 @@ end
 
 local function ComputeFrameWidth(frame, showRightPanel)
     local edge = Layout.GetRightEdgeInset()
+    local titleRoom = (ns.GetTitleBarMinWidth and ns.GetTitleBarMinWidth(frame)) or 0
     if showRightPanel then
         local rightPanelX = Layout.GetRightPanelX(frame)
         local rightPanelWidth = Layout.GetRightPanelWidth(frame)
-        return Clamp(rightPanelX + rightPanelWidth + edge, MIN_FRAME_WIDTH, MAX_FRAME_WIDTH)
+        return Clamp(math.max(rightPanelX + rightPanelWidth + edge, titleRoom), MIN_FRAME_WIDTH, MAX_FRAME_WIDTH)
     end
     -- Frame width follows the logical footprint (Size W); padding never grows it.
     local statsLeft = Layout.GetStatsCardPlacedLeft(frame)
     local statsCardWidth = Layout.GetStatsCardWidth(frame)
     return Clamp(
-        statsLeft + statsCardWidth + edge,
+        math.max(statsLeft + statsCardWidth + edge, titleRoom),
         MIN_FRAME_WIDTH,
         MAX_FRAME_WIDTH
     )
@@ -364,17 +704,19 @@ end
 
 local function ComputeFrameHeight(frame)
     -- Main frame height = tallest panel Size H. Padding pushes panels; it does not shrink Size H.
-    local setupH = Layout.GetSetupCardHeight(frame)
-    local statsH = Layout.GetStatsCardHeight(frame)
-    local inner = math.max(setupH, statsH)
+    local inner = math.max(NormalSetupCardHeight(), NormalStatsCardHeight())
+    if Layout.IsCompact() then
+        -- The two cards are short, the button row inside the stats card. A side panel floats free and never changes it.
+        inner = Layout.GetCompactCardHeight()
+    end
     return Clamp(WELL_TOP + inner + WELL_PAD, 200, 1400)
 end
 
 function Layout.SyncFrameWidthToRightPanel(frame)
     if not frame then return end
     local mode = ns.GetRightPanelMode and ns.GetRightPanelMode() or nil
-    if not mode then
-        -- No right drawer: shrink to Stat Progress only.
+    if not mode or Layout.IsCompact() then
+        -- No right drawer (or a floating one in Compact Mode): shrink to Stat Progress only.
         local width = ComputeFrameWidth(frame, false)
         if math.abs((frame:GetWidth() or 0) - width) >= 0.5 then
             frame:SetWidth(width)
@@ -423,7 +765,7 @@ function Layout.Apply(frame, usedRows, controls)
     local showWeights = mode == "weights"
     local showTrinkets = mode == "trinkets"
     local showBis = mode == "bis"
-    local showRightPanel = mode ~= nil
+    local showRightPanel = mode ~= nil and not Layout.IsCompact()
     local width = ComputeFrameWidth(frame, showRightPanel)
     local frameHeight = ComputeFrameHeight(frame)
 
@@ -478,8 +820,7 @@ function Layout.Apply(frame, usedRows, controls)
         if frame.optionsDrawerCard then frame.optionsDrawerCard:Hide() end
         if frame.manualDrawerCard then frame.manualDrawerCard:Hide() end
         if frame.weightsDrawerCard then frame.weightsDrawerCard:Hide() end
-        -- Drop orphan AdvDev targets from inactive drawers so cyan ghosts cannot linger.
-    end
+            end
 
     HideAllRightDrawers()
     if showOptions and ns.StatVerdictOptionsDrawerPanel then
@@ -657,7 +998,7 @@ function Layout.Apply(frame, usedRows, controls)
         end
     end
 
-    -- One AdvDev box per column (header + values share width & XY).
+    -- One box per column (header + values share width & XY).
     -- Title letters use a separate exact-hit control (X only) inside that box.
     frame.devStatHeaderRegions = frame.devStatHeaderRegions or {}
     frame.devStatColumnRegions = frame.devStatColumnRegions or {}
@@ -699,7 +1040,7 @@ function Layout.Apply(frame, usedRows, controls)
             columnRegion:SetSize(colW, colH)
             columnRegion:Show()
 
-            -- Outer AdvDev pad: Move XY + Size W (legacy width nubs removed).
+            -- Outer pad: Move XY + Size W.
             local colBaseW = math.max(16, tonumber(column.width) or 16)
             local colKey = "stats.column." .. key
             local widthKey = colKey .. ".width"
@@ -753,12 +1094,134 @@ function Layout.Apply(frame, usedRows, controls)
     if frame.devStatTableMoveGrip then frame.devStatTableMoveGrip:Hide() end
     if frame.devStatTableRegion then frame.devStatTableRegion:Hide() end
 
-    -- Main frame size/move AdvDev targets removed: window size follows Frames 1+2.
-    -- Panel 1 children keep their own AdvDev targets (titles / dropdowns / drawer buttons).
-    if frame.statVerdictSetupResizeRegions then
+    -- Window size follows Frames 1+2.
+        if frame.statVerdictSetupResizeRegions then
         for _, region in pairs(frame.statVerdictSetupResizeRegions) do
             if region and region.Hide then region:Hide() end
         end
     end
     -- Keep Average Progress / header text hit boxes selectable — do not mass-hide them.
+    Layout.ApplyCompactViews(frame)
+    Layout.HideFloatingPanelsWithTheWindow(frame)
+end
+
+local function HideRegion(region)
+    if region and region.Hide then region:Hide() end
+end
+
+-- Puts a region where another one sits (same anchor, same offset).
+local function PlaceWhere(region, model)
+    if not (region and model and model.GetPoint) then return end
+    local point, relativeTo, relativePoint, x, y = model:GetPoint(1)
+    if not point then return end
+    region:ClearAllPoints()
+    region:SetPoint(point, relativeTo, relativePoint, x, y)
+end
+
+-- Compact Mode shows one table: the one selected. Run last, after the cards were laid out in their normal places. Without
+-- Compact Mode nothing is done here, so the normal layout of the next pass is untouched.
+-- While the left column is folded away its headings are not in sight, so a small "(Main Spec)" / "(Off Spec)" stands after the
+-- table's title. It is a text of its own, in a small font, so it stays discreet whatever the title's size; the title gets
+-- the room it takes.
+local SPEC_TAG_FONT_SIZE = 9
+local SPEC_TAG_GAP = 6
+
+function Layout.UpdateSpecTag(frame, view)
+    local tag = frame.svSpecTag
+    if not (Layout.IsLeftAutoHidden() and view) then
+        if tag then tag:Hide() end
+        return
+    end
+    local title = view == "OFF" and frame.secondarySubtitle or frame.subtitle
+    if not title then
+        if tag then tag:Hide() end
+        return
+    end
+    local parent = (title.GetParent and title:GetParent()) or frame
+    if not tag then
+        tag = parent:CreateFontString(nil, "OVERLAY")
+        tag:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", SPEC_TAG_FONT_SIZE, "")
+        tag:SetTextColor(0.90, 0.75, 0.20)
+        frame.svSpecTag = tag
+    elseif tag.GetParent and tag:GetParent() ~= parent then
+        tag:SetParent(parent)
+    end
+    tag:SetText(view == "OFF" and "(Off Spec)" or "(Main Spec)")
+    -- The title makes room for the tag, then the tag follows the end of the title's text.
+    local room = (tonumber(tag:GetStringWidth()) or 0) + SPEC_TAG_GAP
+    if title.SetWidth and title.GetWidth then
+        title:SetWidth(math.max(80, (tonumber(title:GetWidth()) or 0) - room))
+    end
+    local panel = ns.StatVerdictStatProgressPanel
+    if panel then
+        if view == "OFF" and panel.FitOffSpecTitle then
+            panel.FitOffSpecTitle(frame)
+        elseif panel.FitSpecTitle then
+            panel.FitSpecTitle(frame)
+        end
+    end
+    tag:ClearAllPoints()
+    tag:SetPoint("LEFT", title, "LEFT", (tonumber(title:GetStringWidth()) or 0) + SPEC_TAG_GAP, 0)
+    tag:Show()
+end
+
+function Layout.ApplyCompactViews(frame)
+    -- The Main Spec title is only ever shown once, when the window is made: what this file hid, it shows again first.
+    if frame.svSubtitleHiddenByCompact then
+        frame.svSubtitleHiddenByCompact = false
+        if frame.subtitle and frame.subtitle.Show then frame.subtitle:Show() end
+    end
+    -- The folded-away left column: only its strip shows, and the card only while the mouse is on it.
+    if Layout.IsLeftAutoHidden() then
+        if frame.svLeftOpen then
+            Layout.SetLeftOpen(frame, true)
+        else
+            HideRegion(frame.settingsCard)
+        end
+    else
+        if frame.svLeftOpen and frame.settingsCard then
+            frame.settingsCard:SetFrameStrata(frame:GetFrameStrata() or "MEDIUM")
+        end
+        frame.svLeftOpen = false
+        HideRegion(frame.svLeftStrip)
+        if frame.settingsCard and frame.settingsCard.Show then frame.settingsCard:Show() end
+    end
+    local view = Layout.CompactView()
+    Layout.UpdateSpecTag(frame, view)
+    if not view then return end
+    local mainScreen, offScreen = frame.statProgressTableCard, frame.offStatProgressTableCard
+    local boxes = frame._svTitleBoxes or {}
+    local mainBox, offBox = boxes["stats.specTitle"], boxes["stats.offSpecTitle"]
+    if view == "OFF" then
+        HideRegion(mainScreen)
+        HideRegion(mainBox)
+        HideRegion(frame.subtitle)
+        frame.svSubtitleHiddenByCompact = true
+        if ns.HideSpecSelectButton then ns.HideSpecSelectButton("MAIN") end
+        -- The Off Spec table and its title take the place of the Main Spec table and title.
+        PlaceWhere(offScreen, mainScreen)
+        if offScreen and mainScreen and offScreen.SetSize and mainScreen.GetWidth then
+            offScreen:SetSize(mainScreen:GetWidth(), mainScreen:GetHeight())
+        end
+        PlaceWhere(offBox, mainBox)
+        -- The table inside has its own saved offset and size per spec: use the Main Spec table's, so that the two views
+        -- sit on exactly the same lines and nothing jumps when the view is switched.
+        local mainHost, offHost = frame.svMainStatContentHost, frame.svOffStatContentHost
+        if mainHost and offHost and mainHost.GetPoint then
+            local point, _, relativePoint, x, y = mainHost:GetPoint(1)
+            if point then
+                offHost:ClearAllPoints()
+                offHost:SetPoint(point, offScreen, relativePoint, x, y)
+                if offHost.SetSize and mainHost.GetWidth then
+                    offHost:SetSize(mainHost:GetWidth(), mainHost:GetHeight())
+                end
+            end
+        end
+    else
+        HideRegion(offScreen)
+        HideRegion(offBox)
+        HideRegion(frame.secondarySubtitle)
+        if frame.offAvgProgressText then frame.offAvgProgressText:Hide() end
+        if ns.HideSpecSelectButton then ns.HideSpecSelectButton("OFF") end
+    end
 end

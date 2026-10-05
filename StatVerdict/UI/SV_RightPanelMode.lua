@@ -117,7 +117,7 @@ local function ResolvePanelKind(panelKind)
     return "bis"
 end
 
--- Each panel keeps its own AdvDev keys: bis.* / trinkets.*
+-- Each panel keeps its own layout keys: bis.* / trinkets.*
 local function LayoutKeyForPanel(panelKind)
     return ResolvePanelKind(panelKind)
 end
@@ -195,6 +195,110 @@ local function FirstNonZeroHeightDelta(...)
     return 0
 end
 
+-- In Compact Mode a panel is a window of its own, so its title names the add-on: "StatVerdict Guide".
+function ns.PanelTitleText(text)
+    local layout = ns.StatVerdictDashboardLayout
+    if layout and layout.IsCompact and layout.IsCompact() then return "StatVerdict " .. tostring(text or "") end
+    return tostring(text or "")
+end
+
+-- A slider that stops on steps, with a faint line at every step, for the window's own settings. The value follows the thumb while it is
+-- dragged; the change is made when the mouse lets go (the slider sits in a window the change may resize or move).
+-- spec: label, tip, min, max, step, get() -> the value now, commit(value) -> save it and apply it.
+-- The caller places the parts (row.label, row.value, row.slider) and calls ns.PlaceStepSliderTicks with the slider's width.
+local SLIDER_GOLD = { 1.0, 0.82, 0.0 }
+local SLIDER_HEIGHT = 16
+local SLIDER_THUMB_WIDTH = 8
+local SLIDER_TICK_COLOR = { 0.62, 0.58, 0.40, 0.45 }  -- faint, so they guide without shouting
+
+function ns.PlaceStepSliderTicks(slider, width)
+    local count = #slider.ticks
+    for index, tick in ipairs(slider.ticks) do
+        local fraction = count > 1 and (index - 1) / (count - 1) or 0
+        tick:ClearAllPoints()
+        tick:SetPoint("CENTER", slider, "LEFT", SLIDER_THUMB_WIDTH / 2 + fraction * (width - SLIDER_THUMB_WIDTH), 0)
+    end
+end
+
+function ns.CreateStepSlider(parent, spec)
+    local font = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
+    local row = CreateFrame("Frame", nil, parent)
+    row:EnableMouse(true)
+    row.label = row:CreateFontString(nil, "OVERLAY")
+    row.label:SetFont(font, 11, "")
+    row.label:SetJustifyH("LEFT")
+    row.label:SetTextColor(1, 1, 1)
+    row.label:SetText(spec.label)
+    row.value = row:CreateFontString(nil, "OVERLAY")
+    row.value:SetFont(font, 11, "")
+    row.value:SetJustifyH("RIGHT")
+    row.value:SetTextColor(SLIDER_GOLD[1], SLIDER_GOLD[2], SLIDER_GOLD[3])
+    local slider = CreateFrame("Slider", nil, row)
+    slider:SetOrientation("HORIZONTAL")
+    slider:SetHeight(SLIDER_HEIGHT)
+    slider:SetMinMaxValues(spec.min, spec.max)
+    slider:SetValueStep(spec.step)
+    if slider.SetObeyStepOnDrag then slider:SetObeyStepOnDrag(true) end
+    slider.track = slider:CreateTexture(nil, "BACKGROUND")
+    slider.track:SetColorTexture(0.09, 0.10, 0.13, 1)
+    slider.track:SetHeight(4)
+    slider.track:SetPoint("LEFT", slider, "LEFT", 0, 0)
+    slider.track:SetPoint("RIGHT", slider, "RIGHT", 0, 0)
+    slider.ticks = {}
+    for index = 1, math.floor((spec.max - spec.min) / spec.step + 0.5) + 1 do
+        local tick = slider:CreateTexture(nil, "ARTWORK")
+        tick:SetColorTexture(SLIDER_TICK_COLOR[1], SLIDER_TICK_COLOR[2], SLIDER_TICK_COLOR[3], SLIDER_TICK_COLOR[4])
+        tick:SetSize(1, SLIDER_HEIGHT - 4)
+        slider.ticks[index] = tick
+    end
+    slider:SetThumbTexture("Interface\\Buttons\\WHITE8X8")
+    local thumb = slider.GetThumbTexture and slider:GetThumbTexture()
+    if thumb then
+        thumb:SetSize(SLIDER_THUMB_WIDTH, SLIDER_HEIGHT)
+        thumb:SetColorTexture(SLIDER_GOLD[1], SLIDER_GOLD[2], SLIDER_GOLD[3], 1)
+    end
+    local function commit(self)
+        local value = math.floor(self:GetValue() / spec.step + 0.5) * spec.step
+        value = math.max(spec.min, math.min(spec.max, value))
+        if spec.get() == value then return end
+        spec.commit(value)
+    end
+    slider:SetScript("OnValueChanged", function(self, value)
+        row.value:SetText(tostring(math.floor((tonumber(value) or spec.min) + 0.5)) .. "%")
+        if not self.svDragging and not self.svSyncing then commit(self) end
+    end)
+    slider:SetScript("OnMouseDown", function(self) self.svDragging = true end)
+    slider:SetScript("OnMouseUp", function(self)
+        self.svDragging = false
+        commit(self)
+    end)
+    local function showTip()
+        if GameTooltip and GameTooltip.SetOwner then
+            GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
+            GameTooltip:AddLine(spec.label, SLIDER_GOLD[1], SLIDER_GOLD[2], SLIDER_GOLD[3])
+            GameTooltip:AddLine(spec.tip, 1, 1, 1, true)
+            GameTooltip:Show()
+        end
+    end
+    local function hideTip()
+        if GameTooltip and GameTooltip.GetOwner and GameTooltip:GetOwner() == row then GameTooltip:Hide() end
+    end
+    row:SetScript("OnEnter", showTip)
+    row:SetScript("OnLeave", hideTip)
+    slider:HookScript("OnEnter", showTip)
+    slider:HookScript("OnLeave", hideTip)
+    -- Shows the value the slider stands for now (without making a change).
+    function row:SyncValue()
+        local value = spec.get()
+        self.slider.svSyncing = true
+        self.slider:SetValue(value)
+        self.slider.svSyncing = false
+        self.value:SetText(tostring(value) .. "%")
+    end
+    row.slider = slider
+    return row
+end
+
 -- Every tab's title is one chip as wide as its card, CHIP_SIDE_MARGIN from each edge, text centred.
 -- Height of the chip (the width comes from the two anchors).
 local function ApplyChipHeight(button, layoutPrefix)
@@ -208,6 +312,7 @@ local function ApplyChipHeight(button, layoutPrefix)
     if height < CHIP_MIN_HEIGHT then height = CHIP_MIN_HEIGHT end
     if height > CHIP_MAX_HEIGHT then height = CHIP_MAX_HEIGHT end
     button:SetHeight(height)
+    return height
 end
 
 -- The look every title chip shares: shadow, dark rounded backdrop, centred gold label.
@@ -241,7 +346,7 @@ local function PlaceChipAcrossCard(chip, card, yOffset)
     chip:SetPoint("TOPRIGHT", card, "TOPRIGHT", -CHIP_SIDE_MARGIN, CHIP_TOP + (yOffset or 0))
 end
 
--- The title chip of a tab without a Main / Off Spec switch (Guide, Features, Manual): the same chip as Best in
+-- The title chip of a tab without a Main / Off Spec switch (Guide, Options, Manual): the same chip as Best in
 -- Slot and Ranked Trinkets, but not a button. Returns the chip; chip.label is the title text.
 function ns.PlaceTabTitleChip(card, text)
     if not card then return nil end
@@ -252,7 +357,8 @@ function ns.PlaceTabTitleChip(card, text)
         StyleTitleChip(chip, text)
         card.svTabTitleChip = chip
     end
-    chip.label:SetText(text or "")
+    chip.svBaseText = text or ""
+    chip.label:SetText(ns.PanelTitleText(chip.svBaseText))
     PlaceChipAcrossCard(chip, card, 0)
     chip:SetHeight(DEFAULT_TOGGLE_HEIGHT)
     chip:SetFrameLevel((card:GetFrameLevel() or 1) + 6)
@@ -297,7 +403,14 @@ function ns.SyncMsOsViewTabs(parent)
 
     toggle.svPanelKind = panelKind
     parent.svTitlePanelKind = panelKind
-    toggle.label:SetText(TitleForPanel(panelKind, view, osReady))
+    local titles = PanelTitles(panelKind)
+    local layout = ns.StatVerdictDashboardLayout
+    if layout and layout.IsCompact and layout.IsCompact() and titles then
+        -- A window of its own: the add-on and the list on the first line, the spec in view under it.
+        toggle.label:SetText("StatVerdict " .. titles.base .. "\n" .. (view == "OFF" and "Off Spec" or "Main Spec"))
+    else
+        toggle.label:SetText(TitleForPanel(panelKind, view, osReady))
+    end
     toggle:Enable()
     toggle:SetAlpha(1)
     toggle:Show()
@@ -351,7 +464,7 @@ function ns.SyncMsOsViewTabs(parent)
 end
 
 -- Place the unified title chip at the panel title position (replaces FontString title).
--- panelKind: "bis" | "trinkets" — each has independent AdvDev settings.
+-- panelKind: "bis" | "trinkets" — each has independent layout settings.
 function ns.PlaceMsOsTitleChip(parent, _layoutPrefixIgnored, panelKind)
     if not parent then return end
     panelKind = ResolvePanelKind(panelKind or _layoutPrefixIgnored)
@@ -374,7 +487,11 @@ function ns.PlaceMsOsTitleChip(parent, _layoutPrefixIgnored, panelKind)
     )
 
     ns.SyncMsOsViewTabs(parent)
-    ApplyChipHeight(toggle, layoutPrefix)
+    local chipHeight = ApplyChipHeight(toggle, layoutPrefix)
+    local layout = ns.StatVerdictDashboardLayout
+    if layout and layout.IsCompact and layout.IsCompact() and layout.FLOAT_TITLE_EXTRA then
+        toggle:SetHeight(chipHeight + layout.FLOAT_TITLE_EXTRA)  -- two lines of title
+    end
     PlaceChipAcrossCard(toggle, parent, y)
     toggle:SetFrameLevel((parent:GetFrameLevel() or 1) + 8)
 end
@@ -399,9 +516,8 @@ function ns.GetRightDrawerCardPad(key)
     return { top = 0, bottom = 0, left = 0, right = 0 }
 end
 
--- Shared AdvDev wiring for a right-side drawer card: same model as Panel 1/2.
--- Whole card is selectable (alwaysCapture), white outline in AdvDev, outer pad
--- for Move X + Size W + Padding.
+-- Shared wiring for a right-side drawer card: same model as Panel 1/2.
+-- Outer pad for Move X + Size W + Padding.
 function ns.ApplyRightDrawerCard(card, key, label, widthKey, baseW)
     if not card then return end
     if card.SetBackdrop then
@@ -416,7 +532,7 @@ function ns.ApplyRightDrawerCard(card, key, label, widthKey, baseW)
         card:SetBackdropColor(0.018, 0.022, 0.030, 0.96)
         card:SetBackdropBorderColor(0.72, 0.74, 0.78, 0.86)
     end
-    -- Drawer chrome border is always visible (not AdvDev-only).
+    -- Drawer chrome border is always visible.
     if ns.SetBorderColor then
         ns.SetBorderColor(card, 0.72, 0.74, 0.78, 0.86)
     elseif card.SetBackdropBorderColor then

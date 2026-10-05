@@ -1380,6 +1380,8 @@ local function Stub()
     return setmetatable(object, { __index = function(t, key)
         if key == "SetText" then return function(self, value) rawset(self, "text", value) end end
         if key == "SetShown" then return function(self, value) rawset(self, "shown", value) end end
+        if key == "Show" then return function(self) rawset(self, "shown", true) return self end end
+        if key == "Hide" then return function(self) rawset(self, "shown", false) return self end end
         if key == "CreateFontString" then
             return function(self, name, layer, template)
                 local text = Stub()
@@ -1409,6 +1411,23 @@ local function Stub()
         if key == "SetBackdrop" then return function(self, value) rawset(self, "_backdrop", value) end end
         if key == "SetBackdropColor" then
             return function(self, r, g, b, a) rawset(self, "_bg", { r, g, b, a }) end
+        end
+        if key == "SetParent" then return function(self, p) rawset(self, "_parent", p) end end
+        if key == "GetParent" then return function(self) return rawget(self, "_parent") end end
+        if key == "SetToplevel" then return function(self, v) rawset(self, "_toplevel", v) end end
+        if key == "SetScale" then return function(self, v) rawset(self, "_scale", v) end end
+        if key == "GetScale" then return function(self) return rawget(self, "_scale") or 1 end end
+        if key == "SetFrameStrata" then return function(self, v) rawset(self, "_strata", v) end end
+        if key == "GetFrameStrata" then return function(self) return rawget(self, "_strata") or "MEDIUM" end end
+        if key == "Raise" then return function(self) rawset(self, "_raised", (rawget(self, "_raised") or 0) + 1) end end
+        if key == "SetFont" then
+            return function(self, font, size, flags) rawset(self, "_font", { font, size, flags }) end
+        end
+        if key == "SetColorTexture" then
+            return function(self, r, g, b, a) rawset(self, "_color", { r, g, b, a }) end
+        end
+        if key == "SetTextColor" then
+            return function(self, r, g, b) rawset(self, "_color", { r, g, b }) end
         end
         if key == "SetBackdropBorderColor" then
             return function(self, r, g, b, a) rawset(self, "_border", { r, g, b, a }) end
@@ -2799,7 +2818,7 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
     OPTIONS = [
         ("showBisTooltip", "Best in Slot tooltip"),
         ("showBisGemsEnchants", "Gems and enchants"),
-        ("bisUseGameTooltip", "Use the game tooltip instead"),
+        ("bisUseGameTooltip", "Best in Slot: game tooltip"),
     ]
 
     def setUp(self) -> None:
@@ -2828,25 +2847,24 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
     def active(self, check):
         return check._enabled is not False and check._alpha == 1
 
-    def test_three_options_in_order_under_the_best_in_slot_title(self) -> None:
+    def test_three_options_in_order(self) -> None:
         checks = [self.check(key) for key, _ in self.OPTIONS]
         self.assertEqual([label for _, label in self.OPTIONS], [c.Text.text for c in checks])
-        self.assertEqual("Best in Slot", self.frame.optionsDrawerCard.bisTooltipTitle.text)
-        points = [c.points[len(c.points)] for c in checks]
-        xs, ys = [p[4] for p in points], [p[5] for p in points]
-        # The same step as the Bag Markers rows (row 22 + gap 2); the separate game tooltip option sits further down.
-        self.assertEqual([0, -24, -54], ys)
-        self.assertGreater(xs[1], xs[0])  # gems and enchants sits under the tooltip option
+        rows = [c.svRow for c in checks]
+        last = lambda region: region.points[len(region.points)]
+        # Under the group's heading (26), one row under the other: 24, 24, then the one with a grey line.
+        self.assertEqual([-26, -50, -74], [last(r)[5] for r in rows])
+        xs = [last(c.Text)[4] for c in checks]
+        self.assertGreater(xs[1], xs[0])  # gems and enchants hangs under the tooltip option
         self.assertEqual(xs[0], xs[2])
 
-    def test_block_fits_all_three_rows(self) -> None:
+    def test_group_heights_fit_their_rows(self) -> None:
         self.check()
         card = self.frame.optionsDrawerCard
-        self.assertEqual(3 * 24 - 2 + 6, card.bisTooltipChecksBlock._height)
-        # Bag Markers: Upgrade Arrow, MS / OS Labels and Stat Ranks. Three rows still fit inside the block height
-        # the Best in Slot block sets for every block, so adding the row moves nothing.
-        self.assertEqual(3 * 24 - 2, card.bagChecksBlock._height)
-        self.assertLessEqual(card.bagChecksBlock._height, card.bisTooltipChecksBlock._height)
+        self.assertEqual(26 + 24 + 24 + 36 + 6, card.bisTooltipGroup._height)  # heading, two rows, one with a grey line, a pad
+        self.assertEqual(26 + 24 + 24 + 36 + 6, card.bagGroup._height)  # Upgrade Arrow, MS / OS Labels, Stat Ranks
+        self.assertEqual(26 + 36 + 36 + 36 + 46 + 6, card.windowGroup._height)  # Always on top, Compact Mode, Auto-hide, Window size
+        self.assertEqual(26 + 24 + 24 + 36 + 6, card.trinketTooltipGroup._height)
 
     def states(self):
         """(checked, active) for options 1, 2, 3."""
@@ -2929,9 +2947,8 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
     def test_bag_marker_toggles_are_unchanged(self) -> None:
         self.click("showBisTooltip", False)
         card = self.frame.optionsDrawerCard
-        self.assertEqual("Upgrade Arrow", card.bagIndicatorChecks["showUpgradeArrow"].Text.text)
-        self.assertEqual("|cff00ff00MS|r / |cff00ff00OS|r Labels", card.bagIndicatorChecks["showMsOsLabels"].Text.text)
-        self.assertEqual("Bag Markers", card.bagMarkersTitle.text)
+        self.assertEqual("Upgrade Arrow on bag items", card.bagIndicatorChecks["showUpgradeArrow"].Text.text)
+        self.assertEqual("|cff00ff00MS|r / |cff00ff00OS|r Labels on bag items", card.bagIndicatorChecks["showMsOsLabels"].Text.text)
         for key in ("showUpgradeArrow", "showMsOsLabels"):
             self.assertTrue(self.active(card.bagIndicatorChecks[key]), key)
 
@@ -2941,69 +2958,66 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
     def tint(self, row):
         return tuple(round(row._bg[i], 2) for i in (1, 2, 3, 4))
 
-    def test_options_are_rows_inside_three_bordered_blocks(self) -> None:
+    def test_every_choice_is_a_row_with_a_switch(self) -> None:
         self.check()
         card = self.frame.optionsDrawerCard
-        for field in ("bagMarkersPanel", "bisTooltipPanel", "trinketTooltipPanel"):
-            panel = getattr(card, field)
-            self.assertEqual("BackdropTemplate", panel._frameTemplate, field)
-            self.assertEqual("Interface\\Tooltips\\UI-Tooltip-Border", panel._backdrop.edgeFile, field)
-        for key in ("showUpgradeArrow", "showMsOsLabels", "showBisTooltip", "showBisGemsEnchants",
-                    "bisUseGameTooltip", "showTrinketTooltip", "showTrinketEffect", "trinketUseGameTooltip"):
+        with_desc = ("showStatRanks", "bisUseGameTooltip", "trinketUseGameTooltip", "alwaysOnTop", "compactMode", "autoHideLeft")
+        for key in ("showUpgradeArrow", "showMsOsLabels", "showStatRanks", "showBisTooltip", "showBisGemsEnchants",
+                    "bisUseGameTooltip", "showTrinketTooltip", "showTrinketEffect", "trinketUseGameTooltip",
+                    "alwaysOnTop", "compactMode", "autoHideLeft"):
             row = self.row_of(key)
-            self.assertEqual(22, row._height, key)
+            self.assertEqual(36 if key in with_desc else 24, row._height, key)
+            self.assertIsNotNone(row.switch, key)
+            self.assertEqual((28, 15), (row.switch._width, row.switch._height), key)
             self.assertFalse(self.check(key)._mouse, key)  # the whole row is the click target
+            self.assertEqual(key in with_desc, bool(card.bagIndicatorChecks[key].desc.shown), key)  # the grey line
 
-    def test_blocks_have_the_same_height_gap_and_title_distance(self) -> None:
+    def test_groups_are_stacked_in_order_with_the_same_gap_and_a_gold_heading_each(self) -> None:
         self.check()
         card = self.frame.optionsDrawerCard
-        panels = [card.bagMarkersPanel, card.bisTooltipPanel, card.trinketTooltipPanel]
-        titles = [card.bagMarkersTitle, card.bisTooltipTitle, card.trinketTooltipTitle]
-        blocks = [card.bagChecksBlock, card.bisTooltipChecksBlock, card.trinketTooltipChecksBlock]
+        groups = [card.windowGroup, card.bagGroup, card.bisTooltipGroup, card.trinketTooltipGroup]
         last = lambda region: region.points[len(region.points)]
-        # All three blocks are as high as the tallest group needs (3 rows + the separate option's gap).
-        self.assertEqual([5 + 76 + 5] * 3, [panel._height for panel in panels])
-        tops = [last(panel)[5] for panel in panels]
-        # The same gap from one block to the next block's title.
-        gaps = [last(titles[i + 1])[5] - (tops[i] - panels[i]._height) for i in (0, 1)]
-        self.assertEqual(gaps[0], gaps[1])
-        self.assertEqual(-8, gaps[0])
-        for panel, title in zip(panels, titles):
-            self.assertEqual(16, last(title)[5] - last(panel)[5])  # the title sits 16px above its block
-            self.assertEqual(14, panel.points[1][4])
-        # The rows of a group are inside its block, centred when the group is shorter.
-        for panel, block in zip(panels, blocks):
-            gap_top = last(panel)[5] - last(block)[5]
-            gap_bottom = last(block)[5] - block._height - (last(panel)[5] - panel._height)
-            self.assertLessEqual(abs(gap_top - gap_bottom), 1)
-            self.assertGreaterEqual(gap_top, 5)
-        self.assertEqual(-46, last(titles[0])[5])  # under the title hairline
-        self.assertGreaterEqual(tops[2] - panels[2]._height, -(440 - 33 - 6 - 20 - 6))  # inside the card
+        self.assertEqual(["WINDOW", "BAG ITEMS AND TOOLTIPS", "BEST IN SLOT", "RANKED TRINKETS"],
+                         [g.heading.text for g in groups])
+        self.assertEqual(0, last(groups[0])[5])  # the window's own choices come first, at the top of the list
+        gaps = [last(groups[i + 1])[5] - (last(groups[i])[5] - groups[i]._height) for i in (0, 1, 2)]
+        self.assertEqual([-8, -8, -8], gaps)  # the same small gap between cards
+        self.assertEqual(sum(g._height for g in groups) + 3 * 8, self.ns.StatVerdictOptionsDrawerPanel.GetContentHeight())
+        for group in groups:
+            self.assertEqual(1, group.rule._height)  # the thin rule under the heading
 
-    def test_group_titles_are_white_and_sit_above_their_blocks(self) -> None:
-        source = (ADDON / "UI" / "SV_OptionsDrawerPanel.lua").read_text(encoding="utf-8-sig")
-        self.assertIn("card[section.titleField]:SetTextColor(1, 1, 1)", source)
-        self.assertIn('card.bagMarkersTitle:SetTextColor(1, 1, 1)', source)
-        # The title is placed at the block's top minus its own height: above the block, not inside it.
-        self.assertIn("local panelTop = y - TITLE_HEIGHT", source)
-
-    def test_the_game_tooltip_option_is_set_apart_by_a_wider_gap(self) -> None:
-        card = self.frame.optionsDrawerCard
+    def test_the_list_scrolls_inside_the_panel(self) -> None:
         self.check()
-        rows = [self.row_of(k) for k in ("showBisTooltip", "showBisGemsEnchants", "bisUseGameTooltip")]
-        self.assertEqual([0, 2, 8], [r.svGapAbove for r in rows])
-        self.assertEqual([False, True, True], [r.svHasLine for r in rows])
+        card = self.frame.optionsDrawerCard
+        self.assertIsNotNone(card.scroll)
+        self.assertIsNotNone(card.content)
+        points = {p[1]: p for p in card.scroll.points.values()}
+        self.assertEqual((14, -46), (points["TOPLEFT"][4], points["TOPLEFT"][5]))  # under the title chip, 14 in
 
-    def test_a_ticked_row_is_tinted_gold_and_an_unticked_one_is_clear(self) -> None:
-        self.assertEqual((0.16, 0.13, 0.03, 0.85), self.tint(self.row_of("showBisTooltip")))
-        self.assertEqual((0, 0, 0, 0), self.tint(self.row_of("bisUseGameTooltip")))
+    def label_colour(self, key):
+        colour = self.check(key).Text._color
+        return (colour[1], colour[2], colour[3])
+
+    def knob(self, key):
+        c = self.row_of(key).switch.knob._color
+        return (c[1], c[2], c[3])
+
+    def test_a_ticked_choice_has_a_gold_switch_and_an_unticked_one_a_grey_switch(self) -> None:
+        gold, grey = (1.0, 0.82, 0.0), (0.55, 0.57, 0.62)
+        self.assertEqual(gold, self.knob("showBisTooltip"))
+        self.assertEqual(grey, self.knob("bisUseGameTooltip"))
         self.click("bisUseGameTooltip", True)
-        self.assertEqual((0.16, 0.13, 0.03, 0.85), self.tint(self.row_of("bisUseGameTooltip")))
-        self.assertEqual((0, 0, 0, 0), self.tint(self.row_of("showBisTooltip")))
+        self.assertEqual(gold, self.knob("bisUseGameTooltip"))
+        self.assertEqual(grey, self.knob("showBisTooltip"))
 
-    def test_only_rows_after_the_first_have_a_hairline(self) -> None:
-        shown = [self.row_of(k).svHasLine for k in ("showBisTooltip", "showBisGemsEnchants", "bisUseGameTooltip")]
-        self.assertEqual([False, True, True], [bool(v) for v in shown])
+    def test_the_names_stay_white_whatever_the_switch_says(self) -> None:
+        for key in ("showBisTooltip", "bisUseGameTooltip"):
+            c = self.check(key).Text._color
+            self.assertEqual((1, 1, 1), (c[1], c[2], c[3]), key)
+
+    def test_no_row_is_tinted_while_the_mouse_is_elsewhere(self) -> None:
+        for key in ("showBisTooltip", "bisUseGameTooltip"):
+            self.assertEqual((0, 0, 0, 0), self.tint(self.row_of(key)), key)
 
     def test_a_locked_row_is_dimmed_and_does_not_react_to_a_click(self) -> None:
         self.click("showBisTooltip", False)
@@ -3035,9 +3049,9 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
 
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
-class FeaturesDrawerGeometryTests(unittest.TestCase):
-    """Features drawer: wider than before, equal left/right margins for every title,
-    checkbox group and label, and the window grows with it (like the other drawers)."""
+class OptionsDrawerGeometryTests(unittest.TestCase):
+    """Options drawer: equal left/right margins for every title, group and label, and the window grows with it
+    (like the other drawers)."""
 
     WIDTH = 320
     MARGIN = 14
@@ -3045,14 +3059,17 @@ class FeaturesDrawerGeometryTests(unittest.TestCase):
     GAP = 5
     INDENT = 18
     ROW_PAD = 4  # row edge > tick, and label > row edge
-    BLOCK_PAD = 10  # block edge > its title and rows
     CHAR_W = 6.5  # generous per-character width of the 11pt checkbox label font
     LABELS = {
-        "showUpgradeArrow": "Upgrade Arrow",
-        "showMsOsLabels": "MS / OS Labels",
+        "showUpgradeArrow": "Upgrade Arrow on bag items",
+        "showMsOsLabels": "MS / OS Labels on bag items",
         "showBisTooltip": "Best in Slot tooltip",
         "showBisGemsEnchants": "Gems and enchants",
-        "bisUseGameTooltip": "Use the game tooltip instead",
+        "bisUseGameTooltip": "Best in Slot: game tooltip",
+        "trinketUseGameTooltip": "Ranked Trinkets: game tooltip",
+        "showStatRanks": "Stat Ranks on tooltips",
+        "alwaysOnTop": "Always on top",
+        "compactMode": "Compact Mode",
     }
 
     def setUp(self) -> None:
@@ -3082,36 +3099,45 @@ class FeaturesDrawerGeometryTests(unittest.TestCase):
         self.assertEqual(self.WIDTH, self.layout.GetRightPanelWidth(self.frame))
         self.assertEqual(self.WIDTH, self.card._width)
 
-    def test_titles_and_groups_share_the_left_margin(self) -> None:
-        # Titles sit above their block at the block's left edge; the rows are padded inside the block.
-        for region in (self.card.bagMarkersTitle, self.card.bisTooltipTitle, self.card.trinketTooltipTitle):
-            self.assertEqual(self.MARGIN, self.last_point(region)[4])
-        for region in (self.card.bagChecksBlock, self.card.bisTooltipChecksBlock, self.card.trinketTooltipChecksBlock):
-            self.assertEqual(self.MARGIN + self.BLOCK_PAD, self.last_point(region)[4])
+    def test_the_list_has_the_same_margin_left_and_right(self) -> None:
+        scroll = self.card.scroll
+        points = {p[1]: p for p in scroll.points.values()}
+        self.assertEqual(self.MARGIN, points["TOPLEFT"][4])
+        # The scroll bar takes room on the right while the list scrolls.
+        self.assertEqual(-(self.MARGIN + 18), points["BOTTOMRIGHT"][4])
 
-    def test_groups_keep_the_same_margin_on_the_right(self) -> None:
-        for block in (self.card.bagChecksBlock, self.card.bisTooltipChecksBlock, self.card.trinketTooltipChecksBlock):
-            left = self.last_point(block)[4]
-            self.assertEqual(self.MARGIN + self.BLOCK_PAD, self.card._width - (left + block._width))
+    def blocks(self):
+        return (self.card.windowGroup, self.card.bagGroup, self.card.bisTooltipGroup, self.card.trinketTooltipGroup)
 
-    def test_every_label_fits_with_the_right_margin(self) -> None:
+    def test_every_group_is_as_wide_as_the_list(self) -> None:
+        for group in self.blocks():
+            self.assertEqual(self.card.content._width, group._width)
+        self.assertEqual(self.WIDTH - self.MARGIN - (self.MARGIN + 18), self.card.content._width)
+
+    def test_every_label_fits_next_to_its_switch(self) -> None:
         checks = self.card.bagIndicatorChecks
         for key, label in self.LABELS.items():
             check = checks[key]
-            block = self.card.bisTooltipChecksBlock if key.startswith(("showBis", "bisUse")) \
-                else self.card.bagChecksBlock
-            indent = self.last_point(check)[4]
-            self.assertEqual((self.INDENT if key == "showBisGemsEnchants" else 0) + self.ROW_PAD, indent, key)
-            label_left = self.last_point(block)[4] + indent + self.CHECK + self.GAP
-            label_right = label_left + check.Text._width
-            self.assertEqual(self.MARGIN + self.BLOCK_PAD + self.ROW_PAD, self.card._width - label_right, key)  # right padding
+            row = check.svRow
+            indent = 12 if key in ("showBisGemsEnchants", "autoHideLeft") else 0
+            left = check.Text.points[len(check.Text.points)][4]
+            self.assertEqual(10 + indent, left, key)
+            # name, then 8 clear, then the switch, then the row's 10 padding
+            self.assertEqual(self.card.content._width - left - 10 - 28 - 8, check.Text._width, key)
             self.assertGreaterEqual(check.Text._width, len(label) * self.CHAR_W, key)  # not cut off
 
     def test_longest_label_has_room_on_both_sides(self) -> None:
         longest = max(self.LABELS.values(), key=len)
-        self.assertEqual("Use the game tooltip instead", longest)
-        text_right = self.MARGIN + self.BLOCK_PAD + self.ROW_PAD + self.CHECK + self.GAP + len(longest) * self.CHAR_W
+        self.assertEqual("Ranked Trinkets: game tooltip", longest)
+        text_right = self.MARGIN + self.ROW_PAD + self.CHECK + self.GAP + len(longest) * self.CHAR_W
         self.assertGreaterEqual(self.card._width - text_right, 3 * self.MARGIN)
+
+    def test_the_longest_label_fits_at_the_width_every_player_gets(self) -> None:
+        # The drawer is 320 wide for every player (the old saved narrowing no longer applies to it).
+        self.assertEqual(self.WIDTH, self.panel.GetPreferredWidth(self.frame))
+        longest = max(self.LABELS.values(), key=len)
+        room = self.card.content._width - 10 - 28 - 8 - 10
+        self.assertGreaterEqual(room, len(longest) * self.CHAR_W)
 
     def test_window_grows_with_the_drawer_and_keeps_its_edge(self) -> None:
         right_x = self.layout.GetRightPanelX(self.frame)
@@ -3136,7 +3162,7 @@ class TrinketTooltipFeatureToggleTests(unittest.TestCase):
     OPTIONS = [
         ("showTrinketTooltip", "Ranked Trinkets tooltip"),
         ("showTrinketEffect", "Trinket effect"),
-        ("trinketUseGameTooltip", "Use the game tooltip instead"),
+        ("trinketUseGameTooltip", "Ranked Trinkets: game tooltip"),
     ]
     setUp = BisTooltipFeatureToggleTests.setUp
     check = BisTooltipFeatureToggleTests.check
@@ -3145,25 +3171,23 @@ class TrinketTooltipFeatureToggleTests(unittest.TestCase):
     active = BisTooltipFeatureToggleTests.active
     states = BisTooltipFeatureToggleTests.states
 
-    def test_section_sits_under_best_in_slot_with_the_same_step(self) -> None:
+    def test_section_has_the_same_step_as_the_others(self) -> None:
         checks = [self.check(key) for key, _ in self.OPTIONS]
         self.assertEqual([label for _, label in self.OPTIONS], [c.Text.text for c in checks])
-        card = self.frame.optionsDrawerCard
-        self.assertEqual("Ranked Trinkets", card.trinketTooltipTitle.text)
-        points = [c.points[len(c.points)] for c in checks]
-        self.assertEqual([0, -24, -54], [p[5] for p in points])
-        self.assertGreater(points[1][4], points[0][4])
-        self.assertEqual(points[0][4], points[2][4])
-        self.assertEqual(3 * 24 - 2 + 6, card.trinketTooltipChecksBlock._height)
+        last = lambda region: region.points[len(region.points)]
+        self.assertEqual([-26, -50, -74], [last(c.svRow)[5] for c in checks])
+        xs = [last(c.Text)[4] for c in checks]
+        self.assertGreater(xs[1], xs[0])
+        self.assertEqual(xs[0], xs[2])
+        self.assertEqual(26 + 24 + 24 + 36 + 6, self.frame.optionsDrawerCard.trinketTooltipGroup._height)
 
-    def test_section_does_not_overlap_best_in_slot_and_fits_the_card(self) -> None:
+    def test_section_sits_below_best_in_slot_inside_the_list(self) -> None:
         self.check()
         card = self.frame.optionsDrawerCard
-        bis = card.bisTooltipChecksBlock.points[len(card.bisTooltipChecksBlock.points)]
-        trinkets = card.trinketTooltipChecksBlock.points[len(card.trinketTooltipChecksBlock.points)]
-        title = card.trinketTooltipTitle.points[len(card.trinketTooltipTitle.points)]
-        self.assertLess(title[5], bis[5] - card.bisTooltipChecksBlock._height)  # title below the BiS block
-        self.assertGreaterEqual(trinkets[5] - card.trinketTooltipChecksBlock._height, -(440 - 33 - 6 - 20 - 6))
+        last = lambda region: region.points[len(region.points)]
+        bis, trinkets = last(card.bisTooltipGroup)[5], last(card.trinketTooltipGroup)[5]
+        self.assertLess(trinkets, bis - card.bisTooltipGroup._height)  # below the Best in Slot card, with the gap
+        self.assertEqual(-card.content._height, trinkets - card.trinketTooltipGroup._height)  # the list ends with this card
 
     def test_defaults_ours_on_effect_on_game_tooltip_off(self) -> None:
         self.assertEqual([(True, True), (True, True), (False, True)], self.states())
@@ -3199,38 +3223,94 @@ class TrinketTooltipFeatureToggleTests(unittest.TestCase):
 
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
-class SavedLayoutMigrationTests(unittest.TestCase):
-    """The Mode drawer's saved positions moved from "benchmark.*" to "weights.*": nothing is lost."""
+class LayoutSeedTests(unittest.TestCase):
+    """Every player, new or updating, starts from the window the add-on was tuned on (once). Nothing else is touched."""
 
     def setUp(self) -> None:
         self.lua = new_runtime()
         self.ns = self.lua.table()
         load_addon_file(self.lua, self.ns, "UI/SV_LayoutOffsets.lua")
 
-    def saved(self, **offsets):
-        self.lua.globals().StatVerdictDB = self.lua.table(devDashboardOffsets=self.lua.table_from(offsets))
+    def db(self):
+        return self.lua.globals().StatVerdictDB
+
+    def start_with(self, **saved):
+        self.lua.globals().StatVerdictDB = self.lua.table(**saved) if saved else None
         return self.ns.EnsureLayoutDB()
 
-    def test_old_keys_are_moved_and_removed(self) -> None:
-        db = self.saved(**{
-            "benchmark.card": self.lua.table(x=7, y=-3),
-            "benchmark.width": self.lua.table(width=20),
-            "benchmark.card.pad": self.lua.table(top=2),
-            "bis.card": self.lua.table(x=1, y=1),
-        })
-        self.assertEqual((7, -3), self.ns.GetLayoutOffset("weights.card"))
-        self.assertEqual(20, self.ns.GetLayoutSizeDelta("weights.width"))
-        self.assertEqual(2, self.ns.GetLayoutPadding("weights.card.pad").top)
-        self.assertIsNone(db["benchmark.card"])
-        self.assertIsNone(db["benchmark.width"])
-        self.assertIsNotNone(db["bis.card"])
+    def test_a_new_install_gets_the_tuned_window(self) -> None:
+        self.start_with()
+        self.assertEqual(50, self.ns.GetLayoutHeightDelta("setup.height"))
+        self.assertEqual(50, self.ns.GetLayoutHeightDelta("stats.height"))
+        self.assertEqual(5, self.ns.GetLayoutPadding("options.card.pad").top)
+        self.assertEqual(2, self.db().layoutSeedVersion)
 
-    def test_existing_new_keys_are_kept_and_it_runs_once(self) -> None:
-        db = self.saved(**{"benchmark.card": self.lua.table(x=7, y=-3), "weights.card": self.lua.table(x=1, y=2)})
-        self.assertEqual((1, 2), self.ns.GetLayoutOffset("weights.card"))
-        db["benchmark.card"] = self.lua.table(x=9, y=9)  # written again later: not moved a second time
+    def test_a_new_install_gets_the_window_layout_and_title_size_too(self) -> None:
+        self.start_with()
+        layout = self.db().statAuditLayout
+        self.assertEqual(732, layout.frameWidth)
+        self.assertEqual(108, layout.dropdownWidth)
+        self.assertEqual(13, self.db().specTitleFontSize)
+
+    def test_the_seed_carries_no_authoring_lock_flags(self) -> None:
+        offsets = self.start_with()
+        for key in offsets.keys():
+            self.assertFalse(str(key).endswith(".locked"), key)
+
+    def test_an_updating_player_with_any_old_layout_gets_it_whatever_they_had(self) -> None:
+        old = self.lua.table(devDashboardOffsets=self.lua.table_from({
+            "setup.card": self.lua.table(x=3, y=0),
+            "setup.width": self.lua.table(width=-10),
+        }), statAuditLayout=self.lua.table(frameWidth=500), specTitleFontSize=20)
+        self.lua.globals().StatVerdictDB = old
         self.ns.EnsureLayoutDB()
-        self.assertEqual((1, 2), self.ns.GetLayoutOffset("weights.card"))
+        self.assertEqual(50, self.ns.GetLayoutHeightDelta("setup.height"))
+        self.assertEqual(-61, self.ns.GetLayoutSizeDelta("setup.width"))
+        self.assertEqual(732, self.db().statAuditLayout.frameWidth)
+        self.assertEqual(13, self.db().specTitleFontSize)
+
+    def test_an_empty_layout_that_was_cleared_earlier_is_filled_too(self) -> None:
+        self.start_with(devDashboardOffsets=self.lua.table())
+        self.assertEqual(50, self.ns.GetLayoutHeightDelta("setup.height"))
+
+    def test_what_the_old_layout_dev_tools_left_in_the_saved_file_is_removed(self) -> None:
+        leftovers = ("advancedDevelopmentMode", "devDashboardHidden", "devDashboardHiddenUndo", "devDashboardOffsetsUndo",
+                     "devLayoutPadPosition", "devDashboardLayoutSchemaVersion", "devDashboardOffsetsRestoredFromBackup",
+                     "layoutWeightsKeysMoved", "devFlushDockFrames12Fix", "devAbsoluteStackFrames12Fix",
+                     "devBisWidthAutoFix", "devSingleGutterBetweenCardsFix", "devStatsCardDockFix",
+                     "devUniformPanelGutterFix", "devScreen2FromOffTable")
+        self.start_with(**{key: self.lua.table(x=1) for key in leftovers}, showUpgradeArrow=False)
+        for key in leftovers:
+            self.assertIsNone(self.db()[key], key)
+        self.assertIs(False, self.db().showUpgradeArrow)
+
+    def test_no_trace_of_the_old_dev_tools_is_left_in_the_code(self) -> None:
+        for path in sorted((ADDON / "UI").glob("*.lua")):
+            text = path.read_text(encoding="utf-8-sig")
+            self.assertNotIn("AdvDev", text, path.name)
+
+    def test_the_move_happens_once(self) -> None:
+        self.start_with()
+        self.ns.WriteLayoutOffset("setup.card", 4, 0)
+        self.db().statAuditLayout.frameWidth = 600
+        self.ns.EnsureLayoutDB()
+        self.assertEqual((4, 0), self.ns.GetLayoutOffset("setup.card"))
+        self.assertEqual(600, self.db().statAuditLayout.frameWidth)
+
+    def test_window_position_builds_and_other_settings_are_not_touched(self) -> None:
+        pos = self.lua.table(char1=self.lua.table(mode="CENTER", ox=12, oy=-7))
+        self.start_with(statAuditWindowPosByCharacter=pos, showUpgradeArrow=False, gearLevel="myth",
+                        statAuditSelection=self.lua.table(goal="raid"))
+        db = self.db()
+        self.assertEqual(12, db.statAuditWindowPosByCharacter.char1.ox)
+        self.assertIs(False, db.showUpgradeArrow)
+        self.assertEqual("myth", db.gearLevel)
+        self.assertEqual("raid", db.statAuditSelection.goal)
+
+    def test_the_main_window_asks_for_the_seed_before_it_reads_its_layout(self) -> None:
+        source = (ADDON / "UI" / "SV_StatAudit.lua").read_text(encoding="utf-8-sig")
+        start = source.index("local function EnsureSavedDB()")
+        self.assertIn("ns.EnsureLayoutDB()", source[start:start + 400])
 
 
 if __name__ == "__main__":

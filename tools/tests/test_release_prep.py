@@ -43,7 +43,7 @@ class NextVersionTests(unittest.TestCase):
 
 
 TOC = "﻿## Interface: 120100\n## Title: StatVerdict\n## Version: {version}\n## SavedVariables: StatVerdictDB\nCore/A.lua\n"
-LUA = 'local addonName, ns = ...\n\nns.VERSION = "{version}"\n\nlocal x = 1\n'
+LUA = 'local addonName, ns = ...\n\nns.VERSION = "{version}"\nns.RELEASE_DATE = "2000-01-01"\n\nlocal x = 1\n'
 STORE = "# StatVerdict — store & launch copy (v{version})\n\nText with (v9.9.9) later on.\n"
 PENDING = "# StatVerdict {version}\n\nWaiting.\n\n```\n{version}\nFixed\n- Something.\n```\n"
 
@@ -77,7 +77,9 @@ class PrepareTests(unittest.TestCase):
     def test_a_data_release_writes_the_version_everywhere_and_a_changelog(self) -> None:
         root, result = self.run_prepare("1.2.40", date(2026, 10, 7), pending=False)
         self.assertEqual("1.2.41", rp.read_version(root))
-        self.assertIn('ns.VERSION = "1.2.41"', (root / "StatVerdict" / "StatVerdict.lua").read_text(encoding="utf-8"))
+        lua = (root / "StatVerdict" / "StatVerdict.lua").read_text(encoding="utf-8")
+        self.assertIn('ns.VERSION = "1.2.41"', lua)
+        self.assertIn('ns.RELEASE_DATE = "2026-10-07"', lua)  # the window shows it as the last update
         store = (root / "StatVerdict" / "STORE.md").read_text(encoding="utf-8")
         self.assertIn("(v1.2.41)", store.splitlines()[0])
         self.assertIn("(v9.9.9)", store)  # only the header is touched

@@ -356,7 +356,7 @@ end
 -- Stat ranks: every secondary stat on an item tooltip gets its place in the guide's order for the build
 -- shown in the window ("+73 Critical Strike #1 MS"). Stats the guide calls roughly equal carry the same number.
 -- The build is the one selected in the window (MS or OS, in gold, after the number so it
--- stands apart from a green stat line); holding Alt shows the other one. Switched off with Features > Stat Ranks (StatVerdictDB.showStatRanks).
+-- stands apart from a green stat line); holding Alt shows the other one. Switched off with Options > Stat Ranks (StatVerdictDB.showStatRanks).
 -- Holding Ctrl over an item the Catalyst can turn into the Best in Slot set piece swaps the tooltip for that piece (same
 -- item level, its own stats and verdict); Ctrl up puts the item back. (Alt is the stat ranks' key: it shows the other
 -- build.) The flag only stops the swapped tooltip from being swapped again.

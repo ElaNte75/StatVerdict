@@ -3,40 +3,44 @@ local addonName, ns = ...
 local Panel = {}
 ns.StatVerdictOptionsDrawerPanel = Panel
 
--- Match setup checkbox look (SettingsPanel), slightly larger for readability.
-local DROPDOWN_LABEL_FONT_SIZE = 10
-local DROPDOWN_SCALE = 0.92
+-- The Options drawer: four dark group cards (the window, bag items and tooltips, Best in Slot, Ranked Trinkets), each under a
+-- small gold heading with a thin rule. A choice is a row: its name, a short grey line under it where one helps, and a switch
+-- on the right (gold when on). Hovering a row explains it. The list scrolls when it is taller than the panel.
 local CHECKBOX_LABEL_FONT_SIZE = 11
-local BAG_CHECK_LABEL_GAP = 5
--- Three blocks (Bag Markers, Best in Slot, Ranked Trinkets), each a bordered card
--- like the Guide drawer's choices, under its white title: the options as rows that
--- are tinted gold when ticked, separated by a hairline. A separate extra option
--- (the game tooltip) sits further down, behind a wider gap. All three blocks have
--- the same height (that of the tallest); a shorter group is centred in it.
-local ROW_HEIGHT = 22
-local BAG_CHECK_STEP = 24              -- row height + 2px gap
-local SEPARATED_EXTRA = 6              -- extra gap above a separate option
-local ROW_PAD = 4                      -- row edge > tick, and label > row edge
-local BLOCK_PAD = 10                   -- block edge > rows, left and right
-local BLOCK_VPAD = 5                   -- block edge > rows, top and bottom
-local TITLE_HEIGHT = 16                -- title (12px) + 4px, above the block
-local BLOCK_GAP = 8                    -- block > next title
-local FIRST_TITLE_TOP = -46            -- under the title hairline
-local BLOCK_BACKDROP = {
-    bgFile = "Interface\\Buttons\\WHITE8X8",
-    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-    tile = false,
-    edgeSize = 12,
-    insets = { left = 3, right = 3, top = 3, bottom = 3 },
-}
+local DESC_FONT_SIZE = 10
+local ROW_HEIGHT = 24                      -- a row without a grey line
+local ROW_HEIGHT_DESC = 36                 -- a row with one
+local ROW_HEIGHT_SLIDER = 46               -- the name and the value above, the slider under them
+local ROW_PAD = 10                         -- row edge > label, and switch > row edge
+local CHILD_INDENT = 12                    -- a choice that belongs to the one above
+local GROUP_PAD_BOTTOM = 6
+local GROUP_HEADER_HEIGHT = 26             -- the heading and its rule
+local GROUP_GAP = 8
+local FIRST_ROW_TOP = -46                  -- under the title chip
+local SWITCH_W, SWITCH_H = 28, 15
+local SCROLLBAR_WIDTH = 18
+local CONTENT_BOTTOM_PAD = 10              -- under the list in a docked panel
+local FLOAT_MAX_HEIGHT = 500               -- a floating Options window is never higher than this; the list scrolls
+local FLOAT_AIR = 8
 local ROW_BACKDROP = { bgFile = "Interface\\Buttons\\WHITE8X8" }
+local GROUP_BACKDROP = {
+    bgFile = "Interface\\Buttons\\WHITE8X8",
+    edgeFile = "Interface\\Buttons\\WHITE8X8",
+    edgeSize = 1,
+    insets = { left = 1, right = 1, top = 1, bottom = 1 },
+}
+local SWITCH_BACKDROP = {
+    bgFile = "Interface\\Buttons\\WHITE8X8",
+    edgeFile = "Interface\\Buttons\\WHITE8X8",
+    edgeSize = 1,
+    insets = { left = 1, right = 1, top = 1, bottom = 1 },
+}
 local GOLD = { 1.0, 0.82, 0.0 }
+local GREY = { 0.55, 0.57, 0.62 }
 local LOCKED_ALPHA = 0.45
-local LINE = { 0.72, 0.74, 0.78, 0.30 }
 local DRAWER_PREFERRED_WIDTH = 320
--- Left/right inner margin for titles, checkbox groups and labels (same as the Guide drawer MARGIN).
+-- Left/right inner margin for the list (same as the Guide drawer MARGIN).
 local CONTENT_MARGIN = 14
-local CHECK_BOX_SIZE = 22
 local TITLE_FONT_SIZE_DEFAULT = 15
 local TITLE_FONT_SIZE_MIN = 11
 local TITLE_FONT_SIZE_MAX = 24
@@ -46,22 +50,6 @@ local function Offset(key)
     return 0, 0
 end
 
-local function SizeDelta(key)
-    if ns.GetLayoutSizeDelta then return ns.GetLayoutSizeDelta(key) end
-    return 0
-end
-
-local function HeightDelta(key)
-    if ns.GetLayoutHeightDelta then return ns.GetLayoutHeightDelta(key) end
-    return 0
-end
-
-local function Padding(key)
-    if ns.GetLayoutPadding then return ns.GetLayoutPadding(key) end
-    return { top = 0, bottom = 0, left = 0, right = 0 }
-end
-
-
 local function Clamp(value, minValue, maxValue)
     value = tonumber(value) or 0
     if value < minValue then return minValue end
@@ -69,61 +57,7 @@ local function Clamp(value, minValue, maxValue)
     return value
 end
 
--- Place a Features text title at its saved position.
-local function PlaceFeaturesTitle(card, fontString, layoutKey, label, defaultX, defaultY)
-    if not (card and fontString and layoutKey) then return end
-    local ox, oy = Offset(layoutKey)
-    local pad = Padding(layoutKey .. ".pad")
-    fontString:ClearAllPoints()
-    fontString:SetPoint(
-        "TOPLEFT",
-        card,
-        "TOPLEFT",
-        defaultX + (ox or 0) + (pad.left or 0),
-        defaultY + (oy or 0) - (pad.top or 0)
-    )
-    fontString:Show()
-end
-
--- Checkbox group: a box around the marker toggles at its saved position and size.
-local function PlaceBagChecksBlock(card, block, layoutKey, label, defaultX, defaultY, baseW, baseH)
-    if not (card and block and layoutKey) then return end
-    local ox, oy = Offset(layoutKey)
-    local pad = Padding(layoutKey .. ".pad")
-    local logicalW = baseW + SizeDelta(layoutKey .. ".width")
-    local logicalH = baseH + HeightDelta(layoutKey .. ".height")
-    -- Cap runaway saved heights from older orphan AdvDev boxes.
-    if logicalW < 80 then logicalW = 80 end
-    if logicalH < baseH then logicalH = baseH end
-    if logicalH > baseH + 80 then logicalH = baseH + 80 end
-    if logicalW > 420 then logicalW = 420 end
-    local visW = math.max(40, logicalW - (pad.left or 0) - (pad.right or 0))
-    local visH = math.max(20, logicalH - (pad.top or 0) - (pad.bottom or 0))
-    block:ClearAllPoints()
-    block:SetPoint(
-        "TOPLEFT",
-        card,
-        "TOPLEFT",
-        defaultX + (ox or 0) + (pad.left or 0),
-        defaultY + (oy or 0) - (pad.top or 0)
-    )
-    block:SetSize(visW, visH)
-    block:Show()
-    if block.SetBackdrop then
-        if ns.SetBorderColor then
-            ns.SetBorderColor(block, 0, 0, 0, 0)
-        end
-        if block.SetBackdropBorderColor then
-            block:SetBackdropBorderColor(0, 0, 0, 0)
-        end
-        if block.SetBackdropColor then
-            block:SetBackdropColor(0, 0, 0, 0)
-        end
-    end
-    return visW
-end
-
--- Quiet reader for saved title size (no Features UI). Both titles share this value.
+-- Quiet reader for saved title size (no Options UI). Both titles share this value.
 function ns.GetSpecTitleFontSize()
     local db = _G.StatVerdictDB
     local size = db and tonumber(db.specTitleFontSize) or nil
@@ -133,8 +67,12 @@ function ns.GetSpecTitleFontSize()
     return Clamp(size, TITLE_FONT_SIZE_MIN, TITLE_FONT_SIZE_MAX)
 end
 
-local function OptionFlagOn(key)
+-- Unset counts as on, except for a choice that is off unless the player turns it on (default = false).
+local function OptionFlagOn(key, default)
     local db = _G.StatVerdictDB
+    if default == false then
+        return type(db) == "table" and db[key] == true
+    end
     return db == nil or db[key] ~= false
 end
 
@@ -153,125 +91,217 @@ local function RefreshBagIndicatorsSoon()
     end
 end
 
-local function ApplyCheckboxLabelFont(control)
-    if not (control and control.Text and control.Text.GetFont and control.Text.SetFont) then return end
-    local font, _, flags = control.Text:GetFont()
-    if font then control.Text:SetFont(font, CHECKBOX_LABEL_FONT_SIZE, flags) end
+-- The switch of a row: gold with the knob on the right when on, dark with the knob on the left when off.
+local function PaintSwitch(row, on)
+    local switch = row and row.switch
+    if not switch then return end
+    if on then
+        switch:SetBackdropColor(0.45, 0.34, 0.0, 0.95)
+        switch:SetBackdropBorderColor(GOLD[1], GOLD[2], GOLD[3], 0.95)
+        switch.knob:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 1)
+        switch.knob:ClearAllPoints()
+        switch.knob:SetPoint("RIGHT", switch, "RIGHT", -2, 0)
+    else
+        switch:SetBackdropColor(0.09, 0.10, 0.13, 0.95)
+        switch:SetBackdropBorderColor(0.30, 0.31, 0.36, 0.95)
+        switch.knob:SetColorTexture(GREY[1], GREY[2], GREY[3], 1)
+        switch.knob:ClearAllPoints()
+        switch.knob:SetPoint("LEFT", switch, "LEFT", 2, 0)
+    end
 end
 
-local function ApplyBagCheckLabelGap(control)
-    local text = control and control.Text
-    if not (text and text.ClearAllPoints and text.SetPoint) then return end
-    text:ClearAllPoints()
-    text:SetPoint("LEFT", control, "RIGHT", BAG_CHECK_LABEL_GAP, 1)
-    text:SetJustifyH("LEFT")
-end
-
--- Keep a label inside its group so it stops CONTENT_MARGIN short of the card's right border.
-local function FitCheckLabel(control, blockWidth, indent)
-    local text = control and control.Text
-    if not (text and text.SetWidth) then return end
-    local width = (tonumber(blockWidth) or 0) - (indent or 0) - ROW_PAD - CHECK_BOX_SIZE - BAG_CHECK_LABEL_GAP - ROW_PAD
-    text:SetWidth(math.max(40, width))
-    if text.SetWordWrap then text:SetWordWrap(false) end
-end
-
+-- The name is white (grey while the choice is locked); a faint tint shows the row under the mouse; the switch shows the state.
 local function PaintOptionRow(check)
     local row = check and check.svRow
     if not row then return end
-    local selected = check.svSelected == true
-    if selected then
-        row:SetBackdropColor(0.16, 0.13, 0.03, 0.85)
-    elseif row.hovered and not check.svLocked then
+    if row.hovered and not check.svLocked then
         row:SetBackdropColor(0.12, 0.13, 0.17, 0.85)
     else
         row:SetBackdropColor(0, 0, 0, 0)
     end
     if check.Text then
-        if selected then
-            check.Text:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+        if check.svLocked then
+            check.Text:SetTextColor(GREY[1], GREY[2], GREY[3])
         else
             check.Text:SetTextColor(1, 1, 1)
         end
     end
+    PaintSwitch(row, check.svSelected == true)
     row:SetAlpha(check.svLocked and LOCKED_ALPHA or 1)
 end
 
-local function EnsureOptionRow(check, parent, gapAbove)
-    local row = check.svRow
+local function ShowOptionTip(row, check)
+    if not (check.svTip and GameTooltip and GameTooltip.SetOwner) then return end
+    GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
+    GameTooltip:AddLine(check.svTipTitle or "", GOLD[1], GOLD[2], GOLD[3])
+    GameTooltip:AddLine(check.svTip, 1, 1, 1, true)
+    GameTooltip:Show()
+end
+
+local function HideOptionTip(row)
+    if GameTooltip and GameTooltip.GetOwner and GameTooltip:GetOwner() == row then GameTooltip:Hide() end
+end
+
+local function EnsureSwitch(row)
+    if row.switch then return row.switch end
+    local switch = CreateFrame("Frame", nil, row, "BackdropTemplate")
+    switch:SetSize(SWITCH_W, SWITCH_H)
+    switch:SetBackdrop(SWITCH_BACKDROP)
+    switch:EnableMouse(false)
+    switch.knob = switch:CreateTexture(nil, "OVERLAY")
+    switch.knob:SetSize(SWITCH_H - 4, SWITCH_H - 4)
+    -- A round knob when the game can mask a texture; a small square otherwise.
+    pcall(function()
+        local mask = switch:CreateMaskTexture()
+        mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        mask:SetAllPoints(switch.knob)
+        switch.knob:AddMaskTexture(mask)
+    end)
+    row.switch = switch
+    return switch
+end
+
+-- One row: the choice's state lives in an invisible check button (the saved value, the name); the row draws it.
+local function EnsureOptionRow(card, group, option)
+    card.bagIndicatorChecks = card.bagIndicatorChecks or {}
+    local check = card.bagIndicatorChecks[option.key]
+    local row = check and check.svRow
     if not row then
-        row = CreateFrame("Button", nil, parent, "BackdropTemplate")
+        row = CreateFrame("Button", nil, group, "BackdropTemplate")
         row:SetBackdrop(ROW_BACKDROP)
+        check = CreateFrame("CheckButton", nil, row)
+        check:SetSize(1, 1)
+        check:EnableMouse(false)
+        check.optionKey = option.key
+        check.Text = check:CreateFontString(nil, "OVERLAY")
+        check.Text:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", CHECKBOX_LABEL_FONT_SIZE, "")
+        check.Text:SetJustifyH("LEFT")
+        check.Text:SetWordWrap(false)
+        check.desc = row:CreateFontString(nil, "OVERLAY")
+        check.desc:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", DESC_FONT_SIZE, "")
+        check.desc:SetJustifyH("LEFT")
+        check.desc:SetWordWrap(false)
+        check.desc:SetTextColor(GREY[1], GREY[2], GREY[3])
+        row.connector = row:CreateTexture(nil, "ARTWORK")
+        row.connector:SetColorTexture(0.35, 0.30, 0.12, 0.8)
+        row.connector:SetWidth(1)
+        EnsureSwitch(row)
         row:SetScript("OnEnter", function(self)
             self.hovered = true
             PaintOptionRow(check)
+            ShowOptionTip(self, check)
         end)
         row:SetScript("OnLeave", function(self)
             self.hovered = false
             PaintOptionRow(check)
+            HideOptionTip(self)
         end)
-        -- The whole row is the click target; the tick only shows the choice.
+        -- The whole row is the click target; the switch only shows the choice.
         row:SetScript("OnClick", function()
             if check.svLocked then return end
             check:SetChecked(not check.svSelected)
             local handler = check.scripts and check.scripts.OnClick or (check.GetScript and check:GetScript("OnClick"))
             if handler then handler(check) end
         end)
-        check:EnableMouse(false)
         check.svRow = row
-        row.line = row:CreateTexture(nil, "ARTWORK")
-        row.line:SetColorTexture(LINE[1], LINE[2], LINE[3], LINE[4])
-        row.line:SetHeight(1)
+        row.check = check
+        card.bagIndicatorChecks[option.key] = check
     else
-        row:SetParent(parent)
+        row:SetParent(group)
     end
-    row:SetHeight(ROW_HEIGHT)
-    -- A hairline in the middle of the gap above every row but the first.
-    row.svGapAbove = gapAbove or 0
-    row.svHasLine = (gapAbove or 0) > 0
-    if row.line then
-        row.line:ClearAllPoints()
-        local up = math.floor((gapAbove or 0) / 2)
-        row.line:SetPoint("BOTTOMLEFT", row, "TOPLEFT", 0, up)
-        row.line:SetPoint("BOTTOMRIGHT", row, "TOPRIGHT", 0, up)
-        if row.svHasLine then row.line:Show() else row.line:Hide() end
-    end
-    return row
+    check.svTip = option.tip
+    check.svTipTitle = option.tipTitle or option.label
+    check.Text:SetText(option.label)
+    check.desc:SetText(option.desc or "")
+    return check, row
 end
 
-local function ClearAccentWordLabel(control)
-    if not control then return end
-    if control.svAccent then control.svAccent:Hide() end
-    if control.svRest then control.svRest:Hide() end
-    if control.Text then control.Text:Show() end
-end
-
--- Future Safe / Approve toggles land in this list too.
--- No master "Enable All" — each marker is toggled manually.
+-- Choices that are plain on / off switches: each is saved under its key. Some run something when changed.
 local BAG_INDICATOR_OPTIONS = {
-    { key = "showUpgradeArrow", label = "Upgrade Arrow" },
-    { key = "showMsOsLabels", label = "|cff00ff00MS|r / |cff00ff00OS|r Labels" },
-    { key = "showStatRanks", label = "Stat Ranks on tooltips" },
+    { key = "showUpgradeArrow", label = "Upgrade Arrow on bag items",
+      tip = "Shows a green arrow on the items in your bags that are an upgrade for you." },
+    { key = "showMsOsLabels", label = "|cff00ff00MS|r / |cff00ff00OS|r Labels on bag items", tipTitle = "MS / OS Labels on bag items",
+      tip = "Marks each upgrade arrow with MS (Main Spec) or OS (Off Spec), so you see which build gains from the item." },
+    { key = "showStatRanks", label = "Stat Ranks on tooltips", desc = "A stat's place in the guide",
+      tip = "Shows where each secondary stat ranks in the guide for your build (for example #1 MS) on item tooltips. Hold Alt to see the other build." },
 }
 
--- Best in Slot section: what hovering a Best in Slot row shows.
+-- The window's own behaviour (first in the list, as these are about the window).
+local WINDOW_OPTIONS = {
+    { key = "alwaysOnTop", label = "Always on top", default = false, desc = "Stays in front of everything",
+      tip = "Keeps the StatVerdict window in front of everything. When off, it steps behind as soon as you click anywhere else, and comes back when you click it.",
+      onChange = function() if ns.ApplyAlwaysOnTop then ns.ApplyAlwaysOnTop() end end },
+    { key = "compactMode", label = "Compact Mode", default = false, desc = "A smaller window",
+      tip = "A smaller window: one stat table at a time (switch with the Show Off Spec button under the dropdowns), with the panel buttons in a row under the table. The Manual opens from the button at the bottom of Options.",
+      onChange = function()
+          -- The window takes the size of the mode it is in now.
+          if ns.ApplyWindowScale then ns.ApplyWindowScale() end
+          if ns.RequestStatAuditRefresh then ns.RequestStatAuditRefresh() end
+      end },
+    { key = "autoHideLeft", label = "Auto-hide the left side", default = false, indent = true, requires = "compactMode",
+      desc = "Folds the builds away",
+      tip = "Part of Compact Mode (it is off and dimmed while Compact Mode is off): the Main Spec / Off Spec builds fold away behind a thin strip at the window's left edge, and the window gets narrower. Move the mouse onto the strip to show them over the table.",
+      onChange = function() if ns.RequestStatAuditRefresh then ns.RequestStatAuditRefresh() end end },
+    -- Not a switch: a slider, in percent. Applied when the mouse lets go of it.
+    { key = "windowScale", slider = true, label = "Window size", min = 75, max = 100, step = 5, default = 85,
+      tip = "Makes the whole StatVerdict window, and the panels that belong to it, smaller: from 100% down to 75% (it starts at 85%). It works in the normal window and in Compact Mode, and each remembers its own size." },
+}
+
+-- What hovering a Best in Slot row shows.
 -- Our tooltip and the game tooltip are always clickable: ticking one turns the
 -- other off, unticking the ticked one leaves both off (no tooltip). The gems /
 -- enchants block only exists inside our tooltip. showBisGemsEnchants is the
 -- older single toggle's key, kept so saved choices survive.
 local BIS_TOOLTIP_OPTIONS = {
-    { key = "showBisTooltip", label = "Best in Slot tooltip" },
-    { key = "showBisGemsEnchants", label = "Gems and enchants", indent = true },
-    { key = "bisUseGameTooltip", label = "Use the game tooltip instead", separated = true },
+    { key = "showBisTooltip", label = "Best in Slot tooltip",
+      tip = "Hovering a Best in Slot item shows StatVerdict's own compact tooltip." },
+    { key = "showBisGemsEnchants", label = "Gems and enchants", indent = true,
+      tip = "Adds the recommended gems and enchants for that item to the tooltip." },
+    { key = "bisUseGameTooltip", label = "Best in Slot: game tooltip", desc = "Instead of StatVerdict's own",
+      tip = "Shows the game's own item tooltip, instead of StatVerdict's, when you hover a Best in Slot item. Ticking this turns StatVerdict's tooltip off." },
 }
--- Ranked Trinkets section: the same three choices for the Ranked Trinkets list. The
+-- The same three choices for the Ranked Trinkets list. The
 -- effect line is a child of our tooltip (only exists inside it), like gems / enchants.
 local TRINKET_TOOLTIP_OPTIONS = {
-    { key = "showTrinketTooltip", label = "Ranked Trinkets tooltip" },
-    { key = "showTrinketEffect", label = "Trinket effect", indent = true },
-    { key = "trinketUseGameTooltip", label = "Use the game tooltip instead", separated = true },
+    { key = "showTrinketTooltip", label = "Ranked Trinkets tooltip",
+      tip = "Hovering a trinket in the Ranked Trinkets list shows StatVerdict's own compact tooltip." },
+    { key = "showTrinketEffect", label = "Trinket effect", indent = true,
+      tip = "Adds the trinket's effect text to the tooltip." },
+    { key = "trinketUseGameTooltip", label = "Ranked Trinkets: game tooltip", desc = "Instead of StatVerdict's own",
+      tip = "Shows the game's own item tooltip, instead of StatVerdict's, when you hover a trinket. Ticking this turns StatVerdict's tooltip off." },
 }
-local BIS_CHILD_INDENT = 18
+
+-- The size slider: the name on the left, the value in gold on the right, the slider under them (ns.CreateStepSlider).
+-- The window changes size when the mouse lets go (not while it is dragged: the slider sits in the window it resizes).
+local function EnsureSliderRow(card, group, option)
+    card.sliderRows = card.sliderRows or {}
+    local row = card.sliderRows[option.key]
+    if row then
+        row:SetParent(group)
+        return row
+    end
+    -- The normal window and Compact Mode each keep their own size.
+    row = ns.CreateStepSlider(group, {
+        label = option.label, tip = option.tip, min = option.min, max = option.max, step = option.step,
+        get = function()
+            return Clamp(ns.GetWindowScalePercent and ns.GetWindowScalePercent() or option.default, option.min, option.max)
+        end,
+        commit = function(value)
+            _G.StatVerdictDB = _G.StatVerdictDB or {}
+            _G.StatVerdictDB[ns.GetWindowScaleKey and ns.GetWindowScaleKey() or option.key] = value
+            if ns.ApplyWindowScale then ns.ApplyWindowScale() end
+        end,
+    })
+    card.sliderRows[option.key] = row
+    return row
+end
+
+local function SyncSliders(card)
+    for _, option in ipairs(WINDOW_OPTIONS) do
+        local row = option.slider and card.sliderRows and card.sliderRows[option.key]
+        if row then row:SyncValue() end
+    end
+end
 
 -- checked, clickable for one Best in Slot option. Unset: ours and gems on, game off.
 local function BisOptionState(key)
@@ -297,45 +327,25 @@ local BIS_EXCLUSIVE_WITH = {
     trinketUseGameTooltip = "showTrinketTooltip",
 }
 
-local function EnsureOptionCheckbox(card, option, parent)
-    local optionKey = option.key
-    card.bagIndicatorChecks = card.bagIndicatorChecks or {}
-    local check = card.bagIndicatorChecks[optionKey]
-    parent = parent or card
-    if not check then
-        check = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
-        check:SetSize(22, 22)
-        check:SetScale(1.0)
-        check.optionKey = optionKey
-        card.bagIndicatorChecks[optionKey] = check
-    else
-        check:SetParent(parent)
-        check:SetSize(22, 22)
-        check:SetScale(1.0)
-    end
-
-    ClearAccentWordLabel(check)
-    if check.Text then
-        check.Text:Show()
-        check.Text:SetText(option.label)
-        check.Text:SetTextColor(1, 1, 1)
-        ApplyCheckboxLabelFont(check)
-        ApplyBagCheckLabelGap(check)
-    end
-    return check
-end
+-- The choices that are plain switches (the window's and the bag items'): state, locked placeholder.
+local SIMPLE_OPTION_LISTS = { BAG_INDICATOR_OPTIONS, WINDOW_OPTIONS }
 
 local function SyncBagIndicatorOptionChecks(card)
     if not card or not card.bagIndicatorChecks then return end
-    for _, option in ipairs(BAG_INDICATOR_OPTIONS) do
-        local check = card.bagIndicatorChecks[option.key]
-        if check then
-            check.svSelected = OptionFlagOn(option.key)
-            check:SetChecked(check.svSelected)
-            check:Enable()
-            check:SetAlpha(1)
-            check.svLocked = false
-            PaintOptionRow(check)
+    for _, list in ipairs(SIMPLE_OPTION_LISTS) do
+        for _, option in ipairs(list) do
+            local check = (not option.slider) and card.bagIndicatorChecks[option.key] or nil
+            if check then
+                -- A choice that belongs to another one (Auto-hide belongs to Compact Mode) is off and dimmed while that is off.
+                -- Its own saved choice is kept and comes back when the other one is turned on again.
+                local needed = option.requires and not OptionFlagOn(option.requires, false)
+                check.svSelected = (not needed) and OptionFlagOn(option.key, option.default) or false
+                check:SetChecked(check.svSelected)
+                check.svLocked = option.locked == true or needed == true
+                if check.svLocked then check:Disable() else check:Enable() end
+                check:SetAlpha(check.svLocked and LOCKED_ALPHA or 1)
+                PaintOptionRow(check)
+            end
         end
     end
     -- Locked options are dimmed and not clickable; their saved value is kept.
@@ -353,95 +363,88 @@ local function SyncBagIndicatorOptionChecks(card)
             end
         end
     end
-    -- Legacy Enable All checkbox removed from UI.
-    local legacy = card.bagIndicatorChecks.showBagIndicators
-    if legacy then
-        legacy:Hide()
-        legacy:SetScript("OnClick", nil)
-    end
 end
 
-local function HideLegacyTitleFontUi(card)
-    if not card then return end
-    if card.displayTitle then card.displayTitle:Hide() end
-    if card.titleFontLabel then card.titleFontLabel:Hide() end
-    if card.titleFontHint then card.titleFontHint:Hide() end
-    if card.titleFontValue then card.titleFontValue:Hide() end
-    if card.titleFontMinus then card.titleFontMinus:Hide() end
-    if card.titleFontPlus then card.titleFontPlus:Hide() end
-end
-
-local function EnsureBagChecksBlock(card, field)
-    field = field or "bagChecksBlock"
-    local block = card[field]
-    if block then return block end
-    block = CreateFrame("Frame", nil, card, "BackdropTemplate")
-    block:EnableMouse(false)
-    block:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true,
-        tileSize = 16,
-        edgeSize = 8,
-        insets = { left = 2, right = 2, top = 2, bottom = 2 },
-    })
-    block:SetBackdropColor(0, 0, 0, 0)
-    block:SetBackdropBorderColor(0, 0, 0, 0)
-    card[field] = block
-    return block
-end
-
--- Row tops (positive, down from the block's top) of one block's options: one step
--- apart, a separate option with an extra gap above it; and the block's height.
-local function SectionRowOffsets(list)
-    local offsets, y = {}, 0
-    for index, option in ipairs(list) do
-        if index > 1 then
-            y = y + BAG_CHECK_STEP + (option.separated and SEPARATED_EXTRA or 0)
-        end
-        offsets[index] = y
-    end
-    return offsets
-end
-
-local function SectionArea(list)
-    local offsets = SectionRowOffsets(list)
-    return (offsets[#list] or 0) + ROW_HEIGHT
-end
-
--- The three blocks, top to bottom. Layout keys and fields keep their old names so saved positions carry over.
+-- The groups, top to bottom.
 local OPTION_SECTIONS = {
-    { list = BAG_INDICATOR_OPTIONS, bags = true, title = "Bag Markers", titleField = "bagMarkersTitle",
-      blockField = "bagChecksBlock", panelField = "bagMarkersPanel", titleKey = "options.bagMarkersTitle",
-      titleLabel = "Bag Markers title", checksKey = "options.bagChecks", checksLabel = "Bag marker checkboxes" },
-    { list = BIS_TOOLTIP_OPTIONS, title = "Best in Slot", titleField = "bisTooltipTitle",
-      blockField = "bisTooltipChecksBlock", panelField = "bisTooltipPanel", titleKey = "options.bisTooltipTitle",
-      titleLabel = "Best in Slot title", checksKey = "options.bisTooltipChecks",
-      checksLabel = "Best in Slot checkboxes" },
-    { list = TRINKET_TOOLTIP_OPTIONS, title = "Ranked Trinkets", titleField = "trinketTooltipTitle",
-      blockField = "trinketTooltipChecksBlock", panelField = "trinketTooltipPanel",
-      titleKey = "options.trinketTooltipTitle", titleLabel = "Ranked Trinkets title",
-      checksKey = "options.trinketTooltipChecks", checksLabel = "Ranked Trinkets checkboxes" },
+    { list = WINDOW_OPTIONS, simple = true, title = "WINDOW", field = "windowGroup" },
+    { list = BAG_INDICATOR_OPTIONS, simple = true, bags = true, title = "BAG ITEMS AND TOOLTIPS", field = "bagGroup" },
+    { list = BIS_TOOLTIP_OPTIONS, title = "BEST IN SLOT", field = "bisTooltipGroup" },
+    { list = TRINKET_TOOLTIP_OPTIONS, title = "RANKED TRINKETS", field = "trinketTooltipGroup" },
 }
 
-local function EnsureBlockPanel(card, field)
-    local panel = card[field]
-    if panel then return panel end
-    panel = CreateFrame("Frame", nil, card, "BackdropTemplate")
-    panel:EnableMouse(false)
-    panel:SetBackdrop(BLOCK_BACKDROP)
-    panel:SetBackdropColor(0.05, 0.06, 0.08, 0.92)
-    panel:SetBackdropBorderColor(0.32, 0.34, 0.40, 0.85)
-    panel:SetFrameLevel(math.max(1, (card:GetFrameLevel() or 1) + 1))
-    card[field] = panel
-    return panel
+local function RowHeight(option)
+    if option.slider then return ROW_HEIGHT_SLIDER end
+    return option.desc and ROW_HEIGHT_DESC or ROW_HEIGHT
+end
+
+-- Row tops (positive, down from the group's top), the group's height.
+local function SectionLayout(list)
+    local offsets, y = {}, GROUP_HEADER_HEIGHT
+    for index, option in ipairs(list) do
+        offsets[index] = y
+        y = y + RowHeight(option)
+    end
+    return offsets, y + GROUP_PAD_BOTTOM
+end
+
+-- The height of the whole list: the groups and the gaps between them.
+function Panel.GetContentHeight()
+    local total = 0
+    for index, section in ipairs(OPTION_SECTIONS) do
+        local _, height = SectionLayout(section.list)
+        total = total + height + (index > 1 and GROUP_GAP or 0)
+    end
+    return total
+end
+
+local function EnsureGroup(card, content, section)
+    local group = card[section.field]
+    if group then return group end
+    group = CreateFrame("Frame", nil, content, "BackdropTemplate")
+    group:SetBackdrop(GROUP_BACKDROP)
+    group:SetBackdropColor(0.04, 0.05, 0.07, 0.92)
+    group:SetBackdropBorderColor(0.14, 0.15, 0.18, 1)
+    group:EnableMouse(false)
+    group.heading = group:CreateFontString(nil, "OVERLAY")
+    group.heading:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", 10, "")
+    group.heading:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+    group.heading:SetText(section.title)
+    group.heading:SetPoint("TOPLEFT", group, "TOPLEFT", ROW_PAD, -9)
+    group.rule = group:CreateTexture(nil, "ARTWORK")
+    group.rule:SetColorTexture(0.35, 0.30, 0.12, 0.7)
+    group.rule:SetHeight(1)
+    group.rule:SetPoint("TOPLEFT", group, "TOPLEFT", ROW_PAD, -(GROUP_HEADER_HEIGHT - 6))
+    group.rule:SetPoint("TOPRIGHT", group, "TOPRIGHT", -ROW_PAD, -(GROUP_HEADER_HEIGHT - 6))
+    card[section.field] = group
+    return group
+end
+
+-- The scroll bar of a scroll frame made from the game's template.
+local function FindScrollBar(scroll)
+    local bar = scroll.ScrollBar
+    if type(bar) == "table" then return bar end
+    if type(scroll.GetName) == "function" then
+        local ok, name = pcall(scroll.GetName, scroll)
+        if ok and type(name) == "string" then return _G[name .. "ScrollBar"] end
+    end
+    return nil
+end
+
+-- The panel's list scrolls: a scroll frame under the title chip, the groups inside it.
+local function EnsureScroll(card)
+    if card.scroll then return card.scroll, card.content end
+    local scroll = CreateFrame("ScrollFrame", "StatVerdictOptionsScroll", card, "UIPanelScrollFrameTemplate")
+    scroll:EnableMouse(true)
+    local content = CreateFrame("Frame", nil, scroll)
+    content:SetSize(100, 100)
+    scroll:SetScrollChild(content)
+    card.scroll, card.content = scroll, content
+    return scroll, content
 end
 
 local function EnsureCard(frame)
-    if frame.optionsDrawerCard then
-        HideLegacyTitleFontUi(frame.optionsDrawerCard)
-        return frame.optionsDrawerCard
-    end
+    if frame.optionsDrawerCard then return frame.optionsDrawerCard end
 
     local card = CreateFrame("Frame", nil, frame, "BackdropTemplate")
     card:SetFrameLevel(math.max(1, frame:GetFrameLevel() - 1))
@@ -457,20 +460,30 @@ local function EnsureCard(frame)
     card:SetBackdropBorderColor(0.72, 0.74, 0.78, 0.86)
 
     -- The title: the chip every tab shares (full width of the card, text centred).
-    card.title = ns.PlaceTabTitleChip(card, "Features").label
-
-    card.bagMarkersTitle = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    card.bagMarkersTitle:SetText("Bag Markers")
-    card.bagMarkersTitle:SetTextColor(1, 1, 1)
-
-    card.hint = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    card.hint:SetTextColor(0.72, 0.72, 0.72)
-    card.hint:SetJustifyH("LEFT")
-    card.hint:SetWordWrap(true)
-    card.hint:Hide()
+    card.title = ns.PlaceTabTitleChip(card, "Options").label
 
     frame.optionsDrawerCard = card
     return card
+end
+
+-- Compact Mode: Options is a window of its own, and the Manual has no button in the compact row: a Manual button sits
+-- left of the panel's Close button (bottom right). Opening the Manual replaces Options: there is never more than one
+-- panel open.
+local function ShowManualButton(card)
+    if not card.manualButton then
+        card.manualButton = ns.CreateFloatingButton(card, "Manual", function()
+            if ns.SetRightPanelMode then ns.SetRightPanelMode("manual") end
+        end)
+    end
+    local size = ns.StatVerdictDashboardLayout.FLOAT_BUTTON
+    card.manualButton:ClearAllPoints()
+    card.manualButton:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -(size.margin + size.width + size.gap), size.bottom)
+    card.manualButton:SetFrameLevel((card:GetFrameLevel() or 1) + 6)
+    card.manualButton:Show()
+end
+
+local function HideManualButton(card)
+    if card.manualButton then card.manualButton:Hide() end
 end
 
 function Panel.IsOpen()
@@ -494,11 +507,8 @@ function Panel.Toggle()
 end
 
 function Panel.GetPreferredWidth(frame)
-    -- Single source of truth: base + SizeDelta (never cache a width that already includes delta).
-    local width = DRAWER_PREFERRED_WIDTH + SizeDelta("options.width")
-    if width < 200 then width = 200 end
-    if width > 520 then width = 520 end
-    return width
+    -- The same width for everyone, docked or in a window of its own: the names, the grey lines and the switches need it.
+    return DRAWER_PREFERRED_WIDTH
 end
 
 function Panel.Apply(frame)
@@ -509,26 +519,35 @@ function Panel.Apply(frame)
     end
 
     local card = EnsureCard(frame)
-    HideLegacyTitleFontUi(card)
+    local layout = ns.StatVerdictDashboardLayout
+    local floating = layout and layout.IsCompact and layout.IsCompact() and layout.FLOAT_BUTTON ~= nil
 
     local cardX = Offset("options.card")
     local cardWidth = Panel.GetPreferredWidth(frame)
     local panelX = 770 + cardX
-    if ns.StatVerdictDashboardLayout and ns.StatVerdictDashboardLayout.GetRightPanelX then
-        panelX = ns.StatVerdictDashboardLayout.GetRightPanelX(frame)
+    if layout and layout.GetRightPanelX then
+        panelX = layout.GetRightPanelX(frame)
     end
 
     card.preferredWidth = cardWidth
+    -- A floating Options window is as high as its list needs, up to a limit; the list scrolls beyond that.
+    local band = floating and layout.GetFloatingBand and layout.GetFloatingBand() or 0
+    if floating then
+        local need = -FIRST_ROW_TOP + Panel.GetContentHeight() + band + FLOAT_AIR
+        card.svFloatingHeight = math.min(need, FLOAT_MAX_HEIGHT)
+    else
+        card.svFloatingHeight = nil
+    end
     local extra = 0
-    if ns.StatVerdictDashboardLayout and ns.StatVerdictDashboardLayout.GetRightPanelExtraGap then
-        extra = ns.StatVerdictDashboardLayout.GetRightPanelExtraGap()
+    if layout and layout.GetRightPanelExtraGap then
+        extra = layout.GetRightPanelExtraGap()
     end
     local cardPad = ns.GetRightDrawerCardPad and ns.GetRightDrawerCardPad("options.card")
         or { top = 0, bottom = 0, left = 0, right = 0 }
-    if ns.StatVerdictDashboardLayout and ns.StatVerdictDashboardLayout.AnchorAfterPreviousCard and frame.statProgressCard then
-        ns.StatVerdictDashboardLayout.AnchorAfterPreviousCard(card, frame.statProgressCard, frame, extra, 0, cardPad)
-    elseif ns.StatVerdictDashboardLayout and ns.StatVerdictDashboardLayout.AnchorOuterCard then
-        ns.StatVerdictDashboardLayout.AnchorOuterCard(card, frame, panelX, cardPad)
+    if layout and layout.AnchorAfterPreviousCard and frame.statProgressCard then
+        layout.AnchorAfterPreviousCard(card, frame.statProgressCard, frame, extra, 0, cardPad)
+    elseif layout and layout.AnchorOuterCard then
+        layout.AnchorOuterCard(card, frame, panelX, cardPad)
     else
         card:ClearAllPoints()
         card:SetPoint("TOPLEFT", frame, "TOPLEFT", panelX, -34)
@@ -537,92 +556,93 @@ function Panel.Apply(frame)
     local innerWidth = math.max(120, cardWidth - (cardPad.left or 0) - (cardPad.right or 0))
     card:SetWidth(innerWidth)
     card:Show()
-    -- Whole card is the AdvDev target: Move X (shared dock) + Size W + Padding.
+    -- Whole card: Move X (shared dock) + Size W + Padding.
     if ns.ApplyRightDrawerCard then
-        ns.ApplyRightDrawerCard(card, "options.card", "Features drawer", "options.width", DRAWER_PREFERRED_WIDTH)
+        ns.ApplyRightDrawerCard(card, "options.card", "Options drawer", "options.width", DRAWER_PREFERRED_WIDTH)
     end
 
-    -- Outer pad owns Size W — retire the legacy right-edge width strip.
+    ns.PlaceTabTitleChip(card, "Options")
 
-    ns.PlaceTabTitleChip(card, "Features")
+    -- The scrolling list: between the title chip and the bottom (the Manual / Close band of a floating panel).
+    local cardHeight = tonumber(card.svFloatingHeight) or (card.GetHeight and tonumber(card:GetHeight())) or 380
+    if cardHeight < 120 then cardHeight = 380 end
+    local viewportHeight = cardHeight + FIRST_ROW_TOP - (floating and band or CONTENT_BOTTOM_PAD)
+    local contentHeight = Panel.GetContentHeight()
+    local needScroll = contentHeight > viewportHeight
+    local scroll, content = EnsureScroll(card)
+    local rightPad = CONTENT_MARGIN + (needScroll and SCROLLBAR_WIDTH or 0)
+    scroll:ClearAllPoints()
+    scroll:SetPoint("TOPLEFT", card, "TOPLEFT", CONTENT_MARGIN, FIRST_ROW_TOP)
+    scroll:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -rightPad, floating and band or CONTENT_BOTTOM_PAD)
+    scroll:Show()
+    local scrollBar = FindScrollBar(scroll)
+    if scrollBar then scrollBar:SetShown(needScroll) end
+    if not needScroll and scroll.SetVerticalScroll then scroll:SetVerticalScroll(0) end
+    local contentWidth = math.max(160, innerWidth - CONTENT_MARGIN - rightPad)
+    content:SetSize(contentWidth, math.max(contentHeight, 10))
 
-    -- Hint about quest / Adventure Guide removed — bags-only is already the behavior.
-    if card.hint then
-        card.hint:Hide()
-        card.hint:SetText("")
-    end
-
-    -- Legacy per-checkbox XY is migrated into the Bag Markers group once, if it was never nudged.
-    do
-        local bx, by = Offset("options.bagChecks")
-        if (not bx or bx == 0) and (not by or by == 0) and ns.GetLayoutOffset and ns.WriteLayoutOffset then
-            local legacyX, legacyY = ns.GetLayoutOffset("options.showUpgradeArrow")
-            if (not legacyX or legacyX == 0) and (not legacyY or legacyY == 0) then
-                legacyX, legacyY = ns.GetLayoutOffset("options.showBagIndicators")
-            end
-            if (legacyX and legacyX ~= 0) or (legacyY and legacyY ~= 0) then
-                ns.WriteLayoutOffset("options.bagChecks", legacyX or 0, legacyY or 0)
-            end
-        end
-    end
-
-    -- Groups span the card's inner width minus the margin and the block padding on both sides.
-    local blockBaseW = math.max(160, innerWidth - 2 * (CONTENT_MARGIN + BLOCK_PAD))
-    local maxArea = 0
+    local top = 0
     for _, section in ipairs(OPTION_SECTIONS) do
-        maxArea = math.max(maxArea, SectionArea(section.list))
-    end
-    local panelHeight = maxArea + 2 * BLOCK_VPAD
-    local y = FIRST_TITLE_TOP
-    for _, section in ipairs(OPTION_SECTIONS) do
-        local area = SectionArea(section.list)
-        local panelTop = y - TITLE_HEIGHT
+        local group = EnsureGroup(card, content, section)
+        local offsets, groupHeight = SectionLayout(section.list)
+        group:ClearAllPoints()
+        group:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -top)
+        group:SetSize(contentWidth, groupHeight)
+        group:Show()
 
-        -- The white title above its block.
-        if not card[section.titleField] then
-            card[section.titleField] = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-            card[section.titleField]:SetText(section.title)
-        end
-        card[section.titleField]:SetTextColor(1, 1, 1)
-        PlaceFeaturesTitle(card, card[section.titleField], section.titleKey, section.titleLabel, CONTENT_MARGIN, y)
-
-        -- The bordered block behind the rows.
-        local panel = EnsureBlockPanel(card, section.panelField)
-        panel:ClearAllPoints()
-        panel:SetPoint("TOPLEFT", card, "TOPLEFT", CONTENT_MARGIN, panelTop)
-        panel:SetPoint("TOPRIGHT", card, "TOPRIGHT", -CONTENT_MARGIN, panelTop)
-        panel:SetHeight(panelHeight)
-        panel:Show()
-
-        local block = EnsureBagChecksBlock(card, section.blockField)
-        local blockTop = panelTop - BLOCK_VPAD - math.floor((maxArea - area) / 2)
-        local blockW = PlaceBagChecksBlock(card, block, section.checksKey, section.checksLabel,
-            CONTENT_MARGIN + BLOCK_PAD, blockTop, blockBaseW, area) or blockBaseW
-
-        local offsets = SectionRowOffsets(section.list)
         for index, option in ipairs(section.list) do
-            local check = EnsureOptionCheckbox(card, option, block)
-            local indent = option.indent and BIS_CHILD_INDENT or 0
-            local rowY = -offsets[index]
-            local row = EnsureOptionRow(check, block, index > 1 and (option.separated and 2 + SEPARATED_EXTRA or 2) or 0)
+            if option.slider then
+                local sliderRow = EnsureSliderRow(card, group, option)
+                sliderRow:ClearAllPoints()
+                sliderRow:SetPoint("TOPLEFT", group, "TOPLEFT", 1, -offsets[index])
+                sliderRow:SetPoint("TOPRIGHT", group, "TOPRIGHT", -1, -offsets[index])
+                sliderRow:SetHeight(RowHeight(option))
+                sliderRow:SetFrameLevel((group:GetFrameLevel() or 1) + 1)
+                sliderRow:Show()
+                sliderRow.label:ClearAllPoints()
+                sliderRow.label:SetPoint("TOPLEFT", sliderRow, "TOPLEFT", ROW_PAD, -6)
+                sliderRow.value:ClearAllPoints()
+                sliderRow.value:SetPoint("TOPRIGHT", sliderRow, "TOPRIGHT", -ROW_PAD, -6)
+                sliderRow.slider:ClearAllPoints()
+                sliderRow.slider:SetPoint("TOPLEFT", sliderRow, "TOPLEFT", ROW_PAD, -26)
+                sliderRow.slider:SetPoint("TOPRIGHT", sliderRow, "TOPRIGHT", -ROW_PAD, -26)
+                sliderRow.slider:SetFrameLevel((sliderRow:GetFrameLevel() or 1) + 2)
+                ns.PlaceStepSliderTicks(sliderRow.slider, math.max(40, contentWidth - 2 - 2 * ROW_PAD))
+            else
+            local check, row = EnsureOptionRow(card, group, option)
+            local height = RowHeight(option)
+            local indent = option.indent and CHILD_INDENT or 0
             row:ClearAllPoints()
-            row:SetPoint("TOPLEFT", block, "TOPLEFT", indent, rowY)
-            row:SetPoint("TOPRIGHT", block, "TOPRIGHT", 0, rowY)
-            row:SetFrameLevel((block:GetFrameLevel() or 1) + 1)
+            row:SetPoint("TOPLEFT", group, "TOPLEFT", 1, -offsets[index])
+            row:SetPoint("TOPRIGHT", group, "TOPRIGHT", -1, -offsets[index])
+            row:SetHeight(height)
+            row:SetFrameLevel((group:GetFrameLevel() or 1) + 1)
             row:Show()
+            -- Name (and the grey line under it) on the left, the switch on the right.
+            local labelLeft = ROW_PAD + indent
             check:ClearAllPoints()
-            check:SetPoint("TOPLEFT", block, "TOPLEFT", indent + ROW_PAD, rowY)
-            FitCheckLabel(check, blockW, indent)
-            check:SetFrameLevel((block:GetFrameLevel() or 1) + 6)
-            check:Show()
+            check:SetPoint("TOPLEFT", row, "TOPLEFT", labelLeft, 0)
+            local textWidth = math.max(40, contentWidth - labelLeft - ROW_PAD - SWITCH_W - 8)
+            check.Text:ClearAllPoints()
+            check.Text:SetPoint("TOPLEFT", row, "TOPLEFT", labelLeft, option.desc and -6 or -6)
+            check.Text:SetWidth(textWidth)
+            check.desc:ClearAllPoints()
+            check.desc:SetPoint("TOPLEFT", row, "TOPLEFT", labelLeft, -21)
+            check.desc:SetWidth(textWidth)
+            check.desc:SetShown(option.desc ~= nil)
+            row.switch:ClearAllPoints()
+            row.switch:SetPoint("RIGHT", row, "RIGHT", -ROW_PAD, 0)
+            row.switch:SetFrameLevel((row:GetFrameLevel() or 1) + 2)
+            -- A choice that belongs to the one above hangs from a thin gold line.
+            if option.indent then
+                row.connector:ClearAllPoints()
+                row.connector:SetPoint("TOPLEFT", row, "TOPLEFT", ROW_PAD, 0)
+                row.connector:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", ROW_PAD, 0)
+                row.connector:Show()
+            else
+                row.connector:Hide()
+            end
             check:SetScript("OnClick", function(self)
-                if section.bags then
-                    _G.StatVerdictDB = _G.StatVerdictDB or {}
-                    _G.StatVerdictDB[option.key] = self:GetChecked() and true or false
-                    SyncBagIndicatorOptionChecks(card)
-                    RefreshBagIndicatorsSoon()
-                    return
-                end
                 if self.svLocked then
                     SyncBagIndicatorOptionChecks(card)
                     return
@@ -630,16 +650,32 @@ function Panel.Apply(frame)
                 _G.StatVerdictDB = _G.StatVerdictDB or {}
                 local on = self:GetChecked() and true or false
                 _G.StatVerdictDB[option.key] = on
+                if section.simple then
+                    SyncBagIndicatorOptionChecks(card)
+                    if section.bags then RefreshBagIndicatorsSoon() end
+                    if option.onChange then option.onChange() end
+                    SyncSliders(card)
+                    return
+                end
                 local other = BIS_EXCLUSIVE_WITH[option.key]
                 if on and other then _G.StatVerdictDB[other] = false end
                 SyncBagIndicatorOptionChecks(card)
             end)
+            end
         end
-        y = panelTop - panelHeight - BLOCK_GAP
+        top = top + groupHeight + GROUP_GAP
     end
     SyncBagIndicatorOptionChecks(card)
+    SyncSliders(card)
 
-    if ns.StatVerdictDashboardLayout and ns.StatVerdictDashboardLayout.SyncFrameWidthToRightPanel then
-        ns.StatVerdictDashboardLayout.SyncFrameWidthToRightPanel(frame)
+    if floating then
+        ShowManualButton(card)
+        card:SetHeight(tonumber(card.svFloatingHeight) or cardHeight)
+    else
+        HideManualButton(card)
+    end
+
+    if layout and layout.SyncFrameWidthToRightPanel then
+        layout.SyncFrameWidthToRightPanel(frame)
     end
 end

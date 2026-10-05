@@ -1,4 +1,4 @@
-# StatVerdict — store & launch copy (v1.1.1)
+# StatVerdict — store & launch copy (v2.0.40)
 
 Use this on CurseForge / Wago / Discord. Edit tone freely; keep the audience clear.
 
@@ -79,19 +79,27 @@ Keywords: gear, upgrade, bis, offspec, mythic+, loot, stats, trinket, priority
 
 ---
 
-## Changelog (1.1.1) — paste into CurseForge
+## Changelog (2.0.40) — paste into CurseForge
 
 ```
-1.1.1
+2.0.40
 New
 - /sv ag switches the Adventure Guide marks off and on (type /reload afterwards), in case they get in the way of the Adventure Guide.
 - /sv mouse lists, for 8 seconds, which frames sit under the mouse (handy for bug reports).
-- Every tab (Guide, Best in Slot, Ranked Trinkets, Features, Manual) now has its title in the same full-width chip.
+- Every tab (Guide, Best in Slot, Ranked Trinkets, Options, Manual) now has its title in the same full-width chip.
 - An item the Catalyst can turn into your Best in Slot set piece is now judged as it is, since converting costs a Spark. Its tooltip says Best in Slot after the Catalyst when that piece would come out better, and holding Ctrl over it previews the piece with the same item level.
 - Stat Ranks on tooltips: every secondary stat on an item tooltip shows its place in the guide's order for the build selected in the window, marked MS or OS (for example +73 Critical Strike #1 MS). Stats the guide calls roughly equal show the same number. Press Alt to see the other build (press again to go back; it resets when you move to another item): with an Off Spec set, Alt switches the whole verdict (and the ranks) to it, and a line tells you when the other build gains from the item too. Switch it off under Features, Bag Markers.
 - The verdict on an item's tooltip names its build: "Main Spec" or "Off Spec" in gold before the spec. The Main Spec always comes first (the Off Spec shows only when the item is an upgrade for it alone, or when you press Alt). The verdict points now sit at the end of the "Better than ..." line, the save hint is one short grey line at the very end, and a gold line tells you when the other build gains from the item too. Tooltip lines no longer fold into two lines; the tooltip grows a little instead.
+- Hold the mouse over the title or the version number in the StatVerdict window to see the day the add-on was last updated.
+- The Features tab is now called Options and has a new look: four dark cards (Window, Bag items and tooltips, Best in Slot, Ranked Trinkets) with a switch for every choice (gold when on), a short grey line under the ones that need one, and a list that scrolls when it is taller than the panel. Hovering a choice explains it.
+- New option Always on top (Options, Window). Off by default: the StatVerdict window is in front while you work in it and steps behind everything as soon as you click anywhere else (another add-on, the chat, a game window); click it to bring it back. Ticked, it stays in front of everything.
+- New option Compact Mode (Options, Window), off by default: a smaller window that shows one stat table at a time (the Show Off Spec / Show Main Spec button under the dropdowns switches it; the heading of the build in view, Main Spec Build or Off Spec Build, is gold and the other white), with Guide, Best in Slot, Ranked Trinkets and Options in one row inside the table's outline, and no checkbox in front of the title. The Manual opens from the button at the bottom of Options, next to Close; there is never more than one panel open. In Compact Mode the panels (Guide, Best in Slot, Ranked Trinkets, Options, Manual) open as windows of their own: each is titled StatVerdict Guide, StatVerdict Options and so on (Best in Slot and Ranked Trinkets name the spec in view on a second line, and are as high as their list needs), drag one anywhere, close it with the Close button at its bottom right; the main window and each panel are windows of their own: click one and it comes to the front, whole, over the other; the window does not grow for it and the next panel opens where you left the last one.
+- New option Window size (Options, Window): a slider from 100% down to 75% that makes the whole window, and its panels, smaller. It starts at 85%. It works in the normal window and in Compact Mode, each remembers its own size, and the window stays where it is.
+- The Manual has its own Text size slider at the bottom (100% to 200%): the text and its window get bigger together, and the Manual remembers the size.
+- New option Auto-hide the left side (Options, listed under Compact Mode; it is off and dimmed while Compact Mode is off), off by default: the Main Spec / Off Spec builds fold away behind a thin strip at the left edge of the window, which gets narrower. Move the mouse onto the strip and the builds show over the table; they fold away again when the mouse leaves (not while a menu is open). While the builds are folded away a small (Main Spec) or (Off Spec) stands after the table's title. The window is never narrower than its title bar.
 - Switching spec now puts on the pieces you marked for that spec with Alt-click (only the marked ones that are in your bags; every other slot keeps what you wear). It never does this in combat, and a line in the chat says what was put on. Pieces marked before this version need to be marked again.
 Fixed
+- Some players saw a smaller window with parts lying over each other. The window now opens in the same layout for everyone (same size, menus and button positions).
 - A saved loadout (Main Spec or Off Spec) no longer keeps gear that is gone. This only applies to loadouts saved by the character you are playing; other characters' loadouts are never touched. When an item of a saved loadout is sold, disenchanted, deleted or otherwise lost, it is removed from the loadout and the slot falls back to what you are wearing there. A line in the chat tells you. An item bought back from a vendor within 10 minutes goes back where it was.
 - The Adventure Guide tabs (Overview, Loot, ...) no longer flicker or become hard to click while StatVerdict is running. StatVerdict no longer adds a click handler to the game tooltip, which was taking the mouse away from whatever the tooltip sat on.
 - The short freeze when you equip an item or change spec is gone. StatVerdict now works out your build once per bag check instead of once per item.

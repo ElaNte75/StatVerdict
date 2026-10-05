@@ -74,10 +74,12 @@ def read_version(root: Path) -> str:
     return match.group(1)
 
 
-def write_version(root: Path, version: str) -> None:
+def write_version(root: Path, version: str, released: date | None = None) -> None:
     _replace_once(root / ADDON / f"{ADDON}.toc", r"^(﻿?## Version:[ \t]*)\S+", rf"\g<1>{version}")
     _replace_once(root / ADDON / f"{ADDON}.lua", r'^(ns\.VERSION = ")[^"]+(")', rf"\g<1>{version}\g<2>")
     _replace_once(root / ADDON / "STORE.md", r"\(v\d+\.\d+\.\d+\)", f"(v{version})")
+    if released is not None:  # shown in the window as "Last update"
+        _replace_once(root / ADDON / f"{ADDON}.lua", r'^(ns\.RELEASE_DATE = ")[^"]+(")', rf"\g<1>{released.isoformat()}\g<2>")
 
 
 def _add_data_line(changelog: Path) -> bool:
@@ -125,7 +127,7 @@ def prepare(root: Path, today: date) -> tuple[str, str] | None:
     version = next_data_version(current, today)
     if version is None:
         return None
-    write_version(root, version)
+    write_version(root, version, today)
     name = f"{version}_{today.isoformat()}.md"
     text = (
         f"# StatVerdict {version}\n\n"

@@ -51,6 +51,11 @@ local function CloseChipDropdown(dropdown)
     if catcher then catcher:Hide() end
 end
 
+-- True while one of the window's dropdown menus is open (the window must not fold away under it).
+function ns.IsChipDropdownOpen()
+    return openDropdown ~= nil
+end
+
 local function CloseOpenChipDropdown()
     if openDropdown then
         CloseChipDropdown(openDropdown)
@@ -61,6 +66,7 @@ local function EnsureCatcher()
     if catcher then return catcher end
     catcher = CreateFrame("Button", ns.UIName and ns.UIName("StatVerdictChipDropdownCatcher") or "StatVerdictChipDropdownCatcher", UIParent)
     catcher:SetAllPoints(UIParent)
+    catcher.svOwnedWindow = true  -- a click on it is a click in StatVerdict (the window stays in front)
     catcher:SetFrameStrata("FULLSCREEN_DIALOG")
     catcher:SetFrameLevel(90)
     catcher:EnableMouse(true)
@@ -110,6 +116,10 @@ local function OpenChipDropdown(dropdown)
     local visible = math.min(count, MAX_VISIBLE_ROWS)
     local height = MENU_PAD * 2 + visible * ROW_HEIGHT
     menu:SetSize(width, height)
+    -- The menu hangs on the screen, not on the window: it takes the window's size (Options > Window size) so it matches the dropdown.
+    local own = dropdown.GetEffectiveScale and tonumber(dropdown:GetEffectiveScale())
+    local screen = UIParent and UIParent.GetEffectiveScale and tonumber(UIParent:GetEffectiveScale())
+    if own and screen and screen > 0 and own > 0 then menu:SetScale(own / screen) end
     menu:ClearAllPoints()
     menu:SetPoint("TOPLEFT", dropdown, "BOTTOMLEFT", 0, -2)
     menu:SetFrameStrata("FULLSCREEN_DIALOG")
@@ -214,6 +224,7 @@ function ns.CreateChipDropdown(parent, name)
     end)
 
     local menu = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+    menu.svOwnedWindow = true
     menu:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
