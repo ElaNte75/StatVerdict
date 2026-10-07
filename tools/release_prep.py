@@ -21,7 +21,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 ADDON = "StatVerdict"
-DATA_LINE = "- Guide data refreshed to the latest."
+DATA_LINE = "- Game data updated: the guides' Best in Slot lists, stat priorities and item upgrade levels are refreshed to the latest."
 VERSION_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 
 
