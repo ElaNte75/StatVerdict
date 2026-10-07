@@ -101,6 +101,19 @@ function ns.TryApproveItemLink(itemLink, slotID, preferSecondary)
     -- The marker on the item (MS / OS) is the answer; chat only says something when it did not work.
     local ok, message = ns.ApproveItemIntoVirtualLoadout(itemLink, profile, slotID)
     if not ok then PrintSV(message or "Approve failed.") end
+    -- A piece is Main Spec or Off Spec, never both through the click: marking it for one build takes it out of the
+    -- other, so one click moves it (a second click on the same build takes it out again, above).
+    if ok and ns.GetTooltipEvaluationContexts and ns.IsItemInEquipmentSnapshot and ns.RemoveItemFromVirtualLoadout then
+        local primaryContext, secondaryContext = ns.GetTooltipEvaluationContexts()
+        local otherContext = nil
+        if primaryContext and secondaryContext and primaryContext ~= secondaryContext then
+            otherContext = (context == secondaryContext) and primaryContext or ((context == primaryContext) and secondaryContext or nil)
+        end
+        local otherProfile = otherContext and otherContext.profile or nil
+        if otherProfile and ns.IsItemInEquipmentSnapshot(otherProfile, itemLink) then
+            ns.RemoveItemFromVirtualLoadout(itemLink, otherProfile)
+        end
+    end
     return ok and true or false
 end
 
