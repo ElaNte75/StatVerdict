@@ -82,13 +82,38 @@ local TRINKET_TIER_COLOR = {
     D = "|cff9d9d9d",
 }
 
--- The item string of the Best in Slot set piece an item the Catalyst can convert becomes: the item's own string
--- (item level, bonus ids) with the set piece's item id. nil when the link holds no item string.
+-- The upgrade-track bonus id (from the data root's trackRanks) that gives an item level; when several tracks reach it,
+-- the one at the wanted rank first. nil when no track of the season has that level.
+local function TrackBonusForLevel(level, wantedRank)
+    local root = ns.ClassCodexTargets
+    local ranks = type(root) == "table" and root.trackRanks or nil
+    if type(ranks) ~= "table" or not level then return nil end
+    local found = nil
+    for _, track in ipairs({ "champion", "hero", "myth" }) do
+        for rank, entry in pairs(type(ranks[track]) == "table" and ranks[track] or {}) do
+            if type(entry) == "table" and tonumber(entry[2]) == level then
+                if tonumber(rank) == wantedRank then return tonumber(entry[1]) end
+                found = found or tonumber(entry[1])
+            end
+        end
+    end
+    return found
+end
+
+-- The item string of the Best in Slot set piece an item the Catalyst can convert becomes, at the item's own item
+-- level. The item's bonus ids do not carry over (the game reads the set piece at its base level), so the set piece
+-- gets the upgrade-track bonus id that gives the item's level. nil when the item has no item string or no track
+-- reaches its level; second value: the item's own item string.
 function ns.CatalystTargetItemString(itemLink, targetItemID)
     local itemString = type(itemLink) == "string" and itemLink:match("(item:[%-%d:]+)") or nil
     targetItemID = tonumber(targetItemID)
     if not itemString or not targetItemID then return nil end
-    return (itemString:gsub("^item:%d+", "item:" .. targetItemID, 1)), itemString
+    local level = tonumber(ns.GetItemLevel and ns.GetItemLevel(itemString))
+    local info = ns.GetItemUpgradeInfo and ns.GetItemUpgradeInfo(itemString) or nil
+    local bonusID = TrackBonusForLevel(level, info and tonumber(info.currentLevel) or nil)
+    if not bonusID then return nil end
+    local linkLevel = type(UnitLevel) == "function" and tonumber(UnitLevel("player")) or 90
+    return ("item:%d::::::::%d::::1:%d"):format(targetItemID, linkLevel, bonusID), itemString
 end
 
 function ns.RenderTooltipVerdict(tooltip, context, comparison, isSecondary, showApproveHint)
@@ -154,8 +179,8 @@ function ns.RenderTooltipVerdict(tooltip, context, comparison, isSecondary, show
         AddLine(tooltip, c.white .. "Main Hand: " .. c.reset .. mainName, 1, 1, 1)
         AddLine(tooltip, c.white .. "Off Hand: " .. c.reset .. offName, 1, 1, 1)
     else
-        AddLine(tooltip, c.white .. (ruleBlocked and ("Would replace " .. baselineLabel .. ":") or ("Better than " .. baselineLabel .. ":")) .. c.reset .. pointsText, 1, 1, 1)
-        AddLine(tooltip, targetName, 1, 1, 1)
+        -- One line: what it beats (the item itself, not the word loadout), then the points.
+        AddLine(tooltip, c.white .. (ruleBlocked and "Would replace " or "Better than ") .. c.reset .. targetName .. c.white .. ":" .. c.reset .. pointsText, 1, 1, 1)
     end
     if selected.ruleReason then
         AddLine(tooltip, c.yellow .. "Reason: " .. selected.ruleReason .. c.reset, 1, 0.85, 0.2, true)
@@ -181,7 +206,9 @@ function ns.RenderTooltipVerdict(tooltip, context, comparison, isSecondary, show
                 AddLine(tooltip, "|cff999999Not better after the Catalyst|r", 0.6, 0.6, 0.6)
             end
         end
-        AddLine(tooltip, "|cff999999Hold Ctrl to preview|r", 0.6, 0.6, 0.6)
+        if targetLink then
+            AddLine(tooltip, "|cff999999Hold Ctrl to preview|r", 0.6, 0.6, 0.6)
+        end
     end
 
     -- Last line: which click saves the item (the spec is already named above).
@@ -190,6 +217,46 @@ function ns.RenderTooltipVerdict(tooltip, context, comparison, isSecondary, show
     end
 
     tooltip:Show()
+end
+
+-- An item that is no upgrade as it is (or the very piece the player wears) but that the Catalyst turns into the Best in
+-- Slot set piece, better than what sits in that slot: say so, and nothing else (no verdict, no other build). Draws
+-- nothing and returns false when there is no such path, no set piece at the item's level, or it would not be better.
+-- What the Catalyst would gain: the points of the Best in Slot set piece (at the item's own item level) over what sits in
+-- that slot; nil when the item has no Catalyst path, no set piece can be built, or it would not be better.
+function ns.GetCatalystGain(context, itemLink)
+    if not context or not context.profile or not itemLink then return nil end
+    local referenceInfo = ns.GetItemReferenceInfo and ns.GetItemReferenceInfo(itemLink, context.profile) or nil
+    local path = referenceInfo and referenceInfo.catalystPath or nil
+    if not path then return nil end
+    local targetLink = ns.CatalystTargetItemString and ns.CatalystTargetItemString(itemLink, path.targetItemID)
+    local converted = targetLink and ns.BuildComparison and ns.BuildComparison(targetLink, context.profile) or nil
+    local selected = converted and converted.selected or nil
+    local score = selected and (selected.deltaScore or selected.rawDeltaScore) or nil
+    if not score or score <= 0 then return nil end
+    return score
+end
+
+function ns.RenderTooltipCatalystOnly(tooltip, context, itemLink, worn)
+    if not tooltip then return false end
+    local score = ns.GetCatalystGain(context, itemLink)
+    if not score then return false end
+
+    local c = Colors()
+    local wording = ns.GetReferenceWording and ns.GetReferenceWording(context.profile.goal) or nil
+    local base = wording and wording.base or "Best in Slot"
+    local scoreText = FormatVerdictScore(score)
+    tooltip:AddLine(" ")
+    AddLine(tooltip, "|cffff8000StatVerdict Warning|r", 1, 0.5, 0)
+    local specLine = BuildSpecLine(context)
+    if specLine then
+        AddLine(tooltip, "|cffffd200Main Spec|r " .. specLine)
+    end
+    -- One short line: what to do, what it becomes, and the gain.
+    AddLine(tooltip, "|cff00ccffCatalyst it: " .. base .. "|r" .. (scoreText and (" " .. c.green .. scoreText .. c.reset) or ""), 0, 0.8, 1)
+    AddLine(tooltip, "|cff999999Hold Ctrl to preview|r", 0.6, 0.6, 0.6)
+    tooltip:Show()
+    return true
 end
 
 function ns.RenderTooltipLoadoutMembership(tooltip, context)

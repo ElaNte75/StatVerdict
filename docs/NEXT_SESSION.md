@@ -41,9 +41,12 @@ When this file is rewritten, delete what is no longer true. Release notes live i
   Bump helper: `release_prep.write_version(root, version, date)` sets the toc, `ns.VERSION`, `ns.RELEASE_DATE` and the `(vX.Y.Z)` in STORE.md.
 - **Every Wednesday ~15:00 Greek time** `.github/workflows/classcodex-live-refresh.yml` refreshes the guide data and, when it changed, runs
   `tools/release_prep.py` (bumps WEEK, writes the changelog file) and opens a GitHub issue ("Ώρα για ανέβασμα ...") that GitHub mails to the owner.
-  Next one: 2.0.41. It never publishes. GitHub issue #1 ("waits for the 1.1.1 upload") may still be open: the owner can close it after uploading.
+  **The repo is now at 2.1.41 with `docs/changelog/2.1.41_pending.md`** (the Alt / Catalyst work below, committed 2026-10-07; owner decides when to upload;
+  the bot only adds its data line to a pending file). If 2.0.40 was never uploaded, its changelog text (and STORE.md) still describes the old Alt switch: ask.
+  Weekly time moved to 09:00 UTC (12:00 Greek summer time). It never publishes. GitHub issue #1 ("waits for the 1.1.1 upload") may still be open: the owner can close it after uploading.
 - The data pipeline refuses to write targets without the upgrade-track tables (`--allow-missing-track-levels` overrides) and retries the fetch 4 times.
-  The data root also carries `trackTop` (the 6/6 bonus id of each track).
+  The data root also carries `trackTop` (the 6/6 bonus id of each track) and `trackRanks` (every rank 1..6: `{bonus id, item level}`, from
+  `upgrade_tracks.build_track_swap(...).ranks`; the 2026-10-07 data file got it by hand, the next bot run writes it itself).
 - GitHub e-mail: only failed workflows (set by the owner). Do not add experiment workflows.
 
 ## What 2.0.40 contains (the changelog file has the full text)
@@ -88,14 +91,23 @@ Features tab became **Options** with a new look, **Always on top**, **Compact Mo
 - **Stat ranks:** `+73 Critical Strike #1 [MS]`: gold number, then a gold MS/OS picture (`Textures/StatRankMS|OS.tga`, size 8x16 in `LABEL_SIZE`).
   Equal stats (guide "equal groups") share the same number. Switch: Options > "Stat Ranks on tooltips" (`StatVerdictDB.showStatRanks`).
   Not drawn in combat. The comparison block "If you replace this item..." is skipped. Matching uses the game's own stat words (works in every language).
-- **Which build:** the one selected in the window (Main/Off). **Alt held shows the other build** (ranks AND the whole verdict block), only when an Off Spec is set.
-  One grey line "Also an upgrade for <spec> (hold Alt)" when the other build gains too. `RefreshData` redraws on Alt press/release (MODIFIER_STATE_CHANGED).
+- **Which build:** the one selected in the window (Main/Off). **Alt HELD shows the other build** (ranks AND the whole verdict block), only when an Off Spec is set
+  and NOT over a bag item (Alt-click marks there: `tooltipInBags`, set once per tooltip in `ProcessTooltip`). Letting go brings the first build back (no toggle).
+  One gold line "Also an upgrade for Off Spec" ("Main Spec" while Alt is held) when the other build gains too. `RefreshData` redraws on Alt press/release.
+- **Verdict line:** "Better than <item name>: +points" (no "virtual loadout" wording).
 - **Catalyst:** the item is judged as it is (the +100 is NOT in its points; converting costs a scarce Spark). Under the verdict: "Best in Slot after the
   Catalyst" (light blue) when the set piece, judged with its real stats at the item's own item level, comes out better, else "Not better after the
   Catalyst"; then "Hold Ctrl to preview". **Ctrl held swaps the tooltip for the set piece** (same item string, set piece id), nothing about saving is offered
   there; Ctrl up puts the item back. Shift is the game's own comparison and Alt is ours for the build: do not reuse them. Appears only when the BiS piece of
   that slot is a set piece, the item has an upgrade track, and is not itself the BiS piece. It is inside the verdict block, so it needs the item to be an
-  upgrade as it is. **The Ctrl preview was reported working; the "no save in preview" and "Alt build verdict" changes are not yet confirmed by the owner.**
+  upgrade as it is. **2026-10-07 fixes:** the set piece is now built with the track bonus id that gives the item's own item level
+  (`ns.CatalystTargetItemString` in `UI/SV_Render.lua`, from `trackRanks`): copying the item's own bonus ids made the game read the set piece at its base level
+  (219 instead of 292), so "Not better" was wrong and Ctrl showed a weak piece. No track level found = no Catalyst lines at all. For an item that is no upgrade
+  as it is, or the piece worn, `ns.RenderTooltipCatalystOnly` draws a short block: "StatVerdict Warning / Main Spec <spec> / Catalyst it: Best in Slot +N /
+  Hold Ctrl to preview" (Main Spec only, only when the gain is positive). The game's comparison tooltip (ShoppingTooltip) gives no link, only an item id:
+  `GetTooltipItemLink` finds the worn link by id. Character sheet (`UI/SV_UpgradeIndicatorView.lua`, `RefreshCatalystMarks`): gold BIS on worn Best in Slot
+  pieces, gold CAT where the Catalyst would make the piece Best in Slot (all in the middle of the slot); Options > "Marks on the character sheet"
+  (`showCharacterMarks`, on by default). **Not confirmed by the owner in game: the ones above that are not named here; the Ctrl preview was reported working; the "no save in preview" and "Alt build verdict" changes are not yet confirmed by the owner.**
 - **Pitfall found:** the verdict block is skipped when the tooltip "already has a StatVerdict line" (`TooltipAlreadyHasStatVerdict`). Texture escapes
   hold the folder name `StatVerdict` in their path, so that check now strips `|T...|t` first. Any text we add to a tooltip must be checked against it.
 

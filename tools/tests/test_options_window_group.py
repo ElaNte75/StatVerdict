@@ -6,7 +6,7 @@ from tools.tests import test_addon_lua as base
 from tools.tests.test_addon_lua import LuaRuntime
 
 ALL_KEYS = [
-    "showUpgradeArrow", "showMsOsLabels", "showStatRanks", "showBisTooltip", "showBisGemsEnchants",
+    "showUpgradeArrow", "showMsOsLabels", "showStatRanks", "showCharacterMarks", "showBisTooltip", "showBisGemsEnchants",
     "bisUseGameTooltip", "showTrinketTooltip", "showTrinketEffect", "trinketUseGameTooltip",
     "alwaysOnTop", "compactMode", "autoHideLeft",
 ]

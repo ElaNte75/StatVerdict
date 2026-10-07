@@ -1230,6 +1230,7 @@ class TooltipProvenanceTests(unittest.TestCase):
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
 class VerdictReferenceLabelTests(unittest.TestCase):
     CATALYST_TEXT = "Good if converted to the set piece with the Catalyst"
+    item_level = 334
 
     def render(self, reference_info, converted=None):
         """converted: the points BuildComparison gives the set piece (None: it gives nothing)."""
@@ -1240,6 +1241,10 @@ class VerdictReferenceLabelTests(unittest.TestCase):
         ns.Colors = lua.table(white="|cffffffff", reset="|r", green="|cff00ff00", red="|cffff0000", yellow="|cffffff00")
         load_addon_file(lua, ns, "UI/SV_Render.lua")
         ns.GetItemReferenceInfo = lambda link, profile: reference_info(lua) if reference_info else None
+        # The item scores like Myth 6/6 (item level 334) unless a test says otherwise.
+        ns.ClassCodexTargets = lua.eval("""{trackRanks = {champion = {[1] = {12833, 292}, [6] = {12838, 308}}, myth = {[6] = {12854, 334}}}}""")
+        ns.GetItemLevel = lambda link: self.item_level
+        ns.GetItemUpgradeInfo = lambda link: lua.table(currentLevel=6)
 
         def build_comparison(link, profile):
             self.asked_links.append(str(link))
@@ -1266,8 +1271,21 @@ class VerdictReferenceLabelTests(unittest.TestCase):
         self.assertLess(better, next(i for i, line in enumerate(lines) if "Hold Ctrl" in line))
         self.assertFalse(any(self.CATALYST_TEXT in line for line in lines))  # the old reference line is gone
         self.assertFalse(any("(BIS)" in line for line in lines))
-        # The set piece is judged at the item's own level and bonus ids, with the set piece's id.
+        # The set piece is judged at the item's own level: the track bonus id that gives it, with the set piece's id.
         self.assertEqual(["item:1000::::::::90::::1:12854"], self.asked_links)
+
+    def test_the_set_piece_gets_the_bonus_id_of_the_items_own_level(self) -> None:
+        self.item_level = 292  # a Champion 1/6 item: the set piece must not be read at its base level
+        self.render(self.CATALYST_INFO, converted=105)
+        self.assertEqual(["item:1000::::::::90::::1:12833"], self.asked_links)
+        self.item_level = 334
+
+    def test_no_track_for_the_items_level_means_no_catalyst_lines(self) -> None:
+        self.item_level = 219  # no track of the season reaches it: nothing honest can be said about the set piece
+        lines = self.render(self.CATALYST_INFO, converted=105)
+        self.assertEqual([], self.asked_links)
+        self.assertFalse(any("after the Catalyst" in line or "Hold Ctrl" in line for line in lines))
+        self.item_level = 334
 
     def test_a_set_piece_that_is_not_better_says_so(self) -> None:
         lines = self.render(self.CATALYST_INFO, converted=3)
@@ -1288,6 +1306,55 @@ class VerdictReferenceLabelTests(unittest.TestCase):
     def test_no_reference_means_no_reference_line(self) -> None:
         lines = self.render(None)
         self.assertFalse(any("Reference:" in line for line in lines))
+
+
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class CatalystOnlyBlockTests(unittest.TestCase):
+    """An item that is no upgrade as it is (or the worn piece) still hears that the Catalyst makes it Best in Slot."""
+
+    def render(self, converted, worn, has_path=True):
+        lua = new_runtime()
+        ns = lua.table()
+        lua.execute("C_Item = { GetItemInfo = function() return nil end }")
+        ns.Colors = lua.table(white="|cffffffff", reset="|r", green="|cff00ff00", red="|cffff0000", yellow="|cffffff00")
+        load_addon_file(lua, ns, "UI/SV_Render.lua")
+        ns.ClassCodexTargets = lua.eval("{trackRanks = {myth = {[6] = {12854, 334}}}}")
+        ns.GetItemLevel = lambda link: 334
+        ns.GetItemUpgradeInfo = lambda link: lua.table(currentLevel=6)
+        ns.GetItemReferenceInfo = lambda link, profile: (
+            lua.table(catalystPath=lua.table(targetItemID=1000)) if has_path else None)
+        ns.BuildComparison = lambda link, profile: (
+            lua.table(selected=lua.table(deltaScore=converted)) if converted is not None else None)
+        tooltip = lua.execute("""
+        local lines = {}
+        return { lines = lines, AddLine = function(self, text) lines[#lines + 1] = text end, Show = function() end }
+        """)
+        context = lua.table(specName="Frost", profile=lua.table(goal="MYTHIC_PLUS"))
+        drawn = ns.RenderTooltipCatalystOnly(tooltip, context, "item:7000::::::::90", worn)
+        return drawn, [tooltip.lines[i] for i in range(1, len(tooltip.lines) + 1)]
+
+    def test_a_worn_piece_is_told_to_convert_it_with_the_gain(self) -> None:
+        drawn, lines = self.render(converted=42, worn=True)
+        self.assertTrue(drawn)
+        self.assertTrue(any("StatVerdict Warning" in line for line in lines))  # not a result: something to do
+        self.assertTrue(any("Catalyst it: Best in Slot" in line and "42" in line for line in lines))
+        self.assertTrue(any("Hold Ctrl to preview" in line for line in lines))
+        self.assertFalse(any("Better than" in line or "Off Spec" in line for line in lines))  # no other comparison
+
+    def test_an_item_that_is_not_worn_gets_the_same_short_block(self) -> None:
+        drawn, lines = self.render(converted=42, worn=False)
+        self.assertTrue(drawn)
+        self.assertEqual(4, len(lines) - 1)  # blank, warning, spec, one Catalyst line, hint: no long explanation
+        self.assertTrue(any("Catalyst it: Best in Slot" in line for line in lines))
+
+    def test_nothing_when_the_set_piece_is_not_better(self) -> None:
+        self.assertFalse(self.render(converted=-3, worn=True)[0])
+        self.assertFalse(self.render(converted=None, worn=True)[0])
+
+    def test_nothing_without_a_catalyst_path(self) -> None:
+        drawn, lines = self.render(converted=42, worn=True, has_path=False)
+        self.assertFalse(drawn)
+        self.assertEqual([], lines)
 
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
@@ -2862,7 +2929,7 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
         self.check()
         card = self.frame.optionsDrawerCard
         self.assertEqual(26 + 24 + 24 + 36 + 6, card.bisTooltipGroup._height)  # heading, two rows, one with a grey line, a pad
-        self.assertEqual(26 + 24 + 24 + 36 + 6, card.bagGroup._height)  # Upgrade Arrow, MS / OS Labels, Stat Ranks
+        self.assertEqual(26 + 24 + 24 + 36 + 36 + 6, card.bagGroup._height)  # Upgrade Arrow, MS / OS Labels, Stat Ranks, Marks on the character sheet
         self.assertEqual(26 + 36 + 36 + 36 + 46 + 6, card.windowGroup._height)  # Always on top, Compact Mode, Auto-hide, Window size
         self.assertEqual(26 + 24 + 24 + 36 + 6, card.trinketTooltipGroup._height)
 
@@ -2961,8 +3028,8 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
     def test_every_choice_is_a_row_with_a_switch(self) -> None:
         self.check()
         card = self.frame.optionsDrawerCard
-        with_desc = ("showStatRanks", "bisUseGameTooltip", "trinketUseGameTooltip", "alwaysOnTop", "compactMode", "autoHideLeft")
-        for key in ("showUpgradeArrow", "showMsOsLabels", "showStatRanks", "showBisTooltip", "showBisGemsEnchants",
+        with_desc = ("showStatRanks", "showCharacterMarks", "bisUseGameTooltip", "trinketUseGameTooltip", "alwaysOnTop", "compactMode", "autoHideLeft")
+        for key in ("showUpgradeArrow", "showMsOsLabels", "showStatRanks", "showCharacterMarks", "showBisTooltip", "showBisGemsEnchants",
                     "bisUseGameTooltip", "showTrinketTooltip", "showTrinketEffect", "trinketUseGameTooltip",
                     "alwaysOnTop", "compactMode", "autoHideLeft"):
             row = self.row_of(key)
@@ -3068,6 +3135,7 @@ class OptionsDrawerGeometryTests(unittest.TestCase):
         "bisUseGameTooltip": "Best in Slot: game tooltip",
         "trinketUseGameTooltip": "Ranked Trinkets: game tooltip",
         "showStatRanks": "Stat Ranks on tooltips",
+        "showCharacterMarks": "Marks on the character sheet",
         "alwaysOnTop": "Always on top",
         "compactMode": "Compact Mode",
     }

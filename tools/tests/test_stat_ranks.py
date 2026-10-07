@@ -44,7 +44,7 @@ class StatRankTests(unittest.TestCase):
 
     def tooltip(self, lines: list[str], *, order=None, groups=None, combat: bool = False, off: bool = False,
                 alt: bool = False, off_spec_order=None):
-        """off: the switch is off. alt: Alt was pressed once. off_spec_order: the
+        """off: the switch is off. alt: Alt is held. off_spec_order: the
         Off Spec build's stat order (None: no Off Spec is selected)."""
         order = order or [CRIT, MASTERY, VERS, HASTE]
         groups = groups if groups is not None else [[2, 3]]
@@ -72,8 +72,7 @@ class StatRankTests(unittest.TestCase):
             return {{ profile = SV_RANK_PROFILE }}, SV_RANK_OFF_PROFILE and {{ profile = SV_RANK_OFF_PROFILE }} or nil
         end
         """)
-        if alt:
-            self.ns.ToggleOtherBuild(lua.eval("RANK_TIP"))  # Alt was pressed once
+        lua.execute("IsAltKeyDown = function() return " + ("true" if alt else "false") + " end")  # Alt held
         self.ns.AddStatRanksToTooltip(lua.eval("RANK_TIP"))
         return [str(lua.eval(f"RankTipTextLeft{i}.t")) for i in range(1, len(lines) + 1)], bool(lua.eval("RANK_TIP.shown"))
 

@@ -743,6 +743,86 @@ local function HookKnownContainerShows()
     end
 end
 
+-- Gold marks on the pieces the player wears, on the character sheet (Main Spec; the inspect window is not touched):
+--   a big gold "CAT" in the middle of the piece when the Catalyst would make it the Best in Slot set piece (the same test as the
+--   tooltip's "Convert it with the Catalyst" block), and the gold tag (BIS) in the middle of a piece that already is
+--   Best in Slot. Everything is protected: a failure here must never break the character sheet.
+local WORN_MARK_SLOTS = {
+    "CharacterHeadSlot", "CharacterNeckSlot", "CharacterShoulderSlot", "CharacterBackSlot", "CharacterChestSlot",
+    "CharacterWristSlot", "CharacterHandsSlot", "CharacterWaistSlot", "CharacterLegsSlot", "CharacterFeetSlot",
+    "CharacterFinger0Slot", "CharacterFinger1Slot", "CharacterTrinket0Slot", "CharacterTrinket1Slot",
+    "CharacterMainHandSlot", "CharacterSecondaryHandSlot",
+}
+
+local function EnsureWornMark(frame, field, size, text, point, x, y)
+    local mark = frame[field]
+    if not mark then
+        mark = frame:CreateFontString(nil, "OVERLAY")
+        if type(mark.SetDrawLayer) == "function" then mark:SetDrawLayer("OVERLAY", INDICATOR_DRAW_SUBLEVEL) end
+        mark:SetFont(STANDARD_TEXT_FONT or "Fonts\FRIZQT__.TTF", size, "OUTLINE")
+        mark:SetText(text)
+        mark:SetPoint(point, GetIconAnchor(frame) or frame, point, x, y)
+        frame[field] = mark
+    end
+    return mark
+end
+
+local function SetWornMarks(frame, kind, tag)
+    if not frame then return end
+    if kind == "catalyst" then
+        EnsureWornMark(frame, "StatVerdictCatalystMark", 16, "|cffffd200CAT|r", "CENTER", 0, 0):Show()
+    elseif frame.StatVerdictCatalystMark then
+        frame.StatVerdictCatalystMark:Hide()
+    end
+    if kind == "bis" then
+        local mark = EnsureWornMark(frame, "StatVerdictBisMark", 14, "", "CENTER", 0, 0)
+        mark:SetText("|cffffd200" .. tostring(tag or "BIS") .. "|r")
+        mark:Show()
+    elseif frame.StatVerdictBisMark then
+        frame.StatVerdictBisMark:Hide()
+    end
+end
+
+local function RefreshCatalystMarks()
+    local ok = pcall(function()
+        if not (ns.GetTooltipEvaluationContexts and ns.GetCatalystGain and ns.GetItemReferenceInfo and GetInventoryItemLink) then return end
+        local context = ns.GetTooltipEvaluationContexts()
+        local profile = type(context) == "table" and context.profile or nil
+        -- Options > Marks on the character sheet: off means no marks at all (saved choice, on when never set).
+        local db = _G.StatVerdictDB
+        if type(db) == "table" and db.showCharacterMarks == false then profile = nil end
+        local wording = ns.GetReferenceWording and ns.GetReferenceWording(profile and profile.goal) or nil
+        for _, name in ipairs(WORN_MARK_SLOTS) do
+            local frame = _G[name]
+            if frame and type(frame.GetID) == "function" then
+                local kind = nil
+                if profile and IsFrameVisible(frame) then
+                    local link = GetInventoryItemLink("player", frame:GetID())
+                    local function evaluate()
+                        local info = link and ns.GetItemReferenceInfo(link, profile) or nil
+                        if info and info.bis then return "bis" end
+                        return link and ns.GetCatalystGain(context, link) and "catalyst" or nil
+                    end
+                    kind = ns.WithStatVerdictSnapshotProfile and ns.WithStatVerdictSnapshotProfile(profile, evaluate) or evaluate()
+                end
+                SetWornMarks(frame, kind, wording and wording.tag)
+            end
+        end
+    end)
+    return ok
+end
+ns.RefreshCatalystMarks = RefreshCatalystMarks
+
+local catalystMarkHooked = false
+local function HookCatalystMarks()
+    if catalystMarkHooked then return end
+    local sheet = _G.PaperDollFrame
+    if sheet and type(sheet.HookScript) == "function" then
+        catalystMarkHooked = true
+        sheet:HookScript("OnShow", function() C_Timer.After(0.2, RefreshCatalystMarks) end)
+    end
+end
+
 scanFrame = CreateFrame("Frame")
 local function RegisterEventSafe(eventName)
     local ok = pcall(scanFrame.RegisterEvent, scanFrame, eventName)
@@ -770,6 +850,10 @@ end
 
 scanFrame:SetScript("OnEvent", function(_, event)
     HookKnownContainerShows()
+    HookCatalystMarks()
+    if (event == "PLAYER_EQUIPMENT_CHANGED" or event == "GET_ITEM_INFO_RECEIVED") and IsFrameVisible(_G.PaperDollFrame) then
+        C_Timer.After(0.5, RefreshCatalystMarks)
+    end
     if event == "PLAYER_REGEN_ENABLED" then
         if waitingForCombatEnd then
             waitingForCombatEnd = false

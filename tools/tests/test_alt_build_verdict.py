@@ -38,6 +38,7 @@ class AltBuildVerdictTests(unittest.TestCase):
             RENDERED[#RENDERED + 1] = context.specName .. (isSecondary and ":secondary" or ":primary")
             tooltip:AddLine("|cffff8000StatVerdict Result|r " .. context.specName)
         end""")
+        self.ns.IsTooltipFromPlayerBags = lua.eval("function() return TIP_IN_BAGS == true end")
         self.set_builds(off_spec=True)
 
     def set_builds(self, off_spec: bool) -> None:
@@ -47,13 +48,13 @@ class AltBuildVerdictTests(unittest.TestCase):
         self.ns.GetTooltipEvaluationContexts = lua.eval(
             "function() return BLOOD" + (", FROST" if off_spec else "") + " end")
 
-    def hover(self, alt=False, upgrades=("Blood", "Frost"), same_item=False):
+    def hover(self, alt=False, upgrades=("Blood", "Frost"), same_item=False, in_bags=False):
         lua = self.lua
         if not same_item:
             lua.execute("LINK = LINK + 1")  # every hover is another item unless said otherwise
         lua.execute(f"RENDERED = {{}}; TIP.lines = {{}}")
-        if alt:
-            self.ns.ToggleOtherBuild(lua.eval("TIP"))  # Alt pressed once
+        lua.execute("IsAltKeyDown = function() return " + ("true" if alt else "false") + " end")  # Alt is held, not switched
+        lua.execute("TIP_IN_BAGS = " + ("true" if in_bags else "false"))
         lua.execute("UPGRADES = { " + ", ".join(f"{name} = true" for name in upgrades) + " }")
         self.ns.ProcessTooltip(lua.eval("TIP"))
         rendered = [str(lua.eval(f"RENDERED[{i}]")) for i in range(1, int(lua.eval("#RENDERED")) + 1)]
@@ -67,7 +68,7 @@ class AltBuildVerdictTests(unittest.TestCase):
     def test_alt_shows_the_other_build(self) -> None:
         rendered, lines = self.hover(alt=True)
         self.assertEqual(["Frost:secondary"], rendered)
-        self.assertFalse(any("- Alt" in line for line in lines))  # no hint while it is shown
+        self.assertEqual(1, len([line for line in lines if "Also an upgrade for Main Spec" in line]))  # the way back
 
     def test_without_an_off_spec_alt_does_nothing(self) -> None:
         self.set_builds(off_spec=False)
@@ -77,7 +78,7 @@ class AltBuildVerdictTests(unittest.TestCase):
 
     def test_a_build_that_gains_too_gets_one_gold_line(self) -> None:
         _, lines = self.hover(upgrades=("Blood", "Frost"))
-        hints = [line for line in lines if "Also an upgrade for Frost - Alt" in line]
+        hints = [line for line in lines if "Also an upgrade for Off Spec" in line]
         self.assertEqual(1, len(hints))
         self.assertIs(True, lines[-1] == hints[0])  # at the very end
 
@@ -91,22 +92,16 @@ class AltBuildVerdictTests(unittest.TestCase):
         rendered, _ = self.hover(upgrades=("Blood",))
         self.assertEqual(["Blood:primary"], rendered)  # and the Main Spec comes first when it has something to say
 
-    def test_alt_is_a_switch_pressed_again_it_goes_back(self) -> None:
-        self.hover(alt=True)
-        rendered, _ = self.hover(same_item=True)  # still on: no new press needed
+    def test_alt_is_held_not_switched_letting_go_goes_back(self) -> None:
+        rendered, _ = self.hover(alt=True)
         self.assertEqual(["Frost:secondary"], rendered)
-        rendered, _ = self.hover(alt=True, same_item=True)  # second press
+        rendered, _ = self.hover(same_item=True)  # Alt let go: the first build again, nothing stays
         self.assertEqual(["Blood:primary"], rendered)
 
-    def test_the_switch_is_forgotten_when_another_item_opens(self) -> None:
-        lua = self.lua
-        lua.execute("GameTooltip = TIP")  # the reset only watches the game's own tooltip
-        self.hover(alt=True)
-        rendered, _ = self.hover()  # another item
+    def test_over_a_bag_item_alt_changes_nothing(self) -> None:
+        rendered, lines = self.hover(alt=True, in_bags=True)  # Alt is the marking key there
         self.assertEqual(["Blood:primary"], rendered)
-        lua.execute("LINK = LINK - 1")
-        rendered, _ = self.hover(same_item=True)  # back on the first one: its real tooltip
-        self.assertEqual(["Blood:primary"], rendered)
+        self.assertEqual(1, len([line for line in lines if "Also an upgrade for Off Spec" in line]))
 
 
 if __name__ == "__main__":

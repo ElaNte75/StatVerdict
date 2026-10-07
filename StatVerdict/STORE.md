@@ -1,4 +1,4 @@
-# StatVerdict — store & launch copy (v2.0.40)
+# StatVerdict — store & launch copy (v2.1.41)
 
 Use this on CurseForge / Wago / Discord. Edit tone freely; keep the audience clear.
 

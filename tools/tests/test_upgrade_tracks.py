@@ -97,6 +97,15 @@ class BuildTrackSwapTests(unittest.TestCase):
         for observed in ({12806, 12854}, set()):
             self.assertEqual({"myth": 12854, "hero": 12846, "champion": 12838}, build_track_swap(observed, GROUPS).top)
 
+    def test_every_rank_has_its_bonus_id_and_item_level(self) -> None:
+        # What the addon uses to build the Catalyst set piece at the item's own level (Champion 1/6 = 292).
+        ranks = build_track_swap(set(), GROUPS).ranks
+        self.assertEqual([12833, 292], ranks["champion"][1])
+        self.assertEqual([12838, 308], ranks["champion"][6])
+        self.assertEqual([12841, 305], ranks["hero"][1])
+        self.assertEqual([12854, 334], ranks["myth"][6])
+        self.assertEqual({1, 2, 3, 4, 5, 6}, set(ranks["myth"]))  # the extension ranks (7-9) are not listed
+
     def test_item_levels_are_the_current_season(self) -> None:
         for observed in ({12806, 12854}, {12806}):
             self.assertEqual({"myth": 334, "hero": 321, "champion": 308}, build_track_swap(observed, GROUPS).item_levels)

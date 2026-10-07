@@ -37,6 +37,10 @@ class CatalystPreviewTests(unittest.TestCase):
         }
         """)
         lua.globals().SV_TEST_NS = self.ns
+        # The item is a Myth 6/6 one (item level 334); the set piece gets the bonus id of that level.
+        self.ns.ClassCodexTargets = lua.eval("{trackRanks = {champion = {[1] = {12833, 292}}, myth = {[6] = {12854, 334}}}}")
+        self.ns.GetItemLevel = lambda link: 334
+        self.ns.GetItemUpgradeInfo = lambda link: lua.table(currentLevel=6)
         self.ns.ProfileRepository = lua.table(GetDataProvenance=lambda goal=None: lua.table(available=True))
         self.ns.GetStatAuditGoalMode = lambda: "RAID"
         self.ns.BuildComparison = lambda *_args: None  # no verdict is needed; what was processed is recorded below
@@ -57,8 +61,19 @@ class CatalystPreviewTests(unittest.TestCase):
 
     def test_ctrl_over_a_convertible_item_shows_the_set_piece_with_the_same_item_level(self) -> None:
         calls, processed = self.hover(self.ORIGINAL, ctrl=True)
-        self.assertEqual(["item:555::::::::90::::1:12854"], calls)  # only the id changes: level and bonus ids stay
+        self.assertEqual(["item:555::::::::90::::1:12854"], calls)  # the set piece's id with the bonus id of the item's level
         self.assertEqual(["item:555::::::::90::::1:12854"], processed)  # only the set piece was filled, not the item
+
+    def test_a_lower_level_item_gets_the_matching_track_bonus_id(self) -> None:
+        self.ns.GetItemLevel = lambda link: 292  # Champion 1/6: the set piece must not fall back to its base level
+        calls, _ = self.hover(self.ORIGINAL, ctrl=True)
+        self.assertEqual(["item:555::::::::90::::1:12833"], calls)
+
+    def test_an_item_level_no_track_reaches_is_not_swapped(self) -> None:
+        self.ns.GetItemLevel = lambda link: 219
+        calls, processed = self.hover(self.ORIGINAL, ctrl=True)
+        self.assertEqual([], calls)
+        self.assertEqual([self.ORIGINAL], processed)
 
     def test_the_swap_happens_once_and_does_not_loop(self) -> None:
         calls, _ = self.hover(self.ORIGINAL, ctrl=True)
@@ -110,9 +125,9 @@ class CatalystPreviewTests(unittest.TestCase):
         self.lua.execute("BAG_CHECKS = 0")
         self.ns.IsTooltipFromPlayerBags = self.lua.eval("function() BAG_CHECKS = BAG_CHECKS + 1 return true end")
         self.hover(self.ORIGINAL, ctrl=True)
-        self.assertEqual(0, int(self.lua.eval("BAG_CHECKS")))  # the set piece pass never asked
+        self.assertEqual(1, int(self.lua.eval("BAG_CHECKS")))  # asked once, for the real item; the set piece pass never asked
         self.hover(self.ORIGINAL, ctrl=False)
-        self.assertGreater(int(self.lua.eval("BAG_CHECKS")), 0)  # the item itself still does
+        self.assertEqual(2, int(self.lua.eval("BAG_CHECKS")))  # the item itself asks again
 
 
 if __name__ == "__main__":
