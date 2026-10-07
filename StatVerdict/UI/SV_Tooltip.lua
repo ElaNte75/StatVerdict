@@ -373,8 +373,15 @@ local function AddTooltipVerdict(tooltip)
             return
         end
         -- One gold line (important, not a side hint) when the other build gains from this item too, so it is not missed.
-        if hasOff and not catalystPreviewing and IsUpgradeFor(itemLink, otherContext) then
-            tooltip:AddLine("|cffffd200Also an upgrade for " .. (altHeld and "Main Spec" or "Off Spec") .. "|r", 1, 0.82, 0)
+        -- (Not while Alt is held: the Off Spec view needs no word about the Main Spec, it was just seen.)
+        if hasOff and not altHeld and not catalystPreviewing and IsUpgradeFor(itemLink, otherContext) then
+            tooltip:AddLine("|cffffd200Also an upgrade for Off Spec|r", 1, 0.82, 0)
+            -- In the bags the tooltip cannot be switched (Alt marks there), so say how to mark the other build.
+            if fromBags then
+                tooltip:AddLine("|cff999999Alt-Left-Click: save in loadout|r", 0.6, 0.6, 0.6)
+            else
+                tooltip:AddLine("|cff999999Hold Alt to see Off Spec|r", 0.6, 0.6, 0.6)
+            end
             tooltip:Show()
         end
         return

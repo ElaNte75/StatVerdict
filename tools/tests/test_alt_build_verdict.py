@@ -68,7 +68,7 @@ class AltBuildVerdictTests(unittest.TestCase):
     def test_alt_shows_the_other_build(self) -> None:
         rendered, lines = self.hover(alt=True)
         self.assertEqual(["Frost:secondary"], rendered)
-        self.assertEqual(1, len([line for line in lines if "Also an upgrade for Main Spec" in line]))  # the way back
+        self.assertFalse(any("Also an upgrade" in line for line in lines))  # the Main Spec was seen a moment ago
 
     def test_without_an_off_spec_alt_does_nothing(self) -> None:
         self.set_builds(off_spec=False)
@@ -80,7 +80,8 @@ class AltBuildVerdictTests(unittest.TestCase):
         _, lines = self.hover(upgrades=("Blood", "Frost"))
         hints = [line for line in lines if "Also an upgrade for Off Spec" in line]
         self.assertEqual(1, len(hints))
-        self.assertIs(True, lines[-1] == hints[0])  # at the very end
+        self.assertEqual(hints[0], lines[-2])  # then one grey line: how to see it (outside the bags)
+        self.assertIn("Hold Alt to see Off Spec", lines[-1])
 
     def test_no_line_when_the_other_build_does_not_gain(self) -> None:
         _, lines = self.hover(upgrades=("Blood",))
@@ -98,10 +99,17 @@ class AltBuildVerdictTests(unittest.TestCase):
         rendered, _ = self.hover(same_item=True)  # Alt let go: the first build again, nothing stays
         self.assertEqual(["Blood:primary"], rendered)
 
+    def test_no_hold_alt_hint_while_alt_is_held_or_in_the_bags(self) -> None:
+        _, lines = self.hover(alt=True)
+        self.assertFalse(any("Hold Alt" in line for line in lines))
+        _, lines = self.hover(in_bags=True)
+        self.assertFalse(any("Hold Alt" in line for line in lines))  # Alt marks there
+
     def test_over_a_bag_item_alt_changes_nothing(self) -> None:
         rendered, lines = self.hover(alt=True, in_bags=True)  # Alt is the marking key there
         self.assertEqual(["Blood:primary"], rendered)
         self.assertEqual(1, len([line for line in lines if "Also an upgrade for Off Spec" in line]))
+        self.assertTrue(any("Alt-Left-Click: save in loadout" in line for line in lines))  # how to mark the Off Spec from the bags
 
 
 if __name__ == "__main__":

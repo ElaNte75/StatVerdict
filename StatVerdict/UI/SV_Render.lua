@@ -180,7 +180,7 @@ function ns.RenderTooltipVerdict(tooltip, context, comparison, isSecondary, show
         AddLine(tooltip, c.white .. "Off Hand: " .. c.reset .. offName, 1, 1, 1)
     else
         -- One line: what it beats (the item itself, not the word loadout), then the points.
-        AddLine(tooltip, c.white .. (ruleBlocked and "Would replace " or "Better than ") .. c.reset .. targetName .. c.white .. ":" .. c.reset .. pointsText, 1, 1, 1)
+        AddLine(tooltip, c.white .. (ruleBlocked and "Would replace " or "Better than ") .. c.reset .. targetName .. c.white .. " :" .. c.reset .. pointsText, 1, 1, 1)
     end
     if selected.ruleReason then
         AddLine(tooltip, c.yellow .. "Reason: " .. selected.ruleReason .. c.reset, 1, 0.85, 0.2, true)
@@ -213,7 +213,7 @@ function ns.RenderTooltipVerdict(tooltip, context, comparison, isSecondary, show
 
     -- Last line: which click saves the item (the spec is already named above).
     if showApproveHint and not ruleBlocked then
-        AddLine(tooltip, "|cff999999" .. (isSecondary and "Alt-Left-Click" or "Alt-Right-Click") .. ": save|r", 0.6, 0.6, 0.6)
+        AddLine(tooltip, "|cff999999" .. (isSecondary and "Alt-Left-Click" or "Alt-Right-Click") .. ": save in loadout|r", 0.6, 0.6, 0.6)
     end
 
     tooltip:Show()

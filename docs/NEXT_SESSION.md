@@ -108,6 +108,10 @@ Features tab became **Options** with a new look, **Always on top**, **Compact Mo
   `GetTooltipItemLink` finds the worn link by id. Character sheet (`UI/SV_UpgradeIndicatorView.lua`, `RefreshCatalystMarks`): gold BIS on worn Best in Slot
   pieces, gold CAT where the Catalyst would make the piece Best in Slot (all in the middle of the slot); Options > "Marks on the character sheet"
   (`showCharacterMarks`, on by default). **Not confirmed by the owner in game: the ones above that are not named here; the Ctrl preview was reported working; the "no save in preview" and "Alt build verdict" changes are not yet confirmed by the owner.**
+- **Open (owner decided to leave it, 2026-10-07):** over a BAG item there is no way to see the Off Spec view (Alt marks there, Ctrl is the Catalyst, Shift is
+  the game's own comparison and must not be reused). The tooltip only says "Also an upgrade for Off Spec" + a grey "Alt-Left-Click: save in loadout". An idea
+  not built: put the Off Spec points on that line ("Also an upgrade for Off Spec +N"). Also open: long notice sentences still wrap (data unavailable, rule
+  reason...), and "21.5% better, based on what?" when the slot is empty was never looked at (needs a screenshot).
 - **Pitfall found:** the verdict block is skipped when the tooltip "already has a StatVerdict line" (`TooltipAlreadyHasStatVerdict`). Texture escapes
   hold the folder name `StatVerdict` in their path, so that check now strips `|T...|t` first. Any text we add to a tooltip must be checked against it.
 
