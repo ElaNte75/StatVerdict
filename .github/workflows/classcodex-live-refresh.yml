@@ -5,7 +5,7 @@ on:
     # Weekly. The upstream build host itself refreshes far more often (the
     # source data is regenerated roughly daily) -- this can move to a
     # tighter cron later with no code change if that turns out worth it.
-    - cron: "0 12 * * 3"
+    - cron: "0 9 * * 3"
   workflow_dispatch: {}
 
 permissions:
