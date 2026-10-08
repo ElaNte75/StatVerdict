@@ -514,6 +514,18 @@ local function NotifyVirtualLoadoutChanged()
     end
 end
 
+-- Two slots that take the same kind of piece: rings, trinkets, and one-hand weapons (main and off hand).
+local EQUIP_PAIRS = { [11] = { 11, 12 }, [12] = { 11, 12 }, [13] = { 13, 14 }, [14] = { 13, 14 }, [16] = { 16, 17 }, [17] = { 16, 17 } }
+
+local function FitsBothSlots(link, pair)
+    if pair[1] ~= 16 then return true end  -- any ring or trinket fits both of its slots
+    local slots = ns.GetComparableSlots and ns.GetComparableSlots(link) or nil
+    if type(slots) ~= "table" then return false end
+    local has = {}
+    for _, slot in ipairs(slots) do has[tonumber(slot)] = true end
+    return (has[16] and has[17]) and true or false
+end
+
 -- Approve an item into a spec's virtual loadout without requiring equip or respec.
 -- Works for any class/spec. slotID is optional; when omitted, comparison selects the best target slot.
 function ns.ApproveItemIntoVirtualLoadout(itemLink, profile, slotID)
@@ -543,6 +555,16 @@ function ns.ApproveItemIntoVirtualLoadout(itemLink, profile, slotID)
     end
     if not targetSlot then
         return false, "Could not resolve a gear slot for this item."
+    end
+
+    -- Two slots take this kind of piece (rings, trinkets, one-hand weapons): the comparison names the weaker worn piece,
+    -- which can be the same slot for two pieces marked one after the other, and the second would push the first out. A
+    -- slot that already holds a marked piece is kept: the new one goes to the other slot of the pair, if that holds none.
+    local pair = EQUIP_PAIRS[targetSlot]
+    if pair and FitsBothSlots(itemLink, pair) and type(snapshot.marked) == "table"
+        and snapshot.marked[tostring(targetSlot)] ~= nil then
+        local other = (pair[1] == targetSlot) and pair[2] or pair[1]
+        if snapshot.marked[tostring(other)] == nil then targetSlot = other end
     end
 
     if ns.IsItemCompatibleWithSlot and not ns.IsItemCompatibleWithSlot(itemLink, profile, targetSlot) then
@@ -903,8 +925,43 @@ end
 
 -- Switching spec puts on the pieces the player marked for the new spec (Alt-click) and that are in the bags.
 -- Every other slot keeps what is worn. Only after a real spec change, never in combat, never at login.
-local EQUIP_AFTER_SPEC_DELAY = 2.5
+-- The game is busy for a moment after a spec change and may ignore a piece put on too early, so the pass runs again
+-- twice later: a piece already worn is skipped, so a pass that finds nothing left to do changes nothing.
+local EQUIP_AFTER_SPEC_DELAYS = { 1.25, 2.5, 4 }
 local lastSpecID = nil
+
+-- Which slot a marked piece is put on. For a pair of slots the slot number saved at marking time means little (the
+-- same two rings can sit the other way round in the other spec), so the piece goes where the worn item is NOT
+-- part of this loadout: the pieces the loadout keeps (marked or not) stay on. nil: nothing to do (the piece is already
+-- worn, or both worn pieces belong to the loadout). `claimed`: slots already filled during this pass.
+local function ChooseEquipSlot(slotID, link, equipment, claimed)
+    local pair = EQUIP_PAIRS[slotID]
+    if not pair or not FitsBothSlots(link, pair) then return slotID end
+    local wanted = { equipment[tostring(pair[1])], equipment[tostring(pair[2])] }
+    local function belongs(worn)
+        for _, kept in ipairs(wanted) do
+            if type(kept) == "string" and SnapshotLinksMatch(worn, kept) then return true end
+        end
+        return false
+    end
+    local get = type(GetInventoryItemLink) == "function" and GetInventoryItemLink or function() return nil end
+    for _, slot in ipairs(pair) do
+        local worn = get("player", slot)
+        if worn and SnapshotLinksMatch(worn, link) then return nil end
+    end
+    local candidates = {}
+    for _, slot in ipairs(pair) do
+        if not claimed[slot] then
+            local worn = get("player", slot)
+            if not worn or not belongs(worn) then candidates[#candidates + 1] = slot end
+        end
+    end
+    if #candidates == 0 then return nil end
+    for _, slot in ipairs(candidates) do
+        if slot == slotID then return slot end
+    end
+    return candidates[1]
+end
 
 function ns.EquipMarkedLoadoutItems()
     if IsInCombat() then return 0 end
@@ -923,13 +980,18 @@ function ns.EquipMarkedLoadoutItems()
     end
     table.sort(slots)  -- the main hand before the off hand
     local equipped = 0
+    local claimed = {}
     for _, slotID in ipairs(slots) do
         local key = tostring(slotID)
         local link = marked[key]
-        local worn = type(GetInventoryItemLink) == "function" and GetInventoryItemLink("player", slotID) or nil
-        if type(link) == "string" and equipment[key] == link
-            and not (worn and SnapshotLinksMatch(worn, link)) and ItemLinkInPlayerBags(link) then
-            if pcall(equipItem, link, slotID) then
+        local target = nil
+        if type(link) == "string" and equipment[key] == link and ItemLinkInPlayerBags(link) then
+            target = ChooseEquipSlot(slotID, link, equipment, claimed)
+        end
+        local worn = target and type(GetInventoryItemLink) == "function" and GetInventoryItemLink("player", target) or nil
+        if target and not (worn and SnapshotLinksMatch(worn, link)) then
+            claimed[target] = true
+            if pcall(equipItem, link, target) then
                 equipped = equipped + 1
                 SayLoadoutChange(link .. " was put on from the " .. SpecNameByID(specID) .. " loadout.")
             end
@@ -944,9 +1006,11 @@ local function NoteSpecChange()
     local changed = lastSpecID ~= nil and lastSpecID ~= specID
     lastSpecID = specID
     if changed and type(C_Timer) == "table" and type(C_Timer.After) == "function" then
-        C_Timer.After(EQUIP_AFTER_SPEC_DELAY, function()
-            if GetActiveSpecID() == specID then ns.EquipMarkedLoadoutItems() end
-        end)
+        for _, delay in ipairs(EQUIP_AFTER_SPEC_DELAYS) do
+            C_Timer.After(delay, function()
+                if GetActiveSpecID() == specID then ns.EquipMarkedLoadoutItems() end
+            end)
+        end
     end
 end
 

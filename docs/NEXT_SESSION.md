@@ -112,6 +112,24 @@ Features tab became **Options** with a new look, **Always on top**, **Compact Mo
   the game's own comparison and must not be reused). The tooltip only says "Also an upgrade for Off Spec" + a grey "Alt-Left-Click: save in loadout". An idea
   not built: put the Off Spec points on that line ("Also an upgrade for Off Spec +N"). Also open: long notice sentences still wrap (data unavailable, rule
   reason...), and "21.5% better, based on what?" when the slot is empty was never looked at (needs a screenshot).
+- **Abandoned (2026-10-08): showing only the compared piece's comparison tooltip** (rings/trinkets/one-hand: the game shows both
+  ShoppingTooltip1/2). Seven attempts failed in game; do not retry the same ways. What was learned: the game shows the comparison
+  tooltips BEFORE the item's post-call (no verdict yet, GameTooltip not yet IsShown); it rebuilds them about once a second;
+  Hide() wipes a tooltip's text (it can no longer be identified) and the game shows it again; SetAlpha(0) is undone by its
+  fade-in even when re-applied in OnUpdate (flicker); moving ShoppingTooltip2 needs BOTH anchor points of ShoppingTooltip1
+  (TOP>GameTooltip:TOP and RIGHT>GameTooltip:LEFT), copying one put it over the item's tooltip. Hiding both at once in OnShow
+  does NOT flicker (the only thing that worked). Debug output goes to a debug WINDOW, never the chat (the owner was spammed).
+- **Character info (worn pieces), built 2026-10-08:** `ns.GetWornPieceInfo(link)` (`UI/SV_Render.lua`) says what is true of a worn piece
+  (bis / catalyst gain / in both builds' loadouts). One mark in the middle of the icon (`UI/SV_UpgradeIndicatorView.lua`,
+  `RefreshCatalystMarks`): BIS or CAT letters (12 pt, 10 pt inside the ring), the gold ring with two arrows (`Textures/SharedRing2.tga`)
+  when in both loadouts; the same ring (`SharedRingBold.tga`, thicker) replaces the MS/OS letters on a bag item in both loadouts. The worn
+  piece's tooltip never compares (owner name `Character*Slot`): only "StatVerdict info / Warning" lines (BIS in light blue, "Also part of
+  your OS set" with OS/MS in green). Options: groups Window / Bag items / Item tooltips / Character info / Best in Slot / Ranked Trinkets
+  (`showCharacterMarks`, `showWornInfo`). Bag Alt-click: right = Main Spec mark, left = Off Spec mark, independent toggles. Respec puts on
+  marked pieces at 1.25 / 2.5 / 4 s, a ring/trinket/1H goes to the slot whose worn piece is not in the loadout. Marking a second ring
+  takes the other slot. The Manual is now a list of topics (`Panel.OpenTopic / ShowTopics`, Back arrow, text size 100-175% only inside a
+  topic). Colour rule from the owner: MS / OS are green letters everywhere; Best in Slot is light blue; still gold and to decide: the
+  "Saved in MS Frost loadout" line and the stat-rank MS/OS pictures.
 - **Pitfall found:** the verdict block is skipped when the tooltip "already has a StatVerdict line" (`TooltipAlreadyHasStatVerdict`). Texture escapes
   hold the folder name `StatVerdict` in their path, so that check now strips `|T...|t` first. Any text we add to a tooltip must be checked against it.
 

@@ -275,6 +275,8 @@ local function HookIndicatorOwner(frame)
     frame:HookScript("OnHide", function()
         if frame.StatVerdictUpgradeIndicator then frame.StatVerdictUpgradeIndicator:Hide() end
         if frame.StatVerdictSpecValueIndicator then frame.StatVerdictSpecValueIndicator:Hide() end
+        if frame.StatVerdictOffSpecIndicator then frame.StatVerdictOffSpecIndicator:Hide() end
+        if frame.StatVerdictBagRing then frame.StatVerdictBagRing:Hide() end
     end)
     -- Do not refresh on every bag-button OnShow — that storms the UI when bags open.
     -- Container UpdateItems / BAG_UPDATE already schedule a coalesced refresh.
@@ -283,6 +285,12 @@ end
 local UPGRADE_ARROW_TEXTURE = "Interface\\AddOns\\StatVerdict\\Textures\\UpgradeArrow"
 -- Above bag icon art / borders (same OVERLAY layer, higher sublevel).
 local INDICATOR_DRAW_SUBLEVEL = 7
+
+-- The gold ring with two arrows (a picture): "this piece is in both builds' loadouts". Used on the character sheet and in
+-- the bags. (The file is called SharedRing2: the first drawing, SharedRing, was dropped.)
+local SHARED_TEXTURE = "Interface\\AddOns\\StatVerdict\\Textures\\SharedRing2"
+-- The same ring with thicker, brighter strokes, for the bags (it has to stand out next to the green MS / OS letters).
+local SHARED_TEXTURE_BAG = "Interface\\AddOns\\StatVerdict\\Textures\\SharedRingBold"
 
 -- Textures / FontStrings never receive mouse. Avoid Frame wrappers on bag slots
 -- so corner badges cannot steal clicks from the item button.
@@ -323,9 +331,10 @@ local function ApplyUpgradeLook(overlay)
     end
 end
 
-local function EnsureSpecValueIndicator(frame)
-    if frame.StatVerdictSpecValueIndicator then
-        return frame.StatVerdictSpecValueIndicator
+local function EnsureSpecValueIndicator(frame, field)
+    field = field or "StatVerdictSpecValueIndicator"
+    if frame[field] then
+        return frame[field]
     end
     local text = frame:CreateFontString(nil, "OVERLAY")
     if type(text.SetDrawLayer) == "function" then
@@ -336,12 +345,12 @@ local function EnsureSpecValueIndicator(frame)
     end
     text:SetText("|cff00ff00OS|r")
     text:Hide()
-    frame.StatVerdictSpecValueIndicator = text
+    frame[field] = text
     HookIndicatorOwner(frame)
     return text
 end
 
-local function SetLetterBadgeFont(overlay, kind)
+local function SetLetterBadgeFont(overlay, kind, size)
     local text = overlay
     if overlay and overlay.text then
         text = overlay.text
@@ -349,7 +358,7 @@ local function SetLetterBadgeFont(overlay, kind)
     if not (text and text.SetFont) then return end
     local file, _, flags = text:GetFont()
     file = file or STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
-    text:SetFont(file, 13, flags or "OUTLINE")
+    text:SetFont(file, size or 13, flags or "OUTLINE")
 end
 
 local function HideFrameIndicators(frame)
@@ -361,6 +370,50 @@ local function HideFrameIndicators(frame)
         frame.StatVerdictSpecValueIndicator.svIndicatorKind = nil
         frame.StatVerdictSpecValueIndicator:Hide()
     end
+    if frame.StatVerdictOffSpecIndicator then
+        frame.StatVerdictOffSpecIndicator.svIndicatorKind = nil
+        frame.StatVerdictOffSpecIndicator:Hide()
+    end
+    if frame.StatVerdictBagRing then frame.StatVerdictBagRing:Hide() end
+end
+
+-- A piece in both loadouts: the same gold ring as on the character sheet, in the top right corner (no MS / OS letters).
+local function SetBagRing(frame, shown)
+    local ring = frame.StatVerdictBagRing
+    if not ring then
+        if not shown then return end
+        ring = frame:CreateTexture(nil, "OVERLAY")
+        if type(ring.SetDrawLayer) == "function" then ring:SetDrawLayer("OVERLAY", INDICATOR_DRAW_SUBLEVEL) end
+        ring:SetTexture(SHARED_TEXTURE_BAG)
+        ring:SetSize(22, 22)
+        frame.StatVerdictBagRing = ring
+        HookIndicatorOwner(frame)
+    end
+    if not shown then
+        ring:Hide()
+        return
+    end
+    ring:ClearAllPoints()
+    ring:SetPoint("CENTER", GetIconAnchor(frame) or frame, "TOPRIGHT", -10, -9)
+    ring:Show()
+end
+
+-- One green MS / OS / M/O badge: shown when `shown`, else hidden.
+local function SetSpecLetter(frame, field, shown, letter, kind, small)
+    local text = frame[field]
+    if not shown then
+        if text then
+            text.svIndicatorKind = nil
+            text:Hide()
+        end
+        return
+    end
+    text = EnsureSpecValueIndicator(frame, field)
+    text.svIndicatorKind = kind
+    SetLetterBadgeFont(text, kind, small and 11 or 13)
+    text:SetText("|cff00ff00" .. letter .. "|r")
+    RepositionIndicator(frame, text)
+    text:Show()
 end
 
 local function SetIndicator(frame, state, options)
@@ -402,25 +455,11 @@ local function SetIndicator(frame, state, options)
         end
     end
 
-    -- Green letter badges (top-right): MS / OS.
-    local letter = nil
-    local letterKind = nil
-    if specRole then
-        letter = specLabel or (specRole == "off_spec" and "OS" or (specRole == "both_specs" and "M/O" or "MS"))
-        letterKind = specRole
-    end
-
-    if letter then
-        local value = EnsureSpecValueIndicator(frame)
-        value.svIndicatorKind = letterKind
-        SetLetterBadgeFont(value, letterKind)
-        value:SetText("|cff00ff00" .. tostring(letter) .. "|r")
-        RepositionIndicator(frame, value)
-        value:Show()
-    elseif frame.StatVerdictSpecValueIndicator then
-        frame.StatVerdictSpecValueIndicator.svIndicatorKind = nil
-        frame.StatVerdictSpecValueIndicator:Hide()
-    end
+    -- Green letter badge at the top right: MS or OS; an item in both loadouts shows the gold ring instead (no letters).
+    local both = specRole == "both_specs"
+    SetSpecLetter(frame, "StatVerdictSpecValueIndicator", specRole == "main_spec", "MS", "main_spec", false)
+    SetSpecLetter(frame, "StatVerdictOffSpecIndicator", specRole == "off_spec", "OS", "off_spec", false)
+    SetBagRing(frame, both)
 end
 
 local function HookBagButtonApprove(button)
@@ -743,10 +782,15 @@ local function HookKnownContainerShows()
     end
 end
 
--- Gold marks on the pieces the player wears, on the character sheet (Main Spec; the inspect window is not touched):
---   a big gold "CAT" in the middle of the piece when the Catalyst would make it the Best in Slot set piece (the same test as the
---   tooltip's "Convert it with the Catalyst" block), and the gold tag (BIS) in the middle of a piece that already is
---   Best in Slot. Everything is protected: a failure here must never break the character sheet.
+-- One gold mark, in the middle of a piece the player wears, on the character sheet (the inspect window is not touched):
+--   the letters BIS = the piece is in the Best in Slot list; CAT = the Catalyst would turn it into the Best in Slot set
+--   piece (so it says Best in Slot as well); a thin gold ring with two arrows (a picture, Textures/SharedRing2) = the piece is
+--   in both builds' loadouts. Both facts at once: the letters inside the ring. No dark fill behind either.
+--   Everything is protected: a failure here must never break the character sheet.
+
+local RING_SIZE = 31              -- the ring around the letters; the ring alone is the same size
+local LETTERS_SIZE_IN_RING = 10   -- the letters fit inside the ring
+local LETTERS_SIZE_ALONE = 12
 local WORN_MARK_SLOTS = {
     "CharacterHeadSlot", "CharacterNeckSlot", "CharacterShoulderSlot", "CharacterBackSlot", "CharacterChestSlot",
     "CharacterWristSlot", "CharacterHandsSlot", "CharacterWaistSlot", "CharacterLegsSlot", "CharacterFeetSlot",
@@ -759,7 +803,7 @@ local function EnsureWornMark(frame, field, size, text, point, x, y)
     if not mark then
         mark = frame:CreateFontString(nil, "OVERLAY")
         if type(mark.SetDrawLayer) == "function" then mark:SetDrawLayer("OVERLAY", INDICATOR_DRAW_SUBLEVEL) end
-        mark:SetFont(STANDARD_TEXT_FONT or "Fonts\FRIZQT__.TTF", size, "OUTLINE")
+        mark:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", size, "OUTLINE")
         mark:SetText(text)
         mark:SetPoint(point, GetIconAnchor(frame) or frame, point, x, y)
         frame[field] = mark
@@ -767,25 +811,59 @@ local function EnsureWornMark(frame, field, size, text, point, x, y)
     return mark
 end
 
-local function SetWornMarks(frame, kind, tag)
+local function SetSharedMark(frame, shown)
+    local mark = frame.StatVerdictSharedMark
+    if not mark then
+        if not shown then return end
+        mark = frame:CreateTexture(nil, "OVERLAY")
+        -- (the game accepts draw sublevels from -8 to 7 only: one more is an error)
+        if type(mark.SetDrawLayer) == "function" then mark:SetDrawLayer("OVERLAY", INDICATOR_DRAW_SUBLEVEL) end
+        frame.StatVerdictSharedMark = mark
+    end
+    mark:SetTexture(SHARED_TEXTURE)
+    if not shown then
+        mark:Hide()
+        return
+    end
+    mark:ClearAllPoints()
+    mark:SetSize(RING_SIZE, RING_SIZE)
+    mark:SetPoint("CENTER", GetIconAnchor(frame) or frame, "CENTER", 0, 0)
+    mark:Show()
+end
+
+-- The letters get smaller when they sit inside the ring.
+local function SetLettersSize(mark, inRing)
+    if type(mark.SetFont) == "function" then
+        mark:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", inRing and LETTERS_SIZE_IN_RING or LETTERS_SIZE_ALONE, "OUTLINE")
+    end
+end
+
+-- info: ns.GetWornPieceInfo(link) of the piece, or nil.
+local function SetWornMarks(frame, info, tag)
     if not frame then return end
-    if kind == "catalyst" then
-        EnsureWornMark(frame, "StatVerdictCatalystMark", 16, "|cffffd200CAT|r", "CENTER", 0, 0):Show()
+    local gain = info and not info.bis and info.gain or nil
+    local inRing = (info and info.shared) and true or false
+    if gain then
+        local mark = EnsureWornMark(frame, "StatVerdictCatalystMark", LETTERS_SIZE_ALONE, "|cffffd200CAT|r", "CENTER", 0, 0)
+        SetLettersSize(mark, inRing)
+        mark:Show()
     elseif frame.StatVerdictCatalystMark then
         frame.StatVerdictCatalystMark:Hide()
     end
-    if kind == "bis" then
-        local mark = EnsureWornMark(frame, "StatVerdictBisMark", 14, "", "CENTER", 0, 0)
+    if info and info.bis then
+        local mark = EnsureWornMark(frame, "StatVerdictBisMark", LETTERS_SIZE_ALONE, "", "CENTER", 0, 0)
         mark:SetText("|cffffd200" .. tostring(tag or "BIS") .. "|r")
+        SetLettersSize(mark, inRing)
         mark:Show()
     elseif frame.StatVerdictBisMark then
         frame.StatVerdictBisMark:Hide()
     end
+    SetSharedMark(frame, inRing)
 end
 
 local function RefreshCatalystMarks()
     local ok = pcall(function()
-        if not (ns.GetTooltipEvaluationContexts and ns.GetCatalystGain and ns.GetItemReferenceInfo and GetInventoryItemLink) then return end
+        if not (ns.GetTooltipEvaluationContexts and ns.GetWornPieceInfo and GetInventoryItemLink) then return end
         local context = ns.GetTooltipEvaluationContexts()
         local profile = type(context) == "table" and context.profile or nil
         -- Options > Marks on the character sheet: off means no marks at all (saved choice, on when never set).
@@ -795,17 +873,15 @@ local function RefreshCatalystMarks()
         for _, name in ipairs(WORN_MARK_SLOTS) do
             local frame = _G[name]
             if frame and type(frame.GetID) == "function" then
-                local kind = nil
-                if profile and IsFrameVisible(frame) then
-                    local link = GetInventoryItemLink("player", frame:GetID())
-                    local function evaluate()
-                        local info = link and ns.GetItemReferenceInfo(link, profile) or nil
-                        if info and info.bis then return "bis" end
-                        return link and ns.GetCatalystGain(context, link) and "catalyst" or nil
+                -- Each slot on its own: a problem with one piece must not stop the marks of the others.
+                pcall(function()
+                    local info = nil
+                    if profile and IsFrameVisible(frame) then
+                        local link = GetInventoryItemLink("player", frame:GetID())
+                        info = link and ns.GetWornPieceInfo(link) or nil
                     end
-                    kind = ns.WithStatVerdictSnapshotProfile and ns.WithStatVerdictSnapshotProfile(profile, evaluate) or evaluate()
-                end
-                SetWornMarks(frame, kind, wording and wording.tag)
+                    SetWornMarks(frame, info, wording and wording.tag)
+                end)
             end
         end
     end)

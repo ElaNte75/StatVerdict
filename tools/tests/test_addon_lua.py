@@ -1309,6 +1309,46 @@ class VerdictReferenceLabelTests(unittest.TestCase):
 
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class LoadoutMembershipLineTests(unittest.TestCase):
+    """"Saved in Frost loadout": the spec's name has the class colour; both builds say "both loadouts"."""
+
+    def lines(self, with_other, secondary=False):
+        lua = new_runtime()
+        ns = lua.table()
+        lua.execute("RAID_CLASS_COLORS = { DEATHKNIGHT = { colorStr = 'ffc41e3a' } }; C_Item = { GetItemInfo = function() end }")
+        ns.Colors = lua.table(white="|cffffffff", reset="|r", green="|cff00ff00", red="|cffff0000", yellow="|cffffff00")
+        load_addon_file(lua, ns, "UI/SV_Render.lua")
+        tooltip = lua.execute("""
+        local lines = {}
+        return { lines = lines, AddLine = function(self, text) lines[#lines + 1] = text end, Show = function() end }
+        """)
+        frost = lua.table(specName="Frost", classFile="DEATHKNIGHT", profile=lua.table(specName="Frost"))
+        blood = lua.table(specName="Blood", classFile="DEATHKNIGHT", profile=lua.table(specName="Blood"))
+        ns.RenderTooltipLoadoutMembership(tooltip, frost, blood if with_other else None, secondary)
+        return [str(tooltip.lines[i]) for i in range(1, len(tooltip.lines) + 1)]
+
+    def test_one_build_is_named_in_the_class_colour(self) -> None:
+        lines = self.lines(with_other=False)
+        self.assertEqual(3, len(lines))  # a gap, the title and one line: the spec is not named twice
+        self.assertIn("|cffc41e3aFrost|r", lines[2])
+        self.assertIn("Saved in", lines[2])
+        self.assertIn("|cffffd200MS|r", lines[2])  # which build it is, in gold, before the name
+        self.assertIn("loadout", lines[2])
+
+    def test_the_off_spec_says_os(self) -> None:
+        lines = self.lines(with_other=False, secondary=True)
+        self.assertIn("|cffffd200OS|r", lines[2])
+        self.assertNotIn("|cffffd200MS|r", lines[2])
+
+    def test_both_builds_say_both_loadouts(self) -> None:
+        lines = self.lines(with_other=True)
+        self.assertEqual(3, len(lines))
+        self.assertIn("|cffffd200MS and OS|r", lines[2])  # gold: no class has that colour
+        self.assertIn("loadouts", lines[2])
+        self.assertNotIn("Frost", lines[2])
+
+
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
 class CatalystOnlyBlockTests(unittest.TestCase):
     """An item that is no upgrade as it is (or the worn piece) still hears that the Catalyst makes it Best in Slot."""
 
@@ -2929,7 +2969,9 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
         self.check()
         card = self.frame.optionsDrawerCard
         self.assertEqual(26 + 24 + 24 + 36 + 6, card.bisTooltipGroup._height)  # heading, two rows, one with a grey line, a pad
-        self.assertEqual(26 + 24 + 24 + 36 + 36 + 6, card.bagGroup._height)  # Upgrade Arrow, MS / OS Labels, Stat Ranks, Marks on the character sheet
+        self.assertEqual(26 + 24 + 24 + 6, card.bagGroup._height)  # Upgrade Arrow, MS / OS Labels
+        self.assertEqual(26 + 36 + 6, card.itemTooltipGroup._height)  # Stat Ranks
+        self.assertEqual(26 + 36 + 36 + 6, card.characterInfoGroup._height)  # Marks on worn pieces, Info on worn pieces
         self.assertEqual(26 + 36 + 36 + 36 + 46 + 6, card.windowGroup._height)  # Always on top, Compact Mode, Auto-hide, Window size
         self.assertEqual(26 + 24 + 24 + 36 + 6, card.trinketTooltipGroup._height)
 
@@ -3028,8 +3070,8 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
     def test_every_choice_is_a_row_with_a_switch(self) -> None:
         self.check()
         card = self.frame.optionsDrawerCard
-        with_desc = ("showStatRanks", "showCharacterMarks", "bisUseGameTooltip", "trinketUseGameTooltip", "alwaysOnTop", "compactMode", "autoHideLeft")
-        for key in ("showUpgradeArrow", "showMsOsLabels", "showStatRanks", "showCharacterMarks", "showBisTooltip", "showBisGemsEnchants",
+        with_desc = ("showStatRanks", "showCharacterMarks", "showWornInfo", "bisUseGameTooltip", "trinketUseGameTooltip", "alwaysOnTop", "compactMode", "autoHideLeft")
+        for key in ("showUpgradeArrow", "showMsOsLabels", "showStatRanks", "showCharacterMarks", "showWornInfo", "showBisTooltip", "showBisGemsEnchants",
                     "bisUseGameTooltip", "showTrinketTooltip", "showTrinketEffect", "trinketUseGameTooltip",
                     "alwaysOnTop", "compactMode", "autoHideLeft"):
             row = self.row_of(key)
@@ -3042,14 +3084,15 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
     def test_groups_are_stacked_in_order_with_the_same_gap_and_a_gold_heading_each(self) -> None:
         self.check()
         card = self.frame.optionsDrawerCard
-        groups = [card.windowGroup, card.bagGroup, card.bisTooltipGroup, card.trinketTooltipGroup]
+        groups = [card.windowGroup, card.bagGroup, card.itemTooltipGroup, card.characterInfoGroup,
+                  card.bisTooltipGroup, card.trinketTooltipGroup]
         last = lambda region: region.points[len(region.points)]
-        self.assertEqual(["WINDOW", "BAG ITEMS AND TOOLTIPS", "BEST IN SLOT", "RANKED TRINKETS"],
+        self.assertEqual(["WINDOW", "BAG ITEMS", "ITEM TOOLTIPS", "CHARACTER INFO", "BEST IN SLOT", "RANKED TRINKETS"],
                          [g.heading.text for g in groups])
         self.assertEqual(0, last(groups[0])[5])  # the window's own choices come first, at the top of the list
-        gaps = [last(groups[i + 1])[5] - (last(groups[i])[5] - groups[i]._height) for i in (0, 1, 2)]
-        self.assertEqual([-8, -8, -8], gaps)  # the same small gap between cards
-        self.assertEqual(sum(g._height for g in groups) + 3 * 8, self.ns.StatVerdictOptionsDrawerPanel.GetContentHeight())
+        gaps = [last(groups[i + 1])[5] - (last(groups[i])[5] - groups[i]._height) for i in range(len(groups) - 1)]
+        self.assertEqual([-8] * (len(groups) - 1), gaps)  # the same small gap between cards
+        self.assertEqual(sum(g._height for g in groups) + (len(groups) - 1) * 8, self.ns.StatVerdictOptionsDrawerPanel.GetContentHeight())
         for group in groups:
             self.assertEqual(1, group.rule._height)  # the thin rule under the heading
 
@@ -3135,7 +3178,8 @@ class OptionsDrawerGeometryTests(unittest.TestCase):
         "bisUseGameTooltip": "Best in Slot: game tooltip",
         "trinketUseGameTooltip": "Ranked Trinkets: game tooltip",
         "showStatRanks": "Stat Ranks on tooltips",
-        "showCharacterMarks": "Marks on the character sheet",
+        "showCharacterMarks": "Marks on worn pieces",
+        "showWornInfo": "Info on worn pieces",
         "alwaysOnTop": "Always on top",
         "compactMode": "Compact Mode",
     }

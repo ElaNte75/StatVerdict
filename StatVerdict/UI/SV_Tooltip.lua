@@ -209,6 +209,13 @@ local function IsUpgradeFor(itemLink, context)
     return ok and result == true
 end
 
+-- Is the tooltip the one of a piece the player wears, on the character sheet (not the inspect window)?
+local function IsWornPieceTooltip(owner)
+    if type(owner) ~= "table" or type(owner.GetName) ~= "function" then return false end
+    local name = owner:GetName()
+    return type(name) == "string" and name:match("^Character.+Slot$") ~= nil
+end
+
 local function AddTooltipVerdict(tooltip)
     if IsInternalStatVerdictTooltip(tooltip) then
         return
@@ -227,6 +234,16 @@ local function AddTooltipVerdict(tooltip)
         return
     end
 
+    -- A piece the player wears is not compared with anything: it only explains its marks (Options > Info on worn pieces).
+    if IsWornPieceTooltip(owner) then
+        local db = _G.StatVerdictDB
+        if not (type(db) == "table" and db.showWornInfo == false) and ns.RenderTooltipWornInfo then
+            local primary = ns.GetTooltipEvaluationContexts and ns.GetTooltipEvaluationContexts() or nil
+            pcall(ns.RenderTooltipWornInfo, tooltip, itemLink, primary)
+        end
+        return
+    end
+
     local fromBags = (not catalystPreviewing) and tooltipInBags
 
     local primaryContext, secondaryContext = nil, nil
@@ -237,6 +254,7 @@ local function AddTooltipVerdict(tooltip)
 
     local renderedDataUnavailable = false
     local catalystOnlyDrawn = false  -- the Main Spec drew only the Catalyst block: the Off Spec may still have a verdict
+    local membershipDrawn = false    -- "Saved in ... loadout" was drawn: nothing else is said about the item
     local function renderContext(context, isSecondary)
         local profile = context and context.profile or nil
         if not profile then
@@ -305,7 +323,14 @@ local function AddTooltipVerdict(tooltip)
         if fromBags and ItemInContextLoadout(itemLink, context) then
             ns.RememberTooltipVerdictContext(itemLink, context, nil)
             if ns.RenderTooltipLoadoutMembership then
-                ns.RenderTooltipLoadoutMembership(tooltip, context)
+                -- One line for both builds: when the other one holds the item as well it says "both loadouts".
+                local otherContext = nil
+                local candidate = (context == primaryContext) and secondaryContext or primaryContext
+                if candidate and candidate ~= context and ItemInContextLoadout(itemLink, candidate) then
+                    otherContext = candidate
+                end
+                ns.RenderTooltipLoadoutMembership(tooltip, context, otherContext, isSecondary)
+                membershipDrawn = true
                 return true
             end
         end
@@ -366,6 +391,9 @@ local function AddTooltipVerdict(tooltip)
     end
 
     if renderContext(firstContext, firstIsSecondary) then
+        if membershipDrawn then
+            return
+        end
         if catalystOnlyDrawn then
             if otherContext and otherContext ~= firstContext then
                 renderContext(otherContext, not firstIsSecondary)

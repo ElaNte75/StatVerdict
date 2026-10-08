@@ -1,4 +1,4 @@
-"""The Manual has its own text size (100% to 200%): the text and its window grow together, and it is remembered."""
+"""The Manual has its own text size (100% to 175%): the text and its window grow together, and it is remembered."""
 import unittest
 from pathlib import Path
 
@@ -26,7 +26,9 @@ class ManualTextSizeTests(unittest.TestCase):
         return self.lua.globals().StatVerdictDB
 
     def apply(self):
+        """The Manual with a topic open (the text is only shown inside a topic)."""
         self.panel.Apply(self.frame)
+        self.panel.OpenTopic(self.frame, 2)
         return self.frame.manualDrawerCard
 
     # --- the saved size -----------------------------------------------------------------------------------------------
@@ -35,13 +37,13 @@ class ManualTextSizeTests(unittest.TestCase):
         self.lua.globals().StatVerdictDB = None
         self.assertEqual(100, self.ns.GetManualTextScalePercent())
 
-    def test_a_saved_size_is_used_and_kept_between_100_and_200(self) -> None:
+    def test_a_saved_size_is_used_and_kept_between_100_and_175(self) -> None:
         self.db().manualTextScale = 150
         self.assertEqual(150, self.ns.GetManualTextScalePercent())
         self.db().manualTextScale = 20
         self.assertEqual(100, self.ns.GetManualTextScalePercent())  # the Manual only gets bigger
         self.db().manualTextScale = 900
-        self.assertEqual(200, self.ns.GetManualTextScalePercent())
+        self.assertEqual(175, self.ns.GetManualTextScalePercent())
 
     # --- the text ---------------------------------------------------------------------------------------------------
     def test_the_text_grows_with_the_size(self) -> None:
@@ -58,7 +60,7 @@ class ManualTextSizeTests(unittest.TestCase):
     def test_the_gaps_between_the_lines_grow_with_the_size(self) -> None:
         card = self.apply()
         first = [line.points[len(line.points)][5] for line in card.lines.values()][:3]
-        self.db().manualTextScale = 200
+        self.db().manualTextScale = 175
         card = self.apply()
         bigger = [line.points[len(line.points)][5] for line in card.lines.values()][:3]
         self.assertGreater(abs(bigger[1]), abs(first[1]))
@@ -68,12 +70,12 @@ class ManualTextSizeTests(unittest.TestCase):
         self.assertEqual(300, self.panel.GetPreferredWidth(self.frame))
         self.db().manualTextScale = 150
         self.assertEqual(450, self.panel.GetPreferredWidth(self.frame))
-        self.db().manualTextScale = 200
-        self.assertEqual(600, self.panel.GetPreferredWidth(self.frame))
+        self.db().manualTextScale = 175
+        self.assertEqual(525, self.panel.GetPreferredWidth(self.frame))
 
     def test_the_window_is_never_wider_than_most_of_the_screen(self) -> None:
         self.lua.execute("UIParent = { GetWidth = function() return 600 end, GetHeight = function() return 1080 end }")
-        self.db().manualTextScale = 200
+        self.db().manualTextScale = 175
         self.assertEqual(480, self.panel.GetPreferredWidth(self.frame))
 
     def test_a_docked_manual_may_be_wide(self) -> None:
@@ -91,7 +93,7 @@ class ManualTextSizeTests(unittest.TestCase):
         card = self.apply()
         self.assertEqual(585, card.svFloatingHeight)
         self.lua.execute("UIParent = { GetWidth = function() return 1920 end, GetHeight = function() return 500 end }")
-        self.db().manualTextScale = 200
+        self.db().manualTextScale = 175
         card = self.apply()
         self.assertEqual(425, card.svFloatingHeight)  # not higher than 85% of the screen
 
@@ -100,12 +102,12 @@ class ManualTextSizeTests(unittest.TestCase):
         self.assertIsNone(card.svFloatingHeight)
 
     # --- the slider ---------------------------------------------------------------------------------------------------
-    def test_the_slider_is_at_the_bottom_left_with_five_steps(self) -> None:
+    def test_the_slider_is_at_the_bottom_left_with_four_steps(self) -> None:
         card = self.apply()
         row = card.sizeRow
         self.assertEqual("Text size", row.label.text)
         self.assertEqual("100%", row.value.text)
-        self.assertEqual(5, len(list(row.slider.ticks.values())))  # 100, 125, 150, 175, 200
+        self.assertEqual(4, len(list(row.slider.ticks.values())))  # 100, 125, 150, 175
         point = row.points[len(row.points)]
         self.assertEqual("BOTTOMLEFT", point[1])
         self.assertEqual((10, 12), (point[4], point[5]))
@@ -113,7 +115,7 @@ class ManualTextSizeTests(unittest.TestCase):
     def test_the_text_stops_above_the_slider(self) -> None:
         card = self.apply()
         points = {p[1]: p for p in card.scroll.points.values()}
-        self.assertEqual(12 + 34 + 8, points["BOTTOMRIGHT"][5])
+        self.assertEqual(12 + 34 + 8 + 10, points["BOTTOMRIGHT"][5])  # + the thin line above the slider
 
     def test_a_floating_manual_keeps_the_slider_clear_of_the_close_button(self) -> None:
         layout = self.lua.table()
@@ -148,7 +150,7 @@ class ManualTextSizeTests(unittest.TestCase):
         self.release(50)
         self.assertEqual(100, self.db().manualTextScale)
         self.release(260)
-        self.assertEqual(200, self.db().manualTextScale)
+        self.assertEqual(175, self.db().manualTextScale)
 
     def test_dragging_changes_only_the_number(self) -> None:
         card = self.apply()
@@ -167,13 +169,13 @@ class ManualTextSizeTests(unittest.TestCase):
 
     def test_it_is_the_manuals_own_and_does_not_touch_the_window_size(self) -> None:
         self.db().windowScale = 85
-        self.release(200)
+        self.release(175)
         self.assertEqual(85, self.db().windowScale)
-        self.assertEqual(200, self.db().manualTextScale)
+        self.assertEqual(175, self.db().manualTextScale)
 
     def test_the_slider_explains_itself(self) -> None:
         source = Path("StatVerdict/UI/SV_ManualDrawerPanel.lua").read_text(encoding="utf-8-sig")
-        self.assertIn("from 100% up to 200%. It is remembered, and only the Manual uses it.", source)
+        self.assertIn("from 100% up to 175%. It is remembered, and only the Manual uses it.", source)
 
     def test_the_manual_mentions_its_text_size(self) -> None:
         source = Path("StatVerdict/UI/SV_ManualDrawerPanel.lua").read_text(encoding="utf-8-sig")

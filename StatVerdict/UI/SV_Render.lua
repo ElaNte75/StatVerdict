@@ -237,6 +237,63 @@ function ns.GetCatalystGain(context, itemLink)
     return score
 end
 
+-- What is worth saying about a piece the player WEARS (character sheet): { bis = it is in the Best in Slot list,
+-- gain = the points the Catalyst would add when it would turn the piece into the Best in Slot set piece (a piece that is
+-- already Best in Slot has none), shared = it is in both builds' loadouts, otherLabel = "Main Spec" / "Off Spec": the
+-- build that is not the one being played }. nil when there is nothing to say.
+function ns.GetWornPieceInfo(itemLink)
+    if type(itemLink) ~= "string" or not ns.GetTooltipEvaluationContexts then return nil end
+    local primary, secondary = ns.GetTooltipEvaluationContexts()
+    local profile = type(primary) == "table" and primary.profile or nil
+    if type(profile) ~= "table" then return nil end
+    local function evaluate()
+        local info = ns.GetItemReferenceInfo and ns.GetItemReferenceInfo(itemLink, profile) or nil
+        local result = { bis = (info and info.bis) and true or false }
+        if not result.bis and ns.GetCatalystGain then result.gain = ns.GetCatalystGain(primary, itemLink) end
+        local other = type(secondary) == "table" and secondary ~= primary and secondary.profile or nil
+        if other and ns.IsItemInEquipmentSnapshot
+            and ns.IsItemInEquipmentSnapshot(profile, itemLink) and ns.IsItemInEquipmentSnapshot(other, itemLink) then
+            result.shared = true
+            -- The main spec is the one being played when its loadout is not a snapshot of another spec.
+            local mainIsPlayed = not (ns.ShouldUseEquipmentSnapshot and ns.ShouldUseEquipmentSnapshot(profile))
+            result.otherLabel = mainIsPlayed and "Off Spec" or "Main Spec"
+        end
+        return result
+    end
+    local result = ns.WithStatVerdictSnapshotProfile and ns.WithStatVerdictSnapshotProfile(profile, evaluate) or evaluate()
+    if result and (result.bis or result.gain or result.shared) then return result end
+    return nil
+end
+
+-- The tooltip of a piece the player wears: no verdict (it is worn), only what the marks on the character sheet mean,
+-- and only for a piece that has a mark. Returns true when it drew something.
+function ns.RenderTooltipWornInfo(tooltip, itemLink, primaryContext)
+    if not tooltip then return false end
+    local info = ns.GetWornPieceInfo(itemLink)
+    if not info then return false end
+    local c = Colors()
+    local wording = ns.GetReferenceWording and ns.GetReferenceWording(primaryContext and primaryContext.profile and primaryContext.profile.goal) or nil
+    local base = wording and wording.base or "Best in Slot"
+    tooltip:AddLine(" ")
+    AddLine(tooltip, info.gain and "|cffff8000StatVerdict Warning|r" or "|cffff8000StatVerdict info|r", 1, 0.5, 0)
+    if info.bis then
+        -- Best in Slot is light blue, as everywhere in the add-on.
+        AddLine(tooltip, "|cff00ccffThis item is " .. base .. "|r", 0, 0.8, 1)
+    end
+    if info.gain then
+        local scoreText = FormatVerdictScore(info.gain)
+        AddLine(tooltip, "|cff00ccffCatalyst it: " .. base .. "|r" .. (scoreText and (" " .. c.green .. scoreText .. c.reset) or ""), 0, 0.8, 1)
+        AddLine(tooltip, "|cff999999Hold Ctrl to preview|r", 0.6, 0.6, 0.6)
+    end
+    if info.shared then
+        -- The build is always MS or OS in green: the same letters, in the same colour, as on the bag items.
+        local label = (info.otherLabel == "Off Spec") and "OS" or "MS"
+        AddLine(tooltip, "|cffffd200Also part of your |r|cff00ff00" .. label .. "|r|cffffd200 set|r", 1, 0.82, 0)
+    end
+    tooltip:Show()
+    return true
+end
+
 function ns.RenderTooltipCatalystOnly(tooltip, context, itemLink, worn)
     if not tooltip then return false end
     local score = ns.GetCatalystGain(context, itemLink)
@@ -259,7 +316,10 @@ function ns.RenderTooltipCatalystOnly(tooltip, context, itemLink, worn)
     return true
 end
 
-function ns.RenderTooltipLoadoutMembership(tooltip, context)
+-- An item saved in a loadout: one line says where ("Saved in Frost loadout", or "Saved in both loadouts" when the
+-- other build holds it too). otherContext: the other build's context when it holds the item as well; isSecondary: the
+-- build is the Off Spec (the line then says "OS", else "MS", in gold, before the spec's name).
+function ns.RenderTooltipLoadoutMembership(tooltip, context, otherContext, isSecondary)
     if not tooltip or not context then
         return
     end
@@ -267,10 +327,10 @@ function ns.RenderTooltipLoadoutMembership(tooltip, context)
     local c = Colors()
     tooltip:AddLine(" ")
     AddLine(tooltip, "|cffff8000StatVerdict|r", 1, 0.5, 0)
-    local specLine = BuildSpecLine(context)
-    if specLine then
-        AddLine(tooltip, specLine)
-    end
-    AddLine(tooltip, c.green .. "Saved in " .. tostring(specName) .. " loadout" .. c.reset, 0.2, 1, 0.2)
+    -- The spec's name has the class colour, so the eye goes to which build is meant; "MS and OS" is gold (no class has it).
+    local where = otherContext and ("|cffffd200MS and OS|r" .. c.green .. " loadouts")
+        or ("|cffffd200" .. (isSecondary and "OS" or "MS") .. "|r " .. GetClassColorPrefix(context) .. tostring(specName)
+            .. c.reset .. c.green .. " loadout")
+    AddLine(tooltip, c.green .. "Saved in " .. where .. c.reset, 0.2, 1, 0.2)
     tooltip:Show()
 end

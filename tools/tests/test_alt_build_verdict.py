@@ -111,6 +111,31 @@ class AltBuildVerdictTests(unittest.TestCase):
         self.assertEqual(1, len([line for line in lines if "Also an upgrade for Off Spec" in line]))
         self.assertTrue(any("Alt-Left-Click: save in loadout" in line for line in lines))  # how to mark the Off Spec from the bags
 
+    def membership(self, saved_in):
+        """The loadout line of a bag item saved in the builds `saved_in` (names): (spec named, other build named)."""
+        lua = self.lua
+        lua.execute("SAVED_IN = { " + ", ".join(f"{name} = true" for name in saved_in) + " }; MEMBERSHIP = nil")
+        self.ns.IsItemInEquipmentSnapshot = lua.eval("function(profile, link) return SAVED_IN[profile.specName] == true end")
+        self.ns.RenderTooltipLoadoutMembership = lua.eval(
+            "function(tip, context, other) MEMBERSHIP = { context.specName, other and other.specName or false }"
+            " tip:AddLine('StatVerdict Saved') end")
+        self.hover(upgrades=(), in_bags=True)
+        if not lua.eval("MEMBERSHIP"):
+            return None
+        return str(lua.eval("MEMBERSHIP[1]")), (str(lua.eval("MEMBERSHIP[2]")) if lua.eval("MEMBERSHIP[2]") else None)
+
+    def test_a_piece_saved_in_both_builds_gets_one_line_for_both(self) -> None:
+        self.assertEqual(("Blood", "Frost"), self.membership(["Blood", "Frost"]))
+
+    def test_a_piece_saved_in_one_build_names_that_build_only(self) -> None:
+        self.assertEqual(("Blood", None), self.membership(["Blood"]))
+        self.assertEqual(("Frost", None), self.membership(["Frost"]))
+
+    def test_nothing_else_is_said_about_a_saved_piece(self) -> None:
+        self.membership(["Blood", "Frost"])
+        _, lines = self.hover(upgrades=("Blood", "Frost"), in_bags=True)
+        self.assertFalse(any("Also an upgrade" in line for line in lines))
+
 
 if __name__ == "__main__":
     unittest.main()

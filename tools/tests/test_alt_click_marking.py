@@ -1,5 +1,4 @@
-"""Alt-click marking: right click = Main Spec, left click = Off Spec; a piece is in one build at a time, and a second
-click on the same build takes it out again."""
+"""Alt-click marking: right click switches the Main Spec mark on or off, left click the Off Spec mark; independent of each other."""
 from __future__ import annotations
 
 import unittest
@@ -41,10 +40,11 @@ class AltClickMarkingTests(unittest.TestCase):
         self.assertEqual((False, True), self.click(True))
         self.assertEqual((False, False), self.click(True))
 
-    def test_a_click_for_the_other_build_moves_the_piece(self) -> None:
-        self.click(False)
-        self.assertEqual((False, True), self.click(True))  # Main Spec -> Off Spec in one click
-        self.assertEqual((True, False), self.click(False))  # and back
+    def test_the_two_builds_are_independent_a_piece_can_be_in_both(self) -> None:
+        self.assertEqual((True, False), self.click(False))  # right click: Main Spec
+        self.assertEqual((True, True), self.click(True))  # left click: Off Spec as well, Main Spec stays
+        self.assertEqual((True, False), self.click(True))  # left click again: only the Off Spec goes
+        self.assertEqual((False, False), self.click(False))
 
     def test_without_an_off_spec_nothing_is_moved(self) -> None:
         self.ns.GetTooltipEvaluationContexts = self.lua.eval("function() return MAIN, nil end")

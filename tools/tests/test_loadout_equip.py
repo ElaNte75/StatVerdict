@@ -82,5 +82,135 @@ class EquipMarkedLoadoutTests(unittest.TestCase):
         self.assertIsNone(self.lua.eval('StatVerdictDB.specSnapshots.bySpecID["200"].marked["2"]'))
 
 
+GORE = "|Hitem:301::|h[Gore]|h"        # a ring both specs keep
+PHOENIX = "|Hitem:302::|h[Phoenix]|h"  # a ring marked for this spec, in the bags
+PREY = "|Hitem:303::|h[Prey]|h"        # a ring that belongs to the other spec only
+OTHER = "|Hitem:304::|h[Other]|h"      # one more ring that is not in this loadout
+
+
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class EquipPairSlotsTests(unittest.TestCase):
+    """A marked ring / trinket / one-hand weapon goes where the worn piece is not part of the loadout."""
+
+    def setUp(self):
+        self.lua = new_runtime()
+        self.lua.execute(SETUP)
+        self.ns = self.lua.eval("{}")
+        load_addon_file(self.lua, self.ns, "Core/SV_SpecSnapshot.lua")
+        lua = self.lua
+        lua.globals().GORE, lua.globals().PHOENIX, lua.globals().PREY, lua.globals().OTHER = GORE, PHOENIX, PREY, OTHER
+        lua.execute("""
+        SPEC = 200
+        StatVerdictDB.specSnapshots.bySpecID["200"].equipment = { ["11"] = GORE, ["12"] = PHOENIX }
+        StatVerdictDB.specSnapshots.bySpecID["200"].marked = { ["12"] = PHOENIX }
+        worn = {}; bag = { PHOENIX }
+        """)
+
+    def put_on(self):
+        self.ns.EquipMarkedLoadoutItems()
+        return [(str(self.lua.eval(f"equipCalls[{i}][1]")), int(self.lua.eval(f"equipCalls[{i}][2]")))
+                for i in range(1, int(self.lua.eval("#equipCalls")) + 1)]
+
+    def test_the_marked_ring_replaces_the_one_that_is_not_in_the_loadout_not_the_shared_one(self) -> None:
+        # The rings sit the other way round than when it was marked: Gore (kept) is in slot 12 now.
+        self.lua.execute("worn[11] = PREY; worn[12] = GORE")
+        self.assertEqual([(PHOENIX, 11)], self.put_on())
+
+    def test_same_result_when_the_slots_are_as_they_were_marked(self) -> None:
+        self.lua.execute("worn[11] = GORE; worn[12] = PREY")
+        self.assertEqual([(PHOENIX, 12)], self.put_on())
+
+    def test_nothing_when_both_worn_rings_belong_to_the_loadout(self) -> None:
+        self.lua.execute("worn[11] = GORE; worn[12] = GORE")
+        self.assertEqual([], self.put_on())
+
+    def test_nothing_when_the_marked_ring_is_already_worn_in_the_other_slot(self) -> None:
+        self.lua.execute("worn[11] = PHOENIX; worn[12] = PREY")
+        self.assertEqual([], self.put_on())
+
+    def test_an_empty_slot_is_used(self) -> None:
+        self.lua.execute("worn[11] = GORE")
+        self.assertEqual([(PHOENIX, 12)], self.put_on())
+
+    def test_when_neither_worn_ring_is_kept_the_marked_slot_is_used(self) -> None:
+        self.lua.execute("worn[11] = PREY; worn[12] = OTHER")
+        self.assertEqual([(PHOENIX, 12)], self.put_on())
+
+    def test_two_marked_rings_fill_two_different_slots(self) -> None:
+        self.lua.execute("""
+        StatVerdictDB.specSnapshots.bySpecID["200"].equipment = { ["11"] = GORE, ["12"] = PHOENIX }
+        StatVerdictDB.specSnapshots.bySpecID["200"].marked = { ["11"] = GORE, ["12"] = PHOENIX }
+        worn[11] = PREY; worn[12] = OTHER; bag = { GORE, PHOENIX }
+        """)
+        calls = self.put_on()
+        self.assertEqual(2, len(calls))
+        self.assertEqual({11, 12}, {slot for _, slot in calls})
+
+    def test_a_one_hand_weapon_is_a_pair_only_when_it_fits_both_hands(self) -> None:
+        self.ns.GetComparableSlots = self.lua.eval("function() return { 16, 17 } end")
+        self.lua.execute("""
+        StatVerdictDB.specSnapshots.bySpecID["200"].equipment = { ["16"] = GORE, ["17"] = PHOENIX }
+        StatVerdictDB.specSnapshots.bySpecID["200"].marked = { ["17"] = PHOENIX }
+        worn[16] = PREY; worn[17] = GORE
+        """)
+        self.assertEqual([(PHOENIX, 16)], self.put_on())  # Gore (kept) stays in the off hand
+
+    def test_a_shield_or_two_hander_keeps_its_own_slot(self) -> None:
+        self.ns.GetComparableSlots = self.lua.eval("function() return { 17 } end")
+        self.lua.execute("""
+        StatVerdictDB.specSnapshots.bySpecID["200"].equipment = { ["16"] = GORE, ["17"] = PHOENIX }
+        StatVerdictDB.specSnapshots.bySpecID["200"].marked = { ["17"] = PHOENIX }
+        worn[16] = GORE; worn[17] = PREY
+        """)
+        self.assertEqual([(PHOENIX, 17)], self.put_on())
+
+
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class MarkTwoPiecesOfAPairTests(unittest.TestCase):
+    """Marking a second ring (trinket, one-hand weapon) must not push the first one out of the loadout."""
+
+    def setUp(self):
+        self.lua = new_runtime()
+        self.lua.execute(SETUP)
+        self.ns = self.lua.eval("{}")
+        load_addon_file(self.lua, self.ns, "Core/SV_SpecSnapshot.lua")
+        lua = self.lua
+        lua.globals().GORE, lua.globals().PHOENIX, lua.globals().PREY = GORE, PHOENIX, PREY
+        lua.execute("""
+        SPEC = 200
+        StatVerdictDB.specSnapshots.bySpecID["200"].equipment = {}
+        StatVerdictDB.specSnapshots.bySpecID["200"].marked = {}
+        """)
+        # The comparison names slot 11 for every ring (the weaker worn one), like a ring marked while two rings are worn.
+        self.ns.GetComparableSlots = lua.eval("function() return { 11, 12 } end")
+        self.ns.GetItemEquipLocation = lua.eval("function() return 'INVTYPE_FINGER' end")
+        self.ns.IsItemCompatibleWithSlot = lua.eval("function() return true end")
+        self.profile = lua.eval("{ specID = 200, specName = 'Spec200' }")
+
+    def mark(self, link):
+        return self.ns.ApproveItemIntoVirtualLoadout(link, self.profile, None)
+
+    def marked(self):
+        lua = self.lua
+        return {int(k): str(lua.eval(f'StatVerdictDB.specSnapshots.bySpecID["200"].marked["{k}"]')) for k in (11, 12)
+                if lua.eval(f'StatVerdictDB.specSnapshots.bySpecID["200"].marked["{k}"]')}
+
+    def test_two_rings_marked_one_after_the_other_both_stay(self) -> None:
+        self.mark(GORE)
+        self.mark(PHOENIX)
+        marked = self.marked()
+        self.assertEqual({11, 12}, set(marked))
+        self.assertIn("item:301", marked[11])
+        self.assertIn("item:302", marked[12])
+
+    def test_a_third_ring_replaces_the_one_the_comparison_names(self) -> None:
+        self.mark(GORE)
+        self.mark(PHOENIX)
+        self.mark(PREY)
+        marked = self.marked()
+        self.assertEqual({11, 12}, set(marked))  # still two slots; the new one took slot 11 (the comparison's choice)
+        self.assertIn("item:303", marked[11])
+
+
 if __name__ == "__main__":
     unittest.main()

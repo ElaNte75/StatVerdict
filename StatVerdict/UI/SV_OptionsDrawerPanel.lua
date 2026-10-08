@@ -217,16 +217,26 @@ local function EnsureOptionRow(card, group, option)
 end
 
 -- Choices that are plain on / off switches: each is saved under its key. Some run something when changed.
+-- Grouped by where they show: the bags, the item tooltips, the character info window.
 local BAG_INDICATOR_OPTIONS = {
     { key = "showUpgradeArrow", label = "Upgrade Arrow on bag items",
       tip = "Shows a green arrow on the items in your bags that are an upgrade for you." },
     { key = "showMsOsLabels", label = "|cff00ff00MS|r / |cff00ff00OS|r Labels on bag items", tipTitle = "MS / OS Labels on bag items",
       tip = "Marks each upgrade arrow with MS (Main Spec) or OS (Off Spec), so you see which build gains from the item." },
+}
+
+local ITEM_TOOLTIP_OPTIONS = {
     { key = "showStatRanks", label = "Stat Ranks on tooltips", desc = "A stat's place in the guide",
       tip = "Shows where each secondary stat ranks in the guide for your build (for example #1 MS) on item tooltips. Hold Alt to see the other build." },
-    { key = "showCharacterMarks", label = "Marks on the character sheet", desc = "CAT and BIS on worn pieces",
-      tip = "Marks the pieces you wear on the character sheet: BIS on a piece that is already Best in Slot, CAT on a piece the Catalyst would turn into your Best in Slot set piece.",
+}
+
+-- The pieces you wear, in the character info window (the game's own name for it).
+local CHARACTER_INFO_OPTIONS = {
+    { key = "showCharacterMarks", label = "Marks on worn pieces", desc = "BIS, CAT and the gold ring",
+      tip = "Marks the pieces you wear in the character info window: BIS = it is in the Best in Slot list, CAT = the Catalyst would turn it into your Best in Slot set piece, a gold ring with two arrows = it is also in your other set.",
       onChange = function() if ns.RefreshCatalystMarks then ns.RefreshCatalystMarks() end end },
+    { key = "showWornInfo", label = "Info on worn pieces", desc = "Explains the marks in the tooltip",
+      tip = "On the tooltip of a piece you wear that has a mark, a short StatVerdict info says what the mark means (Best in Slot, the Catalyst, or also part of your other set)." },
 }
 
 -- The window's own behaviour (first in the list, as these are about the window).
@@ -331,7 +341,7 @@ local BIS_EXCLUSIVE_WITH = {
 }
 
 -- The choices that are plain switches (the window's and the bag items'): state, locked placeholder.
-local SIMPLE_OPTION_LISTS = { BAG_INDICATOR_OPTIONS, WINDOW_OPTIONS }
+local SIMPLE_OPTION_LISTS = { BAG_INDICATOR_OPTIONS, ITEM_TOOLTIP_OPTIONS, CHARACTER_INFO_OPTIONS, WINDOW_OPTIONS }
 
 local function SyncBagIndicatorOptionChecks(card)
     if not card or not card.bagIndicatorChecks then return end
@@ -371,7 +381,9 @@ end
 -- The groups, top to bottom.
 local OPTION_SECTIONS = {
     { list = WINDOW_OPTIONS, simple = true, title = "WINDOW", field = "windowGroup" },
-    { list = BAG_INDICATOR_OPTIONS, simple = true, bags = true, title = "BAG ITEMS AND TOOLTIPS", field = "bagGroup" },
+    { list = BAG_INDICATOR_OPTIONS, simple = true, bags = true, title = "BAG ITEMS", field = "bagGroup" },
+    { list = ITEM_TOOLTIP_OPTIONS, simple = true, title = "ITEM TOOLTIPS", field = "itemTooltipGroup" },
+    { list = CHARACTER_INFO_OPTIONS, simple = true, title = "CHARACTER INFO", field = "characterInfoGroup" },
     { list = BIS_TOOLTIP_OPTIONS, title = "BEST IN SLOT", field = "bisTooltipGroup" },
     { list = TRINKET_TOOLTIP_OPTIONS, title = "RANKED TRINKETS", field = "trinketTooltipGroup" },
 }

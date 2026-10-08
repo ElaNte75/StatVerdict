@@ -55,10 +55,8 @@ local function RoleState(role)
     elseif role == "off_spec" then
         return { kind = "off_spec", label = "OS", text = "OS", specRole = "off_spec", specLabel = "OS" }
     elseif role == "both_specs" then
-        -- Keep the bag marker compact and familiar. A shared item is protected by
-        -- the Main Spec label; the detailed membership remains available through
-        -- snapshot/profile data, but the icon should stay visually simple.
-        return { kind = "main_spec", label = "MS", text = "MS", specRole = "main_spec", specLabel = "MS" }
+        -- In both loadouts: the bag shows both marks, MS at the top right and OS below it.
+        return { kind = "both_specs", label = "MS/OS", text = "MS/OS", specRole = "both_specs", specLabel = "MS/OS" }
     end
     return nil
 end
