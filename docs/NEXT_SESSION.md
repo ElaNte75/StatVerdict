@@ -152,6 +152,11 @@ Features tab became **Options** with a new look, **Always on top**, **Compact Mo
   - Character info: red arrow (`SetWornDownArrow`, the bag arrow turned over, desaturated, red) when `ns.GetBagUpgradesForWornSlots` (Logic, cached, cleared on gear and
     bag events) finds a better bag piece for the played spec; click = ignore (`StatVerdictDB.ignoredWornWarnings[specID:wornGUID] = better link`, pruned when the worn piece
     is not worn any more); the ring is hidden while the arrow warns. The tooltip of a worn piece also says "Part of your MS Frost set" for a piece of one build only.
+  - Auto mark also saves a piece you put on for the other build when `BuildComparison` says it is an upgrade there (`MarkForOtherBuildToo`; not on the very first pass
+    after an update, `autoMarkSeeded`, so an update never rewrites the other build; a hand mark there wins). The red arrow skips empty slots.
+  - An upgrade can change the item GUID (the owner saw the ring lost): `ns.ReconcileMarkedSerials` (before each capture burst and on bag events) moves the marks
+    of every loadout of this character from a marked serial that is nowhere to the one unmarked piece of the same item that is here (item count incl. bank must match, level never lower),
+    and records `StatVerdictDB.serialHistory[old] = new` (`SameSerial` follows it). The Catalyst makes a different item: no inheritance (open, owner informed).
   - Agreed but NOT built: (B) the played spec compared with the loadout, which adds marked-but-unworn bag pieces to what is worn; (C) a second spec chosen in the
     addon starts from a copy of what is worn at that moment. Tests: `tools/tests/test_serial_marks.py`. The debug window used while building this lived only in the game copy.
 - **Pitfall found:** the verdict block is skipped when the tooltip "already has a StatVerdict line" (`TooltipAlreadyHasStatVerdict`). Texture escapes

@@ -336,6 +336,23 @@ local function WornGUID(slotID)
     return GUIDFromLocation(ItemLocation:CreateFromEquipmentSlot(slotID))
 end
 
+-- A serial number can change when a piece is upgraded. The old and the new number are kept as a history (old -> new) in
+-- StatVerdictDB.serialHistory, and two serial numbers that lead to the same newest one are the same piece.
+local function ResolveSerial(guid)
+    local history = type(StatVerdictDB) == "table" and type(StatVerdictDB.serialHistory) == "table" and StatVerdictDB.serialHistory or nil
+    local steps = 0
+    while history and type(guid) == "string" and history[guid] and steps < 8 do
+        guid = history[guid]
+        steps = steps + 1
+    end
+    return guid
+end
+
+local function SameSerial(a, b)
+    if a == nil or b == nil then return false end
+    return a == b or ResolveSerial(a) == ResolveSerial(b)
+end
+
 -- Where a serial number sits in the bags: bag, slot, and how many bag items share the same item id (copies).
 local function FindBagLocationByGUID(guid)
     if type(guid) ~= "string" or not (C_Container and C_Container.GetContainerNumSlots and C_Container.GetContainerItemLink) then
@@ -349,7 +366,7 @@ local function FindBagLocationByGUID(guid)
             if link then
                 local id = GetItemIDFromLink(link)
                 items[#items + 1] = id
-                if not foundBag and ns.GetBagItemGUID(bagID, slot) == guid then
+                if not foundBag and SameSerial(ns.GetBagItemGUID(bagID, slot), guid) then
                     foundBag, foundSlot, foundID = bagID, slot, id
                 end
             end
@@ -406,7 +423,7 @@ function ns.IsPieceMarkedInLoadout(profile, itemLink, guid)
     local markedGUID = snapshot and type(snapshot.markedGUID) == "table" and snapshot.markedGUID or nil
     if guid and markedGUID then
         for _, stored in pairs(markedGUID) do
-            if stored == guid then return true end
+            if SameSerial(stored, guid) then return true end
         end
         local links = snapshot and type(snapshot.equipment) == "table" and snapshot.equipment or {}
         for slotKey, savedLink in pairs(links) do
@@ -427,7 +444,7 @@ local function SnapshotHoldsPiece(snapshot, itemLink, guid)
     local stored = type(snapshot.markedGUID) == "table" and snapshot.markedGUID or nil
     if guid and stored then
         for slotKey, storedGUID in pairs(stored) do
-            if storedGUID == guid and links[slotKey] then return true, SafeNumber(slotKey), links[slotKey] end
+            if SameSerial(storedGUID, guid) and links[slotKey] then return true, SafeNumber(slotKey), links[slotKey] end
         end
     end
     for slotKey, equippedLink in pairs(links) do
@@ -865,7 +882,7 @@ function ns.CaptureActiveSpecSnapshot()
                 local storedGUID = previous and type(previous.markedGUID) == "table" and previous.markedGUID[slotKey] or nil
                 local wornMatches
                 if storedGUID then
-                    wornMatches = WornGUID(tonumber(slotKey)) == storedGUID
+                    wornMatches = SameSerial(WornGUID(tonumber(slotKey)), storedGUID)
                 else
                     wornMatches = wornLink and SnapshotLinksMatch(wornLink, prevLink)
                 end
@@ -937,6 +954,7 @@ function ns.CaptureActiveSpecSnapshot()
         marked = previous and previous.marked or nil,
         markedGUID = previous and previous.markedGUID or nil,
         manualSlots = previous and previous.manualSlots or nil,
+        autoMarkSeeded = previous and previous.autoMarkSeeded or nil,
     }
 
     return db.bySpecID[specKey]
@@ -1145,7 +1163,7 @@ local function ChooseEquipSlot(slotID, link, equipment, claimed, guid, markedGUI
         for _, slot in ipairs(pair) do
             local stored = markedGUID[tostring(slot)]
             if stored then
-                if wornGUID == stored then return true end
+                if SameSerial(wornGUID, stored) then return true end
             else
                 local kept = equipment[tostring(slot)]
                 if type(kept) == "string" and SnapshotLinksMatch(worn, kept) then return true end
@@ -1157,7 +1175,7 @@ local function ChooseEquipSlot(slotID, link, equipment, claimed, guid, markedGUI
     for _, slot in ipairs(pair) do
         local worn = get("player", slot)
         if guid then
-            if worn and WornGUID(slot) == guid then return nil end
+            if worn and SameSerial(WornGUID(slot), guid) then return nil end
         elseif worn and SnapshotLinksMatch(worn, link) then
             return nil
         end
@@ -1213,7 +1231,7 @@ function ns.EquipMarkedLoadoutItems()
             target = ChooseEquipSlot(slotID, link, equipment, claimed)
         end
         local worn = target and type(GetInventoryItemLink) == "function" and GetInventoryItemLink("player", target) or nil
-        local alreadyWorn = target and (guid and WornGUID(target) == guid or (not guid and worn and SnapshotLinksMatch(worn, link)))
+        local alreadyWorn = target and (guid and SameSerial(WornGUID(target), guid) or (not guid and worn and SnapshotLinksMatch(worn, link)))
         if target and not alreadyWorn then
             claimed[target] = true
             local ok, err
@@ -1281,6 +1299,49 @@ function ns.MarkClickLabel(isSecondary)
     return isSecondary and "Alt-Left-Click" or "Alt-Right-Click"
 end
 
+-- A worn piece that is put on and is an upgrade for the other build as well is saved for that build too
+-- (it then carries the gold ring), the way the tooltip says it: the replaced mark of the other build in that slot goes. A mark
+-- the player made by hand in the other build wins and is left alone. Nothing happens for a build without a saved loadout.
+local function MarkForOtherBuildToo(link, guid, db)
+    if not (ns.GetTooltipEvaluationContexts and ns.ShouldUseEquipmentSnapshot and ns.BuildComparison) then return false end
+    local primary, secondary = ns.GetTooltipEvaluationContexts()
+    if type(primary) ~= "table" or type(secondary) ~= "table" or secondary == primary then return false end
+    local other = nil
+    if primary.profile and not ns.ShouldUseEquipmentSnapshot(primary.profile) then
+        other = secondary
+    elseif secondary.profile and not ns.ShouldUseEquipmentSnapshot(secondary.profile) then
+        other = primary
+    end
+    local profile = other and other.profile or nil
+    local otherSpecID = profile and GetProfileSpecID(profile) or nil
+    local snapshot = otherSpecID and db.bySpecID[tostring(otherSpecID)] or nil
+    if type(snapshot) ~= "table" then return false end
+
+    local ok, comparison = pcall(function()
+        local function compare() return ns.BuildComparison(link, profile) end
+        if ns.WithStatVerdictSnapshotProfile then return ns.WithStatVerdictSnapshotProfile(profile, compare) end
+        return compare()
+    end)
+    local selected = ok and comparison and not comparison.missingOffhand and comparison.selected or nil
+    local gain = selected and tonumber(selected.deltaScore or selected.rawDeltaScore) or nil
+    local slotID = selected and tonumber(selected.slotID) or nil
+    if not (selected and selected.isUpgrade and gain and gain > 0 and slotID) then return false end
+
+    local key = tostring(slotID)
+    snapshot.marked = type(snapshot.marked) == "table" and snapshot.marked or {}
+    snapshot.markedGUID = type(snapshot.markedGUID) == "table" and snapshot.markedGUID or {}
+    snapshot.equipment = type(snapshot.equipment) == "table" and snapshot.equipment or {}
+    if type(snapshot.manualSlots) == "table" and snapshot.manualSlots[key] then return false end
+    for _, storedGUID in pairs(snapshot.markedGUID) do
+        if SameSerial(storedGUID, guid) then return false end   -- already saved there
+    end
+    snapshot.equipment[key] = link
+    snapshot.marked[key] = link
+    snapshot.markedGUID[key] = guid
+    BumpSnapshotRevision(db, snapshot)
+    return true
+end
+
 function ns.AutoMarkWornPieces()
     if IsInCombat() or not AutoMarkEnabled() then return 0 end
     local specID = GetActiveSpecID()
@@ -1304,7 +1365,7 @@ function ns.AutoMarkWornPieces()
                 local wornLink = GetInventoryItemLink("player", tonumber(slotKey))
                 local isWorn
                 if storedGUID then
-                    isWorn = WornGUID(tonumber(slotKey)) == storedGUID
+                    isWorn = SameSerial(WornGUID(tonumber(slotKey)), storedGUID)
                 else
                     isWorn = wornLink and SnapshotLinksMatch(wornLink, markLink)
                 end
@@ -1315,6 +1376,9 @@ function ns.AutoMarkWornPieces()
         end
     end
 
+    -- The very first pass only takes what is worn as the marks: the other build is not touched by an update. From then on a
+    -- piece that is put on is saved for the other build as well when it is an upgrade there.
+    local seeded = snapshot.autoMarkSeeded == true
     local changed = 0
     for _, slotID in ipairs(EQUIPMENT_SLOTS) do
         local key = tostring(slotID)
@@ -1325,24 +1389,28 @@ function ns.AutoMarkWornPieces()
             local lock = snapshot.manualSlots[key]
             if lock then
                 local markLink = snapshot.marked[key]
-                if storedGUID == wornGUID
+                if SameSerial(storedGUID, wornGUID)
                     or (not storedGUID and type(markLink) == "string" and SnapshotLinksMatch(wornLink, markLink)) then
                     snapshot.manualSlots[key] = nil   -- the hand-marked piece is worn now: an ordinary mark again
                     lock = nil
-                elseif type(lock) == "string" and lock ~= wornGUID then
+                elseif type(lock) == "string" and not SameSerial(lock, wornGUID) then
                     -- Another piece is worn here than when the hand mark was made: the player moved on. The worn piece
                     -- takes the slot's mark, and the piece marked by hand loses it for this spec.
                     snapshot.manualSlots[key] = nil
                     lock = nil
                 end
             end
-            if not lock and storedGUID ~= wornGUID then
+            if not lock and not SameSerial(storedGUID, wornGUID) then
                 snapshot.marked[key] = wornLink
                 snapshot.markedGUID[key] = wornGUID
                 changed = changed + 1
+                -- Also saved for the other build when it is an upgrade there too.
+                if seeded then MarkForOtherBuildToo(wornLink, wornGUID, db) end
             end
         end
     end
+
+    snapshot.autoMarkSeeded = true
 
     -- A two-hander in the main hand leaves no off-hand piece to put on.
     local mainLink = GetInventoryItemLink("player", INVSLOT_MAINHAND)
@@ -1362,6 +1430,138 @@ function ns.AutoMarkWornPieces()
     return changed
 end
 
+-- An upgrade can give a piece a new serial number. When a marked serial number is nowhere (not worn, not in the bags), the
+-- same item is here with a serial number no mark knows, and nothing else of that item is hidden away (the bank), it is the
+-- same piece: the marks of every loadout move to the new number, and the old -> new pair is remembered. Only this
+-- character's loadouts. Returns how many pieces were taken over.
+function ns.ReconcileMarkedSerials()
+    if IsInCombat() then return 0 end
+    if not (C_Container and C_Container.GetContainerNumSlots and C_Container.GetContainerItemLink and ns.GetBagItemGUID) then
+        return 0
+    end
+    local db = EnsureDB()
+    local myGUID = CurrentCharacterGUID()
+    if not myGUID then return 0 end
+
+    local owned, visibleByItem = {}, {}
+    local function addOwned(link, guid)
+        local itemID = link and guid and GetItemIDFromLink(link)
+        if itemID then
+            owned[guid] = { link = link, itemID = itemID }
+            visibleByItem[itemID] = (visibleByItem[itemID] or 0) + 1
+        end
+    end
+    for _, slotID in ipairs(EQUIPMENT_SLOTS) do
+        addOwned(type(GetInventoryItemLink) == "function" and GetInventoryItemLink("player", slotID) or nil, WornGUID(slotID))
+    end
+    for _, bagID in ipairs(BagIDList()) do
+        for slot = 1, (tonumber(C_Container.GetContainerNumSlots(bagID)) or 0) do
+            addOwned(C_Container.GetContainerItemLink(bagID, slot), ns.GetBagItemGUID(bagID, slot))
+        end
+    end
+
+    local mine = {}
+    local referenced = {}   -- serial numbers some mark of this character holds
+    for _, snapshot in pairs(db.bySpecID) do
+        if type(snapshot) == "table" and snapshot.characterGUID == myGUID and type(snapshot.markedGUID) == "table"
+            and type(snapshot.marked) == "table" then
+            mine[#mine + 1] = snapshot
+            for _, guid in pairs(snapshot.markedGUID) do referenced[ResolveSerial(guid)] = true end
+        end
+    end
+
+    local missing = {}   -- itemID -> { serial number, ... } of marked pieces that are nowhere
+    for _, snapshot in ipairs(mine) do
+        for slotKey, guid in pairs(snapshot.markedGUID) do
+            if not owned[ResolveSerial(guid)] then
+                local itemID = GetItemIDFromLink(snapshot.marked[slotKey])
+                if itemID then
+                    missing[itemID] = missing[itemID] or {}
+                    missing[itemID][guid] = snapshot.marked[slotKey]
+                end
+            end
+        end
+    end
+
+    local getter = (type(C_Item) == "table" and C_Item.GetItemCount) or GetItemCount
+    local mapping = {}   -- old serial number -> { guid = new serial number, link = its link }
+    for itemID, olds in pairs(missing) do
+        local oldGUID, oldLink, oldCount = nil, nil, 0
+        for guid, link in pairs(olds) do oldGUID, oldLink, oldCount = guid, link, oldCount + 1 end
+        -- Exactly one marked piece of this item is gone, and exactly one piece of it here has no mark.
+        local candidate, candidates = nil, 0
+        for guid, info in pairs(owned) do
+            if info.itemID == itemID and not referenced[guid] then candidate, candidates = guid, candidates + 1 end
+        end
+        if oldCount == 1 and candidates == 1 then
+            -- Another copy kept in the bank would look like the gone one: then the number of copies would not match.
+            local total = nil
+            if type(getter) == "function" then
+                local ok, count = pcall(getter, itemID, true, false, true, true)
+                total = ok and SafeNumber(count) or nil
+            end
+            local newInfo = owned[candidate]
+            local oldLevel, newLevel = GetItemLevelFromLink(oldLink), GetItemLevelFromLink(newInfo.link)
+            local notLower = not (oldLevel and newLevel and newLevel < oldLevel)   -- an upgrade never lowers the level
+            if (total == nil or total == visibleByItem[itemID]) and notLower then
+                mapping[oldGUID] = { guid = candidate, link = newInfo.link, itemID = itemID }
+            end
+        end
+    end
+
+    local taken = 0
+    for oldGUID, new in pairs(mapping) do
+        taken = taken + 1
+        for _, snapshot in ipairs(mine) do
+            local touched = false
+            for slotKey, guid in pairs(snapshot.markedGUID) do
+                if guid == oldGUID then
+                    snapshot.markedGUID[slotKey] = new.guid
+                    snapshot.marked[slotKey] = new.link
+                    local equipment = snapshot.equipment
+                    if type(equipment) == "table" and GetItemIDFromLink(equipment[slotKey]) == new.itemID then
+                        equipment[slotKey] = new.link
+                    end
+                    touched = true
+                end
+            end
+            if type(snapshot.manualSlots) == "table" then
+                for slotKey, lock in pairs(snapshot.manualSlots) do
+                    if lock == oldGUID then snapshot.manualSlots[slotKey] = new.guid end
+                end
+            end
+            if touched then BumpSnapshotRevision(db, snapshot) end
+        end
+        -- A warning ignored for the old number is ignored for the new one.
+        local ignored = type(StatVerdictDB) == "table" and StatVerdictDB.ignoredWornWarnings or nil
+        if type(ignored) == "table" then
+            local renamed = {}
+            for key, value in pairs(ignored) do
+                local specPart = tostring(key):match("^(.-):" .. oldGUID:gsub("%p", "%%%0") .. "$")
+                if specPart then renamed[key] = specPart .. ":" .. new.guid end
+            end
+            for key, newKey in pairs(renamed) do
+                ignored[newKey] = ignored[key]
+                ignored[key] = nil
+            end
+        end
+        StatVerdictDB.serialHistory = type(StatVerdictDB.serialHistory) == "table" and StatVerdictDB.serialHistory or {}
+        StatVerdictDB.serialHistory[oldGUID] = new.guid
+    end
+    return taken
+end
+
+local reconcileToken = 0
+local function ScheduleReconcile(delay)
+    if type(C_Timer) ~= "table" or type(C_Timer.After) ~= "function" then return end
+    reconcileToken = reconcileToken + 1
+    local token = reconcileToken
+    C_Timer.After(delay, function()
+        if token ~= reconcileToken then return end
+        if ns.ReconcileMarkedSerials() > 0 then RequestRefresh() end
+    end)
+end
+
 local function ScheduleCapture()
     if IsInCombat() then return end
     captureScheduleToken = captureScheduleToken + 1
@@ -1374,6 +1574,7 @@ local function ScheduleCapture()
             local before = activeSpecID and db.bySpecID[tostring(activeSpecID)]
             local revisionBefore = before and before.revision
             local tableBefore = before
+            if index == 1 then ns.ReconcileMarkedSerials() end   -- a piece upgraded into a new serial number keeps its marks
             ns.CaptureActiveSpecSnapshot()
             ns.AutoMarkWornPieces()
             local after = activeSpecID and db.bySpecID[tostring(activeSpecID)]
@@ -1419,4 +1620,5 @@ RegisterEventSafe(pruneFrame, "PLAYER_ENTERING_WORLD")
 pruneFrame:SetScript("OnEvent", function(_, event)
     -- After a loading screen the bags and banks need a moment to be known.
     SchedulePrune(event == "PLAYER_ENTERING_WORLD" and 15 or 1)
+    ScheduleReconcile(event == "PLAYER_ENTERING_WORLD" and 5 or 1.5)
 end)

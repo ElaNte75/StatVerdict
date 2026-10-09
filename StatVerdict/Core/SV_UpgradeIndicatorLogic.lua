@@ -104,7 +104,9 @@ function ns.GetBagUpgradesForWornSlots()
                     local selected = ok and comparison and not comparison.missingOffhand and comparison.selected or nil
                     local gain = selected and tonumber(selected.deltaScore or selected.rawDeltaScore) or nil
                     local slotID = selected and tonumber(selected.slotID) or nil
-                    if selected and selected.isUpgrade and gain and gain > 0 and slotID then
+                    -- Only a slot that has something worn in it: "you wear the wrong piece" makes no sense for an empty slot.
+                    local wornHere = slotID and ns.GetWornItemGUID and ns.GetWornItemGUID(slotID) or nil
+                    if selected and selected.isUpgrade and gain and gain > 0 and slotID and wornHere then
                         local best = result[slotID]
                         if not best or gain > best.gain then result[slotID] = { link = link, gain = gain } end
                     end
