@@ -57,7 +57,14 @@ local function ResolveApproveTarget(arg)
     return itemLink, context, slotID
 end
 
-function ns.TryApproveItemLink(itemLink, slotID, preferSecondary)
+-- With Auto mark on, the one Alt-Click saves the piece for the build that is not played, and for the played build too
+-- when the piece is an upgrade for it as well (markPlayedToo): the piece is then in both loadouts (the gold ring).
+local function PlayedContextAndProfile(preferSecondary)
+    local context = ResolveApproveContext(not preferSecondary)
+    return context, context and context.profile or nil
+end
+
+function ns.TryApproveItemLink(itemLink, slotID, preferSecondary, itemGUID, markPlayedToo)
     if type(itemLink) ~= "string" or itemLink == "" then
         return false
     end
@@ -78,10 +85,23 @@ function ns.TryApproveItemLink(itemLink, slotID, preferSecondary)
 
     -- Toggle: Alt-clicking an item already saved in this spec's loadout removes
     -- it again (slot reverts to the currently worn piece).
-    if ns.IsItemInEquipmentSnapshot and ns.RemoveItemFromVirtualLoadout
-        and ns.IsItemInEquipmentSnapshot(profile, itemLink) then
-        local removed, removeMessage = ns.RemoveItemFromVirtualLoadout(itemLink, profile)
+    local alreadySaved = false
+    if ns.IsPieceMarkedInLoadout then
+        alreadySaved = ns.IsPieceMarkedInLoadout(profile, itemLink, itemGUID)
+    elseif ns.IsItemInEquipmentSnapshot then
+        alreadySaved = ns.IsItemInEquipmentSnapshot(profile, itemLink)
+    end
+    if ns.RemoveItemFromVirtualLoadout and alreadySaved then
+        local removed, removeMessage = ns.RemoveItemFromVirtualLoadout(itemLink, profile, itemGUID)
         if not removed then PrintSV(removeMessage or "Remove failed.") end
+        if removed and markPlayedToo and itemGUID then
+            -- The same click took it out of the played build too, if it was saved there (by this very piece).
+            local _, playedProfile = PlayedContextAndProfile(preferSecondary)
+            if playedProfile and playedProfile ~= profile and ns.IsPieceMarkedInLoadout
+                and ns.IsPieceMarkedInLoadout(playedProfile, itemLink, itemGUID) then
+                ns.RemoveItemFromVirtualLoadout(itemLink, playedProfile, itemGUID)
+            end
+        end
         return removed and true or false
     end
 
@@ -99,8 +119,19 @@ function ns.TryApproveItemLink(itemLink, slotID, preferSecondary)
     end
 
     -- The marker on the item (MS / OS) is the answer; chat only says something when it did not work.
-    local ok, message = ns.ApproveItemIntoVirtualLoadout(itemLink, profile, slotID)
+    local ok, message = ns.ApproveItemIntoVirtualLoadout(itemLink, profile, slotID, itemGUID)
     if not ok then PrintSV(message or "Approve failed.") end
+    if ok and markPlayedToo and ns.BuildComparison then
+        local _, playedProfile = PlayedContextAndProfile(preferSecondary)
+        if playedProfile and playedProfile ~= profile then
+            local comparison = ns.BuildComparison(itemLink, playedProfile)
+            local selected = comparison and comparison.selected
+            local gain = selected and tonumber(selected.deltaScore or selected.rawDeltaScore) or nil
+            if selected and selected.isUpgrade and gain and gain > 0 then
+                ns.ApproveItemIntoVirtualLoadout(itemLink, playedProfile, nil, itemGUID)
+            end
+        end
+    end
     -- The two builds are independent: each click only switches its own build (Alt-Right-Click: Main Spec, Alt-Left-Click:
     -- Off Spec) on or off, and a piece can be in both (the bag shows an MS and an OS mark).
     return ok and true or false
@@ -192,8 +223,13 @@ local function HandleSlash(msg)
             .. ". Type /reload to apply.")
     elseif cmd == "help" or cmd == "" then
         PrintSV("Available commands:")
-        print("  Alt-Right-Click an upgrade in bags to save it into Main Spec")
-        print("  Alt-Left-Click an upgrade in bags to save it into Off Spec (when enabled)")
+        if ns.IsAutoMarkOn and ns.IsAutoMarkOn() then
+            print("  Auto mark is on: what you wear marks itself.")
+            print("  Alt-Click an upgrade in bags to save it for the build you are not playing")
+        else
+            print("  Alt-Right-Click an upgrade in bags to save it into Main Spec")
+            print("  Alt-Left-Click an upgrade in bags to save it into Off Spec (when enabled)")
+        end
         print("  /sv approve - Save the hovered upgrade into Main Spec")
         print("  /sv approve secondary - Save into Off Spec when dual-build is enabled")
         print("  /sv minimap - Show the minimap icon")

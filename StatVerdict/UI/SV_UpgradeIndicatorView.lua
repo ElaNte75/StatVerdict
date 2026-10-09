@@ -277,6 +277,11 @@ local function HookIndicatorOwner(frame)
         if frame.StatVerdictSpecValueIndicator then frame.StatVerdictSpecValueIndicator:Hide() end
         if frame.StatVerdictOffSpecIndicator then frame.StatVerdictOffSpecIndicator:Hide() end
         if frame.StatVerdictBagRing then frame.StatVerdictBagRing:Hide() end
+        -- The marks are hidden now, so the slot is no longer "already painted": the next scan must paint it again
+        -- (otherwise a closed and reopened bag keeps its marks hidden for ever).
+        frame.StatVerdictLastCheckedRefresh = nil
+        frame.StatVerdictLastCheckedItemLink = nil
+        frame.StatVerdictLastCheckedGUID = nil
     end)
     -- Do not refresh on every bag-button OnShow — that storms the UI when bags open.
     -- Container UpdateItems / BAG_UPDATE already schedule a coalesced refresh.
@@ -462,6 +467,123 @@ local function SetIndicator(frame, state, options)
     SetBagRing(frame, both)
 end
 
+-- Right-click (no modifier key) on a ring, trinket or one-hand weapon in the bags: the game puts the piece in the first of the
+-- two slots, which is not always the piece the tooltip says it beats. Before the click we note which worn piece the
+-- comparison names (for the spec that is played); after the game has put the piece on, if it replaced another piece, that
+-- piece goes back on in place of the named one. The result is the same whichever slot each piece sits in.
+local smartEquipPending = nil
+local SMART_EQUIP_WINDOW = 2.5
+
+local function BagAndSlotOfButton(button)
+    local bagID = type(button.GetBagID) == "function" and SafeCall(button.GetBagID, button) or nil
+    if bagID == nil and type(button.GetParent) == "function" then
+        local parent = button:GetParent()
+        bagID = parent and type(parent.GetID) == "function" and SafeCall(parent.GetID, parent) or nil
+    end
+    local slotID = type(button.GetID) == "function" and SafeCall(button.GetID, button) or nil
+    return bagID, slotID
+end
+
+local function PrepareSmartEquip(button)
+    smartEquipPending = nil
+    if InCombatLockdown and InCombatLockdown() then return end
+    if not (ns.GetBagItemGUID and ns.GetWornItemGUID and ns.BuildComparison and ns.GetComparableSlots
+        and ns.ShouldUseEquipmentSnapshot and ns.GetTooltipEvaluationContexts and C_Container) then
+        return
+    end
+    local bagID, bagSlot = BagAndSlotOfButton(button)
+    if bagID == nil or bagSlot == nil then return end
+    local info = SafeCall(C_Container.GetContainerItemInfo, bagID, bagSlot)
+    local itemLink = type(info) == "table" and info.hyperlink or nil
+    if not itemLink then return end
+    local slots = ns.GetComparableSlots(itemLink)
+    if type(slots) ~= "table" or #slots ~= 2 then return end
+    local itemGUID = ns.GetBagItemGUID(bagID, bagSlot)
+    if not itemGUID then return end
+
+    local primary, secondary = ns.GetTooltipEvaluationContexts()
+    local played = nil
+    for _, context in ipairs({ primary or false, secondary or false }) do
+        if context and context.profile and not ns.ShouldUseEquipmentSnapshot(context.profile) then
+            played = context
+            break
+        end
+    end
+    if not played then return end
+
+    local comparison = ns.BuildComparison(itemLink, played.profile)
+    local selected = comparison and comparison.selected
+    local targetSlot = selected and tonumber(selected.slotID) or nil
+    if not targetSlot or (targetSlot ~= slots[1] and targetSlot ~= slots[2]) then return end
+
+    local pairGUIDs = {}
+    for _, slot in ipairs(slots) do
+        local guid = ns.GetWornItemGUID(slot)
+        if guid then pairGUIDs[#pairGUIDs + 1] = guid end
+    end
+    local targetGUID = ns.GetWornItemGUID(targetSlot)
+    if #pairGUIDs < 2 or not targetGUID then return end   -- an empty slot: the game fills it, nothing to correct
+
+    smartEquipPending = {
+        time = GetTime and GetTime() or 0,
+        slots = { slots[1], slots[2] },
+        itemGUID = itemGUID,
+        targetGUID = targetGUID,
+        pairGUIDs = pairGUIDs,
+    }
+    -- Straight onto the slot the comparison names: one change, nothing else moves. The piece is then on the cursor (locked
+    -- in its bag slot), so the game's own right-click that follows has nothing left to put on.
+    if ns.EquipBagSlotInto then
+        smartEquipPending.direct = ns.EquipBagSlotInto(bagID, bagSlot, targetSlot)
+    end
+end
+
+local smartEquipToken = 0
+local smartEquipFrame = CreateFrame("Frame")
+smartEquipFrame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+smartEquipFrame:SetScript("OnEvent", function()
+    local pending = smartEquipPending
+    if not pending then return end
+    if (GetTime and GetTime() or 0) - pending.time > SMART_EQUIP_WINDOW then
+        smartEquipPending = nil
+        return
+    end
+    -- One change makes several events: act once, a moment after the last.
+    smartEquipToken = smartEquipToken + 1
+    local token = smartEquipToken
+    C_Timer.After(0.35, function()
+        if token ~= smartEquipToken then return end
+        local p = smartEquipPending
+        smartEquipPending = nil
+        if not p or (InCombatLockdown and InCombatLockdown()) then return end
+        -- Whatever is still on the cursor (the replaced piece) goes back to the bags.
+        if CursorHasItem and CursorHasItem() and ClearCursor then ClearCursor() end
+        local newSlot, targetSlot = nil, nil
+        for _, slot in ipairs(p.slots) do
+            local guid = ns.GetWornItemGUID(slot)
+            if guid == p.itemGUID then newSlot = slot elseif guid == p.targetGUID then targetSlot = slot end
+        end
+        if not newSlot or not targetSlot then return end   -- not put on, or the named piece was the one replaced: all good
+        -- The game replaced the other piece: it goes back on, in place of the one the comparison named.
+        local replaced = nil
+        for _, guid in ipairs(p.pairGUIDs) do
+            if guid ~= p.targetGUID and guid ~= p.itemGUID then replaced = guid end
+        end
+        if replaced then
+            -- Two steps, so that every piece ends up where it was and the new one takes the place of the named one: the
+            -- piece the game replaced goes back where it was (the new one passes through the bags), then the new one is put
+            -- on in the place of the named piece.
+            local ok, err = ns.EquipBagPieceByGUID(replaced, newSlot)
+            if ok then
+                C_Timer.After(0.4, function()
+                    if InCombatLockdown and InCombatLockdown() then return end
+                    local ok2, err2 = ns.EquipBagPieceByGUID(p.itemGUID, targetSlot)
+                end)
+            end
+        end
+    end)
+end)
+
 local function HookBagButtonApprove(button)
     if not button or button.StatVerdictApproveHooked or type(button.HookScript) ~= "function" then
         return
@@ -469,6 +591,12 @@ local function HookBagButtonApprove(button)
     button.StatVerdictApproveHooked = true
     button:HookScript("PreClick", function(self, mouseButton)
         if mouseButton ~= "RightButton" and mouseButton ~= "LeftButton" then
+            return
+        end
+        -- A plain right-click (no Alt, Shift or Ctrl) puts a bag piece on: note what the comparison says it replaces.
+        if mouseButton == "RightButton" and not (IsAltKeyDown and IsAltKeyDown())
+            and not (IsShiftKeyDown and IsShiftKeyDown()) and not (IsControlKeyDown and IsControlKeyDown()) then
+            pcall(PrepareSmartEquip, self)
             return
         end
         if not IsAltKeyDown or not IsAltKeyDown() then
@@ -479,14 +607,27 @@ local function HookBagButtonApprove(button)
         end
 
         local preferSecondary = (mouseButton == "LeftButton")
-        if preferSecondary then
-            local secondaryContext = nil
-            if ns.GetTooltipEvaluationContexts then
-                _, secondaryContext = ns.GetTooltipEvaluationContexts()
-            end
-            if not secondaryContext then
+        local primaryContext, secondaryContext = nil, nil
+        if ns.GetTooltipEvaluationContexts then
+            primaryContext, secondaryContext = ns.GetTooltipEvaluationContexts()
+        end
+        if ns.IsAutoMarkOn and ns.IsAutoMarkOn() then
+            -- Auto mark on: what you wear marks itself, so one Alt-Click (either button) saves the piece for the build that
+            -- is not played. With one build only, or a spec that is neither build, there is nothing to save it for.
+            if not secondaryContext or not ns.ShouldUseEquipmentSnapshot then
                 return
             end
+            local primaryPlayed = primaryContext and not ns.ShouldUseEquipmentSnapshot(primaryContext.profile)
+            local secondaryPlayed = not ns.ShouldUseEquipmentSnapshot(secondaryContext.profile)
+            if primaryPlayed then
+                preferSecondary = true
+            elseif secondaryPlayed then
+                preferSecondary = false
+            else
+                return
+            end
+        elseif preferSecondary and not secondaryContext then
+            return
         end
 
         local itemLink = nil
@@ -506,7 +647,12 @@ local function HookBagButtonApprove(button)
         if not itemLink or not ns.TryApproveItemLink then
             return
         end
-        ns.TryApproveItemLink(itemLink, nil, preferSecondary)
+        -- The game's serial number of this very piece, so the mark follows this copy and no other.
+        local itemGUID = nil
+        if bagID ~= nil and slotID ~= nil and ns.GetBagItemGUID then
+            itemGUID = SafeCall(ns.GetBagItemGUID, bagID, slotID)
+        end
+        ns.TryApproveItemLink(itemLink, nil, preferSecondary, itemGUID, ns.IsAutoMarkOn and ns.IsAutoMarkOn() or false)
     end)
 end
 
@@ -591,6 +737,7 @@ local function UpdateBagItemButton(button)
     if not button or button.isExtended then return false end
     HookBagButtonApprove(button)
     local itemLink = nil
+    local itemGUID = nil   -- the game's serial number of the piece in this slot (tells two copies of one item apart)
     if C_Container and C_Container.GetContainerItemInfo and type(button.GetID) == "function" then
         local bagID = type(button.GetBagID) == "function" and SafeCall(button.GetBagID, button) or nil
         if bagID == nil and type(button.GetParent) == "function" then
@@ -604,6 +751,9 @@ local function UpdateBagItemButton(button)
                 itemLink = itemInfo.hyperlink
                 if not itemInfo.stackCount then
                     itemLink = nil
+                end
+                if itemLink and ns.GetBagItemGUID then
+                    itemGUID = SafeCall(ns.GetBagItemGUID, bagID, slotID)
                 end
             end
         end
@@ -622,12 +772,23 @@ local function UpdateBagItemButton(button)
     if clearDecisionCacheOnNextScan then
         button.StatVerdictLastCheckedRefresh = nil
         button.StatVerdictLastCheckedItemLink = nil
-    elseif button.StatVerdictLastCheckedRefresh == bagRefreshCounter and button.StatVerdictLastCheckedItemLink == itemLink then
+    elseif button.StatVerdictLastCheckedRefresh == bagRefreshCounter and button.StatVerdictLastCheckedItemLink == itemLink
+        and button.StatVerdictLastCheckedGUID == itemGUID then
         return true
     end
-    button.StatVerdictLastCheckedRefresh = bagRefreshCounter
-    button.StatVerdictLastCheckedItemLink = itemLink
-    return UpdateItemButton(button, itemLink, { allowValueIndicator = true, nativeUpgradeIcon = true, source = "bags" })
+    -- The slot counts as checked only once it was really painted: a button that was not visible yet (the bag opened very
+    -- fast) must be tried again on the next pass, not skipped for ever.
+    local painted = UpdateItemButton(button, itemLink, { allowValueIndicator = true, nativeUpgradeIcon = true, source = "bags", itemGUID = itemGUID })
+    if painted then
+        button.StatVerdictLastCheckedRefresh = bagRefreshCounter
+        button.StatVerdictLastCheckedItemLink = itemLink
+        button.StatVerdictLastCheckedGUID = itemGUID
+    else
+        button.StatVerdictLastCheckedRefresh = nil
+        button.StatVerdictLastCheckedItemLink = nil
+        button.StatVerdictLastCheckedGUID = nil
+    end
+    return painted
 end
 
 local function UpdateContainerFrameUpgradeIcons(container)
@@ -772,7 +933,14 @@ local function HookFrameShow(frame)
         return
     end
     hookedShowFrames[frame] = true
-    frame:HookScript("OnShow", function() ScheduleRefresh("bags") end)
+    frame:HookScript("OnShow", function()
+        ScheduleRefresh("bags")
+        -- Paint the marks at once when a bag opens (the scheduled pass above stays as the safety net), so they do not
+        -- appear a moment after the items. Never in combat; a failure here must not disturb the bag.
+        if not (InCombatLockdown and InCombatLockdown()) then
+            pcall(ScanVisibleItemFrames, "bags")
+        end
+    end)
 end
 
 local function HookKnownContainerShows()
@@ -831,11 +999,65 @@ local function SetSharedMark(frame, shown)
     mark:Show()
 end
 
--- The letters get smaller when they sit inside the ring.
-local function SetLettersSize(mark, inRing)
-    if type(mark.SetFont) == "function" then
-        mark:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", inRing and LETTERS_SIZE_IN_RING or LETTERS_SIZE_ALONE, "OUTLINE")
+-- The letters get smaller when they sit inside the ring. The CAT letters (bold) are the same size as BIS but have a thick
+-- outline: they say something has to be done (the Catalyst turns the piece into Best in Slot), so they must be seen at once.
+local CAT_SIZE_ALONE = LETTERS_SIZE_ALONE       -- the same size as BIS: it must stay inside the ring
+local CAT_SIZE_IN_RING = LETTERS_SIZE_IN_RING
+local function SetLettersSize(mark, inRing, bold)
+    if type(mark.SetFont) ~= "function" then return end
+    local size = inRing and LETTERS_SIZE_IN_RING or LETTERS_SIZE_ALONE
+    if bold then size = inRing and CAT_SIZE_IN_RING or CAT_SIZE_ALONE end
+    mark:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", size, bold and "THICKOUTLINE" or "OUTLINE")
+end
+
+-- The red arrow pointing down in the corner of a worn piece: a better piece for the spec that is played is in the bags.
+-- (The bags' own green arrow, turned over and made red: no new picture.)
+-- A click on the arrow says "I know, it is my choice": the warning of that slot goes away (see ns.IgnoreWornWarning).
+local function SetWornDownArrow(frame, entry)
+    local button = frame.StatVerdictWornDownArrow
+    if not button then
+        if not entry then return end
+        button = CreateFrame("Button", nil, frame)
+        button:SetSize(20, 20)
+        button:SetFrameLevel((frame:GetFrameLevel() or 1) + 6)
+        button.arrow = button:CreateTexture(nil, "OVERLAY")
+        button.arrow:SetAllPoints(button)
+        button.arrow:SetTexture(UPGRADE_ARROW_TEXTURE)
+        if type(button.arrow.SetRotation) == "function" then button.arrow:SetRotation(math.pi) end
+        -- The bags' arrow is green: red on top of green would be dark. Take its colour away first, then paint it red.
+        if type(button.arrow.SetDesaturated) == "function" then button.arrow:SetDesaturated(true) end
+        button.arrow:SetVertexColor(1, 0, 0, 1)
+        -- A second, identical arrow laid on top makes the red twice as strong.
+        button.arrow2 = button:CreateTexture(nil, "OVERLAY", nil, 2)
+        button.arrow2:SetAllPoints(button)
+        button.arrow2:SetTexture(UPGRADE_ARROW_TEXTURE)
+        if type(button.arrow2.SetRotation) == "function" then button.arrow2:SetRotation(math.pi) end
+        if type(button.arrow2.SetDesaturated) == "function" then button.arrow2:SetDesaturated(true) end
+        button.arrow2:SetVertexColor(1, 0, 0, 1)
+        button:SetScript("OnClick", function(self)
+            if ns.IgnoreWornWarning and ns.IgnoreWornWarning(self.svSlot) then
+                if ns.RefreshCatalystMarks then ns.RefreshCatalystMarks() end
+            end
+        end)
+        button:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            -- Only what it is and what the click does: the piece itself is named on the worn piece's own tooltip.
+            GameTooltip:AddLine("Better in your bags", 1, 1, 1)
+            GameTooltip:AddLine("Click the arrow to ignore this: it is your choice.", 0.6, 0.6, 0.6)
+            GameTooltip:Show()
+        end)
+        button:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        frame.StatVerdictWornDownArrow = button
     end
+    if not entry then
+        button:Hide()
+        return
+    end
+    button.svSlot = frame:GetID()
+    button.svEntry = entry
+    button:ClearAllPoints()
+    button:SetPoint("CENTER", GetIconAnchor(frame) or frame, "TOPRIGHT", -8, -8)
+    button:Show()
 end
 
 -- info: ns.GetWornPieceInfo(link) of the piece, or nil.
@@ -845,10 +1067,15 @@ local function SetWornMarks(frame, info, tag)
     local inRing = (info and info.shared) and true or false
     if gain then
         local mark = EnsureWornMark(frame, "StatVerdictCatalystMark", LETTERS_SIZE_ALONE, "|cffffd200CAT|r", "CENTER", 0, 0)
-        SetLettersSize(mark, inRing)
+        SetLettersSize(mark, inRing, true)
         mark:Show()
-    elseif frame.StatVerdictCatalystMark then
-        frame.StatVerdictCatalystMark:Hide()
+        -- The same word once more, a pixel to the right: the strokes of the letters get thicker (the font has no bold).
+        local twin = EnsureWornMark(frame, "StatVerdictCatalystMarkBold", LETTERS_SIZE_ALONE, "|cffffd200CAT|r", "CENTER", 1, 0)
+        SetLettersSize(twin, inRing, true)
+        twin:Show()
+    else
+        if frame.StatVerdictCatalystMark then frame.StatVerdictCatalystMark:Hide() end
+        if frame.StatVerdictCatalystMarkBold then frame.StatVerdictCatalystMarkBold:Hide() end
     end
     if info and info.bis then
         local mark = EnsureWornMark(frame, "StatVerdictBisMark", LETTERS_SIZE_ALONE, "", "CENTER", 0, 0)
@@ -870,6 +1097,9 @@ local function RefreshCatalystMarks()
         local db = _G.StatVerdictDB
         if type(db) == "table" and db.showCharacterMarks == false then profile = nil end
         local wording = ns.GetReferenceWording and ns.GetReferenceWording(profile and profile.goal) or nil
+        -- The red arrow has its own option (on when never set); a better piece in the bags, per slot.
+        local arrowOn = not (type(db) == "table" and db.showWornDownArrow == false)
+        local betterInBags = arrowOn and ns.GetBagUpgradesForWornSlots and ns.GetBagUpgradesForWornSlots() or nil
         for _, name in ipairs(WORN_MARK_SLOTS) do
             local frame = _G[name]
             if frame and type(frame.GetID) == "function" then
@@ -878,9 +1108,20 @@ local function RefreshCatalystMarks()
                     local info = nil
                     if profile and IsFrameVisible(frame) then
                         local link = GetInventoryItemLink("player", frame:GetID())
-                        info = link and ns.GetWornPieceInfo(link) or nil
+                        local wornGUID = link and ns.GetWornItemGUID and ns.GetWornItemGUID(frame:GetID()) or nil
+                        info = link and ns.GetWornPieceInfo(link, wornGUID) or nil
+                    end
+                    local entry = betterInBags and IsFrameVisible(frame) and betterInBags[frame:GetID()] or nil
+                    if entry and entry.ignored then entry = nil end
+                    -- While the arrow warns about the piece, the "also in the other set" ring is not shown on it.
+                    if entry and info and info.shared then
+                        local copy = {}
+                        for key, value in pairs(info) do copy[key] = value end
+                        copy.shared = nil
+                        info = (copy.bis or copy.gain) and copy or nil
                     end
                     SetWornMarks(frame, info, wording and wording.tag)
+                    SetWornDownArrow(frame, entry)
                 end)
             end
         end
@@ -927,7 +1168,15 @@ end
 scanFrame:SetScript("OnEvent", function(_, event)
     HookKnownContainerShows()
     HookCatalystMarks()
-    if (event == "PLAYER_EQUIPMENT_CHANGED" or event == "GET_ITEM_INFO_RECEIVED") and IsFrameVisible(_G.PaperDollFrame) then
+    -- The gear or the bags changed: what the bags hold against the worn pieces has to be worked out again.
+    if event == "PLAYER_EQUIPMENT_CHANGED" and ns.PruneIgnoredWornWarnings then
+        ns.PruneIgnoredWornWarnings()
+    end
+    if (event == "PLAYER_EQUIPMENT_CHANGED" or event == "BAG_UPDATE_DELAYED") and ns.ClearWornUpgradeCache then
+        ns.ClearWornUpgradeCache()
+    end
+    if (event == "PLAYER_EQUIPMENT_CHANGED" or event == "GET_ITEM_INFO_RECEIVED" or event == "BAG_UPDATE_DELAYED")
+        and IsFrameVisible(_G.PaperDollFrame) then
         C_Timer.After(0.5, RefreshCatalystMarks)
     end
     if event == "PLAYER_REGEN_ENABLED" then

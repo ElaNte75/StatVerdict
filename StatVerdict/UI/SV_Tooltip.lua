@@ -165,13 +165,28 @@ local function TooltipAlreadyHasStatVerdict(tooltip)
     return false
 end
 
-local function ItemInContextLoadout(itemLink, context)
+-- guid: the game's serial number of the bag piece under the mouse (tells two copies of one item apart), or nil.
+local function ItemInContextLoadout(itemLink, context, guid)
     local profile = context and context.profile or nil
     if not itemLink or not profile or not ns.IsItemInEquipmentSnapshot then
         return false
     end
-    local ok, contains = pcall(ns.IsItemInEquipmentSnapshot, profile, itemLink)
+    local ok, contains = pcall(ns.IsItemInEquipmentSnapshot, profile, itemLink, guid)
     return ok and contains and true or false
+end
+
+-- The serial number of the piece in the bag slot a tooltip belongs to.
+local function BagPieceGUID(owner)
+    if type(owner) ~= "table" or not ns.GetBagItemGUID then return nil end
+    local bagID = type(owner.GetBagID) == "function" and select(2, pcall(owner.GetBagID, owner)) or nil
+    if bagID == nil and type(owner.GetParent) == "function" then
+        local parent = owner:GetParent()
+        bagID = parent and type(parent.GetID) == "function" and select(2, pcall(parent.GetID, parent)) or nil
+    end
+    local slotID = type(owner.GetID) == "function" and select(2, pcall(owner.GetID, owner)) or nil
+    if tonumber(bagID) == nil or tonumber(slotID) == nil then return nil end
+    local ok, guid = pcall(ns.GetBagItemGUID, tonumber(bagID), tonumber(slotID))
+    return ok and guid or nil
 end
 
 local function RenderMissingOffhandNotice(tooltip, context)
@@ -237,14 +252,29 @@ local function AddTooltipVerdict(tooltip)
     -- A piece the player wears is not compared with anything: it only explains its marks (Options > Info on worn pieces).
     if IsWornPieceTooltip(owner) then
         local db = _G.StatVerdictDB
+        local wornSlot = nil
+        if type(owner.GetID) == "function" then
+            local okID, slotID = pcall(owner.GetID, owner)
+            wornSlot = okID and tonumber(slotID) or nil
+        end
+        local drewInfo = false
         if not (type(db) == "table" and db.showWornInfo == false) and ns.RenderTooltipWornInfo then
             local primary = ns.GetTooltipEvaluationContexts and ns.GetTooltipEvaluationContexts() or nil
-            pcall(ns.RenderTooltipWornInfo, tooltip, itemLink, primary)
+            local wornGUID = wornSlot and ns.GetWornItemGUID and ns.GetWornItemGUID(wornSlot) or nil
+            local warning = wornSlot and ns.GetBagUpgradesForWornSlots and ns.GetBagUpgradesForWornSlots()[wornSlot] or nil
+            local okInfo, drew = pcall(ns.RenderTooltipWornInfo, tooltip, itemLink, primary, wornGUID,
+                warning ~= nil and not warning.ignored)
+            drewInfo = okInfo and drew and true or false
+        end
+        -- A better piece in the bags (its own option: Options > Character info > Arrow on worn pieces).
+        if wornSlot and ns.RenderTooltipWornBagUpgrade then
+            pcall(ns.RenderTooltipWornBagUpgrade, tooltip, wornSlot, drewInfo)
         end
         return
     end
 
     local fromBags = (not catalystPreviewing) and tooltipInBags
+    local bagGUID = fromBags and BagPieceGUID(owner) or nil   -- this very piece (two copies of an item are told apart)
 
     local primaryContext, secondaryContext = nil, nil
     if ns.GetTooltipEvaluationContexts then
@@ -294,10 +324,11 @@ local function AddTooltipVerdict(tooltip)
                 tooltip:AddLine("|cffff8000StatVerdict:|r virtual loadout missing", 1, 0.82, 0.0, true)
                 local specName = context.specName or profile.specName or "this spec"
                 tooltip:AddLine("No saved gear list for " .. specName .. " yet.", 0.92, 0.82, 0.45, true)
+                local clickName = ns.MarkClickLabel and ns.MarkClickLabel(isSecondary) or (isSecondary and "Alt-Left-Click" or "Alt-Right-Click")
                 if isSecondary then
-                    tooltip:AddLine("|cffffd200Alt-Left-Click to save this item for " .. specName .. " (Off Spec)|r", 1, 0.82, 0, true)
+                    tooltip:AddLine("|cffffd200" .. clickName .. " to save this item for " .. specName .. " (Off Spec)|r", 1, 0.82, 0, true)
                 else
-                    tooltip:AddLine("|cffffd200Alt-Right-Click to save this item for " .. specName .. "|r", 1, 0.82, 0, true)
+                    tooltip:AddLine("|cffffd200" .. clickName .. " to save this item for " .. specName .. "|r", 1, 0.82, 0, true)
                 end
                 tooltip:Show()
                 return true
@@ -320,13 +351,13 @@ local function AddTooltipVerdict(tooltip)
         end
 
         -- Membership / save messaging only for owned bag items.
-        if fromBags and ItemInContextLoadout(itemLink, context) then
+        if fromBags and ItemInContextLoadout(itemLink, context, bagGUID) then
             ns.RememberTooltipVerdictContext(itemLink, context, nil)
             if ns.RenderTooltipLoadoutMembership then
                 -- One line for both builds: when the other one holds the item as well it says "both loadouts".
                 local otherContext = nil
                 local candidate = (context == primaryContext) and secondaryContext or primaryContext
-                if candidate and candidate ~= context and ItemInContextLoadout(itemLink, candidate) then
+                if candidate and candidate ~= context and ItemInContextLoadout(itemLink, candidate, bagGUID) then
                     otherContext = candidate
                 end
                 ns.RenderTooltipLoadoutMembership(tooltip, context, otherContext, isSecondary)
@@ -390,6 +421,33 @@ local function AddTooltipVerdict(tooltip)
         firstContext, firstIsSecondary, otherContext = secondaryContext, true, primaryContext
     end
 
+    -- A piece in the bags that is saved in a build's loadout needs no comparison: the mark on it already says so (it was
+    -- saved when worn, or by hand). One StatVerdict line names the build, or both; nothing else is worked out.
+    if fromBags and ns.RenderTooltipLoadoutMembership then
+        local inFirst = ItemInContextLoadout(itemLink, firstContext, bagGUID)
+        local inOther = otherContext and otherContext ~= firstContext and ItemInContextLoadout(itemLink, otherContext, bagGUID) or false
+        if inFirst and inOther then
+            -- Saved in both builds: one line, nothing is compared.
+            local shownIsSecondary = (firstContext == secondaryContext) and (secondaryContext ~= primaryContext)
+            ns.RememberTooltipVerdictContext(itemLink, firstContext, nil)
+            ns.RenderTooltipLoadoutMembership(tooltip, firstContext, otherContext, shownIsSecondary)
+            return
+        elseif inFirst or inOther then
+            -- Saved in one build only: the other build is still judged (is the piece better than what that build wears?),
+            -- then one line says where it is saved.
+            local markedContext = inFirst and firstContext or otherContext
+            local unmarkedContext = inFirst and otherContext or firstContext
+            local markedIsSecondary = (markedContext == secondaryContext) and (secondaryContext ~= primaryContext)
+            local verdictDrawn = false
+            if unmarkedContext and unmarkedContext ~= markedContext then
+                verdictDrawn = renderContext(unmarkedContext, not markedIsSecondary) and true or false
+            end
+            -- Under a verdict: one plain line ("Also saved in ..."); alone: the usual StatVerdict block.
+            ns.RenderTooltipLoadoutMembership(tooltip, markedContext, nil, markedIsSecondary, verdictDrawn)
+            return
+        end
+    end
+
     if renderContext(firstContext, firstIsSecondary) then
         if membershipDrawn then
             return
@@ -406,7 +464,7 @@ local function AddTooltipVerdict(tooltip)
             tooltip:AddLine("|cffffd200Also an upgrade for Off Spec|r", 1, 0.82, 0)
             -- In the bags the tooltip cannot be switched (Alt marks there), so say how to mark the other build.
             if fromBags then
-                tooltip:AddLine("|cff999999Alt-Left-Click: save in loadout|r", 0.6, 0.6, 0.6)
+                tooltip:AddLine("|cff999999" .. (ns.MarkClickLabel and ns.MarkClickLabel(true) or "Alt-Left-Click") .. ": save in loadout|r", 0.6, 0.6, 0.6)
             else
                 tooltip:AddLine("|cff999999Hold Alt to see Off Spec|r", 0.6, 0.6, 0.6)
             end

@@ -223,6 +223,9 @@ local BAG_INDICATOR_OPTIONS = {
       tip = "Shows a green arrow on the items in your bags that are an upgrade for you." },
     { key = "showMsOsLabels", label = "|cff00ff00MS|r / |cff00ff00OS|r Labels on bag items", tipTitle = "MS / OS Labels on bag items",
       tip = "Marks each upgrade arrow with MS (Main Spec) or OS (Off Spec), so you see which build gains from the item." },
+    { key = "autoMark", label = "Auto mark worn pieces", desc = "What you wear marks itself",
+      tip = "On: every piece you wear is saved for the spec you play, so it is put on again when you come back to that spec, and a piece you replace loses its mark. Alt-Click on an item in your bags saves it for the other build. Off: you save pieces yourself, Alt-Right-Click for the Main Spec and Alt-Left-Click for the Off Spec.",
+      onChange = function() if ns.AutoMarkWornPieces then ns.AutoMarkWornPieces() end end },
 }
 
 local ITEM_TOOLTIP_OPTIONS = {
@@ -235,6 +238,12 @@ local CHARACTER_INFO_OPTIONS = {
     { key = "showCharacterMarks", label = "Marks on worn pieces", desc = "BIS, CAT and the gold ring",
       tip = "Marks the pieces you wear in the character info window: BIS = it is in the Best in Slot list, CAT = the Catalyst would turn it into your Best in Slot set piece, a gold ring with two arrows = it is also in your other set.",
       onChange = function() if ns.RefreshCatalystMarks then ns.RefreshCatalystMarks() end end },
+    { key = "showWornDownArrow", label = "Arrow on worn pieces", desc = "A better piece is in your bags",
+      tip = "Puts a red arrow pointing down in the corner of a piece you wear in the character info window when a piece in your bags is better for the spec you play. The tooltip of the worn piece says which one.",
+      onChange = function()
+          if ns.ClearWornUpgradeCache then ns.ClearWornUpgradeCache() end
+          if ns.RefreshCatalystMarks then ns.RefreshCatalystMarks() end
+      end },
     { key = "showWornInfo", label = "Info on worn pieces", desc = "Explains the marks in the tooltip",
       tip = "On the tooltip of a piece you wear that has a mark, a short StatVerdict info says what the mark means (Best in Slot, the Catalyst, or also part of your other set)." },
 }

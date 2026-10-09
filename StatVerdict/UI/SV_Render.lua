@@ -212,8 +212,12 @@ function ns.RenderTooltipVerdict(tooltip, context, comparison, isSecondary, show
     end
 
     -- Last line: which click saves the item (the spec is already named above).
-    if showApproveHint and not ruleBlocked then
-        AddLine(tooltip, "|cff999999" .. (isSecondary and "Alt-Left-Click" or "Alt-Right-Click") .. ": save in loadout|r", 0.6, 0.6, 0.6)
+    -- (With Auto mark on there is nothing to save for the spec that is played: it marks itself when you wear the piece.)
+    local playedSpec = ns.IsAutoMarkOn and ns.IsAutoMarkOn() and ns.ShouldUseEquipmentSnapshot
+        and context and context.profile and not ns.ShouldUseEquipmentSnapshot(context.profile)
+    if showApproveHint and not ruleBlocked and not playedSpec then
+        local clickName = ns.MarkClickLabel and ns.MarkClickLabel(isSecondary) or (isSecondary and "Alt-Left-Click" or "Alt-Right-Click")
+        AddLine(tooltip, "|cff999999" .. clickName .. ": save in loadout|r", 0.6, 0.6, 0.6)
     end
 
     tooltip:Show()
@@ -241,7 +245,8 @@ end
 -- gain = the points the Catalyst would add when it would turn the piece into the Best in Slot set piece (a piece that is
 -- already Best in Slot has none), shared = it is in both builds' loadouts, otherLabel = "Main Spec" / "Off Spec": the
 -- build that is not the one being played }. nil when there is nothing to say.
-function ns.GetWornPieceInfo(itemLink)
+-- guid: the game's serial number of the worn piece (so the loadouts are asked about this very piece), or nil.
+function ns.GetWornPieceInfo(itemLink, guid)
     if type(itemLink) ~= "string" or not ns.GetTooltipEvaluationContexts then return nil end
     local primary, secondary = ns.GetTooltipEvaluationContexts()
     local profile = type(primary) == "table" and primary.profile or nil
@@ -252,24 +257,45 @@ function ns.GetWornPieceInfo(itemLink)
         if not result.bis and ns.GetCatalystGain then result.gain = ns.GetCatalystGain(primary, itemLink) end
         local other = type(secondary) == "table" and secondary ~= primary and secondary.profile or nil
         if other and ns.IsItemInEquipmentSnapshot
-            and ns.IsItemInEquipmentSnapshot(profile, itemLink) and ns.IsItemInEquipmentSnapshot(other, itemLink) then
+            and ns.IsItemInEquipmentSnapshot(profile, itemLink, guid) and ns.IsItemInEquipmentSnapshot(other, itemLink, guid) then
             result.shared = true
             -- The main spec is the one being played when its loadout is not a snapshot of another spec.
             local mainIsPlayed = not (ns.ShouldUseEquipmentSnapshot and ns.ShouldUseEquipmentSnapshot(profile))
             result.otherLabel = mainIsPlayed and "Off Spec" or "Main Spec"
+        elseif other then
+            -- In one build's loadout only (the one that is played, since it is worn): say which. Information only.
+            local otherContext = secondary
+            local primaryPlayed = not (ns.ShouldUseEquipmentSnapshot and ns.ShouldUseEquipmentSnapshot(profile))
+            local playedContext = nil
+            if primaryPlayed then
+                playedContext = primary
+            elseif ns.ShouldUseEquipmentSnapshot and not ns.ShouldUseEquipmentSnapshot(other) then
+                playedContext = otherContext
+            end
+            if playedContext and playedContext.profile and ns.IsItemInEquipmentSnapshot
+                and ns.IsItemInEquipmentSnapshot(playedContext.profile, itemLink, guid) then
+                result.single = { label = (playedContext == primary) and "MS" or "OS", context = playedContext }
+            end
         end
         return result
     end
     local result = ns.WithStatVerdictSnapshotProfile and ns.WithStatVerdictSnapshotProfile(profile, evaluate) or evaluate()
-    if result and (result.bis or result.gain or result.shared) then return result end
+    if result and (result.bis or result.gain or result.shared or result.single) then return result end
     return nil
 end
 
 -- The tooltip of a piece the player wears: no verdict (it is worn), only what the marks on the character sheet mean,
 -- and only for a piece that has a mark. Returns true when it drew something.
-function ns.RenderTooltipWornInfo(tooltip, itemLink, primaryContext)
+function ns.RenderTooltipWornInfo(tooltip, itemLink, primaryContext, guid, hideShared)
     if not tooltip then return false end
-    local info = ns.GetWornPieceInfo(itemLink)
+    local info = ns.GetWornPieceInfo(itemLink, guid)
+    -- While the red arrow warns about the piece, "also part of your other set" is not said either (the ring is hidden too).
+    if info and hideShared and info.shared then
+        local copy = {}
+        for key, value in pairs(info) do copy[key] = value end
+        copy.shared = nil
+        info = (copy.bis or copy.gain) and copy or nil
+    end
     if not info then return false end
     local c = Colors()
     local wording = ns.GetReferenceWording and ns.GetReferenceWording(primaryContext and primaryContext.profile and primaryContext.profile.goal) or nil
@@ -289,7 +315,37 @@ function ns.RenderTooltipWornInfo(tooltip, itemLink, primaryContext)
         -- The build is always MS or OS in green: the same letters, in the same colour, as on the bag items.
         local label = (info.otherLabel == "Off Spec") and "OS" or "MS"
         AddLine(tooltip, "|cffffd200Also part of your |r|cff00ff00" .. label .. "|r|cffffd200 set|r", 1, 0.82, 0)
+    elseif info.single then
+        -- Belongs to one build only: which one (MS / OS in green, the spec in its class colour).
+        local specContext = info.single.context
+        local specName = specContext and (specContext.specName or (specContext.profile and specContext.profile.specName)) or nil
+        local named = specName and (" " .. GetClassColorPrefix(specContext) .. tostring(specName) .. c.reset) or ""
+        AddLine(tooltip, "|cffffd200Part of your |r|cff00ff00" .. info.single.label .. "|r" .. named .. "|cffffd200 set|r", 1, 0.82, 0)
     end
+    tooltip:Show()
+    return true
+end
+
+-- On the tooltip of a piece the player wears: when a piece in the bags beats it for the spec that is played, say which one
+-- (the red arrow on the character sheet says the same). drewInfo: the worn-piece info block is already there (no new title).
+function ns.RenderTooltipWornBagUpgrade(tooltip, slotID, drewInfo)
+    if not tooltip or not tonumber(slotID) then return false end
+    local db = _G.StatVerdictDB
+    if type(db) == "table" and db.showWornDownArrow == false then return false end
+    local map = ns.GetBagUpgradesForWornSlots and ns.GetBagUpgradesForWornSlots() or nil
+    local entry = map and map[tonumber(slotID)]
+    if not entry or entry.ignored then return false end
+    if not drewInfo then
+        tooltip:AddLine(" ")
+        AddLine(tooltip, "|cffff8000StatVerdict info|r", 1, 0.5, 0)
+    end
+    -- Two short white lines (a long one makes the whole tooltip wider): what it is, then the piece and its points.
+    local scoreText = FormatVerdictScore(entry.gain)
+    local c = Colors()
+    AddLine(tooltip, "Better in your bags:", 1, 1, 1)
+    -- The points are green, as everywhere else ("Better than ...: +153.2").
+    AddLine(tooltip, tostring(entry.link) .. (scoreText and (" : " .. c.green .. scoreText .. c.reset) or ""), 1, 1, 1)
+    AddLine(tooltip, "|cff999999Click the arrow to ignore this: it is your choice.|r", 0.6, 0.6, 0.6)
     tooltip:Show()
     return true
 end
@@ -319,18 +375,22 @@ end
 -- An item saved in a loadout: one line says where ("Saved in Frost loadout", or "Saved in both loadouts" when the
 -- other build holds it too). otherContext: the other build's context when it holds the item as well; isSecondary: the
 -- build is the Off Spec (the line then says "OS", else "MS", in gold, before the spec's name).
-function ns.RenderTooltipLoadoutMembership(tooltip, context, otherContext, isSecondary)
+-- alsoLine: the line goes straight under a verdict block that is already on the tooltip (no gap, no second StatVerdict
+-- title) and starts "Also saved in".
+function ns.RenderTooltipLoadoutMembership(tooltip, context, otherContext, isSecondary, alsoLine)
     if not tooltip or not context then
         return
     end
     local specName = context.specName or (context.profile and context.profile.specName) or "this build"
     local c = Colors()
-    tooltip:AddLine(" ")
-    AddLine(tooltip, "|cffff8000StatVerdict|r", 1, 0.5, 0)
+    if not alsoLine then
+        tooltip:AddLine(" ")
+        AddLine(tooltip, "|cffff8000StatVerdict|r", 1, 0.5, 0)
+    end
     -- The spec's name has the class colour, so the eye goes to which build is meant; "MS and OS" is gold (no class has it).
     local where = otherContext and ("|cffffd200MS and OS|r" .. c.green .. " loadouts")
         or ("|cffffd200" .. (isSecondary and "OS" or "MS") .. "|r " .. GetClassColorPrefix(context) .. tostring(specName)
             .. c.reset .. c.green .. " loadout")
-    AddLine(tooltip, c.green .. "Saved in " .. where .. c.reset, 0.2, 1, 0.2)
+    AddLine(tooltip, c.green .. (alsoLine and "Also saved in " or "Saved in ") .. where .. c.reset, 0.2, 1, 0.2)
     tooltip:Show()
 end

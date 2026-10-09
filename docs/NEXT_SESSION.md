@@ -130,6 +130,30 @@ Features tab became **Options** with a new look, **Always on top**, **Compact Mo
   takes the other slot. The Manual is now a list of topics (`Panel.OpenTopic / ShowTopics`, Back arrow, text size 100-175% only inside a
   topic). Colour rule from the owner: MS / OS are green letters everywhere; Best in Slot is light blue; still gold and to decide: the
   "Saved in MS Frost loadout" line and the stat-rank MS/OS pictures.
+- **Loadouts, marks and Auto mark (built 2026-10-09; the owner tested all of it in the game except where said):**
+  - Snapshot fields (`Core/SV_SpecSnapshot.lua`): `equipment` (the picture), `marked[slot]` (link), `markedGUID[slot]` (the piece's item GUID,
+    `ns.GetBagItemGUID` / `ns.GetWornItemGUID` over `C_Item.GetItemGUID(ItemLocation...)`), `manualSlots[slot]` (a mark made by Alt-click: the lock is the GUID
+    that was worn in the slot when it was made, so another worn piece lets go; `true` for a spec that is not played). An item LINK carries the spec id
+    and level: never compare marks by link, use the GUID (links stay as the fallback for marks made before, which have no GUID).
+  - `ns.AutoMarkWornPieces` (option `autoMark`, on when never set): after every capture and 7.5 s after a real spec change; it waits 7 s after a spec change
+    (`AUTO_MARK_QUIET_SECONDS`) so the old spec's gear is not taken for the new one. Hand marks win until their piece is worn or another piece is worn there.
+    The equip pass at respec (`EquipMarkedLoadoutItems`) uses the GUID when the mark has one and no longer asks the loadout slot to agree.
+  - `CaptureActiveSpecSnapshot` returns the old table untouched when worn pieces, stats and hero tree are the same (no new revision, no refresh);
+    `ScheduleCapture` only refreshes the screens when the revision changed (three captures follow every event). The character sheet marks are redrawn
+    from `RequestRefresh` (its own 0.5 s redraw can come before the marks are updated).
+  - Bags: marks are painted at once on container OnShow (`HookFrameShow`), and a button forgets that it was painted when it is hidden (OnHide)
+    (otherwise a quick close/open left the marks hidden). Tooltips of bag pieces: saved in both = one line; saved in one = verdict for the other build +
+    "Also saved in ..." (`ns.RenderTooltipLoadoutMembership(..., alsoLine)`). Indicator: arrow + letter when saved in one build and an upgrade for the other.
+  - Alt-click (`UI/SV_UpgradeIndicatorView.lua`, `ns.TryApproveItemLink` in `StatVerdict.lua`): Auto mark on = either button saves for the build not played, and
+    for the played one too when it is an upgrade there (`markPlayedToo`); off = Alt-Right Main, Alt-Left Off as before. `ns.MarkClickLabel` names the click in texts.
+  - Right-click on a ring/trinket/one-hand weapon in the bags (`PrepareSmartEquip`, `smartEquipFrame`): the game picks the slot itself (by its own rule);
+    we pick the piece up in PreClick and drop it on the slot the comparison names (`ns.EquipBagSlotInto`); if the game still replaced another piece, two
+    equips put things right (`ns.EquipBagPieceByGUID`). NOT understood: what the game's own click does with the piece on the cursor; it worked in the owner's test.
+  - Character info: red arrow (`SetWornDownArrow`, the bag arrow turned over, desaturated, red) when `ns.GetBagUpgradesForWornSlots` (Logic, cached, cleared on gear and
+    bag events) finds a better bag piece for the played spec; click = ignore (`StatVerdictDB.ignoredWornWarnings[specID:wornGUID] = better link`, pruned when the worn piece
+    is not worn any more); the ring is hidden while the arrow warns. The tooltip of a worn piece also says "Part of your MS Frost set" for a piece of one build only.
+  - Agreed but NOT built: (B) the played spec compared with the loadout, which adds marked-but-unworn bag pieces to what is worn; (C) a second spec chosen in the
+    addon starts from a copy of what is worn at that moment. Tests: `tools/tests/test_serial_marks.py`. The debug window used while building this lived only in the game copy.
 - **Pitfall found:** the verdict block is skipped when the tooltip "already has a StatVerdict line" (`TooltipAlreadyHasStatVerdict`). Texture escapes
   hold the folder name `StatVerdict` in their path, so that check now strips `|T...|t` first. Any text we add to a tooltip must be checked against it.
 

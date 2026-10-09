@@ -98,9 +98,33 @@ class WornPieceInfoTests(unittest.TestCase):
         _, lines = self.tooltip_lines()
         self.assertTrue(any("|cff00ff00MS|r" in line for line in lines))  # MS in green
 
-    def test_a_piece_in_one_set_only_is_not_shared(self) -> None:
+    def test_a_piece_in_one_set_only_is_not_shared_but_names_its_set(self) -> None:
         self.lua.execute("SAVED['main:item:1'] = true")
-        self.assertIsNone(self.info())
+        result = self.ns.GetWornPieceInfo("item:1")
+        self.assertIsNone(result["shared"])
+        self.assertEqual("MS", result["single"]["label"])
+        drawn, lines = self.tooltip_lines()
+        self.assertTrue(drawn)
+        self.assertTrue(any("Part of your MS" in line and "set" in line for line in self.plain(lines)))
+        self.assertFalse(any("Also part of" in line for line in self.plain(lines)))
+
+    def test_when_the_off_spec_is_played_its_own_piece_says_os(self) -> None:
+        self.lua.execute("MAIN_IS_PLAYED = false; SAVED['off:item:1'] = true")
+        result = self.ns.GetWornPieceInfo("item:1")
+        self.assertEqual("OS", result["single"]["label"])
+        _, lines = self.tooltip_lines()
+        self.assertTrue(any("Part of your OS" in line for line in self.plain(lines)))
+
+    def test_the_other_set_line_is_left_out_while_the_red_arrow_warns(self) -> None:
+        # The ring is hidden on the icon while the arrow warns about the piece, and the tooltip does not say it either.
+        self.lua.execute("SAVED['main:item:1'] = true; SAVED['off:item:1'] = true")
+        tooltip = self.lua.execute("""
+        local lines = {}
+        return { lines = lines, AddLine = function(self, text) lines[#lines + 1] = text end, Show = function() end }
+        """)
+        drawn = self.ns.RenderTooltipWornInfo(tooltip, "item:1", self.lua.eval("MAIN"), None, True)
+        self.assertFalse(drawn)
+        self.assertEqual(0, len(tooltip.lines))
 
     def test_without_an_off_spec_nothing_is_shared(self) -> None:
         self.ns.GetTooltipEvaluationContexts = self.lua.eval("function() return MAIN, nil end")

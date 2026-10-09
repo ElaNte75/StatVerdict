@@ -2969,9 +2969,9 @@ class BisTooltipFeatureToggleTests(unittest.TestCase):
         self.check()
         card = self.frame.optionsDrawerCard
         self.assertEqual(26 + 24 + 24 + 36 + 6, card.bisTooltipGroup._height)  # heading, two rows, one with a grey line, a pad
-        self.assertEqual(26 + 24 + 24 + 6, card.bagGroup._height)  # Upgrade Arrow, MS / OS Labels
+        self.assertEqual(26 + 24 + 24 + 36 + 6, card.bagGroup._height)  # Upgrade Arrow, MS / OS Labels, Auto mark (with a grey line)
         self.assertEqual(26 + 36 + 6, card.itemTooltipGroup._height)  # Stat Ranks
-        self.assertEqual(26 + 36 + 36 + 6, card.characterInfoGroup._height)  # Marks on worn pieces, Info on worn pieces
+        self.assertEqual(26 + 36 + 36 + 36 + 6, card.characterInfoGroup._height)  # Marks on worn pieces, Arrow on worn pieces, Info on worn pieces
         self.assertEqual(26 + 36 + 36 + 36 + 46 + 6, card.windowGroup._height)  # Always on top, Compact Mode, Auto-hide, Window size
         self.assertEqual(26 + 24 + 24 + 36 + 6, card.trinketTooltipGroup._height)
 
