@@ -34,7 +34,8 @@ local function GetCompatibleEquippedLink(slotID, profile)
     if useSnapshot then
         itemLink = ns.GetSnapshotEquippedLink and ns.GetSnapshotEquippedLink(profile, slotID) or nil
     else
-        itemLink = GetEquippedLink(slotID)
+        -- The spec that is played: what is worn, or the piece marked for the slot that sits in the bags.
+        itemLink = (ns.GetPlayedLoadoutOverlay and ns.GetPlayedLoadoutOverlay(profile, slotID)) or GetEquippedLink(slotID)
     end
     if itemLink and ns.IsItemCompatibleWithSlot and not ns.IsItemCompatibleWithSlot(itemLink, profile, slotID) then
         return nil

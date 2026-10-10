@@ -200,6 +200,27 @@ class AutoMarkTests(unittest.TestCase):
         self.assertEqual(1, self.ns.AutoMarkWornPieces())   # no longer locked: the next piece worn takes the slot
         self.assertEqual("Item-A", str(self.snap('markedGUID["2"]')))
 
+    def test_a_hand_mark_made_while_the_spec_was_not_played_lets_go_when_another_piece_is_worn(self):
+        # Saved as a plain lock (true) when the spec was not played; the spec is played now.
+        self.lua.execute('local s = StatVerdictDB.specSnapshots.bySpecID["200"]; '
+                         's.marked = { ["2"] = NECK_B }; s.markedGUID = { ["2"] = "Item-B" }; '
+                         's.manualSlots = { ["2"] = true }; s.autoMarkSeeded = true; bag = { NECK_B }; bagGUID = { "Item-B" }')
+        self.ns.AutoMarkWornPieces()
+        self.assertEqual("Item-B", str(self.snap('markedGUID["2"]')))   # the marked piece still waits in the bags
+        self.lua.execute('worn[2] = RING; wornGUID[2] = "Item-C"')
+        self.ns.AutoMarkWornPieces()
+        self.assertEqual("Item-C", str(self.snap('markedGUID["2"]')))   # the player moved on
+
+    def test_a_mark_for_a_piece_that_is_worn_in_the_other_slot_of_the_pair_lets_go(self):
+        # The same ring marked for slot 11 while it is worn in slot 12: it cannot wait in the bags, so what is worn in 11 is the mark.
+        self.lua.execute('local s = StatVerdictDB.specSnapshots.bySpecID["200"]; '
+                         's.marked = { ["11"] = RING }; s.markedGUID = { ["11"] = "Item-R" }; '
+                         's.manualSlots = { ["11"] = true }; s.autoMarkSeeded = true; '
+                         'worn[12] = RING; wornGUID[12] = "Item-R"; worn[11] = NECK_B; wornGUID[11] = "Item-O"')
+        self.ns.AutoMarkWornPieces()
+        self.assertEqual("Item-O", str(self.snap('markedGUID["11"]')))
+        self.assertEqual("Item-R", str(self.snap('markedGUID["12"]')))
+
     def test_marks_made_before_auto_mark_existed_keep_a_piece_that_sits_in_the_bags(self):
         # A mark whose piece is in the bags (not worn) is the player's own choice.
         self.lua.execute('StatVerdictDB.specSnapshots.bySpecID["200"].marked = { ["2"] = NECK_B }; bag = { NECK_B }')
@@ -212,6 +233,45 @@ class AutoMarkTests(unittest.TestCase):
         self.ns.GetItemEquipLocation = self.lua.eval("function() return 'INVTYPE_2HWEAPON' end")
         self.ns.AutoMarkWornPieces()
         self.assertIsNone(self.snap('marked["17"]'))
+
+
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class DuplicateMarkTests(unittest.TestCase):
+    """One piece cannot be marked in two slots; the stale mark made another copy of the real piece look foreign."""
+
+    def setUp(self):
+        self.lua = new_runtime()
+        self.lua.execute(SETUP)
+        self.ns = self.lua.eval("{}")
+        load_addon_file(self.lua, self.ns, "Core/SV_SpecSnapshot.lua")
+        g = self.lua.globals()
+        g.NECK, g.NECK_B, g.RING = NECK, NECK_B, RING
+        # Spec 300 is not played (spec 200 is). Its ring slot 11 is marked with the piece that sits in slot 12.
+        self.lua.execute("""
+        StatVerdictDB.specSnapshots.bySpecID["300"] = { specID = 300, revision = 1, characterGUID = "Player-1-ME",
+            equipment = { ["11"] = NECK_B, ["12"] = RING },
+            marked = { ["11"] = RING, ["12"] = RING },
+            markedGUID = { ["11"] = "Item-R", ["12"] = "Item-R" },
+            manualSlots = { ["11"] = true } }
+        """)
+
+    def test_the_stale_mark_is_dropped_and_the_slot_that_holds_the_piece_keeps_it(self):
+        self.assertEqual(1, self.ns.DropDuplicateMarks())
+        snap = 'StatVerdictDB.specSnapshots.bySpecID["300"]'
+        self.assertIsNone(self.lua.eval(snap + '.markedGUID["11"]'))
+        self.assertIsNone(self.lua.eval(snap + '.marked["11"]'))
+        self.assertIsNone(self.lua.eval(snap + '.manualSlots["11"]'))
+        self.assertEqual("Item-R", str(self.lua.eval(snap + '.markedGUID["12"]')))
+
+    def test_the_real_piece_of_the_slot_is_in_the_loadout_again(self):
+        profile = self.lua.eval("{ specID = 300 }")
+        self.assertFalse(self.ns.IsItemInEquipmentSnapshot(profile, NECK_B, "Item-N"))   # the stale mark made it foreign
+        self.ns.DropDuplicateMarks()
+        self.assertTrue(self.ns.IsItemInEquipmentSnapshot(profile, NECK_B, "Item-N"))
+
+    def test_nothing_else_changes(self):
+        self.ns.DropDuplicateMarks()
+        self.assertEqual(0, self.ns.DropDuplicateMarks())
 
 
 RING_UP = "|Hitem:301::bonus:9|h[Ring]|h"   # the same ring after an upgrade
@@ -398,6 +458,168 @@ class WornArrowTests(unittest.TestCase):
         self.lua.execute('wornGUID[11] = "Item-A"')
         self.ns.ClearWornUpgradeCache()
         self.assertFalse(self.ns.GetBagUpgradesForWornSlots()[11]["ignored"])
+
+
+TIER_RING = "|Hitem:555::|h[Tier Ring]|h"   # what the Catalyst makes of the ring: another item
+
+
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class CatalystTests(unittest.TestCase):
+    """A piece the Catalyst turns into another item keeps the marks of the one it was made from."""
+
+    def setUp(self):
+        self.lua = new_runtime()
+        self.lua.execute(SETUP)
+        self.lua.execute("""
+        counts = { [301] = 1 }
+        C_Item.GetItemCount = function(id) return counts[id] or 0 end
+        """)
+        self.ns = self.lua.eval("{}")
+        load_addon_file(self.lua, self.ns, "Core/SV_SpecSnapshot.lua")
+        g = self.lua.globals()
+        g.RING, g.TIER_RING = RING, TIER_RING
+        self.lua.execute("""
+        local snap = StatVerdictDB.specSnapshots.bySpecID["200"]
+        snap.equipment = { ["11"] = RING }
+        snap.marked = { ["11"] = RING }
+        snap.markedGUID = { ["11"] = "Item-OLD" }
+        StatVerdictDB.specSnapshots.bySpecID["201"] = { specID = 201, revision = 1, characterGUID = "Player-1-ME",
+            equipment = { ["11"] = RING }, marked = { ["11"] = RING }, markedGUID = { ["11"] = "Item-OLD" } }
+        bag = { RING }; bagGUID = { "Item-OLD" }
+        """)
+        self.ns.GetComparableSlots = self.lua.eval("function() return { 11, 12 } end")
+
+    def field(self, spec, path):
+        return self.lua.eval(f'StatVerdictDB.specSnapshots.bySpecID["{spec}"].{path}')
+
+    def convert(self):
+        """The Catalyst: the ring is gone, a piece of another item is in the bags."""
+        self.lua.execute("bag = { TIER_RING }; bagGUID = { 'Item-NEW' }; counts = { [301] = 0, [555] = 1 }")
+
+    def test_the_new_piece_takes_the_marks_of_both_builds(self):
+        self.assertEqual(0, self.ns.ReconcileMarkedSerials())   # the first look only notes what is here
+        self.convert()
+        self.assertEqual(1, self.ns.ReconcileMarkedSerials())
+        for spec in ("200", "201"):
+            self.assertEqual("Item-NEW", str(self.field(spec, 'markedGUID["11"]')))
+            self.assertIn("item:555", str(self.field(spec, 'marked["11"]')))
+            self.assertIn("item:555", str(self.field(spec, 'equipment["11"]')))
+
+    def test_nothing_without_an_earlier_look(self):
+        self.convert()
+        self.assertEqual(0, self.ns.ReconcileMarkedSerials())
+
+    def test_a_piece_that_went_to_the_bank_is_not_replaced_by_a_newcomer(self):
+        self.ns.ReconcileMarkedSerials()
+        self.lua.execute("bag = { TIER_RING }; bagGUID = { 'Item-NEW' }; counts = { [301] = 1, [555] = 1 }")
+        self.assertEqual(0, self.ns.ReconcileMarkedSerials())
+
+    def test_a_newcomer_that_does_not_fit_the_slot_is_not_taken(self):
+        self.ns.ReconcileMarkedSerials()
+        self.convert()
+        self.ns.GetComparableSlots = self.lua.eval("function() return { 5 } end")
+        self.assertEqual(0, self.ns.ReconcileMarkedSerials())
+
+    def test_two_newcomers_that_fit_are_ambiguous(self):
+        self.ns.ReconcileMarkedSerials()
+        self.lua.execute("bag = { TIER_RING, TIER_RING }; bagGUID = { 'Item-NEW', 'Item-NEW2' }; counts = { [301] = 0, [555] = 2 }")
+        self.assertEqual(0, self.ns.ReconcileMarkedSerials())
+
+
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class ChosenBuildLoadoutTests(unittest.TestCase):
+    """A build chosen in StatVerdict has a loadout at once, a copy of what is worn, also for a spec never played."""
+
+    def setUp(self):
+        self.lua = new_runtime()
+        self.lua.execute(SETUP)
+        self.lua.execute("""
+        StatVerdictDB.specSnapshots.bySpecID["200"] = { specID = 200, revision = 1, characterGUID = "Player-1-ME",
+            equipment = { ["2"] = "|Hitem:111::|h[Neck]|h" }, stats = { A = 10, B = 20 }, displayStats = { A = 11 },
+            marked = { ["2"] = "|Hitem:111::|h[Neck]|h" }, markedGUID = { ["2"] = "Item-A" } }
+        SELECTION = { primarySpecID = 200, secondarySpecID = 201, secondaryEnabled = true }
+        """)
+        self.ns = self.lua.eval("{}")
+        load_addon_file(self.lua, self.ns, "Core/SV_SpecSnapshot.lua")
+        self.ns.GetSavedStatAuditSelection = self.lua.eval("function() return SELECTION end")
+
+    def field(self, spec, path):
+        return self.lua.eval(f'StatVerdictDB.specSnapshots.bySpecID["{spec}"].{path}')
+
+    def test_a_second_build_never_played_starts_as_a_copy_of_what_is_worn(self):
+        self.assertEqual(1, self.ns.EnsureSelectedLoadouts())
+        self.assertIn("item:111", str(self.field("201", 'equipment["2"]')))
+        self.assertEqual("Item-A", str(self.field("201", 'markedGUID["2"]')))
+        self.assertEqual(10, self.field("201", "stats.A"))
+        self.assertEqual("Player-1-ME", str(self.field("201", "characterGUID")))
+
+    def test_a_loadout_with_stats_is_left_alone(self):
+        self.lua.execute('StatVerdictDB.specSnapshots.bySpecID["201"] = { specID = 201, revision = 5, '
+                         'characterGUID = "Player-1-ME", equipment = {}, stats = { A = 99 } }')
+        self.assertEqual(0, self.ns.EnsureSelectedLoadouts())
+        self.assertEqual(99, self.field("201", "stats.A"))
+
+    def test_a_loadout_made_by_marking_alone_gets_the_worn_pieces_and_stats_but_keeps_its_marks(self):
+        self.lua.execute('StatVerdictDB.specSnapshots.bySpecID["201"] = { specID = 201, revision = 5, '
+                         'characterGUID = "Player-1-ME", equipment = { ["11"] = "|Hitem:301::|h[Ring]|h" }, stats = {}, '
+                         'marked = { ["11"] = "|Hitem:301::|h[Ring]|h" }, markedGUID = { ["11"] = "Item-R" } }')
+        self.assertEqual(1, self.ns.EnsureSelectedLoadouts())
+        self.assertEqual("Item-R", str(self.field("201", 'markedGUID["11"]')))
+        self.assertEqual("Item-A", str(self.field("201", 'markedGUID["2"]')))
+        self.assertEqual(10, self.field("201", "stats.A"))
+
+    def test_the_spec_that_is_played_is_not_copied_onto_itself(self):
+        self.lua.execute("SELECTION.secondarySpecID = 200")
+        self.assertEqual(0, self.ns.EnsureSelectedLoadouts())
+
+    def test_no_second_build_means_no_copy(self):
+        self.lua.execute("SELECTION.secondaryEnabled = false")
+        self.assertEqual(0, self.ns.EnsureSelectedLoadouts())
+
+    def test_nothing_until_the_played_spec_has_stats(self):
+        self.lua.execute('StatVerdictDB.specSnapshots.bySpecID["200"].stats = {}')
+        self.assertEqual(0, self.ns.EnsureSelectedLoadouts())
+
+
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class PlayedLoadoutOverlayTests(unittest.TestCase):
+    """The spec that is played is compared with its loadout: what is worn, except a marked piece waiting in the bags."""
+
+    def setUp(self):
+        self.lua = new_runtime()
+        self.lua.execute(SETUP)
+        self.ns = self.lua.eval("{}")
+        load_addon_file(self.lua, self.ns, "Core/SV_SpecSnapshot.lua")
+        g = self.lua.globals()
+        g.RING, g.NECK = RING, NECK
+        self.lua.execute("""
+        local snap = StatVerdictDB.specSnapshots.bySpecID["200"]
+        snap.equipment = { ["11"] = RING }
+        snap.marked = { ["11"] = RING }
+        snap.markedGUID = { ["11"] = "Item-R" }
+        worn[11] = NECK; wornGUID[11] = "Item-WORN"
+        bag = { RING }; bagGUID = { "Item-R" }
+        """)
+        self.ns.ShouldUseEquipmentSnapshot = self.lua.eval("function(profile) return profile.specID ~= 200 end")
+        self.played = self.lua.eval("{ specID = 200 }")
+        self.other = self.lua.eval("{ specID = 201 }")
+
+    def test_a_marked_piece_waiting_in_the_bags_is_what_the_slot_is_compared_with(self):
+        self.assertIn("item:301", str(self.ns.GetPlayedLoadoutOverlay(self.played, 11)))
+
+    def test_a_slot_without_a_waiting_piece_is_compared_with_what_is_worn(self):
+        self.assertIsNone(self.ns.GetPlayedLoadoutOverlay(self.played, 12))
+
+    def test_a_marked_piece_that_is_worn_needs_no_overlay(self):
+        self.lua.execute('worn[11] = RING; wornGUID[11] = "Item-R"; bag = {}; bagGUID = {}')
+        self.assertIsNone(self.ns.GetPlayedLoadoutOverlay(self.played, 11))
+
+    def test_a_spec_that_is_not_played_uses_its_saved_picture_not_the_overlay(self):
+        self.assertIsNone(self.ns.GetPlayedLoadoutOverlay(self.other, 11))
+
+    def test_nothing_in_combat(self):
+        self.lua.execute("InCombatLockdown = function() return true end")
+        self.assertIsNone(self.ns.GetPlayedLoadoutOverlay(self.played, 11))
 
 
 if __name__ == "__main__":

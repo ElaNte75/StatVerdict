@@ -136,7 +136,7 @@ local function GetEquippedLink(slotID, profile)
     if useSnapshot then
         return ns.GetSnapshotEquippedLink and ns.GetSnapshotEquippedLink(profile, slotID) or nil
     end
-    return GetInventoryItemLink("player", slotID)
+    return (ns.GetPlayedLoadoutOverlay and ns.GetPlayedLoadoutOverlay(profile, slotID)) or GetInventoryItemLink("player", slotID)
 end
 
 local function GetItemInfoInstantSafe(itemLink)

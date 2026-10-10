@@ -1089,6 +1089,9 @@ local function SetWornMarks(frame, info, tag)
 end
 
 local function RefreshCatalystMarks()
+    -- The marks live on the character sheet only: while it is closed there is nothing to draw (the sheet's OnShow asks again).
+    local sheet = _G.PaperDollFrame
+    if sheet and not IsFrameVisible(sheet) then return true end
     local ok = pcall(function()
         if not (ns.GetTooltipEvaluationContexts and ns.GetWornPieceInfo and GetInventoryItemLink) then return end
         local context = ns.GetTooltipEvaluationContexts()
@@ -1130,13 +1133,26 @@ local function RefreshCatalystMarks()
 end
 ns.RefreshCatalystMarks = RefreshCatalystMarks
 
+-- Events come in bursts (bag changes, item data): every one asked for its own redraw, 15-30 ms each. One redraw answers
+-- the whole burst; it happens after the last request of the burst was made, so it sees what is true then.
+local catalystMarksPending = false
+local function RequestCatalystMarks(delay)
+    if catalystMarksPending then return end
+    catalystMarksPending = true
+    C_Timer.After(delay or 0.2, function()
+        catalystMarksPending = false
+        RefreshCatalystMarks()
+    end)
+end
+ns.RequestCatalystMarks = RequestCatalystMarks
+
 local catalystMarkHooked = false
 local function HookCatalystMarks()
     if catalystMarkHooked then return end
     local sheet = _G.PaperDollFrame
     if sheet and type(sheet.HookScript) == "function" then
         catalystMarkHooked = true
-        sheet:HookScript("OnShow", function() C_Timer.After(0.2, RefreshCatalystMarks) end)
+        sheet:HookScript("OnShow", function() RequestCatalystMarks(0.2) end)
     end
 end
 
@@ -1177,7 +1193,7 @@ scanFrame:SetScript("OnEvent", function(_, event)
     end
     if (event == "PLAYER_EQUIPMENT_CHANGED" or event == "GET_ITEM_INFO_RECEIVED" or event == "BAG_UPDATE_DELAYED")
         and IsFrameVisible(_G.PaperDollFrame) then
-        C_Timer.After(0.5, RefreshCatalystMarks)
+        RequestCatalystMarks(0.5)
     end
     if event == "PLAYER_REGEN_ENABLED" then
         if waitingForCombatEnd then

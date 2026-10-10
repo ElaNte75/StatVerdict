@@ -262,3 +262,90 @@ class BagLetterTests(unittest.TestCase):
         self.assertEqual((True, False), self.letters())
         self.assertIn("MS", str(self.lua.eval("BAG_BUTTON.StatVerdictSpecValueIndicator.text")))
         self.assertFalse(self.ring_shown())
+
+
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class CatalystMarkCostTests(unittest.TestCase):
+    """Measured in the game: one redraw of the marks costs 15-30 ms and events asked for it in dozens, also while the sheet
+    was closed. Now: nothing while it is closed, and one redraw per burst of requests."""
+
+    def setUp(self) -> None:
+        self.lua = new_runtime()
+        self.ns = self.lua.table()
+        lua = self.lua
+        lua.execute("""
+        local function Frame()
+            local f = { shown = true }
+            function f:RegisterEvent() end
+            function f:SetScript() end
+            function f:HookScript() end
+            function f:IsShown() return self.shown end
+            function f:IsVisible() return self.shown end
+            function f:GetID() return self.id end
+            function f:GetEffectiveAlpha() return 1 end
+            function f:GetObjectType() return "Button" end
+            return f
+        end
+        CreateFrame = function() return Frame() end
+        timers = {}
+        C_Timer = { After = function(d, fn) timers[#timers + 1] = fn end }
+        NUM_CONTAINER_SCAN_FRAMES = 0
+        PaperDollFrame = Frame()
+        GetInventoryItemLink = function() return nil end
+        contextCalls = 0
+        """)
+        load_addon_file(lua, self.ns, "UI/SV_UpgradeIndicatorView.lua")
+
+        def contexts():
+            lua.execute("contextCalls = contextCalls + 1")
+            return lua.table(profile=lua.table(goal="RAID"))
+
+        self.ns.GetTooltipEvaluationContexts = contexts
+        self.ns.GetWornPieceInfo = lambda *args: None
+
+    def calls(self):
+        return int(self.lua.eval("contextCalls"))
+
+    def test_a_closed_character_sheet_costs_nothing(self):
+        self.lua.execute("PaperDollFrame.shown = false")
+        self.ns.RefreshCatalystMarks()
+        self.assertEqual(0, self.calls())
+        self.lua.execute("PaperDollFrame.shown = true")
+        self.ns.RefreshCatalystMarks()
+        self.assertEqual(1, self.calls())
+
+    def test_a_burst_of_requests_is_one_redraw(self):
+        before = int(self.lua.eval("#timers"))
+        for _ in range(8):
+            self.ns.RequestCatalystMarks(0.5)
+        self.assertEqual(before + 1, int(self.lua.eval("#timers")))
+        self.lua.execute(f"timers[{before + 1}]()")
+        self.assertEqual(1, self.calls())
+        self.ns.RequestCatalystMarks(0.5)          # a new burst after the redraw is answered again
+        self.assertEqual(before + 2, int(self.lua.eval("#timers")))
+
+
+class StatAuditRefreshCostTests(unittest.TestCase):
+    """The window rebuild (10-20 ms) is asked for by every stat event and every loadout change: one rebuild per burst."""
+
+    def source(self):
+        import pathlib
+        return pathlib.Path("StatVerdict/UI/SV_StatAudit.lua").read_text(encoding="utf-8-sig")
+
+    def test_the_refresh_request_and_the_stat_events_schedule_the_rebuild(self):
+        src = self.source()
+        request = src[src.index("function ns.RequestStatAuditRefresh()"):]
+        request = request[:request.index("\nend") + 4]
+        self.assertIn("ScheduleAuditUpdate()", request)
+        self.assertNotIn("UpdateFrame()", request)
+        handler = src[src.index("ns.EventFrame:SetScript(\"OnEvent\""):]
+        handler = handler[:handler.index("\nend)") + 5]
+        self.assertIn("ScheduleAuditUpdate()", handler)
+        self.assertNotIn("UpdateFrame()", handler)
+
+    def test_one_pending_rebuild_absorbs_the_requests_that_follow(self):
+        src = self.source()
+        body = src[src.index("local function ScheduleAuditUpdate()"):]
+        body = body[:body.index("\nend\n") + 5]
+        self.assertIn("if auditUpdatePending then return end", body)
+        self.assertIn("auditUpdatePending = false", body)

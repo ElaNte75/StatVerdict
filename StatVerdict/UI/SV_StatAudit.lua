@@ -920,6 +920,8 @@ SaveSelection = function(selection, keepContexts)
     db.statAuditSelectionByCharacter[key].secondaryGoalMode = NormalizeOptionalGoalMode(selection.secondaryGoalMode)
     -- A new selection means new contexts: drop what the running scan has built.
     if not keepContexts and ns.ResetContextScan then ns.ResetContextScan() end
+    -- A build that was just chosen has a loadout at once (a copy of what is worn), also a spec that was never played.
+    if not keepContexts and ns.EnsureSelectedLoadouts then ns.EnsureSelectedLoadouts() end
 end
 
 local function ApplyToggleLabelColors(selection)
@@ -3374,9 +3376,26 @@ do
     end
 end
 
+-- A burst of requests (stat events come in dozens, a loadout change asks several times) rebuilds the window once, a
+-- moment later, with what is true then. Each rebuild takes 10-20 ms: doing one per request froze the game for 80 ms.
+local auditUpdatePending = false
+local AUDIT_UPDATE_DELAY = 0.1
+local function ScheduleAuditUpdate()
+    if auditUpdatePending then return end
+    if not (C_Timer and C_Timer.After) then
+        if AuditFrame and AuditFrame:IsShown() and UpdateFrame then UpdateFrame() end
+        return
+    end
+    auditUpdatePending = true
+    C_Timer.After(AUDIT_UPDATE_DELAY, function()
+        auditUpdatePending = false
+        if AuditFrame and AuditFrame:IsShown() and UpdateFrame then UpdateFrame() end
+    end)
+end
+
 function ns.RequestStatAuditRefresh()
     if UpdateFrame and AuditFrame and AuditFrame:IsShown() then
-        UpdateFrame()
+        ScheduleAuditUpdate()
     end
     RequestInventoryVerdictRefresh()
 end
@@ -3440,7 +3459,7 @@ ns.EventFrame:SetScript("OnEvent", function(_, event, unit)
             ns.MarkAuditShapeshiftChanged()
         end
     end
-    if AuditFrame and AuditFrame:IsShown() and UpdateFrame then UpdateFrame() end
+    if AuditFrame and AuditFrame:IsShown() and UpdateFrame then ScheduleAuditUpdate() end
 end)
 
 SLASH_STATVERDICTAUDIT1 = "/sva"

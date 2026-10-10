@@ -353,6 +353,22 @@ local function SameSerial(a, b)
     return a == b or ResolveSerial(a) == ResolveSerial(b)
 end
 
+-- One physical piece is marked in one slot only: marking it somewhere forgets its mark in every other slot of the loadout
+-- (a piece that moves to the other slot of a pair would otherwise stay marked in both).
+local function ForgetMarksOfSerial(snapshot, guid, exceptKey)
+    local forgotten = 0
+    if type(snapshot.markedGUID) ~= "table" then return forgotten end
+    for slotKey, stored in pairs(snapshot.markedGUID) do
+        if slotKey ~= exceptKey and SameSerial(stored, guid) then
+            snapshot.markedGUID[slotKey] = nil
+            if type(snapshot.marked) == "table" then snapshot.marked[slotKey] = nil end
+            if type(snapshot.manualSlots) == "table" then snapshot.manualSlots[slotKey] = nil end
+            forgotten = forgotten + 1
+        end
+    end
+    return forgotten
+end
+
 -- Where a serial number sits in the bags: bag, slot, and how many bag items share the same item id (copies).
 local function FindBagLocationByGUID(guid)
     if type(guid) ~= "string" or not (C_Container and C_Container.GetContainerNumSlots and C_Container.GetContainerItemLink) then
@@ -416,6 +432,31 @@ function ns.EquipBagSlotInto(bagID, bagSlot, targetSlot)
     return ok2 and true or false
 end
 
+-- The spec that is played is compared with its loadout: what is worn, except a piece that is marked for a slot and sits in
+-- the bags (the piece the player means to wear there; with Auto mark that is a piece marked by hand). nil when the worn piece
+-- is the answer. Worked out once a moment, not for every item.
+local overlayCache = nil
+function ns.GetPlayedLoadoutOverlay(profile, slotID)
+    if IsInCombat() or ns.ShouldUseEquipmentSnapshot(profile) then return nil end
+    local snapshot = GetSnapshot(profile)
+    if type(snapshot) ~= "table" or type(snapshot.markedGUID) ~= "table" or type(snapshot.marked) ~= "table" then return nil end
+    local now = type(GetTime) == "function" and GetTime() or 0
+    if not overlayCache or overlayCache.snapshot ~= snapshot or overlayCache.revision ~= snapshot.revision
+        or now - overlayCache.at > 1 then
+        local links = {}
+        for slotKey, guid in pairs(snapshot.markedGUID) do
+            local markLink = snapshot.marked[slotKey]
+            if type(markLink) == "string" and not SameSerial(WornGUID(tonumber(slotKey)), guid) then
+                local bagID, bagSlot = FindBagLocationByGUID(guid)
+                if bagID then links[slotKey] = C_Container.GetContainerItemLink(bagID, bagSlot) or markLink end
+            end
+        end
+        overlayCache = { snapshot = snapshot, revision = snapshot.revision, at = now, links = links }
+    end
+    return overlayCache.links[tostring(slotID)]
+end
+
+
 -- Is this very piece marked in the loadout? With a serial number the answer is exact; a mark made before serial
 -- numbers existed (no serial stored for its slot) is still recognised by item, as before.
 function ns.IsPieceMarkedInLoadout(profile, itemLink, guid)
@@ -444,7 +485,9 @@ local function SnapshotHoldsPiece(snapshot, itemLink, guid)
     local stored = type(snapshot.markedGUID) == "table" and snapshot.markedGUID or nil
     if guid and stored then
         for slotKey, storedGUID in pairs(stored) do
-            if SameSerial(storedGUID, guid) and links[slotKey] then return true, SafeNumber(slotKey), links[slotKey] end
+            -- A mark knows its piece even when nothing is saved in the slot's picture (the slot was left empty).
+            local held = links[slotKey] or (type(snapshot.marked) == "table" and snapshot.marked[slotKey]) or nil
+            if SameSerial(storedGUID, guid) and held then return true, SafeNumber(slotKey), held end
         end
     end
     for slotKey, equippedLink in pairs(links) do
@@ -739,6 +782,7 @@ function ns.ApproveItemIntoVirtualLoadout(itemLink, profile, slotID, itemGUID)
     -- The serial number of the marked piece (nil when the game did not give one: the mark then works by item, as before).
     snapshot.markedGUID = type(snapshot.markedGUID) == "table" and snapshot.markedGUID or {}
     snapshot.markedGUID[tostring(targetSlot)] = type(itemGUID) == "string" and itemGUID or nil
+    if type(itemGUID) == "string" then ForgetMarksOfSerial(snapshot, itemGUID, tostring(targetSlot)) end
     -- A hand mark: Auto mark leaves this slot alone until the piece is worn or the mark is removed.
     snapshot.manualSlots = type(snapshot.manualSlots) == "table" and snapshot.manualSlots or {}
     -- For the spec that is played, the lock remembers the piece worn in the slot now: when another piece is worn there later,
@@ -755,6 +799,7 @@ function ns.ApproveItemIntoVirtualLoadout(itemLink, profile, slotID, itemGUID)
     end
 
     NotifyVirtualLoadoutChanged()
+    if ns.ScheduleLoadoutCapture then ns.ScheduleLoadoutCapture() end   -- what is worn takes the slot if the mark was taken away
 
     local slotLabel = ns.SlotLabels and ns.SlotLabels[targetSlot] or ("Slot " .. tostring(targetSlot))
     local specName = (type(profile) == "table" and profile.specName) or tostring(specID)
@@ -833,6 +878,7 @@ function ns.RemoveItemFromVirtualLoadout(itemLink, profile, itemGUID)
     end
 
     NotifyVirtualLoadoutChanged()
+    if ns.ScheduleLoadoutCapture then ns.ScheduleLoadoutCapture() end   -- what is worn takes the slot if the mark was taken away
 
     local slotLabel = ns.SlotLabels and ns.SlotLabels[removedSlot] or ("Slot " .. tostring(removedSlot))
     local specName = (type(profile) == "table" and profile.specName) or tostring(specID)
@@ -1132,7 +1178,9 @@ local function RequestRefresh()
     end
     -- The marks on the character sheet follow the loadouts: they are redrawn after the loadouts changed (the sheet's own
     -- redraw, half a second after an equipment change, can come before the marks are updated).
-    if ns.RefreshCatalystMarks and type(C_Timer) == "table" and C_Timer.After then
+    if ns.RequestCatalystMarks then
+        ns.RequestCatalystMarks(0.1)
+    elseif ns.RefreshCatalystMarks and type(C_Timer) == "table" and C_Timer.After then
         C_Timer.After(0.1, ns.RefreshCatalystMarks)
     end
 end
@@ -1299,6 +1347,72 @@ function ns.MarkClickLabel(isSecondary)
     return isSecondary and "Alt-Left-Click" or "Alt-Right-Click"
 end
 
+-- The builds that are chosen in StatVerdict each have a loadout from the moment they are chosen, also a spec that was never
+-- played: it starts as a copy of what is worn now (the pieces and the stats), marks included, so the comparisons and the marks
+-- work at once. Playing that spec later replaces the copy with the real thing. A loadout that exists with its stats is left
+-- alone. Returns how many were made or filled.
+local function CopyStringMap(source)
+    local copy = {}
+    if type(source) == "table" then
+        for key, value in pairs(source) do copy[key] = value end
+    end
+    return copy
+end
+
+function ns.EnsureSelectedLoadouts()
+    if IsInCombat() or not ns.GetSavedStatAuditSelection then return 0 end
+    local activeSpecID = GetActiveSpecID()
+    local selection = ns.GetSavedStatAuditSelection()
+    if not activeSpecID or type(selection) ~= "table" then return 0 end
+    local db = EnsureDB()
+    local active = db.bySpecID[tostring(activeSpecID)]
+    if type(active) ~= "table" or type(active.stats) ~= "table" or next(active.stats) == nil then return 0 end
+
+    local wanted = {}
+    local primary = SafeNumber(selection.primarySpecID)
+    if primary then wanted[#wanted + 1] = primary end
+    local secondary = selection.secondaryEnabled and SafeNumber(selection.secondarySpecID) or nil
+    if secondary then wanted[#wanted + 1] = secondary end
+
+    local made = 0
+    for _, specID in ipairs(wanted) do
+        local key = tostring(specID)
+        local existing = db.bySpecID[key]
+        local hasStats = type(existing) == "table" and type(existing.stats) == "table" and next(existing.stats) ~= nil
+        if specID ~= activeSpecID and not hasStats then
+            local snapshot = type(existing) == "table" and existing or { specID = specID }
+            snapshot.equipment = type(snapshot.equipment) == "table" and snapshot.equipment or {}
+            snapshot.marked = type(snapshot.marked) == "table" and snapshot.marked or {}
+            snapshot.markedGUID = type(snapshot.markedGUID) == "table" and snapshot.markedGUID or {}
+            for slotKey, link in pairs(type(active.equipment) == "table" and active.equipment or {}) do
+                if snapshot.equipment[slotKey] == nil then snapshot.equipment[slotKey] = link end
+            end
+            -- The worn pieces are marked for it as they are for the spec that is played.
+            local activeGUIDs = type(active.markedGUID) == "table" and active.markedGUID or {}
+            for slotKey, guid in pairs(activeGUIDs) do
+                if snapshot.markedGUID[slotKey] == nil and snapshot.marked[slotKey] == nil then
+                    snapshot.markedGUID[slotKey] = guid
+                    snapshot.marked[slotKey] = type(active.marked) == "table" and active.marked[slotKey] or nil
+                end
+            end
+            snapshot.stats = CopyStringMap(active.stats)
+            snapshot.displayStats = CopyStringMap(active.displayStats)
+            snapshot.source = snapshot.source or "copy_of_worn"
+            snapshot.characterGUID = snapshot.characterGUID or CurrentCharacterGUID()
+            snapshot.autoMarkSeeded = true
+            local revision = (SafeNumber(db.revision) or 0) + 1
+            db.revision = revision
+            snapshot.revision = revision
+            snapshot.capturedAt = type(time) == "function" and time() or snapshot.capturedAt
+            db.bySpecID[key] = snapshot
+            made = made + 1
+        end
+    end
+    if made > 0 then NotifyVirtualLoadoutChanged() end
+    return made
+end
+
+
 -- A worn piece that is put on and is an upgrade for the other build as well is saved for that build too
 -- (it then carries the gold ring), the way the tooltip says it: the replaced mark of the other build in that slot goes. A mark
 -- the player made by hand in the other build wins and is left alone. Nothing happens for a build without a saved loadout.
@@ -1380,6 +1494,11 @@ function ns.AutoMarkWornPieces()
     -- piece that is put on is saved for the other build as well when it is an upgrade there.
     local seeded = snapshot.autoMarkSeeded == true
     local changed = 0
+    -- A second round when a mark was taken away from a slot that was already looked at (the piece moved to another slot).
+    local again = true
+    for _round = 1, 2 do
+    if not again then break end
+    again = false
     for _, slotID in ipairs(EQUIPMENT_SLOTS) do
         local key = tostring(slotID)
         local wornLink = GetInventoryItemLink("player", slotID)
@@ -1393,6 +1512,22 @@ function ns.AutoMarkWornPieces()
                     or (not storedGUID and type(markLink) == "string" and SnapshotLinksMatch(wornLink, markLink)) then
                     snapshot.manualSlots[key] = nil   -- the hand-marked piece is worn now: an ordinary mark again
                     lock = nil
+                elseif lock == true then
+                    -- A hand mark made while this spec was not played has no worn piece to compare with. From now on it
+                    -- remembers the piece worn here, so wearing another one later lets the mark go.
+                    local markedElsewhere = false
+                    if storedGUID then
+                        -- A marked piece that is worn in another slot cannot be waiting in the bags: the mark is stale.
+                        for _, otherSlot in ipairs(EQUIPMENT_SLOTS) do
+                            if otherSlot ~= slotID and SameSerial(WornGUID(otherSlot), storedGUID) then markedElsewhere = true break end
+                        end
+                    end
+                    if markedElsewhere then
+                        snapshot.manualSlots[key] = nil
+                        lock = nil
+                    else
+                        snapshot.manualSlots[key] = wornGUID
+                    end
                 elseif type(lock) == "string" and not SameSerial(lock, wornGUID) then
                     -- Another piece is worn here than when the hand mark was made: the player moved on. The worn piece
                     -- takes the slot's mark, and the piece marked by hand loses it for this spec.
@@ -1403,11 +1538,13 @@ function ns.AutoMarkWornPieces()
             if not lock and not SameSerial(storedGUID, wornGUID) then
                 snapshot.marked[key] = wornLink
                 snapshot.markedGUID[key] = wornGUID
+                if ForgetMarksOfSerial(snapshot, wornGUID, key) > 0 then again = true end
                 changed = changed + 1
                 -- Also saved for the other build when it is an upgrade there too.
                 if seeded then MarkForOtherBuildToo(wornLink, wornGUID, db) end
             end
         end
+    end
     end
 
     snapshot.autoMarkSeeded = true
@@ -1430,10 +1567,16 @@ function ns.AutoMarkWornPieces()
     return changed
 end
 
--- An upgrade can give a piece a new serial number. When a marked serial number is nowhere (not worn, not in the bags), the
--- same item is here with a serial number no mark knows, and nothing else of that item is hidden away (the bank), it is the
--- same piece: the marks of every loadout move to the new number, and the old -> new pair is remembered. Only this
--- character's loadouts. Returns how many pieces were taken over.
+-- A marked piece can turn into another piece: an upgrade can give it a new serial number, and the Catalyst makes a new item
+-- of it. The marks of every loadout of this character follow it when a marked serial number is nowhere (not worn, not in the
+-- bags) and:
+--   an upgrade: the same item is here with a serial number no mark knows, nothing else of that item is kept elsewhere (the
+--     bank) and the level is not lower;
+--   the Catalyst (or any such change): the marked piece was here at the last check, no copy of its item is left anywhere, and
+--     exactly one new piece appeared that fits the slot it was marked for.
+-- The old -> new pair is remembered. Only this character's loadouts. Returns how many pieces were taken over.
+local previousOwned = nil   -- the serial numbers seen at the last check (nil until there was one)
+
 function ns.ReconcileMarkedSerials()
     if IsInCombat() then return 0 end
     if not (C_Container and C_Container.GetContainerNumSlots and C_Container.GetContainerItemLink and ns.GetBagItemGUID) then
@@ -1470,44 +1613,87 @@ function ns.ReconcileMarkedSerials()
         end
     end
 
-    local missing = {}   -- itemID -> { serial number, ... } of marked pieces that are nowhere
+    -- Marked pieces that are nowhere: serial number -> { itemID, link, slots = { [slotID] = true } }
+    local missing, missingByItem = {}, {}
     for _, snapshot in ipairs(mine) do
         for slotKey, guid in pairs(snapshot.markedGUID) do
             if not owned[ResolveSerial(guid)] then
-                local itemID = GetItemIDFromLink(snapshot.marked[slotKey])
+                local link = snapshot.marked[slotKey]
+                local itemID = GetItemIDFromLink(link)
                 if itemID then
-                    missing[itemID] = missing[itemID] or {}
-                    missing[itemID][guid] = snapshot.marked[slotKey]
+                    local entry = missing[guid]
+                    if not entry then
+                        entry = { itemID = itemID, link = link, slots = {} }
+                        missing[guid] = entry
+                        missingByItem[itemID] = (missingByItem[itemID] or 0) + 1
+                    end
+                    entry.slots[tonumber(slotKey)] = true
                 end
             end
         end
     end
 
     local getter = (type(C_Item) == "table" and C_Item.GetItemCount) or GetItemCount
-    local mapping = {}   -- old serial number -> { guid = new serial number, link = its link }
-    for itemID, olds in pairs(missing) do
-        local oldGUID, oldLink, oldCount = nil, nil, 0
-        for guid, link in pairs(olds) do oldGUID, oldLink, oldCount = guid, link, oldCount + 1 end
-        -- Exactly one marked piece of this item is gone, and exactly one piece of it here has no mark.
-        local candidate, candidates = nil, 0
-        for guid, info in pairs(owned) do
-            if info.itemID == itemID and not referenced[guid] then candidate, candidates = guid, candidates + 1 end
-        end
-        if oldCount == 1 and candidates == 1 then
-            -- Another copy kept in the bank would look like the gone one: then the number of copies would not match.
-            local total = nil
-            if type(getter) == "function" then
-                local ok, count = pcall(getter, itemID, true, false, true, true)
-                total = ok and SafeNumber(count) or nil
+    local function itemCountEverywhere(itemID)
+        if type(getter) ~= "function" then return nil end
+        local ok, count = pcall(getter, itemID, true, false, true, true)
+        return ok and SafeNumber(count) or nil
+    end
+
+    local mapping = {}   -- old serial number -> { guid, link, itemID, oldItemID }
+    local claimedNew = {}
+    -- An upgrade: the same item.
+    for oldGUID, entry in pairs(missing) do
+        if missingByItem[entry.itemID] == 1 then
+            local candidate, candidates = nil, 0
+            for guid, info in pairs(owned) do
+                if info.itemID == entry.itemID and not referenced[guid] then candidate, candidates = guid, candidates + 1 end
             end
-            local newInfo = owned[candidate]
-            local oldLevel, newLevel = GetItemLevelFromLink(oldLink), GetItemLevelFromLink(newInfo.link)
-            local notLower = not (oldLevel and newLevel and newLevel < oldLevel)   -- an upgrade never lowers the level
-            if (total == nil or total == visibleByItem[itemID]) and notLower then
-                mapping[oldGUID] = { guid = candidate, link = newInfo.link, itemID = itemID }
+            if candidates == 1 then
+                -- Another copy kept in the bank would look like the gone one: then the number of copies would not match.
+                local total = itemCountEverywhere(entry.itemID)
+                local newInfo = owned[candidate]
+                local oldLevel, newLevel = GetItemLevelFromLink(entry.link), GetItemLevelFromLink(newInfo.link)
+                local notLower = not (oldLevel and newLevel and newLevel < oldLevel)   -- an upgrade never lowers the level
+                if (total == nil or total == visibleByItem[entry.itemID]) and notLower then
+                    mapping[oldGUID] = { guid = candidate, link = newInfo.link, itemID = newInfo.itemID, oldItemID = entry.itemID }
+                    claimedNew[candidate] = true
+                end
             end
         end
     end
+    -- The Catalyst: a different item that appeared as this one disappeared.
+    if previousOwned and ns.GetComparableSlots then
+        local newcomers = {}
+        for guid in pairs(owned) do
+            if not referenced[guid] and not previousOwned[guid] and not claimedNew[guid] then newcomers[#newcomers + 1] = guid end
+        end
+        local fittingOf, takenBy = {}, {}
+        for oldGUID, entry in pairs(missing) do
+            if not mapping[oldGUID] and previousOwned[ResolveSerial(oldGUID)] and itemCountEverywhere(entry.itemID) == 0 then
+                local fitting = {}
+                for _, guid in ipairs(newcomers) do
+                    local ok, comparable = pcall(ns.GetComparableSlots, owned[guid].link)
+                    if ok and type(comparable) == "table" then
+                        for _, slot in ipairs(comparable) do
+                            if entry.slots[tonumber(slot)] then fitting[#fitting + 1] = guid break end
+                        end
+                    end
+                end
+                fittingOf[oldGUID] = fitting
+                for _, guid in ipairs(fitting) do takenBy[guid] = (takenBy[guid] or 0) + 1 end
+            end
+        end
+        for oldGUID, fitting in pairs(fittingOf) do
+            -- exactly one new piece fits, and no other gone piece wants it
+            if #fitting == 1 and takenBy[fitting[1]] == 1 then
+                local newInfo = owned[fitting[1]]
+                mapping[oldGUID] = { guid = fitting[1], link = newInfo.link, itemID = newInfo.itemID, oldItemID = missing[oldGUID].itemID }
+            end
+        end
+    end
+    previousOwned = {}
+    for guid in pairs(owned) do previousOwned[guid] = true end
 
     local taken = 0
     for oldGUID, new in pairs(mapping) do
@@ -1519,7 +1705,8 @@ function ns.ReconcileMarkedSerials()
                     snapshot.markedGUID[slotKey] = new.guid
                     snapshot.marked[slotKey] = new.link
                     local equipment = snapshot.equipment
-                    if type(equipment) == "table" and GetItemIDFromLink(equipment[slotKey]) == new.itemID then
+                    local equipmentItemID = type(equipment) == "table" and GetItemIDFromLink(equipment[slotKey]) or nil
+                    if equipmentItemID and (equipmentItemID == new.itemID or equipmentItemID == new.oldItemID) then
                         equipment[slotKey] = new.link
                     end
                     touched = true
@@ -1536,7 +1723,7 @@ function ns.ReconcileMarkedSerials()
         local ignored = type(StatVerdictDB) == "table" and StatVerdictDB.ignoredWornWarnings or nil
         if type(ignored) == "table" then
             local renamed = {}
-            for key, value in pairs(ignored) do
+            for key in pairs(ignored) do
                 local specPart = tostring(key):match("^(.-):" .. oldGUID:gsub("%p", "%%%0") .. "$")
                 if specPart then renamed[key] = specPart .. ":" .. new.guid end
             end
@@ -1549,6 +1736,56 @@ function ns.ReconcileMarkedSerials()
         StatVerdictDB.serialHistory[oldGUID] = new.guid
     end
     return taken
+end
+
+-- One physical piece cannot be marked in two slots of the same loadout. When it is, the slot whose saved picture holds that
+-- piece keeps the mark and the other mark is stale (the piece went to the other slot of a pair): it is dropped, otherwise the
+-- piece that really belongs to that slot looks like "another copy" and is not recognised as part of the loadout.
+-- Every loadout of this character, played or not. Returns how many marks were dropped.
+function ns.DropDuplicateMarks()
+    local db = EnsureDB()
+    local myGUID = CurrentCharacterGUID()
+    if not myGUID then return 0 end
+    local dropped = 0
+    for _, snapshot in pairs(db.bySpecID) do
+        if type(snapshot) == "table" and snapshot.characterGUID == myGUID
+            and type(snapshot.markedGUID) == "table" and type(snapshot.marked) == "table" then
+            local bySerial = {}
+            for slotKey, guid in pairs(snapshot.markedGUID) do
+                local serial = ResolveSerial(guid)
+                if type(serial) == "string" then
+                    bySerial[serial] = bySerial[serial] or {}
+                    table.insert(bySerial[serial], slotKey)
+                end
+            end
+            local changed = false
+            for _, slotKeys in pairs(bySerial) do
+                if #slotKeys > 1 then
+                    table.sort(slotKeys)
+                    local keep = nil
+                    for _, slotKey in ipairs(slotKeys) do
+                        local saved = type(snapshot.equipment) == "table" and snapshot.equipment[slotKey] or nil
+                        if not keep and type(saved) == "string" and SnapshotLinksMatch(saved, snapshot.marked[slotKey]) then
+                            keep = slotKey
+                        end
+                    end
+                    keep = keep or slotKeys[1]
+                    for _, slotKey in ipairs(slotKeys) do
+                        if slotKey ~= keep then
+                            snapshot.marked[slotKey] = nil
+                            snapshot.markedGUID[slotKey] = nil
+                            if type(snapshot.manualSlots) == "table" then snapshot.manualSlots[slotKey] = nil end
+                            dropped = dropped + 1
+                            changed = true
+                        end
+                    end
+                end
+            end
+            if changed then BumpSnapshotRevision(db, snapshot) end
+        end
+    end
+    if dropped > 0 then NotifyVirtualLoadoutChanged() end
+    return dropped
 end
 
 local reconcileToken = 0
@@ -1574,9 +1811,10 @@ local function ScheduleCapture()
             local before = activeSpecID and db.bySpecID[tostring(activeSpecID)]
             local revisionBefore = before and before.revision
             local tableBefore = before
-            if index == 1 then ns.ReconcileMarkedSerials() end   -- a piece upgraded into a new serial number keeps its marks
+            if index == 1 then ns.DropDuplicateMarks() ns.ReconcileMarkedSerials() end   -- a piece upgraded into a new serial number keeps its marks
             ns.CaptureActiveSpecSnapshot()
             ns.AutoMarkWornPieces()
+            ns.EnsureSelectedLoadouts()
             local after = activeSpecID and db.bySpecID[tostring(activeSpecID)]
             -- Refresh the screens only when the loadout really changed (several captures follow every event).
             if after ~= tableBefore or (after and after.revision ~= revisionBefore) then
@@ -1585,6 +1823,8 @@ local function ScheduleCapture()
         end)
     end
 end
+
+ns.ScheduleLoadoutCapture = function() ScheduleCapture() end
 
 local function RegisterEventSafe(frame, event)
     if not frame or not event then return end
@@ -1602,6 +1842,7 @@ RegisterEventSafe(frame, "PLAYER_TALENT_UPDATE")
 RegisterEventSafe(frame, "ACTIVE_TALENT_GROUP_CHANGED")
 RegisterEventSafe(frame, "TRAIT_CONFIG_UPDATED")
 RegisterEventSafe(frame, "TRAIT_SUB_TREE_CHANGED")
+RegisterEventSafe(frame, "PLAYER_REGEN_ENABLED")   -- a capture that fell in combat is done when it ends
 frame:SetScript("OnEvent", function(_, event, unit)
     if event == "UNIT_STATS" and unit ~= "player" then
         return

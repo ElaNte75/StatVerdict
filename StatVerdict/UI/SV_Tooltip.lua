@@ -500,8 +500,8 @@ end
 
 -- A whole stat line: a number and the stat's name, nothing else ("+73 Critical Strike"). The name is the game's
 -- own word for the stat, so this works in every language and skips enchant and effect text.
-local function IsStatLine(plain, name)
-    local escaped = EscapePattern(name)
+local function IsStatLine(plain, name, escaped)
+    escaped = escaped or EscapePattern(name)
     local between = plain:match("^%s*[%+%-]?[%d%.,]+(.-)" .. escaped .. "%s*$")
     if between ~= nil then
         return #between <= 4 and not between:find("%d")
@@ -546,6 +546,7 @@ function ns.AddStatRanksToTooltip(tooltip)
         if type(name) == "string" and name ~= "" then
             stats[#stats + 1] = {
                 name = name,
+                escaped = EscapePattern(name),
                 suffix = " " .. RANK_COLOR .. "#" .. entry.rank .. "|r " .. LABEL_PATH .. specLabel .. LABEL_SIZE,
             }
         end
@@ -557,16 +558,17 @@ function ns.AddStatRanksToTooltip(tooltip)
     local changed = false
     for index = 1, tooltip:NumLines() do
         local line = _G[tooltipName .. "TextLeft" .. index]
-        local ok, text = pcall(function() return line and line:GetText() end)
+        local ok, text = false, nil
+        if line then ok, text = pcall(line.GetText, line) end
         if ok and type(text) == "string" and not (issecretvalue and issecretvalue(text))
-            and not text:find(RANK_COLOR, 1, true) then
+            and not text:find(RANK_COLOR, 1, true) and text:find("[%d%.,]") then
             local plain = PlainText(text)
             -- The comparison block at the bottom ("If you replace this item...") lists changes, not stats.
             if type(ITEM_DELTA_DESCRIPTION) == "string" and plain:find(ITEM_DELTA_DESCRIPTION, 1, true) then
                 break
             end
             for _, stat in ipairs(stats) do
-                if IsStatLine(plain, stat.name) then
+                if IsStatLine(plain, stat.name, stat.escaped) then
                     line:SetText(text .. stat.suffix)
                     changed = true
                     break

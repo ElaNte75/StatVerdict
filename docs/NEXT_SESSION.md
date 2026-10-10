@@ -157,8 +157,25 @@ Features tab became **Options** with a new look, **Always on top**, **Compact Mo
   - An upgrade can change the item GUID (the owner saw the ring lost): `ns.ReconcileMarkedSerials` (before each capture burst and on bag events) moves the marks
     of every loadout of this character from a marked serial that is nowhere to the one unmarked piece of the same item that is here (item count incl. bank must match, level never lower),
     and records `StatVerdictDB.serialHistory[old] = new` (`SameSerial` follows it). The Catalyst makes a different item: no inheritance (open, owner informed).
-  - Agreed but NOT built: (B) the played spec compared with the loadout, which adds marked-but-unworn bag pieces to what is worn; (C) a second spec chosen in the
-    addon starts from a copy of what is worn at that moment. Tests: `tools/tests/test_serial_marks.py`. The debug window used while building this lived only in the game copy.
+  - Built 2026-10-09 after the owner's rule "comparisons always use the virtual loadouts": (B) `ns.GetPlayedLoadoutOverlay` (a marked piece waiting in the bags counts as what the
+    played spec has in that slot; used by `SV_Comparison.lua` and `SV_Rules.lua`); (C) `ns.EnsureSelectedLoadouts` (a chosen build, played or not, gets a copy of what is worn with the
+    current stats, called after each capture and from `SaveSelection`; the stats of a spec never played are an approximation); the Catalyst: `ReconcileMarkedSerials` also moves the marks
+    to ONE new piece that fits the slot when the marked piece vanished since the last check and none of its item is left anywhere (`previousOwned`). Tests: `tools/tests/test_serial_marks.py`.
+    The debug window used while building this lived only in the game copy.
+- **Session 2026-10-10 (marks that did not hold, and speed):** the owner's saved file showed an Off Spec ring slot marked with the piece worn in the other
+  ring slot, which made the real piece look like "another copy" (no mark, no tooltip line). Fixed in `Core/SV_SpecSnapshot.lua`: one piece is marked in one
+  slot only (`ForgetMarksOfSerial`, used by Auto mark and Approve; `ns.DropDuplicateMarks` repairs old doubles at every capture); a plain hand lock (`true`,
+  made while the spec was not played) binds to the worn piece and lets go (`AutoMarkWornPieces`); a second round of Auto mark when a mark was moved;
+  captures also run at `PLAYER_REGEN_ENABLED` and after Approve/Remove (`ns.ScheduleLoadoutCapture`); `SnapshotHoldsPiece` knows a mark even when the
+  picture's slot is empty. Speed (measured in game with a temporary window, now removed): `RequestStatAuditRefresh` and the stat events rebuild the window
+  once per burst (`ScheduleAuditUpdate`, 0.1 s), `RefreshCatalystMarks` does nothing while `PaperDollFrame` is closed and requests coalesce
+  (`ns.RequestCatalystMarks`), stat ranks on tooltips do less per line. Measured before: audit rebuild 19 ms avg / 80 max, marks 19 / 31, tooltip 3 / 21,
+  Auto mark up to 15 ms once after a respec (left as it is). NOT re-measured after the change. StatVerdict used 6.6 ms CPU/sec in 15 minutes of play;
+  FarmWise (the owner's other add-on) 15 ms/sec: a report for that project was written in the chat.
+  Tests: `tools/tests/world_sim.py` (a simulated character: worn, bags, serials, spec changes, clock, events, honours `RegisterEvent`) runs the real
+  `SV_SpecSnapshot.lua` and `SV_UpgradeIndicatorLogic.lua`; `test_loadout_world.py` (scenarios, incl. the owner's saved state) and `test_loadout_fuzz.py`
+  (random play: no double marks, nothing lost, the played spec marks what it wears, a respec puts on every marked piece, upgrades keep marks). Seven
+  mutations of the fixes were each caught. Not covered: the real game's event order, and the screens themselves.
 - **Pitfall found:** the verdict block is skipped when the tooltip "already has a StatVerdict line" (`TooltipAlreadyHasStatVerdict`). Texture escapes
   hold the folder name `StatVerdict` in their path, so that check now strips `|T...|t` first. Any text we add to a tooltip must be checked against it.
 
