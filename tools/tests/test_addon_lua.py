@@ -2275,6 +2275,53 @@ class BisPanelTests(unittest.TestCase):
         self.assertEqual("Other source", names[i + 1])
         self.assertNotIn("Dungeon: A", names)  # nothing of another item's place is borrowed
 
+    def test_a_tier_set_piece_the_journal_does_not_list_says_where_such_pieces_come_from(self) -> None:
+        self.set_sources('{ [999] = { {"A", "a", "D"} } }')
+        self.ns.IsTierSetPiece = lambda item_id: True
+        lines = self.panel.BuildSourceLines(271528)
+        names = [lines[i].left for i in range(1, len(lines) + 1)]
+        self.assertEqual(["Where to find", "Tier set piece", "Raid, Great Vault or made at the Catalyst"], names)
+        self.assertNotIn("Crafted, vendor, PvP, Great Vault or an event", names)
+
+    def test_a_piece_whose_set_is_not_known_yet_keeps_the_general_text(self) -> None:
+        self.set_sources('{ [999] = { {"A", "a", "D"} } }')
+        self.ns.IsTierSetPiece = lambda item_id: None   # the game has not loaded its data yet
+        lines = self.panel.BuildSourceLines(271528)
+        self.assertEqual("Other source", lines[2].left)
+
+    # --- sockets of a tier piece made at the Catalyst ------------------------------
+
+    def tier_piece_with_borrowed_socket(self, is_tier):
+        """The guide lists the made piece with the ids of its base piece; the game reads a socket out of the full list only."""
+        self.ns.ClassCodexTargets = self.lua.eval('{ trackRanks = { champion = { ["6"] = { 12854, 308 } } } }')
+        self.ns.IsTierSetPiece = lambda item_id: is_tier
+        entry = self.guardian_head()
+        full = self.panel.BuildRecommendedItemLink(entry, 104, True)
+        own = self.panel.BuildRecommendedItemLink(entry, 104, True, True)
+        self.game_knows(full, GUARDIAN_HEAD_SOCKETED_TOOLTIP)
+        if is_tier:
+            self.assertNotEqual(full, own)
+            self.assertIn("12854", own)
+            self.assertNotIn("13692", own)
+            self.game_knows(own, GUARDIAN_HEAD_TOOLTIP)
+        else:
+            self.assertEqual(full, own)
+        card = self.refresh(entry, spec_id=104, gems={"primary": 240983, "secondary": 240894})
+        return [text for text, _right in self.hover(card.rows[1])]
+
+    def test_a_tier_piece_gets_no_gems_from_a_socket_that_belongs_to_its_base_piece(self) -> None:
+        self.assertNotIn("Gems", self.tier_piece_with_borrowed_socket(True))
+
+    def test_a_piece_that_is_not_a_tier_piece_keeps_its_listed_socket(self) -> None:
+        self.assertIn("Gems", self.tier_piece_with_borrowed_socket(False))
+
+    def test_a_tier_piece_without_any_track_id_keeps_the_ids_it_has(self) -> None:
+        self.ns.ClassCodexTargets = self.lua.eval('{ trackRanks = { champion = { ["6"] = { 1, 308 } } } }')
+        self.ns.IsTierSetPiece = lambda item_id: True
+        entry = self.guardian_head()
+        self.assertEqual(self.panel.BuildRecommendedItemLink(entry, 104, True),
+                         self.panel.BuildRecommendedItemLink(entry, 104, True, True))
+
     def test_without_the_journal_data_nothing_is_claimed(self) -> None:
         self.ns.ItemSources = None
         self.assertEqual(0, len(self.panel.BuildSourceLines(271528)))

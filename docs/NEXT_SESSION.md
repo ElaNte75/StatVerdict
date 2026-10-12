@@ -176,6 +176,12 @@ Features tab became **Options** with a new look, **Always on top**, **Compact Mo
   `SV_SpecSnapshot.lua` and `SV_UpgradeIndicatorLogic.lua`; `test_loadout_world.py` (scenarios, incl. the owner's saved state) and `test_loadout_fuzz.py`
   (random play: no double marks, nothing lost, the played spec marks what it wears, a respec puts on every marked piece, upgrades keep marks). Seven
   mutations of the fixes were each caught. Not covered: the real game's event order, and the screens themselves.
+- **Tier piece sockets (2026-10-12):** the guide data (Icy Veins "catalyst" block, `gear_by_simc_slot` in `tools/classcodex_targets.py`) puts the
+  bonus ids of the BASE piece on the tier piece (to reach the top upgrade level); a socket id among them made the Best in Slot tooltip recommend gems for
+  a tier piece that has no socket (owner's Blood shoulders). `OwnBonusIDs` (`UI/SV_BisProgressPanel.lua`) keeps only upgrade-track ids for the socket
+  count of a tier set piece (`ns.IsTierSetPiece`, `Core/SV_ItemReferenceBonuses.lua`); the shown link is unchanged. "Where to find" of a tier piece
+  not in the journal: "Tier set piece / Raid, Great Vault or made at the Catalyst". NOT done: naming the base piece ("Catalyst from <item>"): the
+  generated data does not keep the base item id (would need `tools/classcodex_targets.py` to write it, then the weekly regeneration).
 - **Pitfall found:** the verdict block is skipped when the tooltip "already has a StatVerdict line" (`TooltipAlreadyHasStatVerdict`). Texture escapes
   hold the folder name `StatVerdict` in their path, so that check now strips `|T...|t` first. Any text we add to a tooltip must be checked against it.
 

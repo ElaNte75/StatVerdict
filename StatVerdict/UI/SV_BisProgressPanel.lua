@@ -144,7 +144,56 @@ end
 -- specializationID, modifiersMask, itemContext, numBonusIDs, bonusIDs...
 -- withoutGems: leave the gem fields empty (the guide's gems are chosen per list,
 -- not per slot, so old per-slot gem ids are ignored).
-local function BuildRecommendedItemLink(entry, specID, withoutGems)
+-- A tier set piece the guide lists as "made at the Catalyst" carries the bonus ids of the base piece it is made from (the
+-- guide's data only has them to put the piece at its top upgrade level). Some of those ids belong to the base piece alone,
+-- such as a socket: the made piece does not have it. For what the piece itself can hold (its sockets) only the upgrade
+-- track ids are kept; a piece that is no tier piece, or has no track id, keeps all of its ids.
+local function IsTierPieceEntry(entry)
+    local itemID = GetEntryItemID(entry)
+    return itemID ~= nil and ns.IsTierSetPiece ~= nil and ns.IsTierSetPiece(itemID) == true
+end
+
+local function TrackBonusIDSet()
+    local root = ns.ClassCodexTargets
+    local set = {}
+    if type(root) ~= "table" then return set end
+    for _, ranks in pairs(type(root.trackRanks) == "table" and root.trackRanks or {}) do
+        if type(ranks) == "table" then
+            for _, rank in pairs(ranks) do
+                local id = type(rank) == "table" and SafeNumber(rank[1]) or nil
+                if id then set[id] = true end
+            end
+        end
+    end
+    for _, top in pairs(type(root.trackTop) == "table" and root.trackTop or {}) do
+        local id = SafeNumber(top)
+        if id then set[id] = true end
+    end
+    for _, swap in pairs(type(root.trackSwap) == "table" and root.trackSwap or {}) do
+        if type(swap) == "table" then
+            for from, to in pairs(swap) do
+                local a, b = SafeNumber(from), SafeNumber(to)
+                if a then set[a] = true end
+                if b then set[b] = true end
+            end
+        end
+    end
+    return set
+end
+
+local function OwnBonusIDs(entry, ids)
+    if type(ids) ~= "table" or #ids == 0 or not IsTierPieceEntry(entry) then return ids end
+    local tracks = TrackBonusIDSet()
+    local kept = {}
+    for _, id in ipairs(ids) do
+        if tracks[id] then kept[#kept + 1] = id end
+    end
+    if #kept == 0 then return ids end
+    return kept
+end
+
+-- ownIDsOnly: build the link from the piece's own ids (see OwnBonusIDs), to read what it can hold.
+local function BuildRecommendedItemLink(entry, specID, withoutGems, ownIDsOnly)
     local itemID = GetEntryItemID(entry)
     if not itemID then return nil end
     local enchant = GetEntryEnchant(entry)
@@ -154,6 +203,7 @@ local function BuildRecommendedItemLink(entry, specID, withoutGems)
         gemFields[index] = gems[index] and tostring(gems[index]) or ""
     end
     local bonusIDs = GetBonusIDs(entry) or {}
+    if ownIDsOnly then bonusIDs = OwnBonusIDs(entry, bonusIDs) end
     local link = ("item:%d:%s:%s:::%d:%d::0:%d"):format(
         itemID,
         enchant and enchant.id and tostring(enchant.id) or "",
@@ -553,7 +603,7 @@ local function EntrySocketCount(entry, specID)
     local key = SocketCacheKey(entry)
     if not key then return 0 end
     if socketCountCache[key] then return socketCountCache[key] end
-    local rawLines = ReadRawItemLines(BuildRecommendedItemLink(entry, specID, true))
+    local rawLines = ReadRawItemLines(BuildRecommendedItemLink(entry, specID, true, true))
     if not rawLines then
         RequestItemLoad(GetEntryItemID(entry))
         return nil
@@ -707,6 +757,14 @@ local function BuildSourceLines(itemID)
     if type(sources) ~= "table" or #sources == 0 then
         -- Only when the journal data is there at all: without it nothing is known about any item.
         if not itemID or type(ns.ItemSources) ~= "table" then return {} end
+        -- A tier set piece is not in the journal as a drop: it comes from the raid, the Great Vault or the Catalyst.
+        if ns.IsTierSetPiece and ns.IsTierSetPiece(itemID) == true then
+            return {
+                { left = "Where to find", color = GOLD, font = "header", gapBefore = true },
+                { left = "Tier set piece", color = TEXT_COLOR, indent = true, wrap = true, gap = TOOLTIP_NAME_GAP },
+                { left = "Raid, Great Vault or made at the Catalyst", color = DIM_COLOR, indent = true, wrap = true },
+            }
+        end
         return {
             { left = "Where to find", color = GOLD, font = "header", gapBefore = true },
             { left = "Other source", color = TEXT_COLOR, indent = true, wrap = true, gap = TOOLTIP_NAME_GAP },
@@ -745,7 +803,9 @@ local function BuildGemLines(row, entry, itemLines)
     if type(guideGems) == "table" then
         local slots = type(row.bisSlots) == "table" and row.bisSlots or { entry }
         local slotIndex = SafeNumber(row.bisSlotIndex) or 1
-        RememberSocketCount(entry, itemLines)
+        -- The shown piece's own lines count its sockets, except a tier piece: its shown lines carry the base piece's
+        -- ids (see OwnBonusIDs), so its sockets are read from its own link in EntrySocketCount.
+        if not IsTierPieceEntry(entry) then RememberSocketCount(entry, itemLines) end
         local plan = Panel.SlotGemPlan(guideGems, slots, slotIndex, function(slotEntry)
             return EntrySocketCount(slotEntry, row.specID)
         end)

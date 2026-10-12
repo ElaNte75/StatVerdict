@@ -164,6 +164,13 @@ local function IsSetPiece(itemID)
     return nil
 end
 
+-- true / false / nil (data not loaded yet): is this item a tier set piece? (for the Best in Slot tooltip)
+function ns.IsTierSetPiece(itemID)
+    itemID = tonumber(itemID)
+    if not itemID then return false end
+    return IsSetPiece(itemID)
+end
+
 local function ResolveCatalystPath(heroDoc, itemLink, itemID)
     if type(heroDoc) ~= "table" or not itemID or type(C_Item) ~= "table" then return nil end
     local equipLocation = ns.GetItemEquipLocation and ns.GetItemEquipLocation(itemLink) or nil
