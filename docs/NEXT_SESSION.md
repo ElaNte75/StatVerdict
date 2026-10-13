@@ -182,6 +182,11 @@ Features tab became **Options** with a new look, **Always on top**, **Compact Mo
   count of a tier set piece (`ns.IsTierSetPiece`, `Core/SV_ItemReferenceBonuses.lua`); the shown link is unchanged. "Where to find" of a tier piece
   not in the journal: "Tier set piece / Raid, Great Vault or made at the Catalyst". NOT done: naming the base piece ("Catalyst from <item>"): the
   generated data does not keep the base item id (would need `tools/classcodex_targets.py` to write it, then the weekly regeneration).
+- **Room to grow (2026-10-13):** `UpgradeHeadroom` / `PotentialPercent` in `Core/SV_Comparison.lua`: when a piece is below the upgrade threshold
+  (`MIN_UPGRADE_PERCENT` 1%) but has more room on its upgrade track than the worn piece, it gets up to +1.5% (0.1% per item level) and counts as an
+  upgrade (`potentialLift`; `deltaScore` includes the push, `rawDeltaScore` is the real one). Nothing is added to the tooltip (owner's rule). Tests:
+  `tools/tests/test_upgrade_potential.py`. DROPPED by the owner: a "go upgrade with crests" mark on the character sheet (research: Season 2 Mistcrests,
+  flat 20 per rank, one crest type per track, currency ids Veteran 3443 / Hero 3445, the others not verified). The player does the upgrading himself.
 - **Pitfall found:** the verdict block is skipped when the tooltip "already has a StatVerdict line" (`TooltipAlreadyHasStatVerdict`). Texture escapes
   hold the folder name `StatVerdict` in their path, so that check now strips `|T...|t` first. Any text we add to a tooltip must be checked against it.
 

@@ -61,6 +61,28 @@ local function IsLiftedByItemLevel(deltaRows)
     return false
 end
 
+-- Room to grow: how many item levels a piece can still gain on its upgrade track (0 when it is at the top of its track,
+-- or on none). Two pieces that are equal today are not equal for the player: the one with room can be raised.
+local function UpgradeHeadroom(itemLink)
+    if not itemLink or not ns.GetItemUpgradeInfo or not ns.GetItemLevel then return 0 end
+    local info = ns.GetItemUpgradeInfo(itemLink)
+    local top = info and tonumber(info.maxItemLevel) or nil
+    local level = tonumber(ns.GetItemLevel(itemLink))
+    if not top or top <= 0 or not level then return 0 end
+    return math.max(0, top - level)
+end
+
+-- A small push for the piece with more room to grow, only where today's stats leave it undecided: a gain below the
+-- upgrade threshold, or a loss smaller than the push. Real differences are never overruled: it only turns an "almost"
+-- into an upgrade. Returns the percent added (0 when it does not apply).
+local POTENTIAL_PERCENT_PER_LEVEL = 0.10
+local POTENTIAL_PERCENT_CAP = 1.50
+local function PotentialPercent(candidateLink, equippedLink)
+    local extra = UpgradeHeadroom(candidateLink) - UpgradeHeadroom(equippedLink)
+    if extra <= 0 then return 0 end
+    return math.min(POTENTIAL_PERCENT_CAP, extra * POTENTIAL_PERCENT_PER_LEVEL)
+end
+
 local function GetMaxDisplayPercent()
     return ns.GlobalStatVerdictModifiers
         and ns.GlobalStatVerdictModifiers.percent
@@ -234,6 +256,17 @@ function ns.BuildComparison(itemLink, profile)
                 if delta > 0 and equippedScore == 0 then
                     rawPercent = GetMaxDisplayPercent()
                 end
+                -- Not yet an upgrade by the stats, but close, and this piece can grow where the worn one cannot (as far):
+                -- the room to grow tips it. The points then include the push, so the verdict stays a small positive.
+                local potentialLift = false
+                if rawPercent < MIN_UPGRADE_PERCENT and equippedScore ~= 0 then
+                    local push = PotentialPercent(itemLink, equippedLink)
+                    if push > 0 and rawPercent + push >= MIN_UPGRADE_PERCENT then
+                        effectiveDelta = (rawPercent + push) / 100 * math.abs(equippedScore)
+                        rawPercent = rawPercent + push
+                        potentialLift = true
+                    end
+                end
                 local comparison = {
                     slotID = slotID,
                     slotLabel = ns.SlotLabels[slotID] or tostring(slotID),
@@ -246,6 +279,7 @@ function ns.BuildComparison(itemLink, profile)
                     rawIsUpgrade = delta > 0,
                     percent = rawPercent,
                     isUpgrade = effectiveDelta > 0 and (rawPercent >= MIN_UPGRADE_PERCENT or IsLiftedByItemLevel(deltaRows)),
+                    potentialLift = potentialLift or nil,
                     deltaRows = deltaRows,
                 }
                 comparisons[#comparisons + 1] = comparison
