@@ -23,6 +23,28 @@ local function GetItemNameFromLink(itemLink)
     return nil
 end
 
+-- The colour text ("ffa335ee") of an item quality. The game moved the function into C_Item and later builds have no global
+-- one, so each place is tried and nothing fails when none is there.
+local function QualityColorText(quality)
+    local getters = { (C_Item and C_Item.GetItemQualityColor) or false, _G.GetItemQualityColor or false }
+    for _, getter in ipairs(getters) do   -- (false, not nil: a nil would end the walk)
+        if type(getter) == "function" then
+            local ok, r, g, b, hex = pcall(getter, quality)
+            if ok then
+                if type(hex) == "string" and hex ~= "" then return hex end
+                if tonumber(r) and tonumber(g) and tonumber(b) then
+                    return string.format("ff%02x%02x%02x", math.floor(r * 255 + 0.5), math.floor(g * 255 + 0.5), math.floor(b * 255 + 0.5))
+                end
+            end
+        end
+    end
+    local entry = type(_G.ITEM_QUALITY_COLORS) == "table" and _G.ITEM_QUALITY_COLORS[quality] or nil
+    if type(entry) == "table" and type(entry.hex) == "string" then
+        return (entry.hex:gsub("^|c", ""))
+    end
+    return nil
+end
+
 local function GetColoredItemName(itemLink)
     if not itemLink then
         return nil
@@ -34,7 +56,7 @@ local function GetColoredItemName(itemLink)
     end
     local colorPrefix
     if itemQuality then
-        local _, _, _, hex = GetItemQualityColor(itemQuality)
+        local hex = QualityColorText(itemQuality)
         if hex and hex ~= "" then
             colorPrefix = "|c" .. hex
         end

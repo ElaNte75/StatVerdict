@@ -1349,6 +1349,45 @@ class LoadoutMembershipLineTests(unittest.TestCase):
 
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class VerdictNameColourTests(unittest.TestCase):
+    """The worn piece's name is coloured by its quality. A game build without the global GetItemQualityColor made the whole
+    verdict fail with "attempt to call a nil value" (seen on the Great Vault reward tooltip)."""
+
+    def render(self, setup):
+        lua = new_runtime()
+        ns = lua.table()
+        lua.execute("C_Item = { GetItemInfo = function() return 'Worn Ring', nil, 4 end }")
+        lua.execute(setup)
+        ns.Colors = lua.table(white="|cffffffff", reset="|r", green="|cff00ff00", red="|cffff0000", yellow="|cffffff00")
+        load_addon_file(lua, ns, "UI/SV_Render.lua")
+        tooltip = lua.execute("""
+        local lines = {}
+        return { lines = lines, AddLine = function(self, text) lines[#lines + 1] = text end, Show = function() end }
+        """)
+        context = lua.table(specName="Frost", profile=lua.table(goal="MYTHIC_PLUS"))
+        selected = lua.table(equippedLink="|Hitem:1::|h[Worn Ring]|h", deltaScore=5, isUpgrade=True, slotLabel="Ring")
+        comparison = lua.table(itemLink="item:2", selected=selected)
+        ns.RenderTooltipVerdict(tooltip, context, comparison, False, False)
+        return "\n".join(str(tooltip.lines[i]) for i in range(1, len(tooltip.lines) + 1))
+
+    def test_a_game_without_the_global_quality_colour_function_still_draws(self) -> None:
+        text = self.render("C_Item.GetItemQualityColor = function() return 0.64, 0.21, 0.93, 'ffa335ee' end")
+        self.assertIn("|cffa335eeWorn Ring|r", text)
+
+    def test_the_colour_is_built_from_the_numbers_when_no_text_comes_back(self) -> None:
+        text = self.render("C_Item.GetItemQualityColor = function() return 1, 0, 0 end")
+        self.assertIn("|cffff0000Worn Ring|r", text)
+
+    def test_nothing_to_ask_gives_the_name_in_white(self) -> None:
+        text = self.render("")
+        self.assertIn("|cffffffffWorn Ring|r", text)
+
+    def test_the_global_function_still_works(self) -> None:
+        text = self.render("function GetItemQualityColor() return 0, 0, 0, 'ff112233' end")
+        self.assertIn("|cff112233Worn Ring|r", text)
+
+
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
 class CatalystOnlyBlockTests(unittest.TestCase):
     """An item that is no upgrade as it is (or the worn piece) still hears that the Catalyst makes it Best in Slot."""
 
