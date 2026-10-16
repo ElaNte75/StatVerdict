@@ -727,6 +727,28 @@ class BuildAllTests(unittest.TestCase):
         self.assertEqual(1, len(mplus_context["priorityProfiles"]))
         self.assertNotIn("PVP", profile["goals"])  # no PVP data anywhere in this fixture
 
+    def test_overall_has_its_own_list_and_takes_its_talents_from_mythic_plus(self) -> None:
+        specs = {
+            "DEATHKNIGHT_frost": {
+                "gear": {"value": {"all": {
+                    "all": [{"itemId": 11, "slot": "Head", "ilvl": 330}],
+                    "mplus": [{"itemId": 22, "slot": "Head", "ilvl": 330}],
+                }}},
+                "talents": {"value": {"deathbringer": {"mplus": [{"export": "M"}]}}},
+                "statPriority": {"value": {"all": {"all": {"secondary": [["crit"], ["haste"]]}}}},
+            }
+        }
+        with patch("tools.classcodex_targets.run_simc", return_value=GOOD) as run:
+            data = build_all(specs, Path("simc"), goals=("OVERALL", "MYTHIC_PLUS"))
+        goals = data["profiles"]["DEATHKNIGHT_FROST"]["goals"]
+        overall = goals["OVERALL"]["heroTalents"]["deathbringer"]
+        mplus = goals["MYTHIC_PLUS"]["heroTalents"]["deathbringer"]
+        self.assertEqual(11, overall["bis"]["slots"][0]["item"]["item_id"])
+        self.assertEqual(22, mplus["bis"]["slots"][0]["item"]["item_id"])
+        self.assertNotIn("recovery", overall["targets"]["targetMetadata"])  # talents are found, not borrowed
+        self.assertEqual("Overall", overall["priorityProfiles"][0]["context"])
+        self.assertEqual(2, run.call_count)
+
     def test_skips_a_spec_key_not_in_the_catalog(self) -> None:
         specs = {"NOTASPEC_madeup": {"gear": {"value": {}, "source": "ugg"}}}
         data = build_all(specs, Path("simc"))

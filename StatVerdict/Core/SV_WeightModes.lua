@@ -120,7 +120,7 @@ function ns.GetTargetChoice(specKey)
     }
 end
 
--- Every goal (Mythic+, Raid, PvP) reads the same curated Best in Slot lists.
+-- Every goal (Overall, Mythic+, Raid, PvP) reads the same curated Best in Slot lists.
 function ns.GetReferenceWording(goal)
     return {
         popular = false,

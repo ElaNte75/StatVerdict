@@ -22,8 +22,9 @@ import json
 from typing import Any
 
 WILDCARD = "all"
-GOAL_VIEW = {"MYTHIC_PLUS": "mplus", "RAID": "raid", "PVP": "pvp"}
+GOAL_VIEW = {"OVERALL": "all", "MYTHIC_PLUS": "mplus", "RAID": "raid", "PVP": "pvp"}
 VARIANT_KEYS = {
+    "all": ("all",),
     "mplus": ("mplus", "aoe", "damage"),
     "raid": ("single-target", "aoe", "damage"),
     "pvp": ("pvp",),

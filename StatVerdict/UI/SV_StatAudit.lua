@@ -124,6 +124,9 @@ local function GetItemLevelAuditTargetTooltip(targetValue)
     end
     local target = SafeNumber(targetValue) or SafeNumber(model and model.soloTargetItemLevel) or 276
     local goalMode = (GetEffectiveGoalMode and GetEffectiveGoalMode(GetSavedSelection and GetSavedSelection() or nil)) or DEFAULT_MAX_LEVEL_GOAL
+    if goalMode == GOAL_OVERALL then
+        return "Overall item-level target", string.format("Target %d uses the validated bundled Overall set when available; otherwise it is a configured fallback milestone.", target)
+    end
     if goalMode == GOAL_MYTHIC_PLUS then
         return "Mythic+ item-level target", string.format("Target %d uses the validated bundled Mythic+ set when available; otherwise it is a configured fallback milestone.", target)
     end
@@ -768,6 +771,7 @@ GOAL_PVP = "PVP"
 DEFAULT_MAX_LEVEL_GOAL = GOAL_MYTHIC_PLUS
 
 local GOAL_OPTIONS = {
+    { key = GOAL_OVERALL, label = "Overall" },
     { key = GOAL_MYTHIC_PLUS, label = "Mythic+" },
     { key = GOAL_RAID, label = "Raid" },
     { key = GOAL_PVP, label = "PvP" },
@@ -775,6 +779,7 @@ local GOAL_OPTIONS = {
 
 local GOAL_LABEL_BY_KEY = {
     [GOAL_LEVELING] = "Leveling",
+    [GOAL_OVERALL] = "Overall",
     [GOAL_MYTHIC_PLUS] = "Mythic+",
     [GOAL_RAID] = "Raid",
     [GOAL_PVP] = "PvP",
@@ -806,11 +811,12 @@ end
 local function NormalizeGoalMode(goalMode)
     goalMode = tostring(goalMode or "")
     if goalMode == "SOLO" then return GOAL_MYTHIC_PLUS end
-    if goalMode == "OVERALL" then return GOAL_MYTHIC_PLUS end
+    if goalMode == "OVERALL" then return GOAL_OVERALL end
     if goalMode == "MYTHIC_PLUS" then return GOAL_MYTHIC_PLUS end
     if goalMode == "RAID" then return GOAL_RAID end
     if goalMode == "PVP" then return GOAL_PVP end
     if goalMode == GOAL_LEVELING
+        or goalMode == GOAL_OVERALL
         or goalMode == GOAL_MYTHIC_PLUS
         or goalMode == GOAL_RAID
         or goalMode == GOAL_PVP then
@@ -848,11 +854,11 @@ GetSavedSelection = function()
     end
     s.autoDetectHeroTalent = false
     s.goalMode = NormalizeRequiredGoalMode(s.goalMode)
-    -- One-time migration: old Overall / Leveling selections map to Mythic+.
-    if s.goalMode == GOAL_OVERALL or s.goalMode == "OVERALL" or s.goalMode == GOAL_LEVELING or s.goalMode == "LEVELING" then
+    -- Old Leveling selections map to the default goal.
+    if s.goalMode == GOAL_LEVELING then
         s.goalMode = DEFAULT_MAX_LEVEL_GOAL
     end
-    if s.secondaryGoalMode == GOAL_OVERALL or s.secondaryGoalMode == "OVERALL" or s.secondaryGoalMode == GOAL_LEVELING or s.secondaryGoalMode == "LEVELING" then
+    if s.secondaryGoalMode == GOAL_LEVELING then
         s.secondaryGoalMode = nil
         s.secondarySpecID = nil
         s.activeView = "MAIN"

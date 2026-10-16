@@ -56,7 +56,10 @@ ALL_HERO_TALENTS_KEY = "all"
 # "mplus"/"raid"/"pvp". Mythic+ is AoE-heavy content and Raid is
 # single-target-heavy, so those are each goal's second choice. PvP has no
 # aoe/single-target equivalent.
+# Overall is the guide's own "all" list; its talents exist only per goal, so
+# those come from Mythic+.
 GOAL_CONTEXT_KEYS: dict[str, tuple[str, ...]] = {
+    "OVERALL": ("all", "mplus"),
     "MYTHIC_PLUS": ("mplus", "aoe"),
     "RAID": ("raid", "single-target"),
     "PVP": ("pvp",),
@@ -66,7 +69,7 @@ GOAL_CONTEXT_KEYS: dict[str, tuple[str, ...]] = {
 # explicit key through select_context()).
 GOAL_CONTEXT_KEY: dict[str, str] = {goal: keys[0] for goal, keys in GOAL_CONTEXT_KEYS.items()}
 
-GOAL_LABEL: dict[str, str] = {"MYTHIC_PLUS": "Mythic+", "RAID": "Raid", "PVP": "PvP"}
+GOAL_LABEL: dict[str, str] = {"OVERALL": "Overall", "MYTHIC_PLUS": "Mythic+", "RAID": "Raid", "PVP": "PvP"}
 
 # The addon's own canonical secondary-stat keys (STAT_KEY in
 # StatVerdict/Core/SV_ProfileRepository.lua). Every stat name this pipeline
@@ -1251,7 +1254,7 @@ def gate_and_write(
 def build_all(
     specs: dict[str, dict[str, Any]],
     simc_binary: Path,
-    goals: tuple[str, ...] = ("MYTHIC_PLUS", "RAID", "PVP"),
+    goals: tuple[str, ...] = ("OVERALL", "MYTHIC_PLUS", "RAID", "PVP"),
     skips: list[SkipRecord] | None = None,
     wowhead_reconstruct: Callable[..., dict[str, Any]] | None = None,
     track_swap: TrackSwap | None = None,

@@ -4,6 +4,7 @@ local Repository = {}
 ns.ProfileRepository = Repository
 
 local VALID_GOALS = {
+    OVERALL = true,
     MYTHIC_PLUS = true,
     RAID = true,
     PVP = true,
@@ -121,7 +122,7 @@ local function IsRecentBuild(buildId, maxAgeDays)
     return age >= -86400 and age <= (maxAgeDays * 86400)
 end
 
--- All goals (Mythic+, Raid, PvP) come from the ClassCodex targets file
+-- All goals (Overall, Mythic+, Raid, PvP) come from the ClassCodex targets file
 -- (tools/classcodex_targets_cli.py): profiles[specKey].goals[goal].heroTalents[heroKey].
 -- Stale or missing data fails closed: every lookup below returns nil.
 local function GetTargetsRoot()
