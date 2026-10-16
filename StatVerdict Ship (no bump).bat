@@ -1,6 +1,6 @@
 @echo off
 title StatVerdict Ship (no version bump)
-cd /d "C:\Users\ElaNte\Desktop\Projects\StatVerdict\StatVerdict"
+cd /d "%~dp0StatVerdict"
 echo.
 echo StatVerdict Ship - NO version bump
 echo - Keeps the version in StatVerdict.toc as it is

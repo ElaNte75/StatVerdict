@@ -1233,19 +1233,10 @@ if hooksecurefunc then
             ScheduleRefresh("bags")
         end)
     end
-    if _G.ContainerFrameCombinedBags and type(_G.ContainerFrameCombinedBags.UpdateItems) == "function" then
-        hooksecurefunc(_G.ContainerFrameCombinedBags, "UpdateItems", function()
-            ScheduleRefresh("bags")
-        end)
-    end
-    for index = 1, NUM_CONTAINER_SCAN_FRAMES do
-        local container = _G["ContainerFrame" .. index]
-        if container and type(container.UpdateItems) == "function" then
-            hooksecurefunc(container, "UpdateItems", function()
-                ScheduleRefresh("bags")
-            end)
-        end
-    end
+    -- No hook on the UpdateItems of one bag window (ContainerFrameCombinedBags, ContainerFrame1..N): after the game update of
+    -- 2026-10-14 such a hook made opening a vendor fail with "attempt to call a nil value" inside the game's own UpdateItems
+    -- (found by switching the hooks off one at a time). The shared mixin hook above, the bag OnShow hooks, the bag open/close
+    -- functions and BAG_UPDATE_DELAYED already ask for the same refresh.
     if type(ContainerFrame_Update) == "function" then
         hooksecurefunc("ContainerFrame_Update", function() ScheduleRefresh("bags") end)
     end

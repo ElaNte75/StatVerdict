@@ -349,3 +349,13 @@ class StatAuditRefreshCostTests(unittest.TestCase):
         body = body[:body.index("\nend\n") + 5]
         self.assertIn("if auditUpdatePending then return end", body)
         self.assertIn("auditUpdatePending = false", body)
+
+
+class BagHookSafetyTests(unittest.TestCase):
+    """A hook on the UpdateItems of a single bag window broke opening a vendor after the 2026-10-14 game update."""
+
+    def test_no_hook_sits_on_one_bag_window_s_update_items(self):
+        import pathlib
+        source = pathlib.Path("StatVerdict/UI/SV_UpgradeIndicatorView.lua").read_text(encoding="utf-8-sig")
+        self.assertNotIn('hooksecurefunc(_G.ContainerFrameCombinedBags, "UpdateItems"', source)
+        self.assertNotIn('hooksecurefunc(container, "UpdateItems"', source)

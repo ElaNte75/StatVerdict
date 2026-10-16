@@ -1,6 +1,6 @@
 @echo off
 title StatVerdict Ship
-cd /d "C:\Users\ElaNte\Desktop\Projects\StatVerdict\StatVerdict"
+cd /d "%~dp0StatVerdict"
 echo.
 echo StatVerdict Ship
 echo - Bumps version

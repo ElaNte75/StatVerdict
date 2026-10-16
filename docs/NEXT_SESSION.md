@@ -41,7 +41,7 @@ When this file is rewritten, delete what is no longer true. Release notes live i
   Bump helper: `release_prep.write_version(root, version, date)` sets the toc, `ns.VERSION`, `ns.RELEASE_DATE` and the `(vX.Y.Z)` in STORE.md.
 - **Every Wednesday ~15:00 Greek time** `.github/workflows/classcodex-live-refresh.yml` refreshes the guide data and, when it changed, runs
   `tools/release_prep.py` (bumps WEEK, writes the changelog file) and opens a GitHub issue ("Ώρα για ανέβασμα ...") that GitHub mails to the owner.
-  **The repo is now at 2.1.41 with `docs/changelog/2.1.41_pending.md`** (the Alt / Catalyst work below, committed 2026-10-07; owner decides when to upload;
+  **The repo is now at 2.1.42 (the pending release moved from week 41 to week 42 on 2026-10-14) with `docs/changelog/2.1.42_pending.md`** (the Alt / Catalyst work below, committed 2026-10-07; owner decides when to upload;
   the bot only adds its data line to a pending file). If 2.0.40 was never uploaded, its changelog text (and STORE.md) still describes the old Alt switch: ask.
   Weekly time moved to 09:00 UTC (12:00 Greek summer time). It never publishes. GitHub issue #1 ("waits for the 1.1.1 upload") may still be open: the owner can close it after uploading.
 - The data pipeline refuses to write targets without the upgrade-track tables (`--allow-missing-track-levels` overrides) and retries the fetch 4 times.
@@ -187,6 +187,11 @@ Features tab became **Options** with a new look, **Always on top**, **Compact Mo
   upgrade (`potentialLift`; `deltaScore` includes the push, `rawDeltaScore` is the real one). Nothing is added to the tooltip (owner's rule). Tests:
   `tools/tests/test_upgrade_potential.py`. DROPPED by the owner: a "go upgrade with crests" mark on the character sheet (research: Season 2 Mistcrests,
   flat 20 per rank, one crest type per track, currency ids Veteran 3443 / Hero 3445, the others not verified). The player does the upgrading himself.
+- **Vendor error (2026-10-15/16):** after the game update of 2026-10-14, opening a vendor (bags open with it) raised "attempt to call a nil value" in
+  `[C] UpdateItems` of `ContainerFrameCombinedBags`, with no StatVerdict line in the stack. Found by switching hook groups off one at a time in the game copy: the
+  culprit was `hooksecurefunc(<one bag window>, "UpdateItems", ...)` (`UI/SV_UpgradeIndicatorView.lua`); removed, with a test that keeps it out. LESSON: a
+  temporary switch read from `StatVerdictDB` at file load never works (saved variables load AFTER the add-on's files): put the switch in the file itself.
+  Also reported and NOT solved: StatVerdict tooltips that stay open or misbehave (asked the owner which tooltip and when).
 - **Pitfall found:** the verdict block is skipped when the tooltip "already has a StatVerdict line" (`TooltipAlreadyHasStatVerdict`). Texture escapes
   hold the folder name `StatVerdict` in their path, so that check now strips `|T...|t` first. Any text we add to a tooltip must be checked against it.
 
