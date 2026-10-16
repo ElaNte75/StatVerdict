@@ -189,6 +189,25 @@ local function BagPieceGUID(owner)
     return ok and guid or nil
 end
 
+-- The game's comparison tooltip: the piece the player WEARS, shown next to the one under the mouse.
+local function IsComparisonPane(tooltip)
+    local name = tooltip and type(tooltip.GetName) == "function" and tooltip:GetName() or nil
+    return type(name) == "string" and name:find("ShoppingTooltip", 1, true) ~= nil
+end
+
+-- The serial number of the worn piece whose link is this one (nil when none is worn).
+local function WornPieceGUIDOfLink(itemLink)
+    if type(itemLink) ~= "string" or type(GetInventoryItemLink) ~= "function" or not ns.GetWornItemGUID then return nil end
+    local wanted = itemLink:match("(item:[%-%d:]+)")
+    for slot = 1, 19 do
+        local worn = GetInventoryItemLink("player", slot)
+        if type(worn) == "string" and wanted and worn:match("(item:[%-%d:]+)") == wanted then
+            return ns.GetWornItemGUID(slot)
+        end
+    end
+    return nil
+end
+
 local function RenderMissingOffhandNotice(tooltip, context)
     if not tooltip then return false end
 
@@ -274,7 +293,12 @@ local function AddTooltipVerdict(tooltip)
     end
 
     local fromBags = (not catalystPreviewing) and tooltipInBags
-    local bagGUID = fromBags and BagPieceGUID(owner) or nil   -- this very piece (two copies of an item are told apart)
+    -- A comparison pane shows a piece that is worn: like the character sheet's own tooltip it is never compared with the
+    -- loadout ("Better than <another piece>" makes no sense for a piece that already is in it); it only says where it is saved.
+    local isPane = IsComparisonPane(tooltip)
+    local holdsPiece = fromBags or isPane
+    -- this very piece (two copies of an item are told apart)
+    local bagGUID = isPane and WornPieceGUIDOfLink(itemLink) or (fromBags and BagPieceGUID(owner) or nil)
 
     local primaryContext, secondaryContext = nil, nil
     if ns.GetTooltipEvaluationContexts then
@@ -291,7 +315,7 @@ local function AddTooltipVerdict(tooltip)
             -- Provenance is per goal: this build's goal, else the selected one.
             local goal = (context and context.goal)
                 or (ns.GetStatAuditGoalMode and ns.GetStatAuditGoalMode())
-                or "MYTHIC_PLUS"
+                or "OVERALL"
             local provenance = ns.ProfileRepository
                 and ns.ProfileRepository.GetDataProvenance
                 and ns.ProfileRepository.GetDataProvenance(goal)
@@ -351,8 +375,8 @@ local function AddTooltipVerdict(tooltip)
         end
 
         -- Membership / save messaging only for owned bag items.
-        if fromBags and ItemInContextLoadout(itemLink, context, bagGUID) then
-            ns.RememberTooltipVerdictContext(itemLink, context, nil)
+        if holdsPiece and ItemInContextLoadout(itemLink, context, bagGUID) then
+            if not isPane then ns.RememberTooltipVerdictContext(itemLink, context, nil) end
             if ns.RenderTooltipLoadoutMembership then
                 -- One line for both builds: when the other one holds the item as well it says "both loadouts".
                 local otherContext = nil
@@ -375,6 +399,7 @@ local function AddTooltipVerdict(tooltip)
         end
 
         local function buildAndRender()
+            if isPane then return catalystOnly(true) end   -- a worn piece: no verdict, only the Catalyst note
             local comparison = ns.BuildComparison(itemLink, profile)
             if not comparison then
                 return catalystOnly(true)
@@ -423,13 +448,13 @@ local function AddTooltipVerdict(tooltip)
 
     -- A piece in the bags that is saved in a build's loadout needs no comparison: the mark on it already says so (it was
     -- saved when worn, or by hand). One StatVerdict line names the build, or both; nothing else is worked out.
-    if fromBags and ns.RenderTooltipLoadoutMembership then
+    if holdsPiece and ns.RenderTooltipLoadoutMembership then
         local inFirst = ItemInContextLoadout(itemLink, firstContext, bagGUID)
         local inOther = otherContext and otherContext ~= firstContext and ItemInContextLoadout(itemLink, otherContext, bagGUID) or false
         if inFirst and inOther then
             -- Saved in both builds: one line, nothing is compared.
             local shownIsSecondary = (firstContext == secondaryContext) and (secondaryContext ~= primaryContext)
-            ns.RememberTooltipVerdictContext(itemLink, firstContext, nil)
+            if not isPane then ns.RememberTooltipVerdictContext(itemLink, firstContext, nil) end
             ns.RenderTooltipLoadoutMembership(tooltip, firstContext, otherContext, shownIsSecondary)
             return
         elseif inFirst or inOther then
@@ -498,10 +523,17 @@ local function EscapePattern(text)
     return (text:gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%0"))
 end
 
+-- A place another add-on (ClassCodex) already wrote after a stat line: "+73 Critical Strike  #1".
+local function StripForeignRank(plain)
+    local base = plain:match("^(.-)%s*#%d+%s*$")
+    return base or plain, base ~= nil
+end
+
 -- A whole stat line: a number and the stat's name, nothing else ("+73 Critical Strike"). The name is the game's
 -- own word for the stat, so this works in every language and skips enchant and effect text.
 local function IsStatLine(plain, name, escaped)
     escaped = escaped or EscapePattern(name)
+    plain = StripForeignRank(plain)
     local between = plain:match("^%s*[%+%-]?[%d%.,]+(.-)" .. escaped .. "%s*$")
     if between ~= nil then
         return #between <= 4 and not between:find("%d")
@@ -548,6 +580,8 @@ function ns.AddStatRanksToTooltip(tooltip)
                 name = name,
                 escaped = EscapePattern(name),
                 suffix = " " .. RANK_COLOR .. "#" .. entry.rank .. "|r " .. LABEL_PATH .. specLabel .. LABEL_SIZE,
+                -- Another add-on put its own place there first: only the build's mark follows it.
+                labelOnly = " " .. LABEL_PATH .. specLabel .. LABEL_SIZE,
             }
         end
     end
@@ -569,7 +603,8 @@ function ns.AddStatRanksToTooltip(tooltip)
             end
             for _, stat in ipairs(stats) do
                 if IsStatLine(plain, stat.name, stat.escaped) then
-                    line:SetText(text .. stat.suffix)
+                    local _, foreign = StripForeignRank(plain)
+                    line:SetText(text .. (foreign and stat.labelOnly or stat.suffix))
                     changed = true
                     break
                 end

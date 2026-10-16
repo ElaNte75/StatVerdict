@@ -93,6 +93,33 @@ function ns.GetItemUpgradeInfo(itemLink)
     return ok and type(info) == "table" and info or nil
 end
 
+-- The item level a piece reaches at the top (6/6) of its upgrade track, or nil when it is on none. The game
+-- gives the rank (currentLevel) but not the top item level, so it is found in our own data: the track whose
+-- rank `currentLevel` has this item's level (the ranks of two tracks share levels, the rank tells them apart), then the
+-- track's name as a last resort. A client that does give maxItemLevel is believed.
+function ns.GetItemUpgradeCeiling(itemLink)
+    local info = ns.GetItemUpgradeInfo(itemLink)
+    if not info then return nil end
+    local given = tonumber(info.maxItemLevel)
+    if given and given > 0 then return given end
+    local root = ns.ClassCodexTargets
+    local tops = type(root) == "table" and root.trackItemLevels or nil
+    if type(tops) ~= "table" then return nil end
+    local ranks = root.trackRanks
+    local current = tonumber(info.currentLevel)
+    local level = ns.GetItemLevel and tonumber(ns.GetItemLevel(itemLink)) or nil
+    if type(ranks) == "table" and current and level then
+        for track, byRank in pairs(ranks) do
+            local entry = type(byRank) == "table" and byRank[current] or nil
+            if type(entry) == "table" and tonumber(entry[2]) == level and tonumber(tops[track]) then
+                return tonumber(tops[track])
+            end
+        end
+    end
+    local name = type(info.trackString) == "string" and info.trackString:lower() or nil
+    return name and tonumber(tops[name]) or nil
+end
+
 function ns.GetItemID(itemLink)
     if not itemLink then return nil end
     local itemID = GetItemInfoInstantSafe(itemLink)

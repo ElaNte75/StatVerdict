@@ -5,7 +5,7 @@ function ns.LoadEvaluationProfile(context)
         return nil
     end
 
-    local goal = ns.GetStatAuditGoalMode and ns.GetStatAuditGoalMode() or "MYTHIC_PLUS"
+    local goal = ns.GetStatAuditGoalMode and ns.GetStatAuditGoalMode() or "OVERALL"
     context.goal = goal
     context.specKey = context.specKey
         or (ns.GetStatVerdictSpecKeyBySpecID and ns.GetStatVerdictSpecKeyBySpecID(context.specID))

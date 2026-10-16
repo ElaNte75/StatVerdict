@@ -30,10 +30,6 @@ function ns.GetGuideInfo()
     return GUIDE
 end
 
-function ns.GetStatTargetBins()
-    return STAT_TARGET_BINS
-end
-
 function ns.GetStatTargetBin(specKey)
     local repository = ns.ProfileRepository
     if repository and repository.GetStatTargetBin then
@@ -107,7 +103,7 @@ function ns.GetAutoTierNotice(profile)
     return "You moved up to Tier " .. level .. "."
 end
 
--- The cards under the guide text: Auto, then the guide's stat target tiers.
+-- The cards under the guide text: Auto, then the stat target tiers.
 -- { title, options, selected, set(key) }.
 -- The choice is the spec's own (Main Spec and Off Spec choose apart): `specKey` is the spec
 -- of the build the drawer shows.

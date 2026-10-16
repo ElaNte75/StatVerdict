@@ -274,20 +274,6 @@ local function GetItemInfoByLinkOrID(itemLink, itemID)
     return nil, itemLink, nil
 end
 
-local function GetQualityHex(quality)
-    quality = SafeNumber(quality)
-    if quality ~= nil and type(GetItemQualityColor) == "function" then
-        local _, _, _, hex = GetItemQualityColor(quality)
-        if type(hex) == "string" and hex ~= "" then
-            if hex:sub(1, 2) == "|c" then
-                return hex
-            end
-            return "|c" .. hex
-        end
-    end
-    return "|cffdbdbdb"
-end
-
 -- Name and quality of a plain item (gem, enchant scroll); nil until the game has its
 -- data, in which case the load is requested and an open tooltip redraws when it arrives.
 local function GetPlainItem(itemID)
@@ -301,10 +287,10 @@ local function GetPlainItem(itemID)
     return name, quality
 end
 
--- The game's colour for an item quality as {r, g, b}; white when unknown.
-local function GetQualityRGB(quality)
+-- The game's colour for an item quality as {r, g, b}, or nil when the quality or the game's colours are unknown.
+local function LookupQualityRGB(quality)
     quality = SafeNumber(quality)
-    if quality == nil then return { 1, 1, 1 } end
+    if quality == nil then return nil end
     local r, g, b
     if C_Item and type(C_Item.GetItemQualityColor) == "function" then
         local ok, qr, qg, qb = pcall(C_Item.GetItemQualityColor, quality)
@@ -319,7 +305,22 @@ local function GetQualityRGB(quality)
         r, g, b = tonumber(color.r), tonumber(color.g), tonumber(color.b)
     end
     if r and g and b then return { r, g, b } end
-    return { 1, 1, 1 }
+    return nil
+end
+
+-- The same as {r, g, b}; white when unknown.
+local function GetQualityRGB(quality)
+    return LookupQualityRGB(quality) or { 1, 1, 1 }
+end
+
+-- The game's colour of an item quality as "|cffrrggbb"; light grey when it is unknown. The game's global
+-- GetItemQualityColor is gone in later builds (C_Item has it), which made every name here fall back to grey.
+local function GetQualityHex(quality)
+    local rgb = LookupQualityRGB(quality)
+    if rgb then
+        return string.format("|cff%02x%02x%02x", math.floor(rgb[1] * 255 + 0.5), math.floor(rgb[2] * 255 + 0.5), math.floor(rgb[3] * 255 + 0.5))
+    end
+    return "|cffdbdbdb"
 end
 
 local function GetSpellNameByID(spellID)

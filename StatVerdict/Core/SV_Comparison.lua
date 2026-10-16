@@ -64,9 +64,8 @@ end
 -- Room to grow: how many item levels a piece can still gain on its upgrade track (0 when it is at the top of its track,
 -- or on none). Two pieces that are equal today are not equal for the player: the one with room can be raised.
 local function UpgradeHeadroom(itemLink)
-    if not itemLink or not ns.GetItemUpgradeInfo or not ns.GetItemLevel then return 0 end
-    local info = ns.GetItemUpgradeInfo(itemLink)
-    local top = info and tonumber(info.maxItemLevel) or nil
+    if not itemLink or not ns.GetItemUpgradeCeiling or not ns.GetItemLevel then return 0 end
+    local top = ns.GetItemUpgradeCeiling(itemLink)
     local level = tonumber(ns.GetItemLevel(itemLink))
     if not top or top <= 0 or not level then return 0 end
     return math.max(0, top - level)
@@ -81,6 +80,35 @@ local function PotentialPercent(candidateLink, equippedLink)
     local extra = UpgradeHeadroom(candidateLink) - UpgradeHeadroom(equippedLink)
     if extra <= 0 then return 0 end
     return math.min(POTENTIAL_PERCENT_CAP, extra * POTENTIAL_PERCENT_PER_LEVEL)
+end
+
+-- Prospect: a piece that can still grow and sits on a higher upgrade track than the worn one is judged against the
+-- Myth 6/6 targets, the end goal, instead of the shown tier's: it must not lose points for passing a lower tier's target
+-- it will need to pass anyway. The profile then carries the Myth targets (profile.mythAuditTargets); a copy that
+-- uses them is made once per profile.
+local function UpgradeCeiling(itemLink)
+    return itemLink and ns.GetItemUpgradeCeiling and ns.GetItemUpgradeCeiling(itemLink) or nil
+end
+
+local function HasProspect(candidateLink, equippedLink)
+    if UpgradeHeadroom(candidateLink) <= 0 then return false end
+    local candidateTop = UpgradeCeiling(candidateLink)
+    if not candidateTop then return false end
+    local equippedTop = UpgradeCeiling(equippedLink) or tonumber(ns.GetItemLevel and ns.GetItemLevel(equippedLink)) or 0
+    return candidateTop > equippedTop
+end
+
+local function ProspectProfile(profile, candidateLink, equippedLink)
+    local mythTargets = type(profile) == "table" and profile.mythAuditTargets or nil
+    if type(mythTargets) ~= "table" or not HasProspect(candidateLink, equippedLink) then return profile end
+    if profile.mythView == nil or profile.mythViewSource ~= mythTargets then
+        local view = {}
+        for key, value in pairs(profile) do view[key] = value end
+        view.auditTargets = mythTargets
+        view.mythAuditTargets = nil
+        profile.mythView, profile.mythViewSource = view, mythTargets
+    end
+    return profile.mythView
 end
 
 local function GetMaxDisplayPercent()
@@ -243,16 +271,17 @@ function ns.BuildComparison(itemLink, profile)
             -- Already compared the candidate 2H against the equipped mainhand+offhand set.
         else
         local equippedLink = GetCompatibleEquippedLink(slotID, profile)
-        local candidateSlotScore = ns.GetItemProfileScore(itemLink, profile, slotID) or candidateScore
+        local slotProfile = equippedLink and ProspectProfile(profile, itemLink, equippedLink) or profile
+        local candidateSlotScore = ns.GetItemProfileScore(itemLink, slotProfile, slotID) or candidateScore
         if equippedLink and IsSameComparableItem(itemLink, equippedLink) then
             -- The same item at the same effective level is already represented by the profile snapshot/equipped slot.
         elseif equippedLink then
-            local equippedScore = ns.GetItemProfileScore(equippedLink, profile, slotID)
+            local equippedScore = ns.GetItemProfileScore(equippedLink, slotProfile, slotID)
             if equippedScore then
-                local delta, deltaRows = ns.GetWeightedDeltaScore(itemLink, equippedLink, profile, slotID)
+                local delta, deltaRows = ns.GetWeightedDeltaScore(itemLink, equippedLink, slotProfile, slotID)
                 delta = delta or 0
                 local effectiveDelta = delta
-                local rawPercent = ns.GetUpgradePercent(delta, equippedScore, profile, itemLink, equippedLink) or 0
+                local rawPercent = ns.GetUpgradePercent(delta, equippedScore, slotProfile, itemLink, equippedLink) or 0
                 if delta > 0 and equippedScore == 0 then
                     rawPercent = GetMaxDisplayPercent()
                 end

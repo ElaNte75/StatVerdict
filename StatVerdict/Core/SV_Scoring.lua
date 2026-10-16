@@ -30,12 +30,10 @@ local TARGET_NEED_SURPLUS_MIN = 0.75
 local TARGET_SECONDARY_BUDGET = 6.00
 local TARGET_ITEM_LEVEL_WEIGHT = 2.00
 local PRIMARYLESS_TRANSFER = 0.50
--- Pieces that carry no primary stat (jewelry, and trinkets, which give the budget either as a primary stat
+-- Trinkets carry no fixed primary stat (they give the budget either as a primary stat
 -- or as secondaries): the first secondary of the guide's order is scored as the primary stat, the others
 -- keep their own weights. The rule belongs to the slot, so a swap is judged the same from both sides.
 local PRIMARYLESS_EQUIP_LOCATIONS = {
-    INVTYPE_FINGER = true,
-    INVTYPE_NECK = true,
     INVTYPE_TRINKET = true,
 }
 -- Soft exception: tiny primary loss can still lose to strong #1+#2 secondaries.

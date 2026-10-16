@@ -9,11 +9,11 @@ local VALID_GOALS = {
     RAID = true,
     PVP = true,
 }
-local DEFAULT_GOAL = "MYTHIC_PLUS"
+local DEFAULT_GOAL = "OVERALL"
 
 -- The secondary priority and weights are exactly what the guide shows (its
--- priority list, rank weights). The stat targets are our own: the SimC totals of
--- the guide's best-in-slot gear, added up per tier -- Tier 3 at Myth 6/6
+-- priority list, rank weights). The stat targets are our own: the stats of
+-- the guide's best-in-slot gear added up per tier -- Tier 3 at Myth 6/6
 -- (targets.statTargets), Tier 2 at Hero 6/6 (targets.levels.hero) and Tier 1 at
 -- Champion 6/6 (targets.levels.champion).
 -- Older saved variables (weightMode, gearLevel) are ignored.
@@ -474,7 +474,7 @@ end
 
 -- The stat targets shown, keyed by runtime stat key, whether the data has no
 -- targets of the chosen tier (then the top tier's stand in), and the item level
--- the targets belong to. All of them are our own SimC totals of the best-in-slot
+-- the targets belong to. All of them are our own sums of the best-in-slot
 -- gear at the upgrade level of the tier. PvP gear has no upgrade tracks: every
 -- tier shows the same targets.
 local function SelectTargetValues(targets, bin, goal)
@@ -693,6 +693,13 @@ function Repository.BuildRuntimeProfile(context)
     lastEffectiveBin = effectiveBin
     local targetValues, tierTargetsMissing, targetItemLevel =
         SelectTargetValues(generatedContext.targets, effectiveBin, goal)
+    -- The Myth 6/6 targets, the end goal: a piece that can still grow is judged against them (SV_Comparison).
+    -- Nil when the shown tier already is Myth.
+    local mythAuditTargets = nil
+    if effectiveBin ~= "top20" and not invalidGeneratedContext then
+        local mythValues, _, mythItemLevel = SelectTargetValues(generatedContext.targets, "top20", goal)
+        mythAuditTargets = BuildAuditTargets(mythItemLevel, mythValues, secondaryOrder, equalGroups)
+    end
     local primaryStat = STAT_KEY[generatedProfile.primaryStat]
     if not primaryStat then return nil end
     local role = context.role
@@ -745,6 +752,7 @@ function Repository.BuildRuntimeProfile(context)
             rows = {},
             invalidReason = invalidReason or "Generated profile data failed quality checks.",
         } or BuildAuditTargets(targetItemLevel, targetValues, secondaryOrder, equalGroups),
+        mythAuditTargets = mythAuditTargets,
         statTargetBin = statTargetBin,
         effectiveBin = effectiveBin,
         autoInfo = autoInfo,

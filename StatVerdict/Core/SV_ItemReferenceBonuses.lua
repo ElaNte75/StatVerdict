@@ -58,7 +58,7 @@ end
 local function ResolveHeroDocument(profile)
     if not ns.ProfileRepository then return nil, nil end
     local goal = type(profile) == "table" and profile.goal or nil
-    goal = goal or (ns.GetStatAuditGoalMode and ns.GetStatAuditGoalMode()) or "MYTHIC_PLUS"
+    goal = goal or (ns.GetStatAuditGoalMode and ns.GetStatAuditGoalMode()) or "OVERALL"
     local specKey = GetSpecKey(profile)
     if not specKey then return nil, goal end
     -- BiS and trinket lists are per hero tree: use the profile's own tree
