@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import unittest
 
-from tools import item_check_verdict as v
+from tools import addon_harness as v
 
 CRIT, HASTE = "ITEM_MOD_CRIT_RATING_SHORT", "ITEM_MOD_HASTE_RATING_SHORT"
 MASTERY, VERS = "ITEM_MOD_MASTERY_RATING_SHORT", "ITEM_MOD_VERSATILITY"
@@ -87,6 +87,18 @@ class StatRankTests(unittest.TestCase):
         self.assertIn("#2", text[3])  # Versatility and Mastery are equal: the same number
         self.assertIn("#4", text[4])
         self.assertIn("#2", text[5])
+
+    def test_a_place_another_addon_wrote_first_gets_only_our_build_mark(self) -> None:
+        # ClassCodex appends "  #2" in its own colour to the stat line before this add-on sees it.
+        theirs = "+123 Versatility  |cff4488ff#2|r"
+        text, shown = self.tooltip([theirs, "+185 Critical Strike  |cffa335ee#1|r"])
+        self.assertTrue(shown)
+        self.assertEqual(theirs + r" |TInterface\AddOns\StatVerdict\Textures\StatRankMS:8:16|t", text[0])
+        self.assertTrue(text[1].endswith(r"|cffa335ee#1|r |TInterface\AddOns\StatVerdict\Textures\StatRankMS:8:16|t"))
+        self.assertEqual(1, text[0].count("#"))  # no second number
+        again, _ = self.tooltip([theirs])
+        self.ns.AddStatRanksToTooltip(self.lua.eval("RANK_TIP"))
+        self.assertEqual(text[0], str(self.lua.eval("RankTipTextLeft1.t")))  # not stacked when processed again
 
     def test_equal_stats_just_share_the_number(self) -> None:
         text, _ = self.tooltip(["+54 Mastery", "+67 Versatility"])

@@ -1,0 +1,243 @@
+{
+ "_note": "Rating each spec has without any gear (class and spec passives, talents, human race): the median over its contexts of the earlier SimulationCraft totals minus the plain sum of the guide's pieces at Hero and Champion 6/6, measured 2026-10-16. Added to every target. Specs SimulationCraft could not model (Preservation, Mistweaver, Holy Paladin, Holy Priest, Restoration Shaman) have 0.",
+ "DEATHKNIGHT_BLOOD": {
+  "critical_strike": 214,
+  "haste": 32,
+  "mastery": 16,
+  "versatility": 40
+ },
+ "DEATHKNIGHT_FROST": {
+  "critical_strike": 220,
+  "haste": 46,
+  "mastery": 25,
+  "versatility": 4
+ },
+ "DEATHKNIGHT_UNHOLY": {
+  "critical_strike": 38,
+  "haste": 28,
+  "mastery": 194,
+  "versatility": 4
+ },
+ "DEMONHUNTER_DEVOURER": {
+  "critical_strike": 52,
+  "haste": 43,
+  "mastery": 258,
+  "versatility": 5
+ },
+ "DEMONHUNTER_HAVOC": {
+  "critical_strike": 290,
+  "haste": 39,
+  "mastery": 28,
+  "versatility": 5
+ },
+ "DEMONHUNTER_VENGEANCE": {
+  "critical_strike": 44,
+  "haste": 56,
+  "mastery": 182,
+  "versatility": 10
+ },
+ "DRUID_BALANCE": {
+  "critical_strike": 30,
+  "haste": 34,
+  "mastery": 188,
+  "versatility": 5
+ },
+ "DRUID_FERAL": {
+  "critical_strike": 32,
+  "haste": 34,
+  "mastery": 191,
+  "versatility": 5
+ },
+ "DRUID_GUARDIAN": {
+  "critical_strike": 11,
+  "haste": 139,
+  "mastery": 15,
+  "versatility": 4
+ },
+ "DRUID_RESTORATION": {
+  "critical_strike": 22,
+  "haste": 270,
+  "mastery": 16,
+  "versatility": 5
+ },
+ "EVOKER_AUGMENTATION": {
+  "critical_strike": 36,
+  "haste": 28,
+  "mastery": 278,
+  "versatility": 2
+ },
+ "EVOKER_DEVASTATION": {
+  "critical_strike": 206,
+  "haste": 34,
+  "mastery": 16,
+  "versatility": 4
+ },
+ "EVOKER_PRESERVATION": {
+  "critical_strike": 0,
+  "haste": 0,
+  "mastery": 0,
+  "versatility": 0
+ },
+ "HUNTER_BEAST_MASTERY": {
+  "critical_strike": 82,
+  "haste": 30,
+  "mastery": 197,
+  "versatility": 3
+ },
+ "HUNTER_MARKSMANSHIP": {
+  "critical_strike": 265,
+  "haste": 30,
+  "mastery": 23,
+  "versatility": 3
+ },
+ "HUNTER_SURVIVAL": {
+  "critical_strike": 74,
+  "haste": 32,
+  "mastery": 264,
+  "versatility": 3
+ },
+ "MAGE_ARCANE": {
+  "critical_strike": 28,
+  "haste": 206,
+  "mastery": 15,
+  "versatility": 8
+ },
+ "MAGE_FIRE": {
+  "critical_strike": 24,
+  "haste": 44,
+  "mastery": 11,
+  "versatility": 180
+ },
+ "MAGE_FROST": {
+  "critical_strike": 206,
+  "haste": 64,
+  "mastery": 22,
+  "versatility": 2
+ },
+ "MONK_BREWMASTER": {
+  "critical_strike": 36,
+  "haste": 24,
+  "mastery": 18,
+  "versatility": 184
+ },
+ "MONK_MISTWEAVER": {
+  "critical_strike": 0,
+  "haste": 0,
+  "mastery": 0,
+  "versatility": 0
+ },
+ "MONK_WINDWALKER": {
+  "critical_strike": 28,
+  "haste": 32,
+  "mastery": 194,
+  "versatility": 4
+ },
+ "PALADIN_HOLY": {
+  "critical_strike": 0,
+  "haste": 0,
+  "mastery": 0,
+  "versatility": 0
+ },
+ "PALADIN_PROTECTION": {
+  "critical_strike": 28,
+  "haste": 260,
+  "mastery": 14,
+  "versatility": 2
+ },
+ "PALADIN_RETRIBUTION": {
+  "critical_strike": 39,
+  "haste": 30,
+  "mastery": 191,
+  "versatility": 2
+ },
+ "PRIEST_DISCIPLINE": {
+  "critical_strike": 24,
+  "haste": 268,
+  "mastery": 26,
+  "versatility": 1
+ },
+ "PRIEST_HOLY": {
+  "critical_strike": 0,
+  "haste": 0,
+  "mastery": 0,
+  "versatility": 0
+ },
+ "PRIEST_SHADOW": {
+  "critical_strike": 24,
+  "haste": -3,
+  "mastery": 98,
+  "versatility": 3
+ },
+ "ROGUE_ASSASSINATION": {
+  "critical_strike": 220,
+  "haste": 52,
+  "mastery": 17,
+  "versatility": 5
+ },
+ "ROGUE_OUTLAW": {
+  "critical_strike": 224,
+  "haste": 56,
+  "mastery": 4,
+  "versatility": 12
+ },
+ "ROGUE_SUBTLETY": {
+  "critical_strike": 172,
+  "haste": 50,
+  "mastery": 0,
+  "versatility": 6
+ },
+ "SHAMAN_ELEMENTAL": {
+  "critical_strike": 23,
+  "haste": 34,
+  "mastery": 188,
+  "versatility": 4
+ },
+ "SHAMAN_ENHANCEMENT": {
+  "critical_strike": 186,
+  "haste": 16,
+  "mastery": 23,
+  "versatility": 4
+ },
+ "SHAMAN_RESTORATION": {
+  "critical_strike": 0,
+  "haste": 0,
+  "mastery": 0,
+  "versatility": 0
+ },
+ "WARLOCK_AFFLICTION": {
+  "critical_strike": 198,
+  "haste": 42,
+  "mastery": 14,
+  "versatility": 4
+ },
+ "WARLOCK_DEMONOLOGY": {
+  "critical_strike": 196,
+  "haste": 36,
+  "mastery": 18,
+  "versatility": 4
+ },
+ "WARLOCK_DESTRUCTION": {
+  "critical_strike": 30,
+  "haste": 36,
+  "mastery": 189,
+  "versatility": 4
+ },
+ "WARRIOR_ARMS": {
+  "critical_strike": 38,
+  "haste": 200,
+  "mastery": 16,
+  "versatility": 2
+ },
+ "WARRIOR_FURY": {
+  "critical_strike": 52,
+  "haste": 48,
+  "mastery": 188,
+  "versatility": 4
+ },
+ "WARRIOR_PROTECTION": {
+  "critical_strike": 204,
+  "haste": 92,
+  "mastery": 16,
+  "versatility": 4
+ }
+}

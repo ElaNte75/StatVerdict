@@ -113,7 +113,7 @@ class WeightModeCoreTests(unittest.TestCase):
         self.assertEqual("auto", self.ns.GetStatTargetBin())
 
     def test_auto_then_three_difficulties_from_easy_to_hard(self) -> None:
-        bins = self.ns.GetStatTargetBins()
+        bins = self.ns.GetTargetChoice().options
         # Saved keys stay top20/50/80, shown Tier 1 (top80, easiest) to Tier 3 (top20, hardest); Auto comes first and is the default.
         self.assertEqual(4, len(bins))
         self.assertEqual(["auto", "top80", "top50", "top20"], [bins[i].key for i in (1, 2, 3, 4)])
@@ -782,6 +782,17 @@ class CoreProfileTests(unittest.TestCase):
             self.assertEqual("auto", repo.GetStatTargetBin(), garbage)
         lua.globals().StatVerdictDB = None
         self.assertEqual("auto", repo.GetStatTargetBin())
+
+    def test_overall_is_the_goal_when_none_is_chosen(self) -> None:
+        lua, ns = self.build_runtime()
+        ns.GetStatAuditGoalMode = lambda: None
+        context = self.context(lua)
+        context.goal = None
+        profile = ns.ProfileRepository.BuildRuntimeProfile(context)
+        self.assertEqual("OVERALL", profile.goal)
+        self.assertEqual("OVERALL_DEATHKNIGHT_BLOOD", profile.id)
+        context.goal = "MYTHIC_PLUS"
+        self.assertEqual("MYTHIC_PLUS", ns.ProfileRepository.BuildRuntimeProfile(context).goal)
 
     def test_pvp_gear_has_no_tracks_so_every_tier_shows_the_same_targets(self) -> None:
         build_id = now_build_id()
@@ -1507,8 +1518,7 @@ class PanelModeTests(unittest.TestCase):
         self.assertIn('mode = "weights"', source)
         self.assertNotIn("IsBenchmarkRelevant", source)
         self.assertNotIn('label = "Benchmark"', source)
-        self.assertIn('tooltip = "Whose guides the stat priorities, Best in Slot lists and stat targets are copied from, '
-                      'and the stat target tier."', source)
+        self.assertIn('tooltip = "Where the stat priorities and Best in Slot lists come from, and the stat target tier."', source)
         self.assertNotIn("Blend", source)
         self.assertNotIn("Measured", source)
         for path in toc_lua_files():
@@ -1516,8 +1526,9 @@ class PanelModeTests(unittest.TestCase):
 
     def test_manual_describes_the_weights_button(self) -> None:
         source = (ADDON / "UI" / "SV_ManualDrawerPanel.lua").read_text(encoding="utf-8-sig")
-        self.assertIn("Guide — the stat priorities, Best in Slot lists and stat targets are copied from the "
-                      "guides, unchanged. Pick Auto (the default: the tier follows your own stats and moves up when "
+        self.assertIn("Guide — the stat priorities and Best in Slot lists are copied from the "
+                      "guides, unchanged; the stat targets are worked out from those lists (see Stat Progress bars). "
+                      "Pick Auto (the default: the tier follows your own stats and moves up when "
                       "you cover about 90% of it) or one fixed tier: Tier 1, Tier 2 or Tier 3 (the most demanding). "
                       "Main Spec and Off Spec each keep their own choice: with an Off Spec set up, click the checkbox in front of "
                       "a spec's name in the main window to look at that spec (this changes the view only, never your "
@@ -2950,6 +2961,14 @@ class BisPanelTests(unittest.TestCase):
         self.assertEqual("Head", row.slot.text)
         self.assertEqual("|cffdbdbdbCrown of Tests|r", row.name.text)
         self.assertIsNone(row.details)
+
+    def test_names_get_their_quality_colour_when_only_c_item_has_the_colour_function(self) -> None:
+        # Later game builds have no global GetItemQualityColor: the names stayed light grey.
+        g = self.lua.globals()
+        g.GetItemQualityColor = None
+        g.C_Item.GetItemQualityColor = self.lua.eval("function(q) return 1, 0, 0 end")
+        card = self.refresh(self.entry(item_id=1001))
+        self.assertEqual("|cffff0000Crown of Tests|r", card.rows[1].name.text)
 
     def test_card_width_does_not_grow_with_gems_or_enchant(self) -> None:
         plain = self.refresh(self.entry(item_id=1001)).preferredWidth

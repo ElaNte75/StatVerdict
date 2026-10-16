@@ -29,9 +29,8 @@ jobs:
       - name: Install dependencies
         run: pip install lupa
 
-      # Tests first: fail fast before spending CI minutes on a SimC build.
-      # The checks against the committed generated data are skipped here on
-      # purpose: a bad data commit must stay fixable by this very workflow.
+      # Tests first: fail fast before the long lookup run. The checks against the committed generated
+      # data are skipped here on purpose: a bad data commit must stay fixable by this very workflow.
       # They run below against the freshly built data, before it is committed.
       - name: Run existing tests
         env:
@@ -41,51 +40,16 @@ jobs:
       - name: Refresh the ClassCodex StatDR module
         run: python tools/classcodex_cli.py
 
-      # Everything from here to "Build ClassCodex stat targets" is isolated
-      # with continue-on-error: the SimC-based targets pipeline is newer and
-      # heavier than the plain StatDR refresh above, and a failure in
-      # it must never block that already-working refresh from being committed.
-      - name: Check out SimulationCraft Midnight
-        id: simc-checkout
-        continue-on-error: true
-        uses: actions/checkout@v5
-        with:
-          repository: simulationcraft/simc
-          ref: midnight
-          path: .simc-source
-          fetch-depth: 1
-
-      - name: Identify SimulationCraft revision
-        id: simc-ref
-        if: steps.simc-checkout.outcome == 'success'
-        continue-on-error: true
-        shell: bash
-        run: echo "sha=$(git -C .simc-source rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-      - name: Restore SimulationCraft build
-        id: simc-cache
-        if: steps.simc-ref.outcome == 'success'
-        continue-on-error: true
-        uses: actions/cache@v5
-        with:
-          path: .simc-build
-          key: ${{ runner.os }}-simc-midnight-${{ steps.simc-ref.outputs.sha }}
-
-      - name: Build SimulationCraft CLI
-        id: simc-build
-        if: steps.simc-ref.outcome == 'success' && steps.simc-cache.outputs.cache-hit != 'true'
-        continue-on-error: true
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake ninja-build g++
-          cmake -S .simc-source -B .simc-build -G Ninja \
-            -DBUILD_GUI=OFF -DSC_NO_NETWORKING=ON -DCMAKE_BUILD_TYPE=Release
-          cmake --build .simc-build --target simc --parallel 2
-
+      # The stat targets are the sum of the guide's Best in Slot pieces (Wowhead item tooltips), a
+      # lookup of about 3000 pieces that takes roughly 20 minutes. It is isolated with continue-on-error:
+      # a failure in it must never block the already-working StatDR refresh from being committed.
+      # Whatever is missing or unusable in the new data stays as it was last week (tools/classcodex_carryover.py);
+      # the run stops, writing nothing, when too much would have to be carried.
       - name: Build ClassCodex stat targets
         id: targets
         continue-on-error: true
-        run: python tools/classcodex_targets_cli.py --simc-bin .simc-build/simc
+        timeout-minutes: 90
+        run: python tools/classcodex_targets_cli.py --carry-report "$RUNNER_TEMP/carry.txt"
 
       # The whole addon (real .toc load order, every spec x goal x hero) is
       # checked against the freshly built data before anything is committed.
@@ -118,7 +82,11 @@ jobs:
           git config user.name "StatVerdict Data Bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- "${files[@]}"
-          git commit -m "data: refresh live ClassCodex data"
+          if [ -f "$RUNNER_TEMP/carry.txt" ]; then
+            git commit -m "data: refresh live ClassCodex data" -m "$(cat "$RUNNER_TEMP/carry.txt")"
+          else
+            git commit -m "data: refresh live ClassCodex data"
+          fi
           for attempt in 1 2 3 4 5; do
             if git push; then
               echo "changed=true" >> "$GITHUB_OUTPUT"

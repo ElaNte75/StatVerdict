@@ -1,4 +1,4 @@
-# StatVerdict — where we stand (written 2026-10-05, version 2.0.40). The ONLY notes file: replace it, never add another.
+# StatVerdict — where we stand (written 2026-10-16, version 2.2.42). The ONLY notes file: replace it, never add another.
 
 Read this first, then `git log --oneline -25`, then `StatVerdict/VERIFICATION.md` (the in-game checklist).
 When this file is rewritten, delete what is no longer true. Release notes live in `docs/changelog/`, one file per version
@@ -19,9 +19,10 @@ When this file is rewritten, delete what is no longer true. Release notes live i
   `D:\Battlenet Games\World of Warcraft\_retail_\Interface\AddOns\StatVerdict` is a COPY the owner tests in: after every change copy the changed
   files there (compare ignoring CR; `diff -rq --strip-trailing-cr StatVerdict "<game folder>"`). The owner presses a macro that does `/reload`.
   Changed file LIST (`.toc`) or NEW files (textures) need a full game restart.
-- When the owner says it is good: run `python -m unittest discover -s tools/tests` (needs `pip install lupa`), commit with named files (never
-  `git add -A`), `git pull --rebase` first (the weekly bot changes the version lines and the data file), push `main` and `main:main-myh77p`, wait for the
-  Tests workflow. His own wording: he says "ok" when something is good; do not commit before he does.
+- **Order of work (owner's rule, 2026-10-16): change the code, copy it to the game folder, let him test, and only when he says "ok" / "βάλτα" commit and
+  push. Never commit, push or start a workflow unasked** (this replaces the old "pushes are pre-authorised"). Then: run `python -m unittest discover -s
+  tools/tests` (needs `pip install lupa`), commit with named files (never `git add -A`), `git pull --rebase --autostash` first (the weekly bot changes
+  the version lines and the data file), push `main` and `main:main-myh77p`, wait for the Tests workflow.
 - Temporary diagnostics go in the game copy only, marked TEMP, and are removed before copying. **Never wrap or replace game functions** (it taints
   Blizzard code). A debug WINDOW (an EditBox in a frame) is better than chat output.
 - CI runs Python 3.12; the PC runs 3.14. Do not use `Path.read_text(newline=...)` (3.13+). Files mix CRLF/LF: edit with byte-safe code (read bytes,
@@ -35,18 +36,16 @@ When this file is rewritten, delete what is no longer true. Release notes live i
 - **Version scheme (owner's rule): `MAJOR.MINOR.WEEK`.** A data-only release changes only WEEK (weeks turn over on Wednesday, the weekly reset, see
   `tools/release_prep.py: reset_week`; a missed week is skipped in the number). A functional change raises MINOR (a big one raises MAJOR and zeroes
   MINOR). New year: WEEK restarts at 1 and MINOR goes up by one. Published versions keep their numbers.
-- **The repo is at 2.0.40 (2026-10-05, a Monday, so week 40; Wednesday 2026-10-07 starts week 41), not yet on CurseForge** (1.1.0 is). The changelog is
-  `docs/changelog/2.0.40_2026-10-05.md` (also pasted in `StatVerdict/STORE.md`). The owner uploads by hand: `StatVerdict Ship (no bump).bat` builds
-  `StatVerdict-<version>.zip` on his Desktop from the repo's `StatVerdict` folder. `StatVerdict Ship.bat` also bumps the version: do not use it.
+- **The repo is at 2.2.42 (2026-10-16), not yet on CurseForge** (1.1.0 is; 2.0.40 and 2.1.42 were never uploaded, their changes are all in 2.2.42). The
+  changelog is `docs/changelog/2.2.42_pending.md` (also pasted in `StatVerdict/STORE.md`). The owner uploads by hand: `StatVerdict Ship (no bump).bat`
+  builds `StatVerdict-<version>.zip` on his Desktop from the repo's `StatVerdict` folder; `StatVerdict Ship.bat` also bumps the version: do not use it.
   Bump helper: `release_prep.write_version(root, version, date)` sets the toc, `ns.VERSION`, `ns.RELEASE_DATE` and the `(vX.Y.Z)` in STORE.md.
-- **Every Wednesday ~15:00 Greek time** `.github/workflows/classcodex-live-refresh.yml` refreshes the guide data and, when it changed, runs
-  `tools/release_prep.py` (bumps WEEK, writes the changelog file) and opens a GitHub issue ("Ώρα για ανέβασμα ...") that GitHub mails to the owner.
-  **The repo is now at 2.1.42 (the pending release moved from week 41 to week 42 on 2026-10-14) with `docs/changelog/2.1.42_pending.md`** (the Alt / Catalyst work below, committed 2026-10-07; owner decides when to upload;
-  the bot only adds its data line to a pending file). If 2.0.40 was never uploaded, its changelog text (and STORE.md) still describes the old Alt switch: ask.
-  Weekly time moved to 09:00 UTC (12:00 Greek summer time). It never publishes. GitHub issue #1 ("waits for the 1.1.1 upload") may still be open: the owner can close it after uploading.
+- **Every Wednesday ~12:00 Greek time** `.github/workflows/classcodex-live-refresh.yml` refreshes the guide data and, when it changed, runs
+  `tools/release_prep.py` (bumps WEEK, adds a data line to the pending changelog) and opens a GitHub issue ("Ώρα για ανέβασμα ...") that GitHub mails to the
+  owner. It never publishes. The stat targets step now looks up about 3000 pieces on Wowhead (~20 minutes); NOT yet run on GitHub's machines (it ran
+  locally): if Wowhead blocks them the step fails, the old file stays and the owner gets the failed-workflow mail.
 - The data pipeline refuses to write targets without the upgrade-track tables (`--allow-missing-track-levels` overrides) and retries the fetch 4 times.
-  The data root also carries `trackTop` (the 6/6 bonus id of each track) and `trackRanks` (every rank 1..6: `{bonus id, item level}`, from
-  `upgrade_tracks.build_track_swap(...).ranks`; the 2026-10-07 data file got it by hand, the next bot run writes it itself).
+  The data root carries `trackSwap`, `trackTop`, `trackRanks` and `trackItemLevels`.
 - GitHub e-mail: only failed workflows (set by the owner). Do not add experiment workflows.
 
 ## What 2.0.40 contains (the changelog file has the full text)
@@ -176,7 +175,7 @@ Features tab became **Options** with a new look, **Always on top**, **Compact Mo
   `SV_SpecSnapshot.lua` and `SV_UpgradeIndicatorLogic.lua`; `test_loadout_world.py` (scenarios, incl. the owner's saved state) and `test_loadout_fuzz.py`
   (random play: no double marks, nothing lost, the played spec marks what it wears, a respec puts on every marked piece, upgrades keep marks). Seven
   mutations of the fixes were each caught. Not covered: the real game's event order, and the screens themselves.
-- **Tier piece sockets (2026-10-12):** the guide data (Icy Veins "catalyst" block, `gear_by_simc_slot` in `tools/classcodex_targets.py`) puts the
+- **Tier piece sockets (2026-10-12):** the guide data (Icy Veins "catalyst" block, `gear_by_slot` in `tools/classcodex_targets.py`) puts the
   bonus ids of the BASE piece on the tier piece (to reach the top upgrade level); a socket id among them made the Best in Slot tooltip recommend gems for
   a tier piece that has no socket (owner's Blood shoulders). `OwnBonusIDs` (`UI/SV_BisProgressPanel.lua`) keeps only upgrade-track ids for the socket
   count of a tier set piece (`ns.IsTierSetPiece`, `Core/SV_ItemReferenceBonuses.lua`); the shown link is unchanged. "Where to find" of a tier piece
@@ -195,6 +194,35 @@ Features tab became **Options** with a new look, **Always on top**, **Compact Mo
 - **Pitfall found:** the verdict block is skipped when the tooltip "already has a StatVerdict line" (`TooltipAlreadyHasStatVerdict`). Texture escapes
   hold the folder name `StatVerdict` in their path, so that check now strips `|T...|t` first. Any text we add to a tooltip must be checked against it.
 
+## Targets, scoring and data (2026-10-16; read this before touching them)
+- **Goals:** Overall (the guide's own "all" list, the default when nothing is chosen), Mythic+, Raid, PvP. PvE lists come from Icy Veins, PvP from u.gg.
+- **Stat targets are our own plain sums, no simulation.** `tools/classcodex_targets.py`: every piece of the guide's Best in Slot list is moved to the 6/6 of
+  the tier (`move_loadout_to_track`: known upgrade ids are swapped, a tier piece listed without any id gets the track's 6/6 id, crafted pieces stay), its stats
+  (Wowhead tooltips, with the recommended gem and enchant) are added up, then the spec's fixed rating without gear (`tools/data/spec_base_stats.json`, measured
+  once from the earlier simulation; five healers have none) is added. Tier 3 = Myth 6/6 (`targets.statTargets`), Tier 2 = Hero 6/6 (`targets.levels.hero`),
+  Tier 1 = Champion 6/6 (`.champion`). PvP gear has no tracks: every tier shows the same targets. The Windwalker list of Icy Veins carries an older Myth
+  rank id (12806): the Myth swap fixes it (it showed item level 289). `SelectTargetValues` in `Core/SV_ProfileRepository.lua` reads this; the u.gg
+  `guideTargets` are gone from the data.
+- **Safety net:** `tools/classcodex_carryover.py` (see `tools/README.md`): per part, last week's stays when the new is missing or invalid (max 30 days),
+  more than 25% of contexts carried = nothing is written. The CLI prints the report and `--carry-report` writes it for the commit text.
+- **Prospect (`Core/SV_Comparison.lua`):** a piece that can still be upgraded and sits on a higher upgrade track than the worn one is scored against the Myth
+  targets (`profile.mythAuditTargets`, `ProspectProfile`). The game gives a piece's rank (`currentLevel`) but NOT `maxItemLevel`: `ns.GetItemUpgradeCeiling`
+  (`Core/SV_ItemData.lua`) finds the top item level from `trackRanks` (the track whose rank has this item level) and then the track name. The earlier
+  "room to grow" push (0.1% per level, max 1.5%) never worked in the game for the same reason; it does now. No tooltip line was added for it.
+- **Primary stand-in boost (`Core/SV_Scoring.lua`, `PRIMARYLESS_EQUIP_LOCATIONS`):** only trinkets keep it (the first secondary of the order gets half the primary
+  weight). Rings and necks lost it: neither side of a comparison has a primary, and it multiplied the first stat by about 3 (the Blood Pendant was -27%). A sweep of
+  288 ring and 576 trinket scenarios: boost 0 gives 53 more arrows than 0.5 on rings (0.1: +28, 0.2: +7, 0.3: +0); on trinkets 0 gives +132 and 0.25 +60, so
+  trinkets stay at 0.5. It is one number; if arrows on rings look too generous, set a small value for rings (the sweep scripts were temporary).
+- **ClassCodex overlap:** the owner has ClassCodex installed; it appends its own "  #n" to stat lines. StatVerdict now adds only its MS/OS mark after a foreign
+  rank (`StripForeignRank` in `UI/SV_Tooltip.lua`). Whether to replace their number is open (owner: later).
+- **Names in the Best in Slot / Ranked Trinkets lists were grey** because the global `GetItemQualityColor` is gone: `LookupQualityRGB` /
+  `GetQualityHex` in `UI/SV_BisProgressPanel.lua` try C_Item first.
+- **Removed on 2026-10-16:** SimulationCraft (`simc_stat_engine.py`, the GitHub build steps, all its tests), the Method experiment (`method_*.py`, `tools/data/method`),
+  the SimC comparison part of the test harness (`item_check_verdict.py` is now `tools/addon_harness.py`), the u.gg bins. Git history has them.
+- Test helper: `tools/tests/wowhead_fakes.py` (`fake_wowhead`) stands in for the Wowhead lookup.
+- **Not verified in the game:** the Hero/Champion numbers of other specs than the ones the owner looked at, the healers without a base rating, how many
+  arrows ring scoring gives in real play, and the weekly workflow on GitHub's machines (Wowhead may refuse them).
+
 ## Open items
 1. **User report** (CurseForge comment by Phaselord, 2026-10-04: window "loaded compact and laying over itself"): the owner asked for a screenshot, UI scale,
    resolution, language and UI add-ons; no answer yet. The likely cause (fresh installs got a different, shorter layout) is fixed in 2.0.40. If they answer and
@@ -203,17 +231,15 @@ Features tab became **Options** with a new look, **Always on top**, **Compact Mo
 2. The owner may make Compact Mode the default later, after more players have seen it. Not decided.
 3. The owner reported "a malfunction found while searching" that is not about this work: ask him for it first thing.
 4. Tooltip keys in the Manual are written. `StatVerdict/STORE.md` still holds a copy of the changelog next to `docs/changelog/`: one source only? (asked, no answer)
-5. Delete the old remote branch `worktree-keylevel-bracket-benchmarks` (16 commits not in main, old Mythic+ benchmark work)? (asked, no answer)
-6. Items showing a wrong item level: ask for the item name and the tier selected; trinkets without track info borrow ids from another list, else dungeon/raid
+5. Items showing a wrong item level: ask for the item name and the tier selected; trinkets without track info borrow ids from another list, else dungeon/raid
    drops get the shown tier's 6/6 id (`Repository.GetKnownBonusIDs`, `GetTrackTopBonusID`); crafted/vendor/event/PvP say "Other source".
 
 ## Tooling that stays (feeds the addon)
-- `tools/classcodex_*.py`, `spec_catalog.py`, `simc_stat_engine.py`, `wowhead_stat_engine.py`, `upgrade_tracks.py`, `lua_render.py`: the weekly data pipeline
+- `tools/classcodex_*.py`, `spec_catalog.py`, `wowhead_stat_engine.py`, `upgrade_tracks.py`, `lua_render.py`: the weekly data pipeline
   (`tools/README.md` explains it). `tools/release_prep.py`: the weekly version/changelog/issue step (tests in `test_release_prep.py`).
 - `tools/item_sources.py`, `tools/blizzard_item_pool.py`, `tools/data/blizzard_item_pool.json`: the "Where to find" data (run by hand, needs Blizzard keys from the environment).
-- `tools/item_check_verdict.py`: despite the name, the harness that loads the whole addon in lupa for the scoring and tooltip tests.
-- `tools/method_guides.py`, `method_targets.py`, `tools/data/method/`: Method as a second guide source (below).
-- `.github/workflows/tests.yml`, `tools/tests/` (788 tests). Test pitfalls: lupa makes a new Python wrapper for every Lua table read (use `rawequal`);
+- `tools/addon_harness.py`: loads the whole addon in lupa for the scoring and tooltip tests.
+- `.github/workflows/tests.yml`, `tools/tests/` (901 tests). Test pitfalls: lupa makes a new Python wrapper for every Lua table read (use `rawequal`);
   the shared `verdict.CHARACTER` dict must be restored after a test changes it; `FRAME_STUB` frames keep old anchors after `ClearAllPoints`.
 
 ## Guardrails (the owner's rules)
@@ -221,15 +247,11 @@ Features tab became **Options** with a new look, **Always on top**, **Compact Mo
   (`Core/SV_WeightModes.lua`; test `NoDataSourceNamesShownTests`). A new source must be copied 1:1 and labelled as that source's own method.
 - Never hand-edit `StatVerdict/Data/Generated/*.lua` (the weekly workflow regenerates it). Never weaken the geometry, "nothing moves" or real-data tests.
 - Never commit secrets (Blizzard credentials only from the environment). Replaced features and data are deleted completely, never left commented out.
-- Commits end with the co-author line the session gives. Pushes to `main` and `main-myh77p` are pre-authorised (inform, do not ask). No PRs unless asked.
+- Commits end with the co-author line the session gives. Push to `main` and `main-myh77p` only after the owner's "ok" (see How we work now). No PRs unless asked.
 - Do not publish or upload anything for the owner; he uploads to CurseForge himself.
 
 ## Longer-term ideas (not started)
-- **Method (method.gg) as a second guide source.** Each source 1:1, labelled as that source's own method. Method allows reading (robots.txt) but forbids copying
-  prose, so facts only. Murlok (murlok.io, real rating targets) is the next candidate; Wowhead blocks AI crawlers. `method_guides.py` reads all 39 specs
-  (stat priority per hero tree, Best in Slot, enchants, gems); `method_targets.py` adds up the listed set with SimC. Known gaps: 17 specs `incomplete`
-  (enchants as prose), some weapon slot names, Feral empty rows. Plan: fix gaps, add Method to the Guide drawer (single target, no tiers), verify.
-- **Tank simulation (on hold).** Own DPS simulation is not worth it (gain at most 4-5%). For tanks the guide's Damage priority is within ~1% of the best-DPS
-  split while 13-20% less damage taken was available at 4-6% less DPS (SimC estimate). Any future UI must say "our own simulation estimate", never mixed with the Guide.
+- **Another guide source** (Method, Murlok): not started; the earlier Method reader was deleted (it needed the simulation) and is in git history.
+- **Tank simulation (on hold).** Own simulation is not worth it (gain at most 4-5%); any future UI must say "our own simulation estimate", never mixed with the Guide.
 - Possible later: show the Catalyst information also for items that are not an upgrade as they are (today it lives inside the verdict block).
-- Owner housekeeping: old GitHub repos `Scraper` and `farmerassistant` can be deleted on GitHub; CurseForge cloud credits ($100) expire 2026-11-05.
+- Owner housekeeping: old GitHub repos `Scraper` and `farmerassistant` can be deleted on GitHub (other repositories: not touched); CurseForge cloud credits ($100) expire 2026-11-05.

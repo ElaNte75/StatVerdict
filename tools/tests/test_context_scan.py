@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from tools import item_check_verdict as v
+from tools import addon_harness as v
 
 
 class ContextScanTests(unittest.TestCase):

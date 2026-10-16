@@ -1,16 +1,9 @@
 #!/usr/bin/env python3
-"""Reconstruct paper-doll ratings from Wowhead item tooltips.
+"""The stats of a loadout from Wowhead item tooltips.
 
-This is the healer path: SimulationCraft does not model healing throughput at
-all (it is a DPS/damage simulator), so healer specs need a different way to
-turn exact combat-log-verified gear into approximate secondary-stat targets.
-This looks each equipped item up by ID + bonus/gem/enchant IDs using
-Wowhead's public tooltip JSON (the same payload a hover tooltip uses) and
-sums the ratings. It is not a site crawl.
-
-It does not include base class stats, racials, or talent-driven stat
-conversions, so it is less precise than the SimC path used for DPS/Tank —
-but SimC gives healers nothing at all, so this is the healer target data.
+This looks each piece up by ID + bonus/gem/enchant IDs using Wowhead's public tooltip JSON (the same payload a hover
+tooltip uses) and sums the ratings. It is not a site crawl. It does not include base class stats, racials or
+talent-driven stat conversions: tools/data/spec_base_stats.json adds the fixed rating of each specialization.
 """
 
 from __future__ import annotations

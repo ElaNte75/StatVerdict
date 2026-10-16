@@ -139,3 +139,72 @@ class AltBuildVerdictTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class ComparisonPaneTests(unittest.TestCase):
+    """The game's comparison tooltip shows the piece the player wears. It is never judged against the loadout ("Better than
+    <another piece>" for a piece that is already in it), it only says where it is saved."""
+
+    def setUp(self) -> None:
+        self.lua = new_runtime()
+        self.ns = self.lua.table()
+        load_addon_file(self.lua, self.ns, "UI/SV_Tooltip.lua")
+        lua = self.lua
+        lua.execute("""
+        PANE = { lines = {}, name = "ShoppingTooltip2" }
+        function PANE:GetName() return self.name end
+        function PANE:NumLines() return #self.lines end
+        function PANE:GetItem() return "Coil", WORN_LINK end
+        function PANE:AddLine(text) self.lines[#self.lines + 1] = text end
+        function PANE:Show() end
+        WORN_LINK = "|Hitem:2000::::::::90|h[Coil]|h"
+        GetInventoryItemLink = function(unit, slot) if slot == 12 then return WORN_LINK end end
+        IsAltKeyDown = function() return false end
+        SAVED = {}   -- spec name -> { [guid] = true }
+        """)
+        self.ns.GetWornItemGUID = lambda slot: "Item-COIL"
+        self.ns.ProfileRepository = lua.table(GetDataProvenance=lambda goal=None: lua.table(available=True))
+        # The Coil is "better than" the other ring of the loadout: the misleading verdict of the owner's screenshot.
+        self.ns.BuildComparison = lua.eval("function() return { selected = { isUpgrade = true, deltaScore = 35.8 } } end")
+        self.ns.RenderTooltipVerdict = lua.eval("""
+        function(tooltip, context, comparison, isSecondary)
+            tooltip:AddLine("|cffff8000StatVerdict Result|r Better than Radiant Phoenix Band")
+        end""")
+        self.ns.IsItemInEquipmentSnapshot = lua.eval(
+            "function(profile, link, guid) return SAVED[profile.specName] and SAVED[profile.specName][guid] == true or false end")
+        self.ns.RenderTooltipLoadoutMembership = lua.eval("""
+        function(tooltip, context, other, isSecondary)
+            tooltip:AddLine("Saved in " .. context.specName .. (other and (" and " .. other.specName) or "") .. " loadout")
+        end""")
+        self.ns.IsTooltipFromPlayerBags = lua.eval("function() return false end")   # the mouse is on a quest reward
+        lua.globals().BLOOD = lua.table(specName="Blood", profile=lua.table(specName="Blood", goal="RAID"), goal="RAID")
+        lua.globals().FROST = lua.table(specName="Frost", profile=lua.table(specName="Frost", goal="RAID"), goal="RAID")
+        self.ns.GetTooltipEvaluationContexts = lua.eval("function() return FROST, BLOOD end")
+
+    def hover(self, saved_in=()):
+        lua = self.lua
+        lua.execute("PANE.lines = {}; SAVED = {}")
+        for spec in saved_in:
+            lua.execute(f'SAVED["{spec}"] = {{ ["Item-COIL"] = true }}')
+        self.ns.ProcessTooltip(lua.eval("PANE"))
+        return [str(lua.eval(f"PANE.lines[{i}]")) for i in range(1, int(lua.eval("#PANE.lines")) + 1)]
+
+    def test_a_worn_piece_saved_in_a_build_says_so_and_is_not_compared(self) -> None:
+        lines = self.hover(saved_in=("Frost",))
+        self.assertTrue(any("Saved in Frost" in line for line in lines))
+        self.assertFalse(any("Better than" in line for line in lines))
+
+    def test_a_worn_piece_saved_in_both_builds_says_both(self) -> None:
+        lines = self.hover(saved_in=("Frost", "Blood"))
+        self.assertTrue(any("Saved in Frost and Blood" in line for line in lines))
+        self.assertFalse(any("Better than" in line or "Also an upgrade" in line for line in lines))
+
+    def test_a_worn_piece_saved_nowhere_is_not_compared_either(self) -> None:
+        lines = self.hover()
+        self.assertEqual([], lines)
+
+    def test_the_same_item_on_an_ordinary_tooltip_is_still_judged(self) -> None:
+        self.lua.execute('PANE.name = "GameTooltip"')   # not a comparison pane
+        lines = self.hover()
+        self.assertTrue(any("Better than" in line for line in lines))

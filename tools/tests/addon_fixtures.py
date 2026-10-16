@@ -10,7 +10,7 @@ CLASSCODEX_SLOTS = (
     "Head", "Neck", "Shoulders", "Back", "Chest", "Wrist", "Hands", "Waist",
     "Legs", "Feet", "Finger 1", "Finger 2", "Trinket 1", "Trinket 2", "Main Hand",
 )
-PRIORITY_CONTEXT = {"MYTHIC_PLUS": "Mythic+", "RAID": "Raid", "PVP": "PvP"}
+PRIORITY_CONTEXT = {"OVERALL": "Overall", "MYTHIC_PLUS": "Mythic+", "RAID": "Raid", "PVP": "PvP"}
 
 
 def make_hero_context(
@@ -101,6 +101,9 @@ def make_classcodex_targets(build_id: str, profiles: dict[str, Any] | None = Non
                 "classToken": "DEATHKNIGHT",
                 "primaryStat": "strength",
                 "goals": {
+                    "OVERALL": {"heroTalents": {
+                        "sanlayn": make_hero_context("OVERALL", "sanlayn", (1140, 900, 680, 430), blood_order),
+                    }},
                     "MYTHIC_PLUS": {"heroTalents": {
                         "sanlayn": make_hero_context("MYTHIC_PLUS", "sanlayn", (1140, 900, 680, 430), blood_order),
                         "deathbringer": make_hero_context(

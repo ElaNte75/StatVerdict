@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from tools import item_check_verdict as verdict
+from tools import addon_harness as verdict
 from tools.tests.test_addon_lua import LuaRuntime
 
 SLOTS = list(verdict.SLOTS)

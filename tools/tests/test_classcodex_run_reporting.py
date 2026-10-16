@@ -11,12 +11,12 @@ from unittest.mock import patch
 
 from tools import classcodex_targets_cli
 from tools.classcodex_fetch import FetchResult
+from tools.tests.wowhead_fakes import fake_wowhead
 from tools.classcodex_targets import (
     SkipRecord,
     build_all,
     count_contexts,
     coverage_problem,
-    format_simc_error,
     format_skip_summary,
     gate_and_write,
     previous_context_count,
@@ -41,84 +41,43 @@ def doc(contexts_per_spec: dict[str, int]) -> dict:
 SPECS = {
     "DEATHKNIGHT_frost": {
         "gear": {"value": {"all": {"mplus": [{"itemId": 1, "slot": "Head"}], "raid": [{"itemId": 2, "slot": "Head"}]}}},
-        # Only Mythic+ has a talent export; Raid borrows it (labelled), and a
-        # spec with no export anywhere is reported as skipped (see NOTALENTS).
         "talents": {"value": {"deathbringer": {"mplus": [{"export": "M"}]}}},
     },
     "NOTASPEC_madeup": {"gear": {"value": {}}},
 }
 
-NO_TALENTS = {
-    "DEATHKNIGHT_frost": {
-        "gear": {"value": {"all": {"mplus": [{"itemId": 1, "slot": "Head"}], "raid": [{"itemId": 2, "slot": "Head"}]}}},
-        "talents": {"value": {"deathbringer": {}}},
-    },
-}
-
 
 class SkipRecordingTests(unittest.TestCase):
     def test_build_all_reports_every_skipped_combo_with_a_reason(self) -> None:
-        reconstructed = {"ratings": {"crit": 1.0, "haste": 2.0, "mastery": 3.0, "versatility": 4.0}}
         skips: list[SkipRecord] = []
-        with patch("tools.classcodex_targets.run_simc", return_value=({"sv_0001": reconstructed}, {})):
-            data = build_all(SPECS, Path("simc"), goals=("MYTHIC_PLUS", "RAID"), skips=skips)
+        data = build_all(SPECS, goals=("MYTHIC_PLUS", "RAID"), skips=skips, wowhead_reconstruct=fake_wowhead())
         self.assertIn("DEATHKNIGHT_FROST", data["profiles"])
         self.assertIn(SkipRecord("NOTASPEC_madeup", None, None, "spec not in StatVerdict's catalog"), skips)
         self.assertEqual(1, len(skips))
-        borrowed = data["profiles"]["DEATHKNIGHT_FROST"]["goals"]["RAID"]["heroTalents"]["deathbringer"]
-        self.assertEqual(["talents borrowed from MYTHIC_PLUS"], borrowed["targets"]["targetMetadata"]["recovery"])
 
-    def test_a_combo_with_no_talent_export_anywhere_is_skipped(self) -> None:
+    def test_build_all_reports_failed_lookups(self) -> None:
         skips: list[SkipRecord] = []
-        build_all(NO_TALENTS, Path("simc"), goals=("MYTHIC_PLUS", "RAID"), skips=skips)
-        self.assertIn(SkipRecord("DEATHKNIGHT_FROST", "RAID", "deathbringer", "no talent export for this goal"), skips)
-
-    def test_build_all_reports_simc_failures(self) -> None:
-        skips: list[SkipRecord] = []
-        with patch("tools.classcodex_targets.run_simc", side_effect=RuntimeError("boom")):
-            data = build_all(SPECS, Path("simc"), goals=("MYTHIC_PLUS",), skips=skips)
+        with redirect_stderr(io.StringIO()):
+            data = build_all(SPECS, goals=("MYTHIC_PLUS",), skips=skips, wowhead_reconstruct=fake_wowhead(fail=RuntimeError("boom")))
         self.assertEqual({}, data["profiles"])
-        self.assertIn(SkipRecord("DEATHKNIGHT_FROST", "MYTHIC_PLUS", "deathbringer", "SimC run failed (RuntimeError)"), skips)
+        self.assertIn(SkipRecord("DEATHKNIGHT_FROST", "MYTHIC_PLUS", "deathbringer", "Wowhead lookup failed"), skips)
 
     def test_skip_argument_is_optional(self) -> None:
-        with patch("tools.classcodex_targets.run_simc", side_effect=RuntimeError("boom")):
-            self.assertEqual({}, build_all(SPECS, Path("simc"))["profiles"])
-
-
-LONG_SIMC_ERROR = "FATAL-HEAD " + ("x" * 3000) + " Trivial: TAIL-END"
-
-
-class SimcErrorLoggingTests(unittest.TestCase):
-    """The real fatal SimC error is usually near the start of its output,
-    followed by pages of trailing `Trivial:` warnings; both ends must be
-    visible in the log."""
-
-    def test_targets_log_the_head_and_the_tail_of_a_long_simc_error(self) -> None:
-        stderr = io.StringIO()
-        with redirect_stderr(stderr), patch("tools.classcodex_targets.run_simc", side_effect=RuntimeError(LONG_SIMC_ERROR)):
-            build_all(SPECS, Path("simc"), goals=("MYTHIC_PLUS",))
-        self.assertIn("FATAL-HEAD", stderr.getvalue())
-        self.assertIn("TAIL-END", stderr.getvalue())
-        self.assertLess(len(stderr.getvalue()), 2500)
-
-    def test_short_errors_are_logged_whole(self) -> None:
-        self.assertEqual("boom", format_simc_error(RuntimeError("boom")))
-        formatted = format_simc_error(RuntimeError(LONG_SIMC_ERROR))
-        self.assertTrue(formatted.startswith(LONG_SIMC_ERROR[:1200]))
-        self.assertTrue(formatted.endswith(LONG_SIMC_ERROR[-600:]))
+        with redirect_stderr(io.StringIO()):
+            self.assertEqual({}, build_all(SPECS, wowhead_reconstruct=fake_wowhead(fail=RuntimeError("boom")))["profiles"])
 
 
 class FormatSkipSummaryTests(unittest.TestCase):
     def test_counts_by_reason_and_lists_details_when_short(self) -> None:
         skips = [
-            SkipRecord("MAGE_FIRE", "RAID", "sunfury", "SimC run failed (RuntimeError)"),
-            SkipRecord("MAGE_FROST", "RAID", "frostfire", "SimC run failed (RuntimeError)"),
+            SkipRecord("MAGE_FIRE", "RAID", "sunfury", "Wowhead lookup failed"),
+            SkipRecord("MAGE_FROST", "RAID", "frostfire", "Wowhead lookup failed"),
             SkipRecord("NOTASPEC_x", None, None, "spec not in StatVerdict's catalog"),
         ]
         summary = format_skip_summary(skips)
         self.assertIn("3 combo(s) skipped", summary)
-        self.assertIn("2 x SimC run failed (RuntimeError)", summary)
-        self.assertIn("MAGE_FIRE/RAID/sunfury: SimC run failed (RuntimeError)", summary)
+        self.assertIn("2 x Wowhead lookup failed", summary)
+        self.assertIn("MAGE_FIRE/RAID/sunfury: Wowhead lookup failed", summary)
         self.assertIn("NOTASPEC_x: spec not in StatVerdict's catalog", summary)
 
     def test_omits_details_when_the_list_is_long(self) -> None:
@@ -188,12 +147,12 @@ class CliReportingTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, redirect_stderr(stderr), \
                 patch("tools.classcodex_targets_cli.fetch_all", return_value=fetched), \
                 patch("tools.classcodex_targets_cli.build", return_value=SPECS), \
-                patch("tools.classcodex_targets_cli.reconstruct_loadout", side_effect=OSError("no network in tests")),                 patch("tools.classcodex_targets.run_simc", side_effect=RuntimeError("boom")):
+                patch("tools.classcodex_targets_cli.reconstruct_loadout", side_effect=OSError("no network in tests")):
             out = Path(tmp) / "SV_ClassCodexTargets.lua"
-            code = classcodex_targets_cli.main(["--simc-bin", "simc", "--out", str(out)])
+            code = classcodex_targets_cli.main(["--out", str(out), "--allow-missing-track-levels"])
             self.assertFalse(out.exists())
         self.assertEqual(1, code)
-        self.assertIn("wowhead fallback failed", stderr.getvalue())
+        self.assertIn("Wowhead lookup failed", stderr.getvalue())
         self.assertIn("Refusing to write", stderr.getvalue())
 
 

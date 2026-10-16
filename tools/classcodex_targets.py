@@ -1,12 +1,11 @@
-"""Builds per-goal, per-spec, per-hero-talent BiS stat targets from the
-already-merged ClassCodex data (tools/classcodex_build.py) by reconstructing
-paper-doll stats through SimulationCraft (tools/simc_stat_engine.py).
-
-See docs/superpowers/plans/2026-09-28-classcodex-target-weight-pipeline-spec.md
-for the full design and the real data shapes this module relies on.
+"""Builds per-goal, per-spec, per-hero-tree BiS stat targets from the already-merged guide data
+(tools/classcodex_build.py): the stats of the guide's Best in Slot pieces, with the recommended gems and
+enchants, added up (Wowhead item tooltips) at Myth, Hero and Champion 6/6, plus the fixed rating each
+specialization has without gear (tools/data/spec_base_stats.json). No simulation.
 """
 from __future__ import annotations
 
+import json
 import sys
 from collections import Counter
 from pathlib import Path
@@ -16,18 +15,16 @@ try:
     from tools.classcodex_rules import bis_gear, default_priority, guide_field, guide_field_with_fallback, pvp_bonus_lookup
     from tools.classcodex_build import ENCHANT_LOOKUP_FIELD, collect_real_enchants
     from tools.classcodex_lua_sandbox import run_addon_namespace
-    from tools.simc_stat_engine import render_profiles, run_simc, run_simc_with_recovery
     from tools.spec_catalog import SPEC_BY_KEY
     from tools.upgrade_tracks import SWAP_TARGETS, TrackSwap, swap_bonus_ids
 except ModuleNotFoundError:
     from classcodex_rules import bis_gear, default_priority, guide_field, guide_field_with_fallback, pvp_bonus_lookup
     from classcodex_build import ENCHANT_LOOKUP_FIELD, collect_real_enchants
     from classcodex_lua_sandbox import run_addon_namespace
-    from simc_stat_engine import render_profiles, run_simc, run_simc_with_recovery
     from spec_catalog import SPEC_BY_KEY
     from upgrade_tracks import SWAP_TARGETS, TrackSwap, swap_bonus_ids
 
-CLASSCODEX_SLOT_TO_SIMC: dict[str, str] = {
+CLASSCODEX_SLOT_TO_TOKEN: dict[str, str] = {
     "Head": "HEAD",
     "Neck": "NECK",
     "Shoulders": "SHOULDER",
@@ -65,23 +62,14 @@ GOAL_CONTEXT_KEYS: dict[str, tuple[str, ...]] = {
     "PVP": ("pvp",),
 }
 
-# First-choice context key per goal (kept for callers that resolve a single
-# explicit key through select_context()).
-GOAL_CONTEXT_KEY: dict[str, str] = {goal: keys[0] for goal, keys in GOAL_CONTEXT_KEYS.items()}
-
 GOAL_LABEL: dict[str, str] = {"OVERALL": "Overall", "MYTHIC_PLUS": "Mythic+", "RAID": "Raid", "PVP": "PvP"}
 
-# The addon's own canonical secondary-stat keys (STAT_KEY in
-# StatVerdict/Core/SV_ProfileRepository.lua). Every stat name this pipeline
-# emits -- targets, priority order/tiers, weights (tools/classcodex_weights.py
-# imports this) -- goes through canonical_stat_name() so the generated files
-# never leak a raw upstream token the addon would silently drop.
-CANONICAL_SECONDARY_STATS: tuple[str, ...] = ("critical_strike", "haste", "mastery", "versatility")
+# Every stat name this pipeline emits -- targets, priority order/tiers -- goes through canonical_stat_name() to the
+# addon's own canonical keys (STAT_KEY in StatVerdict/Core/SV_ProfileRepository.lua), so the generated files never leak
+# a raw upstream token the addon would silently drop.
 
-# Lower-cased upstream spellings -> canonical. Covers ClassCodex priority
-# tokens ("crit"), simc_stat_engine.parse_report rating keys ("crit"), SimC's
-# util::stat_type_abbrev names used in scale-factor reports ("Crit",
-# "Haste", "Mastery", "Vers"), SimC long names ("crit_rating", ...) and the
+# Lower-cased upstream spellings -> canonical. Covers the guide's priority tokens ("crit"), the short names
+# ("Crit", "Haste", "Mastery", "Vers"), the long names ("crit_rating", ...), the Wowhead tooltip rating keys and the
 # addon's own spellings.
 STAT_TO_CANONICAL: dict[str, str] = {
     "crit": "critical_strike",
@@ -104,20 +92,6 @@ def canonical_stat_name(raw: Any) -> str | None:
     if not isinstance(raw, str):
         return None
     return STAT_TO_CANONICAL.get(raw.strip().lower())
-
-
-def select_context(nested: dict[str, Any] | None, hero_talent_key: str, context_key: str) -> Any | None:
-    """nested is a ClassCodex `{heroTalentKey: {contextKey: value}}` field
-    (gear, talents, trinkets or statPriority's `.value`). Returns the exact
-    goal context if present, else the `"all"` fallback, else None."""
-    if not isinstance(nested, dict):
-        return None
-    by_context = nested.get(hero_talent_key)
-    if not isinstance(by_context, dict):
-        return None
-    if context_key in by_context:
-        return by_context[context_key]
-    return by_context.get(FALLBACK_CONTEXT_KEY)
 
 
 def select_goal_context(nested: dict[str, Any] | None, hero_talent_key: str, goal: str) -> Any | None:
@@ -168,12 +142,11 @@ def field_origin(field: dict[str, Any] | None, hero_talent_key: str, goal: str) 
     return origin or field.get("source")
 
 
-def gear_by_simc_slot(gear_list: list[dict[str, Any]] | None) -> dict[str, dict[str, Any]]:
-    """The usable entries of a ClassCodex gear list keyed by SimC slot token,
+def gear_by_slot(gear_list: list[dict[str, Any]] | None) -> dict[str, dict[str, Any]]:
+    """The usable entries of a ClassCodex gear list keyed by slot token (HEAD, FINGER_1, ...),
     skipping unknown slots and missing itemIds. If two entries map to the
-    same slot, the LAST one wins -- the single rule every consumer (SimC
-    items, BiS slots, item-level average) derives from, so they always
-    describe the same loadout."""
+    same slot, the LAST one wins -- the single rule every consumer (item
+    totals, BiS slots) derives from, so they always describe the same loadout."""
     by_slot: dict[str, dict[str, Any]] = {}
     for entry in gear_list or []:
         if not isinstance(entry, dict):
@@ -181,17 +154,17 @@ def gear_by_simc_slot(gear_list: list[dict[str, Any]] | None) -> dict[str, dict[
         catalyst = entry.get("catalyst")
         if isinstance(catalyst, dict):
             # Icy Veins: {itemId = <the BiS tier piece>, catalyst = {itemId = <the base item that
-            # converts into it>, bonusIDs = {...}}}. Checked against SimC's item data (Head:
+            # converts into it>, bonusIDs = {...}}}. Checked against the item data (Head:
             # 271483 "Serpent Crown of the Ophidian Oracle" is the set piece, 251220 "Voidscarred
             # Crown" the base drop). The BiS item is the top-level one; only the catalyst block
             # carries the bonus ids that put it at max upgrade, so those are added to it.
             entry = {k: v for k, v in entry.items() if k not in ("catalyst", "bonusIDs")}
             if isinstance(catalyst.get("bonusIDs"), list):
                 entry["bonusIDs"] = catalyst["bonusIDs"]
-        simc_slot = CLASSCODEX_SLOT_TO_SIMC.get(str(entry.get("slot") or ""))
-        if simc_slot is None or not isinstance(entry.get("itemId"), (int, float)):
+        slot_token = CLASSCODEX_SLOT_TO_TOKEN.get(str(entry.get("slot") or ""))
+        if slot_token is None or not isinstance(entry.get("itemId"), (int, float)):
             continue
-        by_slot[simc_slot] = entry
+        by_slot[slot_token] = entry
     return by_slot
 
 
@@ -203,15 +176,14 @@ def _bonus_ids(entry: dict[str, Any]) -> list[int] | None:
 
 
 class LoadoutUpgrades(NamedTuple):
-    """The recommended enchants and gems added to a simulated BiS loadout.
+    """The recommended enchants and gems added to the BiS loadout.
 
-    enchants: {SimC slot: {"id"?: SpellItemEnchantment id (SimC enchant_id),
+    enchants: {slot token: {"id"?: SpellItemEnchantment id,
     "item_id"?: enchant scroll item id, "spell_id"?: enchant spell id}};
     an enchant without "id" could not be translated (resolve_enchant) and
-    is shown but never simulated.
-    gems: {"primary"?: gem item id, "secondary"?: gem item id} (SimC
-    gem_id). The primary gem is UNIQUE-EQUIPPED (worn once); the secondary
-    one fills every other socket.
+    is shown but never counted.
+    gems: {"primary"?: gem item id, "secondary"?: gem item id}. The primary gem is
+    UNIQUE-EQUIPPED (worn once); the secondary one fills every other socket.
 
     Only the single best choice is kept (owner decision 2026-09-29: no
     alternatives are shown)."""
@@ -222,16 +194,13 @@ class LoadoutUpgrades(NamedTuple):
 
 NO_UPGRADES = LoadoutUpgrades({}, {})
 
-# Slots that never get gems in the simulated loadout.
-GEMLESS_SIMC_SLOTS = frozenset({"TRINKET_1", "TRINKET_2", "MAIN_HAND", "OFF_HAND"})
+# Slots that never get gems.
+GEMLESS_SLOTS = frozenset({"TRINKET_1", "TRINKET_2", "MAIN_HAND", "OFF_HAND"})
 
-# APPROXIMATION: ClassCodex does not say which items have sockets (the addon
-# reads them at runtime from tooltips). So the secondary gem goes on every
-# gem-able item and SimC fills only the sockets an item really has (gem ids
-# beyond an item's sockets are ignored). The unique primary gem is worn ONCE,
-# on the first item present in this order (jewelry commonly carries the
-# sockets); if that item has no socket, the primary is not simulated. See
-# simc_stat_engine.run_simc_with_recovery for the "gems dropped" safety net.
+# APPROXIMATION: the guide does not say which items have sockets (the addon reads them at runtime from tooltips).
+# So the secondary gem goes on every gem-able item and the item tooltip counts only the sockets an item really has
+# (gem ids beyond an item's sockets are ignored). The unique primary gem is worn ONCE, on the first item present in
+# this order (jewelry commonly carries the sockets); if that item has no socket, the primary is not counted.
 PRIMARY_GEM_SLOT_ORDER = ("NECK", "FINGER_1", "FINGER_2", "HEAD")
 
 
@@ -268,10 +237,9 @@ def _enchant_lookup(enchants_value: Any, lookup_value: Any) -> EnchantLookup:
 def resolve_enchant(entry: dict[str, Any], lookup: EnchantLookup) -> dict[str, int] | None:
     """One ClassCodex enchant entry as {"id"?, "item_id"?, "spell_id"?}.
 
-    `id` is present ONLY when it is a real SpellItemEnchantment id (SimC
-    enchant_id); an entry that cannot be translated keeps just the scroll
-    item id / spell id it carried, so it can still be shown by name but is
-    never simulated. Shapes:
+    `id` is present ONLY when it is a real SpellItemEnchantment id; an entry that cannot be
+    translated keeps just the scroll item id / spell id it carried, so it can still be shown by
+    name but is never counted. Shapes:
       - {id, itemId?, spellId?} with id differing from itemId/spellId
         (u.gg PvE): already real.
       - {id, spellId} with id == spellId (Icy Veins' weapon runes): a spell
@@ -318,20 +286,20 @@ def select_loadout_upgrades(
     select_goal_context): Icy Veins' lists hold one entry, u.gg's (PvP)
     are ranked by pop. Every enchant goes through resolve_enchant (with
     `enchant_lookup`, the build's enchantLookup value); one without a real
-    `id` is kept for display only (build_simc_items skips it). Unknown slots
+    `id` is kept for display only (build_loadout_items skips it). Unknown slots
     are skipped."""
     enchants: dict[str, dict[str, int]] = {}
     lookup = _enchant_lookup(enchants_value, enchant_lookup)
     by_slot = guide_field_with_fallback(enchants_value, goal)  # ClassCodex reads enchants under hero "all"
     if isinstance(by_slot, dict):
         for slot_name, entries in by_slot.items():
-            simc_slot = CLASSCODEX_SLOT_TO_SIMC.get(str(slot_name))
+            slot_token = CLASSCODEX_SLOT_TO_TOKEN.get(str(slot_name))
             candidates = [e for e in (entries if isinstance(entries, list) else []) if isinstance(e, dict)]
-            if simc_slot is None or not candidates:
+            if slot_token is None or not candidates:
                 continue
             enchant = resolve_enchant(max(candidates, key=_pop), lookup)
             if enchant:
-                enchants[simc_slot] = enchant
+                enchants[slot_token] = enchant
 
     gems: dict[str, int] = {}
     gem_sets = guide_field_with_fallback(gems_value, goal)  # ... and gems too
@@ -390,25 +358,25 @@ def _with_pvp_bonus(entries: Any, goal: str, pvp_bonus: dict[int, list[int]] | N
     return out
 
 
-def build_simc_items(
+def build_loadout_items(
     gear_list: list[dict[str, Any]] | None, upgrades: LoadoutUpgrades | None = None
 ) -> dict[str, dict[str, Any]]:
-    """Converts a ClassCodex gear list into a SimC items dict keyed by WoW API
-    slot tokens (as defined in CLASSCODEX_SLOT_TO_SIMC). Each item carries its
+    """Converts a ClassCodex gear list into an items dict keyed by WoW API
+    slot tokens (as defined in CLASSCODEX_SLOT_TO_TOKEN). Each item carries its
     itemId, optional itemLevel (ilvl), and optional bonusIds (camelCase bonusIDs),
     plus -- when `upgrades` is given -- enchantIds for slots with a
     recommended enchant and gemIds: the secondary gem on every non-trinket,
     non-weapon item, plus the unique primary gem once (see
     PRIMARY_GEM_SLOT_ORDER for this approximation).
-    Skips entries with unknown slots or missing itemIds; see gear_by_simc_slot
+    Skips entries with unknown slots or missing itemIds; see gear_by_slot
     for duplicate slots."""
     upgrades = upgrades or NO_UPGRADES
-    gear = gear_by_simc_slot(gear_list)
+    gear = gear_by_slot(gear_list)
     primary = upgrades.gems.get("primary")
     secondary = upgrades.gems.get("secondary")
     primary_slot = next((slot for slot in PRIMARY_GEM_SLOT_ORDER if slot in gear), None) if primary is not None else None
     items: dict[str, dict[str, Any]] = {}
-    for simc_slot, entry in gear.items():
+    for slot_token, entry in gear.items():
         item: dict[str, Any] = {"itemId": int(entry["itemId"])}
         ilvl = entry.get("ilvl")
         if isinstance(ilvl, (int, float)):
@@ -416,141 +384,18 @@ def build_simc_items(
         bonus_ids = _bonus_ids(entry)
         if bonus_ids is not None:
             item["bonusIds"] = bonus_ids
-        if simc_slot not in GEMLESS_SIMC_SLOTS:
-            gem_ids = [primary] if simc_slot == primary_slot else []
+        if slot_token not in GEMLESS_SLOTS:
+            gem_ids = [primary] if slot_token == primary_slot else []
             if secondary is not None:
                 gem_ids.append(secondary)
             if gem_ids:
                 item["gemIds"] = gem_ids
-        enchant = upgrades.enchants.get(simc_slot)
+        enchant = upgrades.enchants.get(slot_token)
         if enchant and enchant.get("id") is not None:
             # Never a scroll/spell id: untranslated enchants are display-only.
             item["enchantIds"] = [enchant["id"]]
-        items[simc_slot] = item
+        items[slot_token] = item
     return items
-
-
-def average_item_level(gear_list: list[dict[str, Any]] | None) -> float | None:
-    """Calculates the average item level from a gear list, ignoring entries
-    without an ilvl field. Returns None if no entries have an ilvl."""
-    levels = [
-        float(entry["ilvl"])
-        for entry in (gear_list or [])
-        if isinstance(entry, dict) and isinstance(entry.get("ilvl"), (int, float))
-    ]
-    if not levels:
-        return None
-    return sum(levels) / len(levels)
-
-
-def loadout_item_level(
-    loadout: list[dict[str, Any]], reconstructed: dict[str, Any] | None
-) -> tuple[float | None, int, str]:
-    """(averageItemLevel, itemLevelSlots, source) for one simulated loadout.
-
-    u.gg gear carries an `ilvl` per entry: those are averaged (source
-    "classcodex"). Icy Veins gear carries none (its bonusIDs put each item
-    at its max upgrade inside SimC), so the item levels SimC reports for
-    the items it really equipped are averaged instead (source "simc",
-    simc_stat_engine.parse_gear_item_levels). Neither -> (None, 0, "none");
-    nothing is invented. itemLevelSlots always counts the averaged items."""
-    average = average_item_level(loadout)
-    if average is not None:
-        slots = sum(1 for entry in loadout if isinstance(entry.get("ilvl"), (int, float)))
-        return average, slots, "classcodex"
-    levels = (reconstructed or {}).get("item_levels")
-    values = [float(v) for v in (levels or {}).values() if isinstance(v, (int, float)) and not isinstance(v, bool)]
-    if values:
-        return sum(values) / len(values), len(values), (reconstructed or {}).get("item_level_source") or "simc"
-    return None, 0, "none"
-
-
-def select_talent_export(talents_value: dict[str, Any] | None, hero_talent_key: str, context_key: str) -> str | None:
-    """Selects a talent export string for a goal/hero-talent combo. Returns the
-    export string marked as recommended if present, else the export string of the
-    first entry, or None if no valid entry exists."""
-    return talent_export_from_entries(select_context(talents_value, hero_talent_key, context_key))
-
-
-def talent_export_from_entries(entries: Any) -> str | None:
-    """Picks the export string from one already-selected ClassCodex talent
-    context list: the entry marked `recommended`, else the first entry (real
-    u.gg lists are already ordered most-picked first)."""
-    exports = talent_exports_from_entries(entries)
-    return exports[0] if exports else None
-
-
-def talent_exports_from_entries(entries: Any) -> list[str]:
-    """Every usable export string of one ClassCodex talent context list, in
-    the order to try them: `recommended` entries first, then the rest in
-    list order, without duplicates."""
-    if not isinstance(entries, list):
-        return []
-    exports: list[str] = []
-    ordered = [e for e in entries if isinstance(e, dict) and e.get("recommended") is True]
-    ordered += [e for e in entries if isinstance(e, dict) and e.get("recommended") is not True]
-    for entry in ordered:
-        export = entry.get("export")
-        if isinstance(export, str) and export and export not in exports:
-            exports.append(export)
-    return exports
-
-
-# SimC's messages when it rejects a talent export for this spec.
-TALENT_ERROR_MARKERS = ("is not available to player's spec", "Selected node")
-
-
-def is_talent_error(message: str) -> bool:
-    return any(marker in message for marker in TALENT_ERROR_MARKERS)
-
-
-def run_with_talent_fallback(
-    simc_binary: Path,
-    spec: Any,
-    items: dict[str, dict[str, Any]],
-    talent_exports: list[str],
-    *,
-    render_kwargs: dict[str, Any] | None = None,
-    run_kwargs: dict[str, Any] | None = None,
-    run_simc_fn: Any = None,
-) -> tuple[dict[str, dict[str, Any]], dict[str, Any], list[str], str]:
-    """Runs one loadout through run_simc_with_recovery with each talent
-    export in turn, moving on only when SimC rejects the talents; if every
-    export is rejected, runs once more without a `talents=` line. Any other
-    error is re-raised. The returned recovery labels add "talent export N"
-    (N >= 2) or "talents ignored" to the weapon labels."""
-    last_error: RuntimeError | None = None
-    for index, export in enumerate(talent_exports, 1):
-        record = {"race": "human", "runTalentLoadout": export, "items": items, "level": 90}
-        try:
-            stats, report, recovery, actor = run_simc_with_recovery(
-                simc_binary, spec, record, render_kwargs=render_kwargs, run_kwargs=run_kwargs, run_simc_fn=run_simc_fn
-            )
-        except RuntimeError as exc:
-            if not is_talent_error(str(exc)):
-                raise
-            last_error = exc
-            continue
-        labels = [f"talent export {index}"] if index > 1 else []
-        return stats, report, labels + recovery, actor
-    if last_error is None:
-        raise ValueError("no talent export to run")
-    record = {"race": "human", "runTalentLoadout": "", "items": items, "level": 90}
-    stats, report, recovery, actor = run_simc_with_recovery(
-        simc_binary,
-        spec,
-        record,
-        render_kwargs={**(render_kwargs or {}), "talents_optional": True},
-        run_kwargs=run_kwargs,
-        run_simc_fn=run_simc_fn,
-    )
-    return stats, report, ["talents ignored"] + recovery, actor
-
-
-def build_trinkets(trinkets_value: dict[str, Any] | None, hero_talent_key: str, context_key: str) -> list[dict[str, Any]]:
-    """Converts a ClassCodex trinket list (tiered S/A/B/C/D) into the addon's
-    expected shape. Returns a list of dicts with item_id, bonus_ids, and tier."""
-    return trinkets_from_entries(select_context(trinkets_value, hero_talent_key, context_key))
 
 
 def trinkets_from_entries(entries: Any) -> list[dict[str, Any]]:
@@ -575,21 +420,6 @@ def trinkets_from_entries(entries: Any) -> list[dict[str, Any]]:
             }
         )
     return result
-
-
-def build_priority_row(
-    stat_priority_value: dict[str, Any] | None,
-    hero_talent_key: str,
-    context_key: str,
-    context_label: str,
-    hero_talent_name: str,
-) -> dict[str, Any] | None:
-    """Converts ClassCodex's stat-priority tier-groups into an order/tiers row
-    matching what the WoW addon's SV_ProfileRepository.lua validates. Returns
-    a dict with context, heroTalent, order, and tiers, or None if no secondary list."""
-    return priority_row_from_context(
-        select_context(stat_priority_value, hero_talent_key, context_key), context_label, hero_talent_name
-    )
 
 
 def priority_row_from_context(context: Any, context_label: str, hero_talent_name: str) -> dict[str, Any] | None:
@@ -627,20 +457,6 @@ def priority_row_from_context(context: Any, context_label: str, hero_talent_name
     }
 
 
-SIMC_ERROR_HEAD_CHARS = 1200
-SIMC_ERROR_TAIL_CHARS = 600
-
-
-def format_simc_error(exc: BaseException) -> str:
-    """The SimC error text for the CI log. SimC prints the real fatal error
-    early and then pages of trailing `Trivial:` warnings, so a long message
-    keeps both its head and its tail."""
-    text = str(exc)
-    if len(text) <= SIMC_ERROR_HEAD_CHARS + SIMC_ERROR_TAIL_CHARS:
-        return text
-    return text[:SIMC_ERROR_HEAD_CHARS] + " [...] " + text[-SIMC_ERROR_TAIL_CHARS:]
-
-
 class ComboSkipped(Exception):
     """Raised by the per-combo builders with a short, human-readable reason
     for why one spec/goal/hero-talent combo produced no output (fail closed:
@@ -651,38 +467,7 @@ class ComboSkipped(Exception):
         self.reason = reason
 
 
-def build_target_context(
-    spec: Any,
-    goal: str,
-    gear_list: list[dict[str, Any]] | None,
-    talents_value: dict[str, Any] | None,
-    hero_talent_key: str,
-    context_key: str,
-    simc_binary: Path = Path("simc"),
-) -> dict[str, Any] | None:
-    """Reconstructs the `targets`/`bis` half of a ClassCodex per-goal profile
-    by running the BiS gear loadout for one spec/goal/hero-talent through
-    SimulationCraft. Returns None if there is no gear, no talent export, or
-    the SimC run fails or yields fewer than two usable secondary stats."""
-    try:
-        return reconstruct_target_context(
-            spec, goal, gear_list, select_talent_export(talents_value, hero_talent_key, context_key), simc_binary
-        )
-    except ComboSkipped:
-        return None
-
-
-SIMC_TARGET_SOURCE = "ClassCodex BiS + SimulationCraft"
-WOWHEAD_TARGET_SOURCE = "ClassCodex BiS + Wowhead gear totals (no SimC support for this spec)"
-
-# Specs SimC cannot model are not one clean error message (Holy Paladin:
-# "unsupported spec"; Restoration Shaman: "isn't supported yet"; Mistweaver:
-# "not currently supported"; Holy Priest / Discipline: broken action lists),
-# so the gear-only Wowhead fallback runs whenever SimC still fails after the
-# recovery layer, and the result is labelled in statTargets.source and
-# targetMetadata.recovery so it stays auditable.
-
-
+GEAR_SUM_TARGET_SOURCE = "ClassCodex BiS + gear totals (Wowhead item tooltips)"
 def canonical_secondaries(raw_stats: dict[str, Any]) -> dict[str, float]:
     """The four secondaries of a raw {stat name: number} dict, canonical keys."""
     stats: dict[str, float] = {}
@@ -703,68 +488,18 @@ def wowhead_gear_stats(
     try:
         loadout = wowhead_reconstruct(items, primary=spec.primary)
     except Exception as exc:  # noqa: BLE001 - fail closed (network, parsing, ...)
-        print(f"Wowhead fallback error for {spec.spec_name}: {exc}", file=sys.stderr)
-        raise ComboSkipped("wowhead fallback failed") from exc
+        print(f"Wowhead lookup error for {spec.spec_name}: {exc}", file=sys.stderr)
+        raise ComboSkipped("Wowhead lookup failed") from exc
     if not isinstance(loadout, dict) or loadout.get("failures") or not isinstance(loadout.get("totals"), dict):
         failures = loadout.get("failures") if isinstance(loadout, dict) else None
-        print(f"Wowhead fallback error for {spec.spec_name}: {failures or 'unusable result'}", file=sys.stderr)
-        raise ComboSkipped("wowhead fallback failed")
+        print(f"Wowhead lookup error for {spec.spec_name}: {failures or 'unusable result'}", file=sys.stderr)
+        raise ComboSkipped("Wowhead lookup failed")
     levels: dict[str, float] = {}
     for slot, row in (loadout.get("slots") or {}).items():
         level = row.get("wowheadItemLevel") if isinstance(row, dict) else None
         if isinstance(level, (int, float)) and not isinstance(level, bool):
             levels[slot] = float(level)
     return canonical_secondaries(loadout["totals"]), levels
-
-
-def swap_loadout(
-    items: dict[str, dict[str, Any]], target: str, track_swap: TrackSwap
-) -> tuple[dict[str, dict[str, Any]], bool, set[str]]:
-    """The simulated items moved to `target` track's 6/6 (see
-    tools/upgrade_tracks.swap_bonus_ids): (items, whether any item changed,
-    slots whose higher-track id had no mapping and stayed as they were). A
-    swapped item loses its fixed itemLevel (u.gg's ilvl describes the
-    original rank), so SimC takes the level from the new bonus id."""
-    swapped_items: dict[str, dict[str, Any]] = {}
-    changed = False
-    missed: set[str] = set()
-    for slot, item in items.items():
-        bonus_ids = item.get("bonusIds")
-        if bonus_ids:
-            new_ids, swapped, miss = swap_bonus_ids(list(bonus_ids), target, track_swap)
-            if swapped:
-                item = {key: value for key, value in item.items() if key != "itemLevel"}
-                item["bonusIds"] = new_ids
-                changed = True
-            if miss:
-                missed.add(slot)
-        swapped_items[slot] = item
-    return swapped_items, changed, missed
-
-
-def _apply_recovery(items: dict[str, dict[str, Any]], recovery: list[str]) -> dict[str, dict[str, Any]]:
-    """Repeats a finished run's recovery steps (dropped weapons, dropped
-    gems/enchants) on another copy of the loadout."""
-    result = {slot: dict(item) for slot, item in items.items()}
-    for label in recovery:
-        if label.startswith("dropped "):
-            result.pop(label[len("dropped "):], None)
-        elif label == "gems dropped":
-            result = {slot: {k: v for k, v in item.items() if k != "gemIds"} for slot, item in result.items()}
-        elif label == "enchants dropped":
-            result = {slot: {k: v for k, v in item.items() if k != "enchantIds"} for slot, item in result.items()}
-    return result
-
-
-def _talent_export_used(talent_exports: list[str], recovery: list[str]) -> str | None:
-    """The export run_with_talent_fallback ended up simulating (None when it
-    ran without talents)."""
-    if "talents ignored" in recovery:
-        return None
-    for label in recovery:
-        if label.startswith("talent export "):
-            return talent_exports[int(label.rsplit(" ", 1)[1]) - 1]
-    return talent_exports[0]
 
 
 def _level_entry(stats: dict[str, float], average: float | None) -> dict[str, Any] | None:
@@ -776,251 +511,140 @@ def _level_entry(stats: dict[str, float], average: float | None) -> dict[str, An
     return entry
 
 
-def _simulate_levels(
-    simc_binary: Path, spec: Any, loadouts: dict[str, dict[str, dict[str, Any]]], talent_export: str | None
-) -> dict[str, dict[str, Any]]:
-    """{track: SimC actor result} for the swapped loadouts, all tracks as
-    actors of one paper-doll run; if that run fails, each track is retried
-    alone and a track that still fails is left out."""
-    render_kwargs = {"stat_sheet_only": True, "talents_optional": talent_export is None}
-
-    def run(targets: list[str]) -> dict[str, dict[str, Any]]:
-        records = [
-            {"race": "human", "runTalentLoadout": talent_export or "", "items": loadouts[target], "level": 90}
-            for target in targets
-        ]
-        profile_text, actor_map = render_profiles(spec, records, **render_kwargs)
-        stats_by_actor, _report = run_simc(simc_binary, profile_text)
-        return {
-            target: stats_by_actor[actor]
-            for target, actor in zip(targets, actor_map)
-            if isinstance(stats_by_actor.get(actor), dict)
-        }
-
-    targets = list(loadouts)
-    try:
-        return run(targets)
-    except RuntimeError as exc:
-        if len(targets) == 1:
-            print(f"SimC level run failed for {spec.spec_name} ({targets[0]}): {format_simc_error(exc)}", file=sys.stderr)
-            return {}
-    results: dict[str, dict[str, Any]] = {}
-    for target in targets:
-        try:
-            results.update(run([target]))
-        except RuntimeError as exc:
-            print(f"SimC level run failed for {spec.spec_name} ({target}): {format_simc_error(exc)}", file=sys.stderr)
-    return results
-
-
-def build_track_levels(
-    spec: Any,
-    items: dict[str, dict[str, Any]],
-    track_swap: TrackSwap,
-    *,
-    source: str,
-    myth_stats: dict[str, float],
-    myth_average: float | None,
-    recovery: list[str],
-    talent_exports: list[str],
-    simc_binary: Path,
-    wowhead_reconstruct: Callable[..., dict[str, Any]] | None,
-) -> tuple[dict[str, dict[str, Any]], int]:
-    """(targets.levels, swapMisses) for one context: our Measured targets
-    for the same BiS loadout at Hero and Champion 6/6, re-simulated the way
-    the Myth targets were (same gems/enchants, same recovery steps, same
-    talent export; the Wowhead fallback for specs SimC cannot model). A
-    track whose loadout does not change reuses the Myth result; a track
-    whose run fails or gives fewer than 2 usable stats is left out."""
-    levels: dict[str, dict[str, Any]] = {}
-    missed_slots: set[str] = set()
-    changed_loadouts: dict[str, dict[str, dict[str, Any]]] = {}
-    for target in SWAP_TARGETS:
-        swapped, changed, missed = swap_loadout(items, target, track_swap)
-        missed_slots |= missed
-        if changed:
-            changed_loadouts[target] = swapped
-        else:
-            entry = _level_entry(dict(myth_stats), myth_average)
-            if entry:
-                levels[target] = entry
-
-    if changed_loadouts and source == WOWHEAD_TARGET_SOURCE:
-        for target, loadout in changed_loadouts.items():
-            try:
-                stats, wowhead_levels = wowhead_gear_stats(spec, loadout, wowhead_reconstruct)
-            except ComboSkipped:
-                continue
-            average = sum(wowhead_levels.values()) / len(wowhead_levels) if wowhead_levels else None
-            entry = _level_entry(stats, average)
-            if entry:
-                levels[target] = entry
-    elif changed_loadouts:
-        loadouts = {target: _apply_recovery(loadout, recovery) for target, loadout in changed_loadouts.items()}
-        results = _simulate_levels(simc_binary, spec, loadouts, _talent_export_used(talent_exports, recovery))
-        for target, reconstructed in results.items():
-            stats = canonical_secondaries(reconstructed.get("ratings") or {})
-            entry = _level_entry(stats, loadout_item_level([], reconstructed)[0])
-            if entry:
-                levels[target] = entry
-    return {target: levels[target] for target in SWAP_TARGETS if target in levels}, len(missed_slots)
-
-
-def reconstruct_target_context(
-    spec: Any,
-    goal: str,
+def describe_bis_slots(
     gear_list: list[dict[str, Any]] | None,
-    talent_loadout: str | list[str] | None,
-    simc_binary: Path = Path("simc"),
-    wowhead_reconstruct: Callable[..., dict[str, Any]] | None = None,
-    extra_recovery: list[str] | None = None,
-    upgrades: LoadoutUpgrades | None = None,
-    track_swap: TrackSwap | None = None,
-) -> dict[str, Any]:
-    """build_target_context's core, taking an already-selected talent export
-    (or the ordered list of exports to fall back through, see
-    run_with_talent_fallback). Raises ComboSkipped (never returns None) so
-    callers can report why.
-
-    `wowhead_reconstruct` (tools/wowhead_stat_engine.reconstruct_loadout's
-    signature) enables the gear-only fallback, used ONLY when SimC reports
-    that it cannot model the spec (any SimC failure after recovery, or no usable stats);
-    None disables it.
-
-    `upgrades` (select_loadout_upgrades) adds the recommended enchants and
-    gems to the simulated items; whatever was really applied (not dropped
-    by a recovery step) is counted in targetMetadata; the enchants are
-    shown on the BiS slots and the guide's gems once as bis.gems.
-
-    `track_swap` (tools/upgrade_tracks.load_track_swap) adds
-    targets.levels = {hero|champion: {statTargets = {stats}, averageItemLevel?}}
-    (build_track_levels) and targetMetadata.swapMisses when some slot's
-    upgrade-track id could not be swapped; None adds neither."""
-    items = build_simc_items(gear_list, upgrades)
-    if not items:
-        raise ComboSkipped("no usable gear for this goal")
-    talent_exports = [talent_loadout] if isinstance(talent_loadout, str) else list(talent_loadout or [])
-    talent_exports = [export for export in talent_exports if export]
-    if not talent_exports:
-        raise ComboSkipped("no talent export for this goal")
-
-    source = SIMC_TARGET_SOURCE
-    reconstructed: dict[str, Any] | None = None
-    try:
-        stats_by_actor, _report, recovery, actor_name = run_with_talent_fallback(
-            # Paper-doll run: only the stat sheet is read, so skip the
-            # spec's default action list (an outdated one fails the run).
-            simc_binary, spec, items, talent_exports, render_kwargs={"stat_sheet_only": True}, run_simc_fn=run_simc
-        )
-    except Exception as exc:  # noqa: BLE001 - fail closed; caller skips this combo
-        # The skip reason stays short (it is grouped in the run summary); the
-        # actual SimC message goes to the log so a failure can be diagnosed.
-        print(f"SimC error for {spec.spec_name}: {format_simc_error(exc)}", file=sys.stderr)
-        if wowhead_reconstruct is None:
-            raise ComboSkipped(f"SimC run failed ({type(exc).__name__})") from exc
-        stats, wowhead_levels = wowhead_gear_stats(spec, items, wowhead_reconstruct)
-        reconstructed = {"item_levels": wowhead_levels, "item_level_source": "wowhead"}
-        source = WOWHEAD_TARGET_SOURCE
-        recovery = ["wowhead fallback"]
-    else:
-        reconstructed = stats_by_actor.get(actor_name)
-        stats = canonical_secondaries((reconstructed or {}).get("ratings") or {})
-        # SimC ran but produced no usable secondaries (Preservation Evoker):
-        # the spec is not really modelled, use the gear-only fallback.
-        if sum(1 for value in stats.values() if value > 0) < 2 and wowhead_reconstruct is not None:
-            print(f"SimC produced no usable stats for {spec.spec_name}; using Wowhead fallback", file=sys.stderr)
-            stats, wowhead_levels = wowhead_gear_stats(spec, items, wowhead_reconstruct)
-            reconstructed = {"item_levels": wowhead_levels, "item_level_source": "wowhead"}
-            source = WOWHEAD_TARGET_SOURCE
-            recovery = ["wowhead fallback"]
-        elif not reconstructed:
-            raise ComboSkipped("SimC report had no stats for the actor")
-    # Same rule as the addon's CountPositiveTargets (SV_ProfileRepository.lua):
-    # only values > 0 count as usable targets.
-    if sum(1 for value in stats.values() if value > 0) < 2:
-        raise ComboSkipped("fewer than 2 usable secondary stats")
-
-    # Everything below derives from the same last-one-wins slot map as the
-    # SimC items above, so BiS slots, item count and item level describe the
-    # full ClassCodex loadout (even if a weapon recovery simulated without
-    # one of the weapons, see targetMetadata.recovery).
-    loadout_by_slot = gear_by_simc_slot(gear_list)
-    loadout = list(loadout_by_slot.values())
-    # Gems/enchants a recovery step dropped were not simulated, so they are
-    # neither counted nor shown.
-    gems_applied = "gems dropped" not in recovery
-    enchants_applied = "enchants dropped" not in recovery
+    items: dict[str, dict[str, Any]],
+    upgrades: LoadoutUpgrades | None,
+) -> tuple[list[dict[str, Any]], int, int]:
+    """(bis slots, gem count, enchant count) of a whole guide loadout: the slots as the addon shows
+    them, with the enchants applied."""
+    loadout_by_slot = gear_by_slot(gear_list)
     upgrades = upgrades or NO_UPGRADES
     upgrade_enchants = upgrades.enchants
     bis_slots: list[dict[str, Any]] = []
     gem_count = 0
     enchant_count = 0
-    for simc_slot, entry in loadout_by_slot.items():
+    for slot_token, entry in loadout_by_slot.items():
         item: dict[str, Any] = {"item_id": int(entry["itemId"])}
         bonus_ids = _bonus_ids(entry)
         if bonus_ids is not None:
             item["bonus_ids"] = bonus_ids
-        simulated = items[simc_slot]
-        if gems_applied and simulated.get("gemIds"):
+        simulated = items[slot_token]
+        if simulated.get("gemIds"):
             gem_count += 1
-        enchant = upgrade_enchants.get(simc_slot)
-        if enchants_applied and simulated.get("enchantIds"):
+        enchant = upgrade_enchants.get(slot_token)
+        if simulated.get("enchantIds"):
             item["enchant"] = dict(enchant)
             enchant_count += 1
         elif enchant and enchant.get("id") is None:
             # Untranslated guide enchant: shown by its scroll item / spell
-            # id only, never simulated.
+            # id only, never part of the totals.
             item["enchant"] = dict(enchant)
         bis_slots.append({"slot": entry["slot"], "item": item})
-    # `reconstructed` is None when SimC itself failed (Wowhead fallback);
-    # when SimC ran but its stats were unusable, its item levels still are.
-    average_ilvl, item_level_slots, item_level_source = loadout_item_level(loadout, reconstructed)
-    target_metadata: dict[str, Any] = {
-        # "classcodex" (the gear list's ilvl), "simc" (SimC's report of the
-        # simulated items) or "none" (neither was available).
-        "itemLevelSource": item_level_source,
-        "lowItemReplacements": 0,
-        "unresolvedLowItems": 0,
-        # Items that carried the recommended gems / slots that carried an
-        # enchant in the simulated loadout (auditable; 0 when none/dropped).
-        "gemCount": gem_count,
-        "enchantCount": enchant_count,
-    }
-    levels: dict[str, dict[str, Any]] = {}
-    if track_swap is not None:
-        levels, swap_misses = build_track_levels(
-            spec,
-            items,
-            track_swap,
-            source=source,
-            myth_stats=stats,
-            myth_average=average_ilvl,
-            recovery=list(recovery),
-            talent_exports=talent_exports,
-            simc_binary=simc_binary,
-            wowhead_reconstruct=wowhead_reconstruct,
-        )
-        if swap_misses:
-            # Slots left at their Myth rank in the Hero/Champion levels.
-            target_metadata["swapMisses"] = swap_misses
-    recovery = list(extra_recovery or []) + list(recovery)
-    if recovery:
-        # Auditable: this combo only succeeded after a SimC recovery step.
-        target_metadata["recovery"] = recovery
+    return bis_slots, gem_count, enchant_count
 
+
+SPEC_BASE_STATS_PATH = Path(__file__).resolve().parent / "data" / "spec_base_stats.json"
+
+
+def load_spec_base_stats(path: Path = SPEC_BASE_STATS_PATH) -> dict[str, dict[str, float]]:
+    """{spec key: {canonical secondary: rating the spec has without any gear}} (see the file's _note)."""
+    if not path.exists():
+        return {}
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    return {
+        key: {stat: float(value) for stat, value in stats.items()}
+        for key, stats in raw.items()
+        if not key.startswith("_") and isinstance(stats, dict)
+    }
+
+
+def add_base_stats(stats: dict[str, float], base_stats: dict[str, float] | None) -> dict[str, float]:
+    """The gear totals plus what the character has without gear, so the targets compare with the character sheet."""
+    if not base_stats:
+        return dict(stats)
+    return {stat: value + base_stats.get(stat, 0.0) for stat, value in stats.items()}
+
+
+def move_loadout_to_track(
+    items: dict[str, dict[str, Any]], target: str, track_swap: TrackSwap
+) -> dict[str, dict[str, Any]]:
+    """The loadout with every item of the guide's list at `target` track's 6/6: known upgrade ids are
+    swapped, a piece the guide lists without any bonus id (a tier piece converted at the Catalyst) gets
+    the track's 6/6 id. A piece with other ids and no upgrade track (crafted) stays as it is: it is
+    the same in every tier."""
+    moved: dict[str, dict[str, Any]] = {}
+    top = track_swap.top.get(target)
+    for slot, item in items.items():
+        bonus_ids = list(item.get("bonusIds") or [])
+        new_ids, swapped, _missed = swap_bonus_ids(bonus_ids, target, track_swap)
+        if not bonus_ids and top is not None:
+            new_ids, swapped = [top], True
+        if swapped:
+            item = {key: value for key, value in item.items() if key not in ("itemLevel", "bonusIds")}
+            item["bonusIds"] = new_ids
+        moved[slot] = item
+    return moved
+
+
+def gear_sum_target_context(
+    spec: Any,
+    goal: str,
+    gear_list: list[dict[str, Any]] | None,
+    wowhead_reconstruct: Callable[..., dict[str, Any]],
+    upgrades: LoadoutUpgrades | None = None,
+    track_swap: TrackSwap | None = None,
+    base_stats: dict[str, float] | None = None,
+) -> dict[str, Any]:
+    """The target context of one goal/hero tree from the plain sum of the guide's Best in Slot pieces
+    with their gems and enchants (Wowhead item tooltips): targets.statTargets at Myth 6/6 and
+    targets.levels at Hero and Champion 6/6, plus the spec's fixed rating without gear (`base_stats`,
+    spec_base_stats.json) so they compare with the character sheet. No race, food or buffs. PvP
+    gear has no upgrade tracks: it is summed as the guide lists it and has no levels.
+    Raises ComboSkipped when a piece cannot be looked up or fewer than 2 secondary stats come out."""
+    items = build_loadout_items(gear_list, upgrades)
+    if not items:
+        raise ComboSkipped("no usable gear for this goal")
+    use_tracks = track_swap is not None and goal != "PVP"
+    myth_items = move_loadout_to_track(items, "myth", track_swap) if use_tracks else items
+    stats, item_levels = wowhead_gear_stats(spec, myth_items, wowhead_reconstruct)
+    if sum(1 for value in stats.values() if value > 0) < 2:
+        raise ComboSkipped("fewer than 2 usable secondary stats")
+    stats = add_base_stats(stats, base_stats)
+    level_values = list(item_levels.values())
+    average = sum(level_values) / len(level_values) if level_values else None
+
+    levels: dict[str, dict[str, Any]] = {}
+    if use_tracks:
+        for target in SWAP_TARGETS:
+            try:
+                level_stats, level_item_levels = wowhead_gear_stats(
+                    spec, move_loadout_to_track(items, target, track_swap), wowhead_reconstruct
+                )
+            except ComboSkipped:
+                continue
+            level_average = sum(level_item_levels.values()) / len(level_item_levels) if level_item_levels else None
+            entry = _level_entry(add_base_stats(level_stats, base_stats), level_average)
+            if entry:
+                levels[target] = entry
+    bis_slots, gem_count, enchant_count = describe_bis_slots(gear_list, items, upgrades)
     bis: dict[str, Any] = {"label": "ClassCodex BiS"}
-    if upgrades.gems:
-        # The guide's gem recommendation for the whole loadout: one unique
-        # primary gem (worn once) + one secondary gem (every other socket).
-        # Shown even if a recovery step dropped gems from the simulation.
-        bis["gems"] = dict(upgrades.gems)
+    if (upgrades or NO_UPGRADES).gems:
+        bis["gems"] = dict((upgrades or NO_UPGRADES).gems)
     bis["slots"] = bis_slots
     targets: dict[str, Any] = {
-        "averageItemLevel": average_ilvl,
+        "averageItemLevel": average,
         "itemCount": len(items),
-        "itemLevelSlots": item_level_slots,
-        "statTargets": {"context": goal, "source": source, "stats": stats},
-        "targetMetadata": target_metadata,
+        "itemLevelSlots": len(level_values),
+        "statTargets": {"context": goal, "source": GEAR_SUM_TARGET_SOURCE, "stats": stats},
+        "targetMetadata": {
+            "itemLevelSource": "wowhead" if level_values else "none",
+            "lowItemReplacements": 0,
+            "unresolvedLowItems": 0,
+            "gemCount": gem_count,
+            "enchantCount": enchant_count,
+            **({"baseStats": dict(base_stats)} if base_stats else {}),
+        },
         "sourceGoal": goal,
     }
     if levels:
@@ -1166,7 +790,7 @@ def format_coverage_report(data: dict[str, Any], track_swap: TrackSwap | None = 
         enchants = stats["enchants"]
         lines.append(
             f"    enchants on BiS slots: total {enchants['total']}, translated {enchants['translated']}, "
-            f"untranslated (shown, not simulated) {enchants['untranslated']}"
+            f"untranslated (shown, not counted) {enchants['untranslated']}"
         )
         lines.append(f"    gems: {fmt(stats['gems'])}")
         lines.append(f"    averageItemLevel: {fmt(stats['ilvl'])} (source {fmt(stats['ilvl_source'])})")
@@ -1190,22 +814,28 @@ def count_contexts(data: dict[str, Any]) -> int:
     return total
 
 
-def previous_context_count(path: Path, namespace_key: str) -> int | None:
-    """Context count of the previously generated file at `path`, loaded
-    through the hardened Lua sandbox, or None if there is no previous file.
-    Raises (fail closed) if the file exists but cannot be read back."""
+def load_previous_document(path: Path, namespace_key: str) -> dict[str, Any] | None:
+    """The previously generated document at `path`, loaded through the hardened
+    Lua sandbox, or None if there is no previous file. Raises (fail closed) if
+    the file exists but cannot be read back."""
     if not path.exists():
         return None
     namespace = run_addon_namespace(path.read_text(encoding="utf-8"), path.name, addon_name="StatVerdict")
     data = namespace.get(namespace_key) if isinstance(namespace, dict) else None
     if not isinstance(data, dict):
         raise ValueError(f"{path} does not define ns.{namespace_key}")
-    return count_contexts(data)
+    return data
+
+
+def previous_context_count(path: Path, namespace_key: str) -> int | None:
+    """Context count of the previously generated file at `path`, or None if there is no previous file."""
+    data = load_previous_document(path, namespace_key)
+    return None if data is None else count_contexts(data)
 
 
 # Refuse to overwrite a previous file when the new run covers fewer than
 # this fraction of its spec/goal/hero-talent contexts. 0.8 tolerates the
-# odd combo dropping out upstream week to week, but not a broken SimC week
+# odd combo dropping out upstream week to week, but not a broken week
 # (or a whole missing role/goal) silently replacing good data.
 DEFAULT_MIN_COVERAGE_RATIO = 0.8
 
@@ -1251,24 +881,45 @@ def gate_and_write(
     return 0
 
 
+def finish_target_context(
+    target_context: dict[str, Any],
+    fields: dict[str, Any],
+    hero_talent_key: str,
+    goal: str,
+    trinkets_value: Any,
+    stat_priority_value: Any,
+    pvp_bonus: dict[int, list[int]],
+) -> dict[str, Any]:
+    """Adds what every context carries besides its targets: where the gear list came from, the trinket
+    list and the guide's stat order."""
+    gear_source = field_origin(fields.get("gear"), "all", goal)
+    if gear_source:
+        target_context["targets"]["targetMetadata"]["gearSource"] = gear_source
+    target_context["trinkets"] = trinkets_from_entries(guide_trinket_list(trinkets_value, goal, pvp_bonus))
+    row = priority_row_from_context(
+        default_priority(stat_priority_value, hero_talent_key, goal),
+        GOAL_LABEL[goal],
+        hero_talent_key,
+    )
+    target_context["priorityProfiles"] = [row] if row else []
+    return target_context
+
+
 def build_all(
     specs: dict[str, dict[str, Any]],
-    simc_binary: Path,
     goals: tuple[str, ...] = ("OVERALL", "MYTHIC_PLUS", "RAID", "PVP"),
     skips: list[SkipRecord] | None = None,
     wowhead_reconstruct: Callable[..., dict[str, Any]] | None = None,
     track_swap: TrackSwap | None = None,
 ) -> dict[str, Any]:
-    """Loops over every ClassCodex spec/goal/hero-talent combo, reconstructing
-    stat targets via SimC for each, and assembles the full per-spec document.
-    Skips spec keys not in the SPEC_BY_KEY catalog and combos with no usable
-    data or a failed SimC run; when `skips` is given, one SkipRecord per
-    skipped spec/combo is appended to it. `wowhead_reconstruct` enables the
-    gear-only fallback for specs SimC cannot initialise (see
-    reconstruct_target_context). `track_swap` adds each context's per-track
-    levels (see reconstruct_target_context); the caller writes
-    trackSwap/trackItemLevels at the document root."""
+    """Loops over every spec/goal/hero-tree combo of the merged guide data and builds its context
+    (gear_sum_target_context: the plain sum of the guide's pieces, `wowhead_reconstruct` looks the
+    pieces up), then assembles the full per-spec document. Skips spec keys not in the SPEC_BY_KEY
+    catalog and combos with no usable data or a failed lookup; when `skips` is given, one SkipRecord per
+    skipped spec/combo is appended to it. `track_swap` adds each context's Hero and Champion levels;
+    the caller writes trackSwap/trackItemLevels at the document root."""
     skipped: list[SkipRecord] = skips if skips is not None else []
+    base_stats_by_spec = load_spec_base_stats()
     profiles: dict[str, Any] = {}
     pvp_bonus = pvp_bonus_lookup(specs)
     for spec_key, fields in specs.items():
@@ -1291,46 +942,22 @@ def build_all(
             hero_talents_out: dict[str, Any] = {}
             for hero_talent_key in hero_talent_keys:
                 gear_list = guide_gear_list(gear_value, goal, pvp_bonus)
-                talent_loadout = talent_exports_from_entries(select_goal_context(talents_value, hero_talent_key, goal))
-                extra_recovery: list[str] = []
-                if not talent_loadout:
-                    # ClassCodex has no build for this goal/hero tree: borrow
-                    # the same hero tree's build from another goal (talent
-                    # stat effects are small next to gear) and say so.
-                    for other_goal in goals:
-                        borrowed = talent_exports_from_entries(
-                            select_goal_context(talents_value, hero_talent_key, other_goal)
-                        )
-                        if borrowed:
-                            talent_loadout = borrowed
-                            extra_recovery.append(f"talents borrowed from {other_goal}")
-                            break
                 try:
-                    target_context = reconstruct_target_context(
+                    target_context = gear_sum_target_context(
                         spec,
                         goal,
                         gear_list,
-                        talent_loadout,
-                        simc_binary,
-                        wowhead_reconstruct=wowhead_reconstruct,
-                        extra_recovery=extra_recovery,
+                        wowhead_reconstruct,
                         upgrades=loadout_upgrades_for(fields, hero_talent_key, goal),
                         track_swap=track_swap,
+                        base_stats=base_stats_by_spec.get(catalog_key),
                     )
                 except ComboSkipped as skip:
                     skipped.append(SkipRecord(catalog_key, goal, hero_talent_key, skip.reason))
                     continue
-                gear_source = field_origin(fields.get("gear"), "all", goal)
-                if gear_source:
-                    target_context["targets"]["targetMetadata"]["gearSource"] = gear_source
-                target_context["trinkets"] = trinkets_from_entries(guide_trinket_list(trinkets_value, goal, pvp_bonus))
-                row = priority_row_from_context(
-                    default_priority(stat_priority_value, hero_talent_key, goal),
-                    GOAL_LABEL[goal],
-                    hero_talent_key,
+                hero_talents_out[hero_talent_key] = finish_target_context(
+                    target_context, fields, hero_talent_key, goal, trinkets_value, stat_priority_value, pvp_bonus
                 )
-                target_context["priorityProfiles"] = [row] if row else []
-                hero_talents_out[hero_talent_key] = target_context
             if hero_talents_out:
                 goals_out[goal] = {"heroTalents": hero_talents_out}
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Fetches live ClassCodex data and writes the per-goal SimC-reconstructed
-stat-target file the addon will eventually read (StatVerdict/Core/*.lua
-wiring is a separate, later plan)."""
+"""Fetches the live guide data and writes the stat-target file the addon reads
+(StatVerdict/Data/Generated/SV_ClassCodexTargets.lua): the Best in Slot lists, the stat order
+and the stat targets, which are the sum of the listed pieces at Myth, Hero and Champion 6/6."""
 from __future__ import annotations
 
 import argparse
@@ -21,7 +21,9 @@ try:
         format_rating_sanity,
         format_skip_summary,
         gate_and_write,
+        load_previous_document,
     )
+    from tools.classcodex_carryover import carry_over, carry_problem, format_report
     from tools.lua_render import to_lua_compact
     from tools.upgrade_tracks import load_track_swap
     from tools.wowhead_stat_engine import TooltipCache, reconstruct_loadout
@@ -36,14 +38,14 @@ except ModuleNotFoundError:
         format_rating_sanity,
         format_skip_summary,
         gate_and_write,
+        load_previous_document,
     )
+    from classcodex_carryover import carry_over, carry_problem, format_report
     from lua_render import to_lua_compact
     from upgrade_tracks import load_track_swap
     from wowhead_stat_engine import TooltipCache, reconstruct_loadout
 
-# Real data renders compactly to ~0.7MB (build 20260929064954, 240
-# contexts); the Hero/Champion levels add ~0.26KB per context and trackSwap
-# ~0.3KB, so this budget keeps plenty of headroom.
+# Real data renders compactly to ~1MB (320 contexts), so this budget keeps plenty of headroom.
 MAX_FILE_BYTES = 5 * 1024 * 1024
 NAMESPACE_KEY = "ClassCodexTargets"
 
@@ -70,7 +72,6 @@ def write_addon_file(data: dict[str, Any], path: Path) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--simc-bin", type=Path, required=True)
     parser.add_argument("--out", type=Path, default=Path("StatVerdict/Data/Generated/SV_ClassCodexTargets.lua"))
     parser.add_argument(
         "--min-coverage-ratio",
@@ -85,6 +86,12 @@ def main(argv: list[str] | None = None) -> int:
         help="write the file even when the upgrade-track tables could not be fetched (the addon then cannot show "
         "Champion / Hero items for the lower tiers); without it the run refuses and the old file stays",
     )
+    parser.add_argument(
+        "--carry-report",
+        type=Path,
+        default=None,
+        help="write the carry-over report (what stayed from an earlier week) to this file",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -95,8 +102,8 @@ def main(argv: list[str] | None = None) -> int:
 
     specs = build(fetched.sources)
     skips: list[SkipRecord] = []
-    # Gear-only Wowhead fallback, used only for specs SimC cannot initialise
-    # at all; an unreachable Wowhead just skips those combos (reported below).
+    # Item tooltips from Wowhead give the stats of each piece; an unreachable Wowhead skips the
+    # combos (reported below, and the carry-over keeps last week's parts).
     wowhead_reconstruct = functools.partial(reconstruct_loadout, cache=TooltipCache())
     # Myth -> Hero / Champion 6/6 bonus-id swap from the game's DB2 tables
     # (None when wago.tools is unreachable: then no per-track levels).
@@ -106,9 +113,7 @@ def main(argv: list[str] | None = None) -> int:
         print("Refusing to write: the upgrade-track tables could not be fetched, so the data would have no "
               "Champion / Hero levels. The existing file stays.", file=sys.stderr)
         return 1
-    result = build_all(
-        specs, args.simc_bin, skips=skips, wowhead_reconstruct=wowhead_reconstruct, track_swap=track_swap
-    )
+    result = build_all(specs, skips=skips, wowhead_reconstruct=wowhead_reconstruct, track_swap=track_swap)
     print(format_skip_summary(skips), file=sys.stderr)
     print(format_rating_sanity(result), file=sys.stderr)
     print(format_coverage_report(result, track_swap), file=sys.stderr)
@@ -122,7 +127,22 @@ def main(argv: list[str] | None = None) -> int:
         data["trackTop"] = track_swap.top
         # Every rank's bonus id and item level, to build the Catalyst set piece at the item's own level.
         data["trackRanks"] = track_swap.ranks
-    return gate_and_write(data, args.out, NAMESPACE_KEY, write_addon_file, args.min_coverage_ratio)
+    # Whatever is missing or unusable in the new data stays as it was in the previous file, part by part.
+    try:
+        previous = load_previous_document(args.out, NAMESPACE_KEY)
+    except Exception as exc:  # noqa: BLE001 - fail closed: never overwrite what we cannot read back
+        print(f"Refusing to write: could not read the previous {args.out} ({exc})", file=sys.stderr)
+        return 1
+    merged, carry = carry_over(data, previous)
+    report = format_report(carry)
+    print(report, file=sys.stderr)
+    if args.carry_report is not None:
+        args.carry_report.write_text(report + "\n", encoding="utf-8")
+    problem = carry_problem(carry)
+    if problem:
+        print(f"Refusing to write {args.out}: {problem}.", file=sys.stderr)
+        return 1
+    return gate_and_write(merged, args.out, NAMESPACE_KEY, write_addon_file, args.min_coverage_ratio)
 
 
 if __name__ == "__main__":

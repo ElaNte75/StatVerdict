@@ -5,50 +5,23 @@ import unittest
 from contextlib import redirect_stderr
 from unittest.mock import patch
 
-from pathlib import Path
-
 from tools.classcodex_targets import (
-    GOAL_CONTEXT_KEY,
     ComboSkipped,
     LoadoutUpgrades,
-    reconstruct_target_context,
-    talent_export_from_entries,
-    talent_exports_from_entries,
-    select_context,
-    select_goal_context,
-    build_simc_items,
-    average_item_level,
-    select_talent_export,
-    build_trinkets,
-    build_priority_row,
-    build_target_context,
+    add_base_stats,
     build_all,
+    build_loadout_items,
     format_rating_sanity,
+    gear_sum_target_context,
+    load_spec_base_stats,
+    priority_row_from_context,
+    select_goal_context,
     select_loadout_upgrades,
+    trinkets_from_entries,
 )
 from tools.spec_catalog import SPEC_BY_KEY
-
-
-class SelectContextTests(unittest.TestCase):
-    def test_returns_the_exact_goal_context_when_present(self) -> None:
-        nested = {"deathbringer": {"mplus": ["A"], "all": ["B"]}}
-        result = select_context(nested, "deathbringer", GOAL_CONTEXT_KEY["MYTHIC_PLUS"])
-        self.assertEqual(["A"], result)
-
-    def test_falls_back_to_all_when_the_goal_context_is_missing(self) -> None:
-        nested = {"deathbringer": {"all": ["B"]}}
-        result = select_context(nested, "deathbringer", GOAL_CONTEXT_KEY["PVP"])
-        self.assertEqual(["B"], result)
-
-    def test_returns_none_when_neither_the_goal_context_nor_all_exists(self) -> None:
-        nested = {"deathbringer": {"raid": ["C"]}}
-        result = select_context(nested, "deathbringer", GOAL_CONTEXT_KEY["PVP"])
-        self.assertIsNone(result)
-
-    def test_returns_none_for_an_unknown_hero_talent_key(self) -> None:
-        nested = {"deathbringer": {"all": ["B"]}}
-        result = select_context(nested, "sanlayn", GOAL_CONTEXT_KEY["MYTHIC_PLUS"])
-        self.assertIsNone(result)
+from tools.tests.wowhead_fakes import fake_wowhead
+from tools.upgrade_tracks import TrackSwap
 
 
 class SelectGoalContextTests(unittest.TestCase):
@@ -93,13 +66,13 @@ class SelectGoalContextTests(unittest.TestCase):
         self.assertIsNone(select_goal_context(None, "deathbringer", "RAID"))
 
 
-class BuildSimcItemsTests(unittest.TestCase):
+class BuildLoadoutItemsTests(unittest.TestCase):
     def test_converts_slot_names_and_carries_ilvl_and_bonus_ids(self) -> None:
         gear = [
             {"itemId": 271474, "slot": "Head", "bonusIDs": [13695, 13692], "ilvl": 334},
             {"itemId": 268265, "slot": "Neck", "bonusIDs": [6652, 13668]},
         ]
-        items = build_simc_items(gear)
+        items = build_loadout_items(gear)
         self.assertEqual(
             {"itemId": 271474, "itemLevel": 334, "bonusIds": [13695, 13692]},
             items["HEAD"],
@@ -109,224 +82,15 @@ class BuildSimcItemsTests(unittest.TestCase):
 
     def test_skips_entries_with_unknown_slot_names(self) -> None:
         gear = [{"itemId": 1, "slot": "Relic", "bonusIDs": []}]
-        self.assertEqual({}, build_simc_items(gear))
-
-    def test_average_item_level_ignores_entries_without_ilvl(self) -> None:
-        gear = [
-            {"itemId": 1, "slot": "Head", "ilvl": 330},
-            {"itemId": 2, "slot": "Neck", "ilvl": 340},
-            {"itemId": 3, "slot": "Waist"},
-        ]
-        self.assertEqual(335.0, average_item_level(gear))
-
-    def test_average_item_level_is_none_when_nothing_has_ilvl(self) -> None:
-        self.assertIsNone(average_item_level([{"itemId": 1, "slot": "Head"}]))
+        self.assertEqual({}, build_loadout_items(gear))
 
 
-class SelectTalentExportTests(unittest.TestCase):
-    def test_prefers_the_entry_marked_recommended(self) -> None:
-        talents = {
-            "deathbringer": {
-                "mplus": [
-                    {"export": "AAA", "label": "DW Frostbane"},
-                    {"export": "BBB", "label": "DW Breath", "recommended": True},
-                ]
-            }
-        }
-        self.assertEqual("BBB", select_talent_export(talents, "deathbringer", "mplus"))
-
-    def test_falls_back_to_the_first_entry_when_none_is_recommended(self) -> None:
-        talents = {"deathbringer": {"raid": [{"export": "CCC", "label": "Raid"}]}}
-        self.assertEqual("CCC", select_talent_export(talents, "deathbringer", "raid"))
-
-    def test_returns_none_when_the_context_has_no_entries(self) -> None:
-        talents = {"deathbringer": {"all": []}}
-        self.assertIsNone(select_talent_export(talents, "deathbringer", "pvp"))
+def build_trinkets(trinkets_value, hero, context_key):
+    return trinkets_from_entries(trinkets_value[hero][context_key])
 
 
-class TalentExportsFromEntriesTests(unittest.TestCase):
-    def test_recommended_first_then_the_rest_in_order_without_duplicates(self) -> None:
-        entries = [
-            {"export": "A"},
-            {"export": "B", "recommended": True},
-            {"export": "A"},
-            {"label": "no export"},
-            "junk",
-            {"export": "C"},
-        ]
-        self.assertEqual(["B", "A", "C"], talent_exports_from_entries(entries))
-        self.assertEqual("B", talent_export_from_entries(entries))
-
-    def test_empty_or_invalid_input(self) -> None:
-        self.assertEqual([], talent_exports_from_entries(None))
-        self.assertEqual([], talent_exports_from_entries([]))
-        self.assertIsNone(talent_export_from_entries([]))
-
-
-TALENT_ERROR = "Selected node 82241 entry 103320 is not available to player's spec"
-GOOD = ({"sv_0001": {"ratings": {"crit": 1.0, "haste": 2.0}}}, {})
-
-
-class TalentFallbackTests(unittest.TestCase):
-    spec = SPEC_BY_KEY["DRUID_RESTORATION"]
-    gear = [{"itemId": 1, "slot": "Head", "ilvl": 300}]
-
-    def run_targets(self, side_effect, exports):
-        with patch("tools.classcodex_targets.run_simc", side_effect=side_effect) as mock_run, \
-                redirect_stderr(io.StringIO()):
-            context = reconstruct_target_context(self.spec, "RAID", self.gear, exports)
-        return context, [call.args[1] for call in mock_run.call_args_list]
-
-    def test_tries_the_next_export_when_simc_rejects_the_talents(self) -> None:
-        context, profiles = self.run_targets([RuntimeError(TALENT_ERROR), GOOD], ["A", "B"])
-        self.assertIn("talents=A", profiles[0])
-        self.assertIn("talents=B", profiles[1])
-        self.assertEqual(["talent export 2"], context["targets"]["targetMetadata"]["recovery"])
-
-    def test_runs_without_talents_when_every_export_is_rejected(self) -> None:
-        context, profiles = self.run_targets([RuntimeError(TALENT_ERROR), RuntimeError(TALENT_ERROR), GOOD], ["A", "B"])
-        self.assertEqual(3, len(profiles))
-        self.assertNotIn("talents=", profiles[2])
-        self.assertEqual(["talents ignored"], context["targets"]["targetMetadata"]["recovery"])
-
-    def test_a_non_talent_error_is_not_retried(self) -> None:
-        with patch("tools.classcodex_targets.run_simc", side_effect=[RuntimeError("boom"), GOOD]) as mock_run, \
-                redirect_stderr(io.StringIO()), self.assertRaises(ComboSkipped):
-            reconstruct_target_context(self.spec, "RAID", self.gear, ["A", "B"])
-        self.assertEqual(1, mock_run.call_count)
-
-    def test_the_run_without_talents_failing_skips_the_combo(self) -> None:
-        with self.assertRaisesRegex(ComboSkipped, "SimC run failed"):
-            self.run_targets([RuntimeError(TALENT_ERROR)] * 3, ["A", "B"])
-
-    def test_build_all_hands_every_export_to_the_fallback(self) -> None:
-        specs = {
-            "DRUID_restoration": {
-                "gear": {"value": {"all": {"raid": self.gear}}},
-                "talents": {"value": {"keeper-of-the-grove": {"raid": [{"export": "A"}, {"export": "B"}]}}},
-            }
-        }
-        with patch("tools.classcodex_targets.run_simc", side_effect=[RuntimeError(TALENT_ERROR), GOOD]), \
-                redirect_stderr(io.StringIO()):
-            data = build_all(specs, Path("simc"), goals=("RAID",))
-        context = data["profiles"]["DRUID_RESTORATION"]["goals"]["RAID"]["heroTalents"]["keeper-of-the-grove"]
-        self.assertEqual(["talent export 2"], context["targets"]["targetMetadata"]["recovery"])
-
-
-class TargetRecoveryTests(unittest.TestCase):
-    spec = SPEC_BY_KEY["DEATHKNIGHT_FROST"]
-    gear = [
-        {"itemId": 1, "slot": "Head", "ilvl": 300},
-        {"itemId": 2, "slot": "Main Hand", "ilvl": 300},
-        {"itemId": 3, "slot": "Off Hand", "ilvl": 300},
-    ]
-
-    def test_runs_a_stat_sheet_only_profile_without_recovery_metadata(self) -> None:
-        with patch("tools.classcodex_targets.run_simc", return_value=GOOD) as mock_run:
-            context = reconstruct_target_context(self.spec, "RAID", self.gear, "X")
-        self.assertIn("default_actions=0", mock_run.call_args.args[1].splitlines())
-        self.assertNotIn("recovery", context["targets"]["targetMetadata"])
-
-    def test_weapon_recovery_is_recorded_and_bis_keeps_every_slot(self) -> None:
-        error = RuntimeError("Player sv_0001 has an Off-Hand weapon equipped with a 2h weapon")
-        with patch("tools.classcodex_targets.run_simc", side_effect=[error, GOOD]) as mock_run:
-            context = reconstruct_target_context(self.spec, "RAID", self.gear, "X")
-        self.assertNotIn("off_hand=", mock_run.call_args.args[1])
-        self.assertEqual(["dropped OFF_HAND"], context["targets"]["targetMetadata"]["recovery"])
-        self.assertEqual(["Head", "Main Hand", "Off Hand"], [slot["slot"] for slot in context["bis"]["slots"]])
-        self.assertEqual(3, context["targets"]["itemCount"])
-
-
-UNSUPPORTED_ERRORS = (
-    "Player sv_0001 is using an unsupported spec",
-    "Player sv_0001 role (hybrid) or spec isn't supported yet",
-)
-
-
-def wowhead_loadout(totals: dict, failures: list | None = None) -> dict:
-    return {"slotCount": 1, "resolvedSlots": 1, "totals": totals, "slots": {}, "failures": failures or []}
-
-
-class WowheadFallbackTests(unittest.TestCase):
-    spec = SPEC_BY_KEY["PALADIN_HOLY"]
-    gear = [{"itemId": 1, "slot": "Head", "ilvl": 300, "bonusIDs": [7]}]
-
-    def run_fallback(self, simc_effect, wowhead):
-        with patch("tools.classcodex_targets.run_simc", side_effect=simc_effect), redirect_stderr(io.StringIO()):
-            return reconstruct_target_context(self.spec, "RAID", self.gear, "X", wowhead_reconstruct=wowhead)
-
-    def test_uses_wowhead_gear_totals_when_simc_does_not_support_the_spec(self) -> None:
-        for message in UNSUPPORTED_ERRORS:
-            calls = []
-
-            def fake_wowhead(items, *, primary):
-                calls.append((items, primary))
-                return wowhead_loadout({"crit": 900, "haste": 1200, "mastery": 0, "intellect": 5000, "stamina": 1})
-
-            context = self.run_fallback(RuntimeError(message), fake_wowhead)
-            self.assertEqual([({"HEAD": {"itemId": 1, "itemLevel": 300, "bonusIds": [7]}}, "intellect")], calls)
-            stat_targets = context["targets"]["statTargets"]
-            self.assertEqual({"critical_strike": 900.0, "haste": 1200.0, "mastery": 0.0}, stat_targets["stats"])
-            self.assertEqual(
-                "ClassCodex BiS + Wowhead gear totals (no SimC support for this spec)", stat_targets["source"]
-            )
-            self.assertEqual(["wowhead fallback"], context["targets"]["targetMetadata"]["recovery"])
-            self.assertEqual([{"slot": "Head", "item": {"item_id": 1, "bonus_ids": [7]}}], context["bis"]["slots"])
-
-    def test_never_runs_when_simc_succeeds(self) -> None:
-        def forbidden(*_args, **_kwargs):
-            raise AssertionError("wowhead fallback must not run")
-
-        context = self.run_fallback([GOOD], forbidden)
-        self.assertEqual("ClassCodex BiS + SimulationCraft", context["targets"]["statTargets"]["source"])
-
-    def test_any_simc_failure_after_recovery_uses_the_fallback(self) -> None:
-        def fake_wowhead(items, *, primary):
-            return wowhead_loadout({"crit": 900, "haste": 1200, "mastery": 0, "intellect": 5000})
-
-        context = self.run_fallback(RuntimeError("could not find spell data"), fake_wowhead)
-        self.assertEqual(["wowhead fallback"], context["targets"]["targetMetadata"]["recovery"])
-
-    def test_without_an_injected_reconstructor_the_combo_is_skipped_as_before(self) -> None:
-        with patch("tools.classcodex_targets.run_simc", side_effect=RuntimeError(UNSUPPORTED_ERRORS[0])), \
-                redirect_stderr(io.StringIO()), self.assertRaisesRegex(ComboSkipped, "SimC run failed"):
-            reconstruct_target_context(self.spec, "RAID", self.gear, "X")
-
-    def test_any_wowhead_failure_skips_the_combo(self) -> None:
-        def raising(*_args, **_kwargs):
-            raise OSError("network down")
-
-        def partial(*_args, **_kwargs):
-            return wowhead_loadout({"crit": 900, "haste": 1200}, failures=[{"slot": "HEAD"}])
-
-        for wowhead in (raising, partial):
-            with self.assertRaises(ComboSkipped) as caught:
-                self.run_fallback(RuntimeError(UNSUPPORTED_ERRORS[0]), wowhead)
-            self.assertEqual("wowhead fallback failed", caught.exception.reason)
-
-    def test_fewer_than_two_positive_secondaries_skips(self) -> None:
-        def one_stat(*_args, **_kwargs):
-            return wowhead_loadout({"crit": 900, "haste": 0, "intellect": 5000})
-
-        with self.assertRaisesRegex(ComboSkipped, "fewer than 2 usable secondary stats"):
-            self.run_fallback(RuntimeError(UNSUPPORTED_ERRORS[0]), one_stat)
-
-    def test_build_all_passes_the_reconstructor_through(self) -> None:
-        specs = {
-            "PALADIN_holy": {
-                "gear": {"value": {"all": {"raid": self.gear}}},
-                "talents": {"value": {"all": {"raid": [{"export": "X"}]}}},
-            }
-        }
-
-        def fake_wowhead(items, *, primary):
-            return wowhead_loadout({"crit": 900, "versatility": 700})
-
-        with patch("tools.classcodex_targets.run_simc", side_effect=RuntimeError(UNSUPPORTED_ERRORS[1])), \
-                redirect_stderr(io.StringIO()):
-            data = build_all(specs, Path("simc"), goals=("RAID",), wowhead_reconstruct=fake_wowhead)
-        context = data["profiles"]["PALADIN_HOLY"]["goals"]["RAID"]["heroTalents"]["all"]
-        self.assertEqual(["wowhead fallback"], context["targets"]["targetMetadata"]["recovery"])
+def build_priority_row(stat_priority, hero, context_key, label, hero_name):
+    return priority_row_from_context(stat_priority[hero].get(context_key), label, hero_name)
 
 
 class BuildTrinketsAndPriorityTests(unittest.TestCase):
@@ -337,7 +101,7 @@ class BuildTrinketsAndPriorityTests(unittest.TestCase):
 
     def test_build_trinkets_defaults_missing_bonus_ids_to_empty_list(self) -> None:
         trinkets = {"all": {"all": [{"itemId": 1, "tier": "A"}]}}
-        result = build_trinkets(trinkets, "all", "pvp")
+        result = build_trinkets(trinkets, "all", "all")
         self.assertEqual([{"item_id": 1, "bonus_ids": [], "tier": "A"}], result)
 
     def test_build_priority_row_converts_tier_groups_to_order_and_tiers(self) -> None:
@@ -383,119 +147,6 @@ class BuildTrinketsAndPriorityTests(unittest.TestCase):
             },
             row,
         )
-
-
-class BuildTargetContextTests(unittest.TestCase):
-    def test_reconstructs_targets_and_bis_from_gear_and_a_simc_run(self) -> None:
-        spec = SPEC_BY_KEY["DEATHKNIGHT_BLOOD"]
-        gear = [
-            {"itemId": 271474, "slot": "Head", "bonusIDs": [1], "ilvl": 334},
-            {"itemId": 268265, "slot": "Neck", "bonusIDs": [2], "ilvl": 344},
-        ]
-        talents = {"all": {"mplus": [{"export": "TALENTSTRING", "recommended": True}]}}
-        reconstructed = {
-            "ratings": {"crit": 501.0, "haste": 602.0, "mastery": 703.0, "versatility": 804.0},
-        }
-        with patch("tools.classcodex_targets.run_simc", return_value=({"sv_0001": reconstructed}, {})) as mock_run:
-            context = build_target_context(spec, "MYTHIC_PLUS", gear, talents, "all", "mplus")
-
-        self.assertEqual(
-            {"critical_strike": 501.0, "haste": 602.0, "mastery": 703.0, "versatility": 804.0},
-            context["targets"]["statTargets"]["stats"],
-        )
-        self.assertEqual(2, context["targets"]["itemCount"])
-        self.assertEqual(339.0, context["targets"]["averageItemLevel"])
-        self.assertEqual("MYTHIC_PLUS", context["targets"]["sourceGoal"])
-        self.assertEqual(
-            [
-                {"slot": "Head", "item": {"item_id": 271474, "bonus_ids": [1]}},
-                {"slot": "Neck", "item": {"item_id": 268265, "bonus_ids": [2]}},
-            ],
-            context["bis"]["slots"],
-        )
-        mock_run.assert_called_once()
-
-    def test_gear_without_any_ilvl_still_builds_with_a_null_average_item_level(self) -> None:
-        # Real ClassCodex PvP gear lists carry no "ilvl" at all; that is not a
-        # failure, the average is simply unknown.
-        spec = SPEC_BY_KEY["DEATHKNIGHT_BLOOD"]
-        gear = [{"itemId": 1, "slot": "Head", "bonusIDs": [1]}, {"itemId": 2, "slot": "Neck"}]
-        talents = {"all": {"pvp": [{"export": "PVPSTRING"}]}}
-        reconstructed = {"ratings": {"crit": 501.0, "haste": 602.0, "mastery": 703.0, "versatility": 804.0}}
-        with patch("tools.classcodex_targets.run_simc", return_value=({"sv_0001": reconstructed}, {})):
-            context = build_target_context(spec, "PVP", gear, talents, "all", "pvp")
-        self.assertIsNotNone(context)
-        self.assertIsNone(context["targets"]["averageItemLevel"])
-        self.assertEqual(2, context["targets"]["itemCount"])
-
-    def test_item_level_slots_counts_only_entries_that_have_an_ilvl(self) -> None:
-        spec = SPEC_BY_KEY["DEATHKNIGHT_BLOOD"]
-        gear = [
-            {"itemId": 1, "slot": "Head", "ilvl": 330},
-            {"itemId": 2, "slot": "Neck", "ilvl": 340},
-            {"itemId": 3, "slot": "Waist"},
-        ]
-        talents = {"all": {"mplus": [{"export": "X"}]}}
-        reconstructed = {"ratings": {"crit": 1.0, "haste": 2.0}}
-        with patch("tools.classcodex_targets.run_simc", return_value=({"sv_0001": reconstructed}, {})):
-            context = build_target_context(spec, "MYTHIC_PLUS", gear, talents, "all", "mplus")
-        self.assertEqual(3, context["targets"]["itemCount"])
-        self.assertEqual(2, context["targets"]["itemLevelSlots"])
-        self.assertEqual(335.0, context["targets"]["averageItemLevel"])
-
-    def test_duplicate_slots_resolve_the_same_way_everywhere(self) -> None:
-        # Two entries for one slot: the last one wins for the simulated SimC
-        # items, the BiS list, the item count and the item level alike.
-        spec = SPEC_BY_KEY["DEATHKNIGHT_BLOOD"]
-        gear = [
-            {"itemId": 1, "slot": "Head", "ilvl": 300},
-            {"itemId": 2, "slot": "Neck", "ilvl": 340},
-            {"itemId": 9, "slot": "Head", "ilvl": 360},
-        ]
-        talents = {"all": {"mplus": [{"export": "X"}]}}
-        reconstructed = {"ratings": {"crit": 1.0, "haste": 2.0}}
-        with patch("tools.classcodex_targets.run_simc", return_value=({"sv_0001": reconstructed}, {})) as mock_run:
-            context = build_target_context(spec, "MYTHIC_PLUS", gear, talents, "all", "mplus")
-        profile_text = mock_run.call_args.args[1]
-        self.assertIn("head=,id=9,", profile_text)
-        self.assertNotIn("id=1,", profile_text)
-        self.assertEqual([9, 2], [slot["item"]["item_id"] for slot in context["bis"]["slots"]])
-        self.assertEqual(2, context["targets"]["itemCount"])
-        self.assertEqual(350.0, context["targets"]["averageItemLevel"])
-
-    def test_zero_valued_stats_do_not_count_toward_the_two_stat_minimum(self) -> None:
-        # Mirrors the addon's CountPositiveTargets: only values > 0 count.
-        spec = SPEC_BY_KEY["DEATHKNIGHT_BLOOD"]
-        gear = [{"itemId": 1, "slot": "Head", "ilvl": 300}]
-        talents = {"all": {"raid": [{"export": "X", "recommended": True}]}}
-        reconstructed = {"ratings": {"crit": 501.0, "haste": 0.0, "mastery": 0, "versatility": -1.0}}
-        with patch("tools.classcodex_targets.run_simc", return_value=({"sv_0001": reconstructed}, {})):
-            self.assertIsNone(build_target_context(spec, "RAID", gear, talents, "all", "raid"))
-
-    def test_returns_none_when_no_talent_export_is_available(self) -> None:
-        spec = SPEC_BY_KEY["DEATHKNIGHT_BLOOD"]
-        gear = [{"itemId": 1, "slot": "Head", "ilvl": 300}]
-        self.assertIsNone(build_target_context(spec, "PVP", gear, {}, "all", "pvp"))
-
-    def test_returns_none_when_gear_list_is_empty(self) -> None:
-        spec = SPEC_BY_KEY["DEATHKNIGHT_BLOOD"]
-        talents = {"all": {"raid": [{"export": "X", "recommended": True}]}}
-        self.assertIsNone(build_target_context(spec, "RAID", [], talents, "all", "raid"))
-
-    def test_returns_none_when_simc_raises(self) -> None:
-        spec = SPEC_BY_KEY["DEATHKNIGHT_BLOOD"]
-        gear = [{"itemId": 1, "slot": "Head", "ilvl": 300}]
-        talents = {"all": {"raid": [{"export": "X", "recommended": True}]}}
-        with patch("tools.classcodex_targets.run_simc", side_effect=RuntimeError("boom")):
-            self.assertIsNone(build_target_context(spec, "RAID", gear, talents, "all", "raid"))
-
-    def test_returns_none_when_fewer_than_two_usable_stats(self) -> None:
-        spec = SPEC_BY_KEY["DEATHKNIGHT_BLOOD"]
-        gear = [{"itemId": 1, "slot": "Head", "ilvl": 300}]
-        talents = {"all": {"raid": [{"export": "X", "recommended": True}]}}
-        reconstructed = {"ratings": {"crit": 501.0}}
-        with patch("tools.classcodex_targets.run_simc", return_value=({"sv_0001": reconstructed}, {})):
-            self.assertIsNone(build_target_context(spec, "RAID", gear, talents, "all", "raid"))
 
 
 ENCHANTS = {
@@ -550,8 +201,8 @@ class LoadoutUpgradeTests(unittest.TestCase):
         self.assertEqual({}, upgrades.enchants)
         self.assertEqual({}, upgrades.gems)
 
-    def test_build_simc_items_adds_enchants_and_gems_except_on_trinkets_and_weapons(self) -> None:
-        items = build_simc_items(UPGRADE_GEAR, select_loadout_upgrades(ENCHANTS, GEMS, "all", "RAID"))
+    def test_build_loadout_items_adds_enchants_and_gems_except_on_trinkets_and_weapons(self) -> None:
+        items = build_loadout_items(UPGRADE_GEAR, select_loadout_upgrades(ENCHANTS, GEMS, "all", "RAID"))
         self.assertEqual([8017], items["HEAD"]["enchantIds"])
         # The unique primary gem is worn once: on the neck (first of NECK,
         # FINGER_1, FINGER_2, HEAD present); every other item gets the secondary.
@@ -568,7 +219,7 @@ class LoadoutUpgradeTests(unittest.TestCase):
 
         def carriers(slots):
             gear = [{"itemId": i + 1, "slot": slot} for i, slot in enumerate(slots)]
-            items = build_simc_items(gear, upgrades)
+            items = build_loadout_items(gear, upgrades)
             return {s: v["gemIds"] for s, v in items.items() if "gemIds" in v}
 
         self.assertEqual({"FINGER_1": [9, 8], "FINGER_2": [8], "HEAD": [8], "CHEST": [8]},
@@ -580,11 +231,11 @@ class LoadoutUpgradeTests(unittest.TestCase):
 
     def test_primary_only_or_secondary_only_sets(self) -> None:
         only_primary = select_loadout_upgrades(None, {"all": {"all": [{"primary": 9}]}}, "all", "RAID")
-        items = build_simc_items([{"itemId": 1, "slot": "Neck"}, {"itemId": 2, "slot": "Head"}], only_primary)
+        items = build_loadout_items([{"itemId": 1, "slot": "Neck"}, {"itemId": 2, "slot": "Head"}], only_primary)
         self.assertEqual([9], items["NECK"]["gemIds"])
         self.assertNotIn("gemIds", items["HEAD"])
         only_secondary = select_loadout_upgrades(None, {"all": {"all": [{"secondary": [8]}]}}, "all", "RAID")
-        items = build_simc_items([{"itemId": 1, "slot": "Neck"}, {"itemId": 2, "slot": "Head"}], only_secondary)
+        items = build_loadout_items([{"itemId": 1, "slot": "Neck"}, {"itemId": 2, "slot": "Head"}], only_secondary)
         self.assertEqual([8], items["NECK"]["gemIds"])
         self.assertEqual([8], items["HEAD"]["gemIds"])
 
@@ -592,22 +243,16 @@ class LoadoutUpgradeTests(unittest.TestCase):
 class TargetUpgradeTests(unittest.TestCase):
     spec = SPEC_BY_KEY["DEATHKNIGHT_FROST"]
 
-    def run_targets(self, side_effect):
+    def test_the_looked_up_loadout_and_bis_slots_carry_the_same_gems_and_enchants(self) -> None:
         upgrades = select_loadout_upgrades(ENCHANTS, GEMS, "all", "RAID")
-        with patch("tools.classcodex_targets.run_simc", side_effect=side_effect) as mock_run, \
-                redirect_stderr(io.StringIO()):
-            context = reconstruct_target_context(self.spec, "RAID", UPGRADE_GEAR, "X", upgrades=upgrades)
-        return context, [call.args[1] for call in mock_run.call_args_list]
-
-    def test_the_simulated_loadout_and_bis_slots_carry_the_same_gems_and_enchants(self) -> None:
-        context, profiles = self.run_targets([GOOD])
-        self.assertIn("head=,id=1,ilevel=300,bonus_id=7,gem_id=240908,enchant_id=8017", profiles[0])
-        self.assertIn("neck=,id=2,ilevel=300,gem_id=240983/240908", profiles[0])
+        calls: list = []
+        context = gear_sum_target_context(self.spec, "RAID", UPGRADE_GEAR, fake_wowhead(calls=calls), upgrades=upgrades)
+        self.assertEqual({"itemId": 1, "itemLevel": 300, "bonusIds": [7], "gemIds": [240908], "enchantIds": [8017]}, calls[0]["HEAD"])
+        self.assertEqual({"itemId": 2, "itemLevel": 300, "gemIds": [240983, 240908]}, calls[0]["NECK"])
         metadata = context["targets"]["targetMetadata"]
         self.assertEqual(2, metadata["enchantCount"])
         self.assertEqual(2, metadata["gemCount"])  # head + neck
         self.assertEqual({"primary": 240983, "secondary": 240908}, context["bis"]["gems"])
-        self.assertNotIn("recovery", metadata)
         self.assertEqual(
             [
                 {
@@ -631,26 +276,6 @@ class TargetUpgradeTests(unittest.TestCase):
             context["bis"]["slots"],
         )
 
-    def test_dropped_gems_are_not_counted_but_the_guide_gems_stay_shown(self) -> None:
-        context, profiles = self.run_targets([RuntimeError("invalid gem_id 240983"), GOOD])
-        self.assertNotIn("gem_id=", profiles[1])
-        metadata = context["targets"]["targetMetadata"]
-        self.assertEqual(["gems dropped"], metadata["recovery"])
-        self.assertEqual(0, metadata["gemCount"])
-        self.assertEqual(2, metadata["enchantCount"])
-        # The guide's recommendation is still shown (it is not a simulation result).
-        self.assertEqual({"primary": 240983, "secondary": 240908}, context["bis"]["gems"])
-        self.assertEqual({"id": 8017, "item_id": 243981, "spell_id": 1236001}, context["bis"]["slots"][0]["item"]["enchant"])
-
-    def test_dropped_enchants_are_left_out_too(self) -> None:
-        errors = [RuntimeError("invalid gem_id"), RuntimeError("unknown enchant_id"), GOOD]
-        context, _profiles = self.run_targets(errors)
-        metadata = context["targets"]["targetMetadata"]
-        self.assertEqual(["gems dropped", "enchants dropped"], metadata["recovery"])
-        self.assertEqual(0, metadata["enchantCount"])
-        for slot in context["bis"]["slots"]:
-            self.assertNotIn("enchant", slot["item"])
-
     def test_build_all_uses_the_specs_enchants_and_gems(self) -> None:
         specs = {
             "DEATHKNIGHT_frost": {
@@ -660,9 +285,9 @@ class TargetUpgradeTests(unittest.TestCase):
                 "gems": {"value": GEMS, "source": "ugg"},
             }
         }
-        with patch("tools.classcodex_targets.run_simc", return_value=GOOD) as mock_run:
-            data = build_all(specs, Path("simc"), goals=("RAID",))
-        self.assertIn("enchant_id=8017", mock_run.call_args.args[1])
+        calls: list = []
+        data = build_all(specs, goals=("RAID",), wowhead_reconstruct=fake_wowhead(calls=calls))
+        self.assertEqual([8017], calls[0]["HEAD"]["enchantIds"])
         metadata = data["profiles"]["DEATHKNIGHT_FROST"]["goals"]["RAID"]["heroTalents"]["deathbringer"]["targets"][
             "targetMetadata"
         ]
@@ -712,9 +337,7 @@ class BuildAllTests(unittest.TestCase):
                 "statPriority": {"value": {"all": {"mplus": {"secondary": [["crit"], ["haste"]]}}}, "source": "ugg"},
             }
         }
-        reconstructed = {"ratings": {"crit": 500.0, "haste": 500.0, "mastery": 500.0, "versatility": 500.0}}
-        with patch("tools.classcodex_targets.run_simc", return_value=({"sv_0001": reconstructed}, {})):
-            data = build_all(specs, Path("simc"), goals=("MYTHIC_PLUS", "RAID"))
+        data = build_all(specs, goals=("MYTHIC_PLUS", "RAID"), wowhead_reconstruct=fake_wowhead())
 
         # Keyed by the addon's own (uppercase) spec key, not ClassCodex's raw casing.
         self.assertEqual(["DEATHKNIGHT_BLOOD"], list(data["profiles"]))
@@ -727,7 +350,7 @@ class BuildAllTests(unittest.TestCase):
         self.assertEqual(1, len(mplus_context["priorityProfiles"]))
         self.assertNotIn("PVP", profile["goals"])  # no PVP data anywhere in this fixture
 
-    def test_overall_has_its_own_list_and_takes_its_talents_from_mythic_plus(self) -> None:
+    def test_overall_has_its_own_list(self) -> None:
         specs = {
             "DEATHKNIGHT_frost": {
                 "gear": {"value": {"all": {
@@ -738,20 +361,19 @@ class BuildAllTests(unittest.TestCase):
                 "statPriority": {"value": {"all": {"all": {"secondary": [["crit"], ["haste"]]}}}},
             }
         }
-        with patch("tools.classcodex_targets.run_simc", return_value=GOOD) as run:
-            data = build_all(specs, Path("simc"), goals=("OVERALL", "MYTHIC_PLUS"))
+        calls: list = []
+        data = build_all(specs, goals=("OVERALL", "MYTHIC_PLUS"), wowhead_reconstruct=fake_wowhead(calls=calls))
         goals = data["profiles"]["DEATHKNIGHT_FROST"]["goals"]
         overall = goals["OVERALL"]["heroTalents"]["deathbringer"]
         mplus = goals["MYTHIC_PLUS"]["heroTalents"]["deathbringer"]
         self.assertEqual(11, overall["bis"]["slots"][0]["item"]["item_id"])
         self.assertEqual(22, mplus["bis"]["slots"][0]["item"]["item_id"])
-        self.assertNotIn("recovery", overall["targets"]["targetMetadata"])  # talents are found, not borrowed
         self.assertEqual("Overall", overall["priorityProfiles"][0]["context"])
-        self.assertEqual(2, run.call_count)
+        self.assertEqual(2, len(calls))
 
     def test_skips_a_spec_key_not_in_the_catalog(self) -> None:
         specs = {"NOTASPEC_madeup": {"gear": {"value": {}, "source": "ugg"}}}
-        data = build_all(specs, Path("simc"))
+        data = build_all(specs, wowhead_reconstruct=fake_wowhead())
         self.assertEqual({}, data["profiles"])
 
 
@@ -776,7 +398,7 @@ class PvpEnchantScrollTests(unittest.TestCase):
     def test_an_unknown_bare_scroll_id_is_kept_for_display_but_never_simulated(self) -> None:
         upgrades = select_loadout_upgrades(self.ENCHANTS, None, "hero", "PVP")
         self.assertEqual({"item_id": 999999}, upgrades.enchants["CHEST"])
-        items = build_simc_items([{"itemId": 5, "slot": "Chest"}], upgrades)
+        items = build_loadout_items([{"itemId": 5, "slot": "Chest"}], upgrades)
         self.assertNotIn("enchantIds", items["CHEST"])
 
 
@@ -826,10 +448,7 @@ class CoverageReportTests(unittest.TestCase):
                 "gems": {"value": {"all": {"all": [{"primary": 1, "secondary": [2]}]}}},
             }
         }
-        reconstructed = {"ratings": {"crit": 1.0, "haste": 2.0}, "item_levels": {"head": 289.0}}
-        with patch("tools.classcodex_targets.run_simc", return_value=({"sv_0001": reconstructed}, {})), \
-                redirect_stderr(io.StringIO()):
-            data = build_all(specs, Path("simc"), goals=("RAID", "PVP"))
+        data = build_all(specs, goals=("RAID", "PVP"), wowhead_reconstruct=fake_wowhead())
         goals = data["profiles"]["DEATHKNIGHT_FROST"]["goals"]
         raid = goals["RAID"]["heroTalents"]["deathbringer"]["targets"]["targetMetadata"]
         pvp = goals["PVP"]["heroTalents"]["deathbringer"]["targets"]["targetMetadata"]
@@ -842,9 +461,9 @@ class CoverageReportTests(unittest.TestCase):
         self.assertIn("contexts by gear source: ugg: 1", report)
         self.assertIn("trinket count distribution (length: contexts): 2: 1", report)
         # Only the Head slot exists: its Icy Veins scroll translates.
-        self.assertIn("enchants on BiS slots: total 1, translated 1, untranslated (shown, not simulated) 0", report)
+        self.assertIn("enchants on BiS slots: total 1, translated 1, untranslated (shown, not counted) 0", report)
         self.assertIn("gems: with gems: 1", report)
-        self.assertIn("averageItemLevel: present: 1 (source simc: 1)", report)
+        self.assertIn("averageItemLevel: present: 1 (source wowhead: 1)", report)
 
     def test_empty_document(self) -> None:
         from tools.classcodex_targets import format_coverage_report
@@ -852,9 +471,8 @@ class CoverageReportTests(unittest.TestCase):
         self.assertIn("no contexts", format_coverage_report({"profiles": {}}))
 
 
-class IcyVeinsItemLevelTests(unittest.TestCase):
-    """Icy Veins gear has bonusIDs but no ilvl: averageItemLevel comes from
-    the item levels SimC reports for the simulated items."""
+class GearSumItemLevelTests(unittest.TestCase):
+    """The average item level is the one the lookup reports for the pieces (Icy Veins gear has bonusIDs but no ilvl)."""
 
     spec = SPEC_BY_KEY["DEATHKNIGHT_FROST"]
     gear = [
@@ -862,33 +480,28 @@ class IcyVeinsItemLevelTests(unittest.TestCase):
         {"itemId": 2, "slot": "Neck", "bonusIDs": [13848]},
     ]
 
-    def simulate(self, reconstructed, gear=None):
-        with patch(
-            "tools.classcodex_targets.run_simc", return_value=({"sv_0001": reconstructed}, {})
-        ) as mock_run, redirect_stderr(io.StringIO()):
-            context = reconstruct_target_context(self.spec, "RAID", gear or self.gear, "X")
-        return context, mock_run.call_args.args[1]
+    @staticmethod
+    def lookup(levels):
+        def reconstruct(items, primary=None, **_kwargs):
+            slots = {slot: ({"wowheadItemLevel": levels[slot]} if slot in levels else {}) for slot in items}
+            return {"totals": {"crit": 1.0, "haste": 2.0}, "slots": slots, "failures": []}
 
-    def test_average_item_level_comes_from_the_simc_report(self) -> None:
-        context, _ = self.simulate({"ratings": {"crit": 1.0, "haste": 2.0}, "item_levels": {"head": 289.0, "neck": 285.0}})
+        return reconstruct
+
+    def test_average_item_level_comes_from_the_lookup(self) -> None:
+        context = gear_sum_target_context(self.spec, "RAID", self.gear, self.lookup({"HEAD": 289, "NECK": 285}))
         targets = context["targets"]
         self.assertEqual(287.0, targets["averageItemLevel"])
         self.assertEqual(2, targets["itemLevelSlots"])
-        self.assertEqual("simc", targets["targetMetadata"]["itemLevelSource"])
+        self.assertEqual("wowhead", targets["targetMetadata"]["itemLevelSource"])
 
-    def test_without_report_item_levels_the_average_stays_none(self) -> None:
-        context, _ = self.simulate({"ratings": {"crit": 1.0, "haste": 2.0}})
+    def test_without_item_levels_the_average_stays_none(self) -> None:
+        context = gear_sum_target_context(self.spec, "RAID", self.gear, self.lookup({}))
         self.assertIsNone(context["targets"]["averageItemLevel"])
         self.assertEqual(0, context["targets"]["itemLevelSlots"])
         self.assertEqual("none", context["targets"]["targetMetadata"]["itemLevelSource"])
 
-    def test_gear_ilvl_still_wins_when_present(self) -> None:
-        gear = [{"itemId": 1, "slot": "Head", "ilvl": 300}]
-        context, _ = self.simulate({"ratings": {"crit": 1.0, "haste": 2.0}, "item_levels": {"head": 250.0}}, gear)
-        self.assertEqual(300.0, context["targets"]["averageItemLevel"])
-        self.assertEqual("classcodex", context["targets"]["targetMetadata"]["itemLevelSource"])
-
-    def test_a_catalyst_entry_simulates_and_shows_the_tier_piece_at_max_upgrade(self) -> None:
+    def test_a_catalyst_entry_looks_up_and_shows_the_tier_piece_at_max_upgrade(self) -> None:
         gear = [
             {
                 "slot": "Head",
@@ -897,10 +510,11 @@ class IcyVeinsItemLevelTests(unittest.TestCase):
                 "catalyst": {"itemId": 271875, "bonusIDs": [13848, 13847]},
             }
         ]
-        context, profile = self.simulate({"ratings": {"crit": 1.0, "haste": 2.0}}, gear)
+        calls: list = []
+        context = gear_sum_target_context(self.spec, "RAID", gear, fake_wowhead(calls=calls))
         # The top-level item is the BiS tier piece; the catalyst block names the base item that
         # converts into it and carries the max-upgrade bonus ids.
-        self.assertIn("head=,id=271537,bonus_id=13848/13847", profile)
+        self.assertEqual({"itemId": 271537, "bonusIds": [13848, 13847]}, calls[0]["HEAD"])
         self.assertEqual({"item_id": 271537, "bonus_ids": [13848, 13847]}, context["bis"]["slots"][0]["item"])
 
 
@@ -921,15 +535,16 @@ class IcyVeinsEnchantTranslationTests(unittest.TestCase):
             {"itemId": 2, "slot": "Off Hand", "bonusIDs": [13848]},
             {"itemId": 3, "slot": "Head", "bonusIDs": [13848]},
         ]
-        items = build_simc_items(gear, upgrades)
+        items = build_loadout_items(gear, upgrades)
         self.assertNotIn("enchantIds", items["CHEST"])
         self.assertNotIn("enchantIds", items["OFF_HAND"])
         self.assertEqual([8017], items["HEAD"]["enchantIds"])
-        with patch("tools.classcodex_targets.run_simc", return_value=GOOD) as mock_run, redirect_stderr(io.StringIO()):
-            context = reconstruct_target_context(SPEC_BY_KEY["DEATHKNIGHT_FROST"], "RAID", gear, "X", upgrades=upgrades)
-        profile = mock_run.call_args.args[1]
-        self.assertNotIn("777777", profile)
-        self.assertNotIn("62158", profile)
+        calls: list = []
+        context = gear_sum_target_context(
+            SPEC_BY_KEY["DEATHKNIGHT_FROST"], "RAID", gear, fake_wowhead(calls=calls), upgrades=upgrades)
+        looked_up = str(calls[0])
+        self.assertNotIn("777777", looked_up)
+        self.assertNotIn("62158", looked_up)
         slots = {slot["slot"]: slot["item"] for slot in context["bis"]["slots"]}
         self.assertEqual({"item_id": 777777}, slots["Chest"]["enchant"])
         self.assertEqual({"spell_id": 62158}, slots["Off Hand"]["enchant"])
@@ -941,18 +556,16 @@ class IcyVeinsEnchantTranslationTests(unittest.TestCase):
         self.assertEqual({"primary": 240967, "secondary": 240908}, select_loadout_upgrades(None, gems, "hero", "RAID").gems)
 
     def test_bis_has_no_gems_key_without_gems_and_no_per_slot_gem_ids(self) -> None:
-        with patch("tools.classcodex_targets.run_simc", return_value=GOOD), redirect_stderr(io.StringIO()):
-            context = reconstruct_target_context(
-                SPEC_BY_KEY["DEATHKNIGHT_FROST"], "RAID", UPGRADE_GEAR, "X",
-                upgrades=select_loadout_upgrades(ENCHANTS, None, "all", "RAID"),
-            )
+        context = gear_sum_target_context(
+            SPEC_BY_KEY["DEATHKNIGHT_FROST"], "RAID", UPGRADE_GEAR, fake_wowhead(),
+            upgrades=select_loadout_upgrades(ENCHANTS, None, "all", "RAID"),
+        )
         self.assertNotIn("gems", context["bis"])
         self.assertEqual(0, context["targets"]["targetMetadata"]["gemCount"])
-        with patch("tools.classcodex_targets.run_simc", return_value=GOOD), redirect_stderr(io.StringIO()):
-            context = reconstruct_target_context(
-                SPEC_BY_KEY["DEATHKNIGHT_FROST"], "RAID", UPGRADE_GEAR, "X",
-                upgrades=select_loadout_upgrades(None, GEMS, "all", "PVP"),
-            )
+        context = gear_sum_target_context(
+            SPEC_BY_KEY["DEATHKNIGHT_FROST"], "RAID", UPGRADE_GEAR, fake_wowhead(),
+            upgrades=select_loadout_upgrades(None, GEMS, "all", "PVP"),
+        )
         self.assertEqual({"secondary": 240900}, context["bis"]["gems"])
         for slot in context["bis"]["slots"]:
             self.assertNotIn("gem_ids", slot["item"])
@@ -966,9 +579,9 @@ class IcyVeinsEnchantTranslationTests(unittest.TestCase):
                 "enchantLookup": {"value": LOOKUP, "source": "ugg+gamedata"},
             }
         }
-        with patch("tools.classcodex_targets.run_simc", return_value=GOOD) as mock_run:
-            build_all(specs, Path("simc"), goals=("RAID",))
-        self.assertIn("enchant_id=8017", mock_run.call_args.args[1])
+        calls: list = []
+        build_all(specs, goals=("RAID",), wowhead_reconstruct=fake_wowhead(calls=calls))
+        self.assertEqual([8017], calls[0]["HEAD"]["enchantIds"])
 
 
 class NoAlternativesTests(unittest.TestCase):
@@ -979,10 +592,9 @@ class NoAlternativesTests(unittest.TestCase):
 
     def test_bis_slots_never_carry_alternatives(self) -> None:
         upgrades = select_loadout_upgrades(ENCHANTS, GEMS, "all", "RAID")
-        with patch("tools.classcodex_targets.run_simc", return_value=GOOD), redirect_stderr(io.StringIO()):
-            context = reconstruct_target_context(
-                SPEC_BY_KEY["DEATHKNIGHT_FROST"], "RAID", UPGRADE_GEAR, "X", upgrades=upgrades
-            )
+        context = gear_sum_target_context(
+            SPEC_BY_KEY["DEATHKNIGHT_FROST"], "RAID", UPGRADE_GEAR, fake_wowhead(), upgrades=upgrades
+        )
         for slot in context["bis"]["slots"]:
             self.assertNotIn("gem_alt_id", slot["item"])
             self.assertNotIn("enchant_alt", slot["item"])
@@ -1004,11 +616,8 @@ class WowheadItemLevelTests(unittest.TestCase):
         self.assertEqual({"HEAD": 334.0, "NECK": 344.0}, levels)
 
 
-
 class AnnotatedPriorityEntryTests(unittest.TestCase):
     def test_icy_veins_stat_notes_keep_the_stat(self) -> None:
-        from tools.classcodex_targets import priority_row_from_context
-
         row = priority_row_from_context(
             {"secondary": [[{"stat": "versatility", "note": "to 24%"}], ["mastery"], ["haste"], ["crit"]]}, "PvP", "hero"
         )
@@ -1017,20 +626,124 @@ class AnnotatedPriorityEntryTests(unittest.TestCase):
 
 class CatalystEntryTests(unittest.TestCase):
     def test_the_bis_item_is_the_tier_piece_and_keeps_the_catalyst_bonus_ids(self) -> None:
-        from tools.classcodex_targets import gear_by_simc_slot
+        from tools.classcodex_targets import gear_by_slot
 
         entry = {"slot": "Head", "itemId": 271483, "source": "Catalyst from Voidscar Arena",
                  "catalyst": {"itemId": 251220, "bonusIDs": [12854]}}
-        head = gear_by_simc_slot([entry])["HEAD"]
+        head = gear_by_slot([entry])["HEAD"]
         self.assertEqual(271483, head["itemId"])
         self.assertEqual([12854], head["bonusIDs"])
         self.assertNotIn("catalyst", head)
 
     def test_entries_without_a_catalyst_block_are_unchanged(self) -> None:
-        from tools.classcodex_targets import gear_by_simc_slot
+        from tools.classcodex_targets import gear_by_slot
 
-        head = gear_by_simc_slot([{"slot": "Head", "itemId": 1, "bonusIDs": [5]}])["HEAD"]
+        head = gear_by_slot([{"slot": "Head", "itemId": 1, "bonusIDs": [5]}])["HEAD"]
         self.assertEqual((1, [5]), (head["itemId"], head["bonusIDs"]))
+
+
+class GearSumTargetsTests(unittest.TestCase):
+    """The targets as the plain sum of the guide's pieces: no simulation, every piece moved to the 6/6 of the tier."""
+
+    spec = SPEC_BY_KEY["MONK_WINDWALKER"]
+    track_swap = TrackSwap(
+        swap={"myth": {12806: 12854}, "hero": {12806: 12846, 12854: 12846}, "champion": {12806: 12838, 12854: 12838, 12846: 12838}},
+        item_levels={"myth": 334, "hero": 321, "champion": 308},
+        unmapped={},
+        track_of={12806: "myth", 12854: "myth", 12846: "hero", 12838: "champion"},
+        top={"myth": 12854, "hero": 12846, "champion": 12838},
+    )
+    gear = [
+        {"itemId": 1, "slot": "Head", "bonusIDs": [12806, 13367]},   # an older Myth rank
+        {"itemId": 2, "slot": "Chest", "bonusIDs": []},             # a tier piece listed without ids
+        {"itemId": 3, "slot": "Wrist", "bonusIDs": [13751, 12497]},  # crafted: no upgrade track
+    ]
+
+    def run_context(self, goal: str = "MYTHIC_PLUS", track_swap=None):
+        asked: list[dict] = []
+
+        def reconstruct(items, primary=None):
+            asked.append(items)
+            level = {12854: 334, 12846: 321, 12838: 308}
+            total = 0
+            slots = {}
+            for slot, item in items.items():
+                ids = item.get("bonusIds") or []
+                ilvl = next((level[i] for i in ids if i in level), 280)
+                slots[slot] = {"wowheadItemLevel": ilvl}
+                total += ilvl
+            return {"totals": {"crit": total, "haste": total // 2}, "slots": slots, "failures": []}
+
+        context = gear_sum_target_context(self.spec, goal, self.gear, reconstruct, track_swap=track_swap or self.track_swap)
+        return context["targets"], asked
+
+    def test_every_piece_is_moved_to_the_6_of_the_tier_and_crafted_stays(self) -> None:
+        targets, asked = self.run_context()
+        by_tier = {tier: {slot: item.get("bonusIds") for slot, item in items.items()} for tier, items in zip(("myth", "hero", "champion"), asked)}
+        self.assertEqual({"HEAD": [12854, 13367], "CHEST": [12854], "WRIST": [13751, 12497]}, by_tier["myth"])
+        self.assertEqual({"HEAD": [12846, 13367], "CHEST": [12846], "WRIST": [13751, 12497]}, by_tier["hero"])
+        self.assertEqual({"HEAD": [12838, 13367], "CHEST": [12838], "WRIST": [13751, 12497]}, by_tier["champion"])
+
+    def test_the_tiers_grow_and_the_stats_are_the_sums(self) -> None:
+        targets, _asked = self.run_context()
+        champion = targets["levels"]["champion"]["statTargets"]["stats"]["critical_strike"]
+        hero = targets["levels"]["hero"]["statTargets"]["stats"]["critical_strike"]
+        myth = targets["statTargets"]["stats"]["critical_strike"]
+        self.assertEqual((308 + 308 + 280, 321 + 321 + 280, 334 + 334 + 280), (champion, hero, myth))
+        self.assertLess(champion, hero)
+        self.assertLess(hero, myth)
+        self.assertAlmostEqual((334 + 334 + 280) / 3, targets["averageItemLevel"])
+        self.assertEqual("wowhead", targets["targetMetadata"]["itemLevelSource"])
+
+    def test_pvp_gear_has_no_tracks_so_no_levels(self) -> None:
+        targets, asked = self.run_context("PVP")
+        self.assertNotIn("levels", targets)
+        self.assertEqual(1, len(asked))
+        self.assertEqual([12806, 13367], asked[0]["HEAD"]["bonusIds"])
+
+    def test_without_the_track_tables_only_the_listed_levels_are_summed(self) -> None:
+        with patch("tools.classcodex_targets.wowhead_gear_stats", return_value=({"critical_strike": 5.0, "haste": 4.0}, {})) as stats:
+            context = gear_sum_target_context(self.spec, "RAID", self.gear, lambda *a, **k: {})
+        self.assertEqual(1, stats.call_count)
+        self.assertNotIn("levels", context["targets"])
+
+    def test_the_base_rating_of_the_spec_is_added_to_every_tier(self) -> None:
+        def reconstruct(items, primary=None):
+            return {"totals": {"crit": 100, "haste": 50}, "slots": {}, "failures": []}
+
+        plain = gear_sum_target_context(self.spec, "RAID", self.gear, reconstruct, track_swap=self.track_swap)["targets"]
+        base = {"critical_strike": 200.0, "haste": 30.0}
+        with_base = gear_sum_target_context(
+            self.spec, "RAID", self.gear, reconstruct, track_swap=self.track_swap, base_stats=base)["targets"]
+        self.assertEqual(plain["statTargets"]["stats"]["critical_strike"] + 200, with_base["statTargets"]["stats"]["critical_strike"])
+        for tier in ("hero", "champion"):
+            self.assertEqual(plain["levels"][tier]["statTargets"]["stats"]["haste"] + 30,
+                             with_base["levels"][tier]["statTargets"]["stats"]["haste"])
+        self.assertEqual(base, with_base["targetMetadata"]["baseStats"])
+        self.assertNotIn("baseStats", plain["targetMetadata"])
+
+    def test_the_shipped_base_ratings_cover_every_spec(self) -> None:
+        base = load_spec_base_stats()
+        self.assertEqual(40, len(base))
+        self.assertGreater(base["DEATHKNIGHT_FROST"]["critical_strike"], 150)
+        self.assertEqual({"critical_strike": 3.0, "haste": 5.0}, add_base_stats({"critical_strike": 1.0, "haste": 2.0}, {"critical_strike": 2.0, "haste": 3.0}))
+        self.assertEqual({"haste": 2.0}, add_base_stats({"haste": 2.0}, None))
+
+    def test_build_all_uses_the_gear_sums(self) -> None:
+        specs = {
+            "MONK_windwalker": {
+                "gear": {"value": {"all": {"mplus": self.gear}}, "source": "icyveins"},
+                "talents": {"value": {"shado-pan": {"mplus": [{"export": "X"}]}}},
+            }
+        }
+        def reconstruct(items, primary=None):
+            return {"totals": {"crit": 100, "haste": 50}, "slots": {}, "failures": []}
+
+        data = build_all(specs, goals=("MYTHIC_PLUS",), wowhead_reconstruct=reconstruct, track_swap=self.track_swap)
+        context = data["profiles"]["MONK_WINDWALKER"]["goals"]["MYTHIC_PLUS"]["heroTalents"]["shado-pan"]
+        self.assertEqual("ClassCodex BiS + gear totals (Wowhead item tooltips)", context["targets"]["statTargets"]["source"])
+        self.assertEqual(3, len(context["bis"]["slots"]))
+        self.assertEqual("icyveins", context["targets"]["targetMetadata"]["gearSource"])
 
 
 if __name__ == "__main__":

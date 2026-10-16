@@ -10,7 +10,9 @@ from unittest.mock import patch
 from tools import classcodex_targets_cli
 from tools.classcodex_fetch import FetchResult
 from tools.classcodex_lua_sandbox import run_addon_namespace
+from tools.classcodex_targets import load_spec_base_stats
 from tools.classcodex_targets_cli import render_lua
+from tools.tests.wowhead_fakes import fake_wowhead
 
 
 class RenderLuaTests(unittest.TestCase):
@@ -59,33 +61,32 @@ def spec_fields(export: str) -> dict:
 
 
 SPECS = {"DEATHKNIGHT_frost": spec_fields("DK"), "PALADIN_holy": spec_fields("HPAL")}
-GOOD = ({"sv_0001": {"ratings": {"crit": 1.0, "haste": 2.0}}}, {})
 
 
-def fake_run_simc(_binary, profile_text, **_kwargs):
-    if 'paladin="' in profile_text:
-        raise RuntimeError("Player sv_0001 is using an unsupported spec")
-    return GOOD
-
-
-class WowheadFallbackCliTests(unittest.TestCase):
-    def test_an_unreachable_wowhead_only_skips_the_affected_combos(self) -> None:
+class WowheadCliTests(unittest.TestCase):
+    def test_an_unreachable_wowhead_skips_the_combos_and_the_run_is_reported(self) -> None:
         fetched = FetchResult(build_id="b1", published_at="2026-09-29", sources={})
         stderr = io.StringIO()
-        with tempfile.TemporaryDirectory() as tmp, redirect_stderr(stderr), redirect_stdout(io.StringIO()), \
-                patch("tools.classcodex_targets_cli.fetch_all", return_value=fetched), \
-                patch("tools.classcodex_targets_cli.build", return_value=SPECS), \
-                patch("tools.classcodex_targets_cli.load_track_swap", return_value=None), \
-                patch("tools.classcodex_targets.run_simc", side_effect=fake_run_simc), \
-                patch("tools.classcodex_targets_cli.reconstruct_loadout", side_effect=OSError("network down")) as wowhead:
+        with tempfile.TemporaryDirectory() as tmp, redirect_stderr(stderr), redirect_stdout(io.StringIO()),                 patch("tools.classcodex_targets_cli.fetch_all", return_value=fetched),                 patch("tools.classcodex_targets_cli.build", return_value=SPECS),                 patch("tools.classcodex_targets_cli.load_track_swap", return_value=None),                 patch("tools.classcodex_targets_cli.reconstruct_loadout", side_effect=OSError("network down")):
             out = Path(tmp) / "SV_ClassCodexTargets.lua"
-            code = classcodex_targets_cli.main(["--simc-bin", "simc", "--out", str(out), "--allow-missing-track-levels"])
+            code = classcodex_targets_cli.main(["--out", str(out), "--allow-missing-track-levels"])
+            self.assertFalse(out.exists())  # nothing came out: the file is not written
+        self.assertEqual(1, code)
+        self.assertIn("PALADIN_HOLY/RAID/all: Wowhead lookup failed", stderr.getvalue())
+        self.assertIn("Refusing to write", stderr.getvalue())
+
+    def test_a_good_run_writes_the_file_and_the_log_carries_the_checks(self) -> None:
+        fetched = FetchResult(build_id="20261014113733-abc-def", published_at="2026-10-14", sources={})
+        stderr = io.StringIO()
+        with tempfile.TemporaryDirectory() as tmp, redirect_stderr(stderr), redirect_stdout(io.StringIO()),                 patch("tools.classcodex_targets_cli.fetch_all", return_value=fetched),                 patch("tools.classcodex_targets_cli.build", return_value=SPECS),                 patch("tools.classcodex_targets_cli.load_track_swap", return_value=None),                 patch("tools.classcodex_targets_cli.reconstruct_loadout", side_effect=fake_wowhead()):
+            out = Path(tmp) / "SV_ClassCodexTargets.lua"
+            report = Path(tmp) / "carry.txt"
+            code = classcodex_targets_cli.main(["--out", str(out), "--allow-missing-track-levels", "--carry-report", str(report)])
             self.assertTrue(out.exists())
+            self.assertIn("nothing needed", report.read_text(encoding="utf-8"))
         self.assertEqual(0, code)
-        wowhead.assert_called_once()  # only for the spec SimC cannot initialise
-        self.assertIn("PALADIN_HOLY/RAID/all: wowhead fallback failed", stderr.getvalue())
-        # The CI log carries the tier targets sanity check.
         self.assertIn("Tier targets sanity", stderr.getvalue())
+        self.assertIn("Carry-over", stderr.getvalue())
 
 
 class TrackSwapCliTests(unittest.TestCase):
@@ -98,20 +99,15 @@ class TrackSwapCliTests(unittest.TestCase):
 
     def run_cli(self, track_swap):
         fetched = FetchResult(build_id="b1", published_at="2026-09-29", sources={})
-        levels = {
-            "sv_0001": {"ratings": {"crit": 0.9, "haste": 1.8}, "item_levels": {"head": 321.0}},
-            "sv_0002": {"ratings": {"crit": 0.8, "haste": 1.6}, "item_levels": {"head": 308.0}},
-        }
-        runs = [GOOD, (levels, {})]
         stderr = io.StringIO()
         with tempfile.TemporaryDirectory() as tmp, redirect_stderr(stderr), redirect_stdout(io.StringIO()), \
                 patch("tools.classcodex_targets_cli.fetch_all", return_value=fetched), \
                 patch("tools.classcodex_targets_cli.build", return_value=self.specs), \
                 patch("tools.classcodex_targets_cli.load_track_swap", return_value=track_swap) as loader, \
-                patch("tools.classcodex_targets.run_simc", side_effect=lambda *_a, **_k: runs.pop(0)):
+                patch("tools.classcodex_targets_cli.reconstruct_loadout", side_effect=fake_wowhead()):
             out = Path(tmp) / "SV_ClassCodexTargets.lua"
             extra = ["--allow-missing-track-levels"] if track_swap is None else []
-            code = classcodex_targets_cli.main(["--simc-bin", "simc", "--out", str(out), *extra])
+            code = classcodex_targets_cli.main(["--out", str(out), *extra])
             namespace = run_addon_namespace(out.read_text(encoding="utf-8"), "t.lua", addon_name="StatVerdict")
         self.assertEqual(0, code)
         loader.assert_called_once_with(self.specs)
@@ -124,14 +120,14 @@ class TrackSwapCliTests(unittest.TestCase):
                 patch("tools.classcodex_targets_cli.fetch_all", return_value=fetched), \
                 patch("tools.classcodex_targets_cli.build", return_value=self.specs), \
                 patch("tools.classcodex_targets_cli.load_track_swap", return_value=None), \
-                patch("tools.classcodex_targets.run_simc") as simc:
+                patch("tools.classcodex_targets_cli.reconstruct_loadout") as wowhead:
             out = Path(tmp) / "SV_ClassCodexTargets.lua"
             out.write_text("OLD GOOD DATA", encoding="utf-8")
-            code = classcodex_targets_cli.main(["--simc-bin", "simc", "--out", str(out)])
+            code = classcodex_targets_cli.main(["--out", str(out)])
             kept = out.read_text(encoding="utf-8")
         self.assertEqual(1, code)
         self.assertEqual("OLD GOOD DATA", kept)
-        simc.assert_not_called()  # it stops before the long SimC run
+        wowhead.assert_not_called()  # it stops before the long lookup run
         self.assertIn("Refusing to write", stderr.getvalue())
 
     def test_the_file_root_carries_track_swap_and_item_levels(self) -> None:
@@ -149,7 +145,10 @@ class TrackSwapCliTests(unittest.TestCase):
         self.assertEqual({"myth": 334, "hero": 321, "champion": 308}, data["trackItemLevels"])
         self.assertEqual({"myth": 12854, "hero": 12846, "champion": 12838}, data["trackTop"])
         targets = data["profiles"]["DEATHKNIGHT_FROST"]["goals"]["RAID"]["heroTalents"]["all"]["targets"]
-        self.assertEqual({"critical_strike": 0.9, "haste": 1.8}, targets["levels"]["hero"]["statTargets"]["stats"])
+        base = load_spec_base_stats()["DEATHKNIGHT_FROST"]
+        hero = targets["levels"]["hero"]["statTargets"]["stats"]
+        self.assertEqual(100.0 + base["critical_strike"], hero["critical_strike"])  # the pieces' totals plus the base rating
+        self.assertEqual(321.0, targets["levels"]["hero"]["averageItemLevel"])
         self.assertEqual(308.0, targets["levels"]["champion"]["averageItemLevel"])
         self.assertIn("track swap hero: 1 id(s) mapped, 0 unmapped", log)
 

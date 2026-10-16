@@ -1,6 +1,6 @@
 """End-to-end: raw ClassCodex Lua source -> tools.classcodex_build.build() ->
 tools.classcodex_targets.build_all,
-with only SimulationCraft mocked.
+with only the Wowhead item lookup faked.
 
 The fixture mirrors the layout of the REAL live data (verified against build
 20260928064230-9b041a5-43564495 on 2026-09-28), which differs from what the
@@ -19,11 +19,10 @@ This is the test that would have caught the missing `talents` extraction.
 from __future__ import annotations
 
 import unittest
-from pathlib import Path
-from unittest.mock import patch
 
 from tools.classcodex_build import build
 from tools.classcodex_targets import build_all
+from tools.tests.wowhead_fakes import fake_wowhead
 
 SLOTS = (
     "Head", "Neck", "Shoulders", "Back", "Chest", "Wrist", "Hands", "Waist",
@@ -84,27 +83,19 @@ REAL_SHAPED_SOURCES = {
     "db_icyveins": "ClassCodexSource = ClassCodexSource or {}\n",
 }
 
-RECONSTRUCTED = {"ratings": {"crit": 1500.0, "haste": 1200.0, "mastery": 1800.0, "versatility": 700.0}}
-
 
 class RealShapedPipelineTests(unittest.TestCase):
     def setUp(self) -> None:
         self.specs = build(REAL_SHAPED_SOURCES)
 
-    def test_build_extracts_every_field_the_simc_pipelines_need(self) -> None:
+    def test_build_extracts_every_field_the_targets_pipeline_needs(self) -> None:
         spec = self.specs["DEATHKNIGHT_frost"]
         for field_name in ("gear", "talents", "trinkets", "statPriority"):
             self.assertIn(field_name, spec)
 
     def test_targets_pipeline_produces_every_goal_for_every_hero_talent(self) -> None:
-        profiles_seen: list[str] = []
-
-        def fake_run_simc(_binary, profile_text, **_kwargs):
-            profiles_seen.append(profile_text)
-            return {"sv_0001": RECONSTRUCTED}, {}
-
-        with patch("tools.classcodex_targets.run_simc", side_effect=fake_run_simc):
-            data = build_all(self.specs, Path("simc"))
+        looked_up: list = []
+        data = build_all(self.specs, wowhead_reconstruct=fake_wowhead(calls=looked_up))
 
         self.assertTrue(data["profiles"], "real-shaped data must produce at least one profile")
         profile = data["profiles"]["DEATHKNIGHT_FROST"]
@@ -116,9 +107,9 @@ class RealShapedPipelineTests(unittest.TestCase):
             )
 
         mplus = profile["goals"]["MYTHIC_PLUS"]["heroTalents"]["deathbringer"]
-        # Mythic+ gear came from hero "all" (with ilvl), trinkets from all/all,
-        # priority from the hero's "aoe" list (mastery first), labelled for the goal.
-        self.assertAlmostEqual(330.9375, mplus["targets"]["averageItemLevel"])  # 16 slots at ilvl 330-332
+        # Mythic+ gear came from hero "all", trinkets from all/all, priority from the hero's "aoe" list (mastery
+        # first), labelled for the goal. The item level is the one the lookup reports for the pieces (the fake: 280).
+        self.assertAlmostEqual(280.0, mplus["targets"]["averageItemLevel"])
         self.assertEqual([270175, 270176], [t["item_id"] for t in mplus["trinkets"]])
         self.assertEqual("Mythic+", mplus["priorityProfiles"][0]["context"])
         self.assertEqual("mastery", mplus["priorityProfiles"][0]["order"][0])
@@ -133,18 +124,13 @@ class RealShapedPipelineTests(unittest.TestCase):
         self.assertEqual("Raid", raid["priorityProfiles"][0]["context"])
 
         pvp = profile["goals"]["PVP"]["heroTalents"]["rider-of-the-apocalypse"]
-        self.assertIsNone(pvp["targets"]["averageItemLevel"])  # real PvP gear has no ilvl
         self.assertEqual([280001], [t["item_id"] for t in pvp["trinkets"]])
         self.assertEqual("PvP", pvp["priorityProfiles"][0]["context"])
 
-        # Each goal used the hero's own top-picked talent build for that goal,
-        # never a per-encounter variant.
-        talents_used = sorted(line for text in profiles_seen for line in text.splitlines() if line.startswith("talents="))
-        self.assertIn("talents=DB-MPLUS-TOP", talents_used)
-        self.assertIn("talents=RIDER-RAID-TOP", talents_used)
-        self.assertIn("talents=DB-PVP", talents_used)
-        self.assertNotIn("talents=DB-DUNGEON", talents_used)
-        self.assertEqual(6, len(profiles_seen))  # 3 goals x 2 hero talents
+        # 3 goals x 2 hero trees, each looked up once (no upgrade tracks given: no Hero / Champion levels). The
+        # fixture has no "all" gear list, so there is no Overall context here.
+        self.assertEqual(6, len(looked_up))
+
 
 if __name__ == "__main__":
     unittest.main()
