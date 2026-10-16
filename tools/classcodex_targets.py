@@ -680,40 +680,6 @@ WOWHEAD_TARGET_SOURCE = "ClassCodex BiS + Wowhead gear totals (no SimC support f
 # targetMetadata.recovery so it stays auditable.
 
 
-# u.gg's own stat targets (ClassCodex `statTargets`): one context key per
-# goal (no aoe/single-target/"all" fallback exists upstream) and the three
-# percentile bins the official ClassCodex addon offers (top20 is its default).
-GUIDE_TARGET_CONTEXT_KEY: dict[str, str] = {"MYTHIC_PLUS": "mplus", "RAID": "raid", "PVP": "pvp"}
-GUIDE_TARGET_BINS: tuple[str, ...] = ("top20", "top50", "top80")
-
-
-def guide_targets_for(stat_targets_value: Any, hero_talent_key: str, goal: str) -> dict[str, dict[str, float]] | None:
-    """u.gg's stat targets for one goal/hero talent as
-    {bin: {canonical stat: rating}}, taken from the hero talent's entry,
-    falling back to hero "all" (as the official ClassCodex addon does).
-    Returns None when u.gg has nothing usable for this goal."""
-    if not isinstance(stat_targets_value, dict):
-        return None
-    context_key = GUIDE_TARGET_CONTEXT_KEY[goal]
-    hero_keys = [hero_talent_key]
-    if hero_talent_key != ALL_HERO_TALENTS_KEY:
-        hero_keys.append(ALL_HERO_TALENTS_KEY)
-    for hero_key in hero_keys:
-        by_context = stat_targets_value.get(hero_key)
-        bins = by_context.get(context_key) if isinstance(by_context, dict) else None
-        if not isinstance(bins, dict):
-            continue
-        result: dict[str, dict[str, float]] = {}
-        for bin_key in GUIDE_TARGET_BINS:
-            raw = bins.get(bin_key)
-            stats = canonical_secondaries(raw) if isinstance(raw, dict) else {}
-            if stats:
-                result[bin_key] = stats
-        if result:
-            return result
-    return None
-
-
 def canonical_secondaries(raw_stats: dict[str, Any]) -> dict[str, float]:
     """The four secondaries of a raw {stat name: number} dict, canonical keys."""
     stats: dict[str, float] = {}
@@ -1104,36 +1070,33 @@ def format_skip_summary(skips: list[SkipRecord], detail_limit: int = 40) -> str:
     return "\n".join(lines)
 
 
-SANITY_GUIDE_BIN = "top50"
-
-
 def format_rating_sanity(data: dict[str, Any]) -> str:
-    """CI-log sanity check: per spec/goal/hero-talent context, our summed
-    secondary rating (statTargets) against u.gg's summed top50 rating
-    (guideTargets), plus the median ratio. A ratio well below 1 means the
-    simulated loadout is missing stats real players have."""
-    lines = [f"Rating sanity (ours vs u.gg {SANITY_GUIDE_BIN}, summed secondary rating):"]
-    ratios: list[float] = []
+    """CI-log sanity check of the tier targets: per spec/goal/hero-talent
+    PvE context, our summed secondary rating at Champion 6/6, Hero 6/6 and Myth 6/6
+    (statTargets). They must grow with the tier; a context without a level, or
+    whose totals do not grow, is listed as a problem."""
+    lines = ["Tier targets sanity (summed secondary rating, Champion < Hero < Myth):"]
+    checked, problems = 0, []
     for spec_key, profile in sorted((data.get("profiles") or {}).items()):
         for goal, goal_data in ((profile or {}).get("goals") or {}).items():
             for hero, context in sorted(((goal_data or {}).get("heroTalents") or {}).items()):
                 targets = (context or {}).get("targets") or {}
-                ours = sum(((targets.get("statTargets") or {}).get("stats") or {}).values())
-                guide = sum(((targets.get("guideTargets") or {}).get(SANITY_GUIDE_BIN) or {}).values())
                 where = f"{spec_key}/{goal}/{hero}"
-                if guide > 0:
-                    ratio = ours / guide
-                    ratios.append(ratio)
-                    lines.append(f"  {where}: ours {ours:.0f} vs u.gg {SANITY_GUIDE_BIN} {guide:.0f} (ratio {ratio:.2f})")
-                else:
-                    lines.append(f"  {where}: ours {ours:.0f} vs u.gg {SANITY_GUIDE_BIN} n/a")
-    if ratios:
-        ordered = sorted(ratios)
-        middle = len(ordered) // 2
-        median = ordered[middle] if len(ordered) % 2 else (ordered[middle - 1] + ordered[middle]) / 2
-        lines.append(f"  median ratio {median:.2f} over {len(ratios)} context(s)")
-    else:
-        lines.append("  no context has u.gg targets to compare")
+                top = sum(((targets.get("statTargets") or {}).get("stats") or {}).values())
+                if goal == "PVP":  # PvP gear has no upgrade tracks: the addon shows one set of targets
+                    continue
+                levels = targets.get("levels") or {}
+                champion = sum((((levels.get("champion") or {}).get("statTargets") or {}).get("stats") or {}).values())
+                hero_total = sum((((levels.get("hero") or {}).get("statTargets") or {}).get("stats") or {}).values())
+                checked += 1
+                if champion <= 0 or hero_total <= 0:
+                    problems.append(f"  {where}: missing Champion/Hero level (Myth {top:.0f})")
+                elif not champion < hero_total < top:
+                    problems.append(
+                        f"  {where}: not growing with the tier (Champion {champion:.0f}, Hero {hero_total:.0f}, Myth {top:.0f})"
+                    )
+    lines.append(f"  {checked} context(s) checked, {len(problems)} problem(s)")
+    lines.extend(problems)
     return "\n".join(lines)
 
 
@@ -1316,7 +1279,6 @@ def build_all(
         talents_value = (fields.get("talents") or {}).get("value")
         trinkets_value = (fields.get("trinkets") or {}).get("value")
         stat_priority_value = (fields.get("statPriority") or {}).get("value")
-        stat_targets_value = (fields.get("statTargets") or {}).get("value")
 
         hero_talent_keys = sorted(_hero_talent_keys(gear_value, talents_value))
         if not hero_talent_keys:
@@ -1358,10 +1320,6 @@ def build_all(
                 gear_source = field_origin(fields.get("gear"), "all", goal)
                 if gear_source:
                     target_context["targets"]["targetMetadata"]["gearSource"] = gear_source
-                # u.gg's own targets, independent of how the SimC run went.
-                guide_targets = guide_targets_for(stat_targets_value, hero_talent_key, goal)
-                if guide_targets:
-                    target_context["targets"]["guideTargets"] = guide_targets
                 target_context["trinkets"] = trinkets_from_entries(guide_trinket_list(trinkets_value, goal, pvp_bonus))
                 row = priority_row_from_context(
                     default_priority(stat_priority_value, hero_talent_key, goal),

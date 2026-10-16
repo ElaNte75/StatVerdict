@@ -37,11 +37,11 @@ local function ActiveProfile()
     return context and context.profile or nil
 end
 
--- A build the guide has no stat targets for shows our own (the stat totals of
--- the best-in-slot gear), which the status line says.
-local function MissingGuideTargets()
+-- A build whose data has no targets for the chosen tier shows the top tier's,
+-- which the status line says.
+local function MissingTierTargets()
     local profile = ActiveProfile()
-    return type(profile) == "table" and profile.guideTargetsMissing == true
+    return type(profile) == "table" and profile.tierTargetsMissing == true
 end
 
 local function PaintRow(row, selected, hovered)
@@ -213,16 +213,16 @@ function Panel.Sync(card)
         PaintRow(row, checked, row.hovered == true)
     end
 
-    -- The status: a build without guide targets (orange), and the one-off notice
+    -- The status: a tier without targets (orange), and the one-off notice
     -- after Auto moved the character up a tier (gold).
     local lines = {}
-    if MissingGuideTargets() then
-        lines[#lines + 1] = "No guide targets for this build: our own are used."
+    if MissingTierTargets() then
+        lines[#lines + 1] = "No targets for this tier yet: the top tier's are shown."
     end
     local notice = choice.selected == "auto" and ns.GetAutoTierNotice(ActiveProfile()) or nil
     if notice then lines[#lines + 1] = notice end
     card.noticeShown = notice ~= nil
-    if MissingGuideTargets() then
+    if MissingTierTargets() then
         card.status:SetTextColor(ORANGE[1], ORANGE[2], ORANGE[3])
     else
         card.status:SetTextColor(GOLD[1], GOLD[2], GOLD[3])

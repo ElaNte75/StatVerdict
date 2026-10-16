@@ -10,15 +10,15 @@ local VALID_GOALS = {
 }
 local DEFAULT_GOAL = "MYTHIC_PLUS"
 
--- The secondary priority, weights and stat targets are exactly what the
--- ClassCodex addon shows: its guide priority list (rank weights) and its u.gg
--- stat targets (targets.guideTargets, bin below). Players read these guides,
--- so the addon must not contradict them. A stat the guide has no target for
--- uses our own SimC total of the best-in-slot gear (targets.statTargets).
+-- The secondary priority and weights are exactly what the guide shows (its
+-- priority list, rank weights). The stat targets are our own: the SimC totals of
+-- the guide's best-in-slot gear, added up per tier -- Tier 3 at Myth 6/6
+-- (targets.statTargets), Tier 2 at Hero 6/6 (targets.levels.hero) and Tier 1 at
+-- Champion 6/6 (targets.levels.champion).
 -- Older saved variables (weightMode, gearLevel) are ignored.
 
--- Which u.gg bin of the guide targets is shown (the ClassCodex addon's default
--- is the top 20%). StatVerdictDB.statTargetBin overrides it: exactly one of
+-- Which tier of the targets is shown. The saved key keeps the old bin names.
+-- StatVerdictDB.statTargetBin overrides it: exactly one of
 --   auto   the tier follows the character's own stats (see ResolveAutoTier): the
 --          default
 --   top80 / top50 / top20   a fixed tier (Tier 1 / 2 / 3).
@@ -346,6 +346,8 @@ end
 -- the items then show as listed. Keys may be numbers or, as the generated file
 -- writes them, strings.
 local TRACK_OF_BIN = { top20 = "myth", top50 = "hero", top80 = "champion" }
+-- The levels of the data whose totals are the targets of the tiers below the top.
+local LEVEL_OF_BIN = { top50 = "hero", top80 = "champion" }
 
 -- The tier whose targets are shown for a spec: its fixed tier, or what Auto chose at the
 -- spec's last profile build (Tier 3 until it chose). Without a spec: the one the Guide
@@ -469,24 +471,24 @@ local function CollectTargetValues(values)
     return count > 0 and result or nil
 end
 
--- The stat targets shown, keyed by runtime stat key, whether the guide
--- (ClassCodex / u.gg) has no targets for this build in the chosen bin, and the
--- item level those targets belong to. The guide's bin is read; our own targets
--- (the SimC totals of the best-in-slot gear) fill the gaps, or stand in for a
--- build the guide has no targets for.
-local function SelectTargetValues(targets, bin)
+-- The stat targets shown, keyed by runtime stat key, whether the data has no
+-- targets of the chosen tier (then the top tier's stand in), and the item level
+-- the targets belong to. All of them are our own SimC totals of the best-in-slot
+-- gear at the upgrade level of the tier. PvP gear has no upgrade tracks: every
+-- tier shows the same targets.
+local function SelectTargetValues(targets, bin, goal)
     local statTargets = type(targets) == "table" and targets.statTargets or nil
-    local own = CollectTargetValues(type(statTargets) == "table" and statTargets.stats or nil) or {}
-    local averageItemLevel = type(targets) == "table" and targets.averageItemLevel or nil
-    local guideRoot = type(targets) == "table" and targets.guideTargets or nil
-    local guide = CollectTargetValues(type(guideRoot) == "table" and guideRoot[bin] or nil)
-    local guideMissing = guide == nil
-    if guideMissing then return own, guideMissing, averageItemLevel end
+    local top = CollectTargetValues(type(statTargets) == "table" and statTargets.stats or nil) or {}
+    local topItemLevel = type(targets) == "table" and targets.averageItemLevel or nil
+    local levelName = goal ~= "PVP" and LEVEL_OF_BIN[bin] or nil
+    if not levelName then return top, false, topItemLevel end
 
-    local selected = {}
-    for statKey, value in pairs(own) do selected[statKey] = value end
-    for statKey, value in pairs(guide) do selected[statKey] = value end
-    return selected, guideMissing, averageItemLevel
+    local levels = type(targets) == "table" and targets.levels or nil
+    local level = type(levels) == "table" and levels[levelName] or nil
+    local levelStats = type(level) == "table" and type(level.statTargets) == "table" and level.statTargets.stats or nil
+    local values = CollectTargetValues(levelStats)
+    if not values then return top, true, topItemLevel end
+    return values, false, tonumber(level.averageItemLevel) or topItemLevel
 end
 
 -- Auto: the tier follows the character's own stats. The progress to a tier is
@@ -526,7 +528,7 @@ end
 
 -- The share of each tier's rating targets the stats cover: { [1] = Tier 1, [2] = Tier 2, [3] = Tier 3 }
 -- and whether the stats are known (loaded). Shown for a fixed tier too: how far the next one is.
-local function TierShares(targets, specID)
+local function TierShares(targets, specID, goal)
     local ratings, sum = {}, 0
     for _, statKey in ipairs(AUTO_STATS) do
         local value = tonumber(ReadRating(specID, statKey))
@@ -535,7 +537,7 @@ local function TierShares(targets, specID)
     end
     local shares = {}
     for tier, bin in ipairs(TIER_BINS) do
-        local values = SelectTargetValues(targets, bin)
+        local values = SelectTargetValues(targets, bin, goal)
         shares[tier] = CoveredShare(values, ratings)
     end
     local known = sum >= AUTO_MIN_RATING_SUM and shares[1] ~= nil and shares[2] ~= nil and shares[3] ~= nil
@@ -681,15 +683,15 @@ function Repository.BuildRuntimeProfile(context)
     local equalGroups = BuildEqualGroups(priority, secondaryOrder)
     local statTargetBin = Repository.GetStatTargetBin(specKey)
     local effectiveBin, autoInfo = statTargetBin, nil
-    local tierShares, sharesKnown = TierShares(generatedContext.targets, context.specID)
+    local tierShares, sharesKnown = TierShares(generatedContext.targets, context.specID, goal)
     if statTargetBin == "auto" then
         autoInfo = ResolveAutoTier(specKey, tierShares, sharesKnown)
         effectiveBin = TIER_BINS[autoInfo.shownTier]
     end
     effectiveBinBySpec[specKey] = effectiveBin
     lastEffectiveBin = effectiveBin
-    local targetValues, guideTargetsMissing, targetItemLevel =
-        SelectTargetValues(generatedContext.targets, effectiveBin)
+    local targetValues, tierTargetsMissing, targetItemLevel =
+        SelectTargetValues(generatedContext.targets, effectiveBin, goal)
     local primaryStat = STAT_KEY[generatedProfile.primaryStat]
     if not primaryStat then return nil end
     local role = context.role
@@ -746,7 +748,7 @@ function Repository.BuildRuntimeProfile(context)
         effectiveBin = effectiveBin,
         autoInfo = autoInfo,
         tierProgress = sharesKnown and tierShares or nil,
-        guideTargetsMissing = guideTargetsMissing,
+        tierTargetsMissing = tierTargetsMissing,
         generatedContext = invalidGeneratedContext and nil or generatedContext,
         invalidGeneratedContext = invalidGeneratedContext,
     }

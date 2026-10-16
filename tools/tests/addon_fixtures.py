@@ -24,8 +24,8 @@ def make_hero_context(
 ) -> dict[str, Any]:
     """One ClassCodex spec/goal/hero-talent context. Items: helm = helm_id,
     other slots 1001.., trinkets 5001 (Trinket 1) and 5003 (Trinket 2); the
-    trinket tier list ranks 5001 S, 5003 S, 5002 A. No targets.guideTargets:
-    tests add them with add_guide_targets."""
+    trinket tier list ranks 5001 S, 5003 S, 5002 A. No targets.levels:
+    tests add them with add_tier_targets."""
     crit, haste, mastery, versatility = stats
     slots = []
     for index, slot in enumerate(CLASSCODEX_SLOTS):
@@ -58,10 +58,15 @@ def make_hero_context(
     }
 
 
-def make_guide_targets(**bins: tuple[float | None, float | None, float | None, float | None]) -> dict[str, Any]:
-    """targets.guideTargets: the u.gg stat targets the ClassCodex addon shows, per
-    bin ("top20", "top50", "top80") as (crit, haste, mastery, versatility)
-    ratings. A None value leaves that stat out of the bin."""
+TIER_LEVEL_ITEM_LEVEL = {"hero": 321.0, "champion": 308.0}
+TIER_LEVEL_OF_BIN = {"top50": "hero", "top80": "champion"}
+
+
+def make_tier_targets(**bins: tuple[float | None, float | None, float | None, float | None]) -> dict[str, Any]:
+    """The stat targets of the tiers, per bin ("top20" = Tier 3 at Myth 6/6,
+    "top50" = Tier 2 at Hero 6/6, "top80" = Tier 1 at Champion 6/6) as
+    (crit, haste, mastery, versatility) ratings. A None value leaves that stat
+    out of the bin."""
     names = ("critical_strike", "haste", "mastery", "versatility")
     return {
         bin_key: {name: value for name, value in zip(names, values) if value is not None}
@@ -69,11 +74,19 @@ def make_guide_targets(**bins: tuple[float | None, float | None, float | None, f
     }
 
 
-def add_guide_targets(targets: dict[str, Any], spec_key: str, goal: str, hero: str,
-                      guide_targets: dict[str, Any]) -> dict[str, Any]:
-    """Puts guide_targets on one spec/goal/hero context of a make_classcodex_targets result."""
-    context = targets["profiles"][spec_key]["goals"][goal]["heroTalents"][hero]
-    context["targets"]["guideTargets"] = guide_targets
+def add_tier_targets(targets: dict[str, Any], spec_key: str, goal: str, hero: str,
+                     tier_targets: dict[str, Any]) -> dict[str, Any]:
+    """Puts make_tier_targets on one spec/goal/hero context of a make_classcodex_targets
+    result: Tier 3 replaces statTargets, Tiers 2 and 1 become targets.levels."""
+    data = targets["profiles"][spec_key]["goals"][goal]["heroTalents"][hero]["targets"]
+    for bin_key, stats in tier_targets.items():
+        level = TIER_LEVEL_OF_BIN.get(bin_key)
+        if level is None:
+            data["statTargets"]["stats"] = stats
+        else:
+            data.setdefault("levels", {})[level] = {
+                "statTargets": {"stats": stats}, "averageItemLevel": TIER_LEVEL_ITEM_LEVEL[level],
+            }
     return targets
 
 

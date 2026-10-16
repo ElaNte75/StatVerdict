@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from tools.classcodex_targets_cli import render_lua as render_targets_lua
-from tools.tests.addon_fixtures import add_guide_targets, make_classcodex_targets, make_guide_targets
+from tools.tests.addon_fixtures import add_tier_targets, make_classcodex_targets, make_tier_targets
 
 try:
     # WoW runs Lua 5.1: test the addon on a 5.1 runtime so syntax or library
@@ -119,8 +119,8 @@ class WeightModeCoreTests(unittest.TestCase):
         self.assertEqual(["auto", "top80", "top50", "top20"], [bins[i].key for i in (1, 2, 3, 4)])
         self.assertEqual(["Auto", "Tier 1", "Tier 2", "Tier 3"], [bins[i].label for i in (1, 2, 3, 4)])
         self.assertEqual(["Recommended", "Comfortable", "Realistic", "Demanding"], [bins[i].hint for i in (1, 2, 3, 4)])
-        self.assertEqual(["Follows your stats", "Targets most players reach", "The stats of a typical player",
-                          "The best-equipped players"], [bins[i].meaning for i in (1, 2, 3, 4)])
+        self.assertEqual(["Follows your stats", "Best gear at Champion level", "Best gear at Hero level",
+                          "Best gear at Myth level"], [bins[i].meaning for i in (1, 2, 3, 4)])
         self.assertEqual("auto", self.ns.GetStatTargetBin())
 
     def test_auto_summary_and_title_label(self) -> None:
@@ -737,16 +737,16 @@ class CoreProfileTests(unittest.TestCase):
         for got, want in zip(self.base_modifiers(profile), [6 * 1.4 / 4.75, 6 * 1.25 / 4.75, 6 * 1.1 / 4.75, 6 * 1.0 / 4.75]):
             self.assertAlmostEqual(want, got)
 
-    # --- Stat targets: the guide's chosen tier --------------------------------
-    # Fixture San'layn M+ own targets (BiS gear): crit 1140, haste 900, mastery 680,
-    # vers 430. Guide (u.gg, as the ClassCodex addon shows): top20 has no mastery.
+    # --- Stat targets: our own totals at the upgrade level of the chosen tier ---
+    # Fixture San'layn M+ without tier levels: the Myth totals crit 1140, haste 900, mastery 680,
+    # vers 430. With levels: Tier 3 = Myth, Tier 2 = Hero 6/6, Tier 1 = Champion 6/6.
     OWN_TARGETS = {"crit": 1140.0, "haste": 900.0, "mastery": 680.0, "vers": 430.0}
-    GUIDE_BINS = {"top20": (1000, 1200, None, 300), "top50": (900, 1000, 600, 250), "top80": (800, 900, 550, 200)}
+    TIER_TARGETS = {"top20": (1000, 1200, 680, 300), "top50": (900, 1000, 600, 250), "top80": (800, 900, 550, 200)}
 
-    def guide_runtime(self, bins: dict | None = None, tier: str | None = "top20"):
+    def tier_runtime(self, bins: dict | None = None, tier: str | None = "top20"):
         build_id = now_build_id()
-        targets = add_guide_targets(make_classcodex_targets(build_id), "DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "sanlayn",
-                                    make_guide_targets(**(self.GUIDE_BINS if bins is None else bins)))
+        targets = add_tier_targets(make_classcodex_targets(build_id), "DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "sanlayn",
+                                    make_tier_targets(**(self.TIER_TARGETS if bins is None else bins)))
         lua, ns = self.build_runtime(build_id=build_id, targets=targets)
         if tier:  # the fixed tier the tests below read; Auto has its own tests
             lua.globals().StatVerdictDB.statTargetBin = tier
@@ -757,19 +757,18 @@ class CoreProfileTests(unittest.TestCase):
         return {name: by_key[key] for name, key in SECONDARY.items() if key in by_key}
 
     def test_the_classcodex_top20_targets_are_shown_by_default(self) -> None:
-        lua, ns = self.guide_runtime()
+        lua, ns = self.tier_runtime()
         self.assertEqual("auto", ns.ProfileRepository.DEFAULT_STAT_TARGET_BIN)
         profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
-        # mastery is not in the guide's top20: our own target fills that stat.
         self.assertEqual({"crit": 1000.0, "haste": 1200.0, "mastery": 680.0, "vers": 300.0}, self.named_targets(profile))
         self.assertEqual("top20", profile.statTargetBin)
-        self.assertFalse(profile.guideTargetsMissing)
+        self.assertFalse(profile.tierTargetsMissing)
         self.assertIsNone(profile.gearLevel)
         # Priority order is still the guide's.
         self.assertEqual(self.keys(*self.GUIDE_ORDER), self.order(profile))
 
     def test_saved_stat_target_bin_picks_the_guide_bin(self) -> None:
-        lua, ns = self.guide_runtime()
+        lua, ns = self.tier_runtime()
         repo = ns.ProfileRepository
         for bin_key, expected in (("top50", (900, 1000, 600, 250)), ("top80", (800, 900, 550, 200))):
             lua.globals().StatVerdictDB.statTargetBin = bin_key
@@ -784,17 +783,32 @@ class CoreProfileTests(unittest.TestCase):
         lua.globals().StatVerdictDB = None
         self.assertEqual("auto", repo.GetStatTargetBin())
 
+    def test_pvp_gear_has_no_tracks_so_every_tier_shows_the_same_targets(self) -> None:
+        build_id = now_build_id()
+        targets = add_tier_targets(make_classcodex_targets(build_id), "DEATHKNIGHT_BLOOD", "PVP", "sanlayn",
+                                   make_tier_targets(**self.TIER_TARGETS))
+        lua, ns = self.build_runtime(build_id=build_id, targets=targets)
+        seen = set()
+        for tier in ("top80", "top50", "top20"):
+            lua.globals().StatVerdictDB.statTargetBin = tier
+            profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua, goal="PVP"))
+            self.assertFalse(profile.tierTargetsMissing)
+            seen.add(tuple(sorted(self.named_targets(profile).items())))
+        self.assertEqual(1, len(seen))
+        self.assertEqual(1000.0, dict(next(iter(seen)))["crit"])
+
     def test_without_classcodex_targets_our_own_are_used(self) -> None:
         lua, ns = self.build_runtime()
         profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
         self.assertEqual(self.OWN_TARGETS, self.named_targets(profile))
-        self.assertTrue(profile.guideTargetsMissing)
-        # A guide without the chosen bin (or with nothing usable in it) counts as missing too.
-        for bins in ({"top50": (900, 1000, 600, 250)}, {"top20": (None, None, None, None)}):
-            lua, ns = self.guide_runtime(bins=bins)
+        self.assertTrue(profile.tierTargetsMissing)
+        # A tier whose level is missing (or has nothing usable in it) shows the top tier's, and says so.
+        for bins in ({"top50": (900, 1000, 600, 250)}, {"top50": (None, None, None, None)}):
+            lua, ns = self.tier_runtime(bins=bins, tier="top80")
             profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
             self.assertEqual(self.OWN_TARGETS, self.named_targets(profile), bins)
-            self.assertTrue(profile.guideTargetsMissing, bins)
+            self.assertTrue(profile.tierTargetsMissing, bins)
+            self.assertEqual(337.9, profile.auditTargets.averageItemLevel)
 
     def test_a_secondary_without_a_target_keeps_its_row(self) -> None:
         # Versatility has no target when neither the guide nor the best gear carries any:
@@ -803,7 +817,6 @@ class CoreProfileTests(unittest.TestCase):
         targets = make_classcodex_targets(build_id)
         context = targets["profiles"]["DEATHKNIGHT_BLOOD"]["goals"]["MYTHIC_PLUS"]["heroTalents"]["sanlayn"]
         del context["targets"]["statTargets"]["stats"]["versatility"]
-        context["targets"]["guideTargets"] = {}
         lua, ns = self.build_runtime(build_id=build_id, targets=targets)
         profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
         by_key = self.targets(profile)
@@ -835,8 +848,8 @@ class CoreProfileTests(unittest.TestCase):
 
     def test_quality_checks_still_read_our_own_targets(self) -> None:
         build_id = now_build_id()
-        targets = add_guide_targets(make_classcodex_targets(build_id), "DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "sanlayn",
-                                    make_guide_targets(**self.GUIDE_BINS))
+        targets = add_tier_targets(make_classcodex_targets(build_id), "DEATHKNIGHT_BLOOD", "MYTHIC_PLUS", "sanlayn",
+                                    make_tier_targets(**self.TIER_TARGETS))
         context = targets["profiles"]["DEATHKNIGHT_BLOOD"]["goals"]["MYTHIC_PLUS"]["heroTalents"]["sanlayn"]
         context["targets"]["statTargets"]["stats"] = {"haste": 900}
         lua, ns = self.build_runtime(build_id=build_id, targets=targets)
@@ -845,7 +858,7 @@ class CoreProfileTests(unittest.TestCase):
         self.assertEqual([], [profile.auditTargets.rows[i] for i in range(1, len(profile.auditTargets.rows) + 1)])
 
     def test_changing_the_stat_target_bin_rebuilds_the_cached_provider_view(self) -> None:
-        lua, ns = self.guide_runtime()
+        lua, ns = self.tier_runtime()
         ns.GetSnapshotHeroTalentName = lambda context: "San'layn"
         repo = ns.ProfileRepository
         top20 = repo.RefreshProviderView("MYTHIC_PLUS")
@@ -856,12 +869,12 @@ class CoreProfileTests(unittest.TestCase):
         self.assertEqual(800.0, self.named_targets(top80["DEATHKNIGHT"][250].default)["crit"])
 
     # --- Auto: the tier follows the character's stats ---------------------------
-    # Fixture San'layn guide targets: Tier 1 (top80) 800/900/550/200, Tier 2 (top50) 900/1000/600/250,
-    # Tier 3 (top20) 1000/1200/-(own 680)/300 (crit/haste/mastery/versatility).
+    # Fixture San'layn tier targets: Tier 1 (top80) 800/900/550/200, Tier 2 (top50) 900/1000/600/250,
+    # Tier 3 (top20) 1000/1200/680/300 (crit/haste/mastery/versatility).
     TIER_1 = {"crit": 800, "haste": 900, "mastery": 550, "vers": 200}
 
     def auto_runtime(self, scale: float | None = None, tier: str | None = None):
-        lua, ns = self.guide_runtime(tier=tier)
+        lua, ns = self.tier_runtime(tier=tier)
         self.set_ratings(ns, scale)
         return lua, ns
 
@@ -989,7 +1002,7 @@ class CoreProfileTests(unittest.TestCase):
 
     # --- Each spec keeps its own choice (Main Spec and Off Spec) ----------------
     def test_each_spec_has_its_own_choice(self) -> None:
-        lua, ns = self.guide_runtime(tier=None)
+        lua, ns = self.tier_runtime(tier=None)
         self.set_ratings(ns, 0.5)
         repo = ns.ProfileRepository
         self.assertEqual("auto", repo.GetStatTargetBin("DEATHKNIGHT_BLOOD"))
@@ -1004,7 +1017,7 @@ class CoreProfileTests(unittest.TestCase):
         self.assertFalse(repo.SetStatTargetBin("top99", "DEATHKNIGHT_BLOOD"))
 
     def test_a_choice_saved_before_choices_were_per_spec_still_applies_to_every_spec(self) -> None:
-        lua, ns = self.guide_runtime(tier="top80")  # the old, global key
+        lua, ns = self.tier_runtime(tier="top80")  # the old, global key
         repo = ns.ProfileRepository
         self.assertEqual("top80", repo.GetStatTargetBin("DEATHKNIGHT_BLOOD"))
         self.assertEqual("top80", repo.GetStatTargetBin("MAGE_FIRE"))
@@ -1013,7 +1026,7 @@ class CoreProfileTests(unittest.TestCase):
         self.assertEqual("top80", repo.GetStatTargetBin("MAGE_FIRE"))
 
     def test_a_spec_that_picks_its_tier_rebuilds_the_cached_provider_view(self) -> None:
-        lua, ns = self.guide_runtime(tier=None)
+        lua, ns = self.tier_runtime(tier=None)
         ns.GetSnapshotHeroTalentName = lambda context: "San'layn"
         self.set_ratings(ns, 0.5)
         repo = ns.ProfileRepository
@@ -1025,7 +1038,7 @@ class CoreProfileTests(unittest.TestCase):
         self.assertEqual(1000.0, self.named_targets(second["DEATHKNIGHT"][250].default)["crit"])
 
     def test_best_in_slot_follows_the_tier_of_the_spec_shown(self) -> None:
-        lua, ns = self.guide_runtime(tier=None)
+        lua, ns = self.tier_runtime(tier=None)
         repo = ns.ProfileRepository
         ns.ClassCodexTargets.trackSwap = lua.eval('{ champion = { ["12854"] = 12838 }, hero = { ["12854"] = 12846 } }')
         repo.SetStatTargetBin("top50", "DEATHKNIGHT_BLOOD")  # the Main Spec: Tier 2
@@ -1043,13 +1056,13 @@ class CoreProfileTests(unittest.TestCase):
         self.assertEqual(12838, repo.ApplyTrackSwap(lua.table(12854))[1])
 
     def test_old_saved_mode_and_gear_level_change_nothing(self) -> None:
-        # Saved variables of the removed Measured mode: the guide's tier is still what is shown.
-        lua, ns = self.guide_runtime()
+        # Saved variables of the removed Measured mode: the chosen tier is still what is shown.
+        lua, ns = self.tier_runtime()
         db = lua.globals().StatVerdictDB
         db.weightMode, db.gearLevel, db.statTargetBin = "MEASURED", "hero", "top50"
         profile = ns.ProfileRepository.BuildRuntimeProfile(self.context(lua))
         self.assertEqual({"crit": 900.0, "haste": 1000.0, "mastery": 600.0, "vers": 250.0}, self.named_targets(profile))
-        self.assertEqual(337.9, profile.auditTargets.averageItemLevel)
+        self.assertEqual(321.0, profile.auditTargets.averageItemLevel)
         self.assertEqual(self.keys(*self.GUIDE_ORDER), self.order(profile))
 
 SECONDARY = {
@@ -1607,7 +1620,7 @@ end
 
 @unittest.skipIf(LuaRuntime is None, "lupa not installed")
 class WeightsDrawerSmokeTests(unittest.TestCase):
-    NO_GUIDE_TARGETS = "No guide targets for this build: our own are used."
+    NO_TIER_TARGETS = "No targets for this tier yet: the top tier's are shown."
     INTRO = "All guide information comes from Icy Veins and u.gg."
 
     def setUp(self) -> None:
@@ -1626,7 +1639,7 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
 
         self.ns.RequestStatAuditRefresh = refresh
         self.ns.GetStatAuditGoalMode = lambda: "RAID"
-        self.guide_targets = True
+        self.tier_targets = True
         self.has_profile = True
         self.auto_info = None  # (level, progress) of the active build under Auto
         self.notice = None
@@ -1635,7 +1648,7 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
 
     def card(self):
         profile = self.lua.table(specKey="SPEC", specName="Blood", className="Death Knight",
-                                 guideTargetsMissing=not self.guide_targets,
+                                 tierTargetsMissing=not self.tier_targets,
                                  statTargetBin=self.lua.globals().StatVerdictDB.statTargetBin or "auto")
         if self.auto_info is not None:
             profile.autoInfo = self.lua.table(level=self.auto_info[0], progress=self.auto_info[1])
@@ -1648,7 +1661,7 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
     RESTING_BORDER = (0.32, 0.34, 0.40)
     SELECTED_BG = (0.16, 0.13, 0.03)
     RESTING_BG = (0.05, 0.06, 0.08)
-    MEANINGS = ["Targets most players reach", "The stats of a typical player", "The best-equipped players"]
+    MEANINGS = ["Best gear at Champion level", "Best gear at Hero level", "Best gear at Myth level"]
 
     def checks(self, card):
         return [card.binRows[i].check.checked for i in (1, 2, 3, 4)]
@@ -1775,10 +1788,10 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
         self.assertEqual("", self.card().status.text)
 
     def test_status_says_our_targets_are_used_without_guide_targets(self) -> None:
-        self.guide_targets = False
-        self.assertEqual(self.NO_GUIDE_TARGETS, self.card().status.text)
+        self.tier_targets = False
+        self.assertEqual(self.NO_TIER_TARGETS, self.card().status.text)
         self.lua.globals().StatVerdictDB.weightMode = "MEASURED"  # an old saved choice changes nothing
-        self.assertEqual(self.NO_GUIDE_TARGETS, self.card().status.text)
+        self.assertEqual(self.NO_TIER_TARGETS, self.card().status.text)
 
     def test_no_raider_io_or_measured_wording_left(self) -> None:
         source = (ADDON / "UI" / "SV_WeightsDrawerPanel.lua").read_text(encoding="utf-8-sig")
@@ -1834,7 +1847,7 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
 
     def test_whole_drawer_fits_the_card_in_every_state(self) -> None:
         for guide_targets in (True, False):
-            self.guide_targets = guide_targets
+            self.tier_targets = guide_targets
             card = self.card()
             bottom = self.lowest_bottom(card)
             self.assertGreaterEqual(bottom, -(self.CARD_HEIGHT - self.BOTTOM_BORDER), guide_targets)
@@ -1849,7 +1862,7 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
                 self.assertLessEqual(42 + name + 8 + hint + 12, width, row.label.text)
         # The source line fits its two reserved lines.
         self.assertLessEqual(self.text_height(card.intro, self.DRAWER_TEXT_WIDTH), card.intro._height)
-        card.status.text = self.NO_GUIDE_TARGETS
+        card.status.text = self.NO_TIER_TARGETS
         self.assertLessEqual(self.text_height(card.status, self.DRAWER_TEXT_WIDTH), card.status._height)
         for text in (card.intro, card.status):
             self.assertEqual("TOP", text._justifyV)
@@ -1882,7 +1895,7 @@ class WeightsDrawerSmokeTests(unittest.TestCase):
             for guide_targets in (True, False):
                 for has_profile in (True, False):
                     db.statTargetBin = tier
-                    self.guide_targets, self.has_profile = guide_targets, has_profile
+                    self.tier_targets, self.has_profile = guide_targets, has_profile
                     snapshot = self.layout_snapshot(self.card())
                     states += 1
                     if reference is None:

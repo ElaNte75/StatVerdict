@@ -339,10 +339,6 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
         targets = ns.ClassCodexTargets.profiles
         problems: list[str] = []
         rows: list[tuple[str, str, str, str]] = []
-        # guideTargets (ClassCodex / u.gg) may not be in the committed data yet:
-        # absent means GUIDE shows our own targets; present is checked per row.
-        self.cells_with_guide_targets: set[str] = set()
-
         for spec in SPECS:
             spec_profile = targets[spec.key]
             if spec_profile is None:
@@ -361,35 +357,29 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
         if problems:
             table = "\n".join(f"  {s:<24} {g:<12} {h:<28} targets={t}" for s, g, h, t in rows)
             self.fail(f"{len(problems)} problem(s):\n  " + "\n  ".join(problems) + "\n\nCoverage:\n" + table)
-        print(f"\n[classcodex coverage] {len(rows)} cells with targets "
-              f"({len(self.cells_with_guide_targets)} with ClassCodex top20 targets)")
+        print(f"\n[classcodex coverage] {len(rows)} cells with targets")
 
-    def test_guide_targets_check_catches_a_wrong_target(self) -> None:
-        """Proves check_targets works on real data: a fake top20 on one real cell passes,
-        and a profile showing other targets than the data's top20 is reported."""
+    def test_tier_targets_check_catches_a_wrong_target(self) -> None:
+        """Proves check_targets works on real data: the profile of a real cell passes, and a
+        Tier 2 whose data now says something else than the profile shows is reported."""
         ns, lua = self.ns, self.lua
         spec = SPECS[0]
         hero = sorted(ns.ClassCodexTargets.profiles[spec.key].goals["MYTHIC_PLUS"].heroTalents.keys())[0]
         context = ns.ProfileRepository.GetContext(spec.key, "MYTHIC_PLUS", hero)
-        own = context.targets.statTargets.stats
-        saved = context.targets.guideTargets
-        top20 = lua.table()
-        for key in own.keys():
-            top20[key] = own[key] * 1.1 + 50
-        context.targets.guideTargets = lua.table(top20=top20)
-        self.cells_with_guide_targets = set()
+        profile = self.build_profile(spec, "MYTHIC_PLUS", hero, "top50")
+        problems: list[str] = []
+        self.check_targets("cell", context, profile, problems, "top50")
+        self.assertEqual([], problems)
+        stats = context.targets.levels.hero.statTargets.stats
+        key = next(iter(stats.keys()))
+        saved = stats[key]
+        stats[key] = saved * 2 + 100
         try:
-            profile = self.build_profile(spec, "MYTHIC_PLUS", hero, "top20")
-            problems: list[str] = []
-            self.check_targets("cell", context, profile, problems)
-            self.assertEqual([], problems)
-            for key in own.keys():
-                top20[key] = own[key] * 2 + 100  # the data now says something else than the profile shows
             wrong: list[str] = []
-            self.check_targets("cell", context, profile, wrong)
+            self.check_targets("cell", context, profile, wrong, "top50")
             self.assertTrue(wrong)
         finally:
-            context.targets.guideTargets = saved
+            stats[key] = saved
 
     def build_profile(self, spec, goal, hero, tier: str | None = None):
         """The profile under Auto (the default) or, with `tier`, a fixed tier (top80/top50/top20)."""
@@ -438,40 +428,37 @@ class WholeAddonWithRealDataTests(unittest.TestCase):
             weight = ns.GetDefaultStatWeight(profile, stat_key)
             if not isinstance(weight, (int, float)) or weight <= 0:
                 problems.append(f"{cell}: no scoring weight for {stat_key}")
-        self.check_targets(cell, context, profile, problems, "top20")
+        self.check_targets(cell, context, profile, problems, "top20", goal)
         for tier in ("top50", "top80"):
             fixed = self.build_profile(spec, goal, hero, tier)
-            self.check_targets(f"{cell} [{tier}]", context, fixed, problems, tier)
+            self.check_targets(f"{cell} [{tier}]", context, fixed, problems, tier, goal)
         # Auto (the default): a tier from the character's stats (none are known in this fake game: Tier 1).
         auto = self.build_profile(spec, goal, hero)
         if auto.statTargetBin != "auto" or auto.autoInfo is None or auto.effectiveBin not in ("top80", "top50", "top20"):
             problems.append(f"{cell}: Auto did not choose a tier")
         else:
-            self.check_targets(f"{cell} [auto]", context, auto, problems, auto.effectiveBin)
+            self.check_targets(f"{cell} [auto]", context, auto, problems, auto.effectiveBin, goal)
         return "ok"
 
-    def check_targets(self, cell: str, context, profile, problems: list[str], tier: str = "top20") -> None:
-        """The audit rows show the guide's (u.gg) targets of the tier when the data has them, else our own.
-        A stat missing on one side uses the other side's target; a secondary with no
+    def check_targets(self, cell: str, context, profile, problems: list[str], tier: str = "top20", goal: str = "") -> None:
+        """The audit rows show our own totals at the upgrade level of the tier: Tier 3 the
+        Myth 6/6 totals (statTargets), Tier 2 targets.levels.hero, Tier 1 targets.levels.champion;
+        PvP gear has no tracks, so every PvP tier shows the Myth totals. A secondary with no
         target at all keeps its row with target 0 (never dropped)."""
         def positive(table, key):
             value = table[key] if table is not None else None
             return float(value) if isinstance(value, (int, float)) and value > 0 else None
 
-        own = context.targets.statTargets.stats
-        guide_root = context.targets.guideTargets
-        guide = guide_root[tier] if guide_root is not None else None
-        if guide is not None:
-            self.cells_with_guide_targets.add(cell.rsplit(" [", 1)[0])
+        level_name = {"top50": "hero", "top80": "champion"}.get(tier)
+        level = context.targets.levels[level_name] if level_name and context.targets.levels is not None else None
+        use_level = level is not None and goal != "PVP"
+        source = level.statTargets.stats if use_level else context.targets.statTargets.stats
         for row in lua_list(profile.auditTargets.rows):
             canonical = CANONICAL_STAT.get(row.key)
             if canonical is None:
                 continue
-            own_value, guide_value = positive(own, canonical), positive(guide, canonical)
             target = float(row.target)
-            expected = own_value if guide_value is None else guide_value
-            if expected is None:
-                expected = 0.0
+            expected = positive(source, canonical) or 0.0
             if abs(target - expected) > 1e-6:
                 problems.append(f"{cell}: {canonical} target {target}, expected {expected}")
         # The table shows the weights the scoring uses: the shares of the fixed 6.00 secondary budget.

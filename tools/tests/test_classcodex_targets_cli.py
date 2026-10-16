@@ -19,11 +19,11 @@ class RenderLuaTests(unittest.TestCase):
         self.assertIn("ns.ClassCodexTargets = ", rendered)
         self.assertIn("Do not edit manually", rendered)
 
-    def test_guide_targets_and_bis_gems_enchants_round_trip_through_lua(self) -> None:
+    def test_tier_levels_and_bis_gems_enchants_round_trip_through_lua(self) -> None:
         context = {
             "targets": {
                 "statTargets": {"context": "RAID", "source": "x", "stats": {"haste": 1.0, "mastery": 2.0}},
-                "guideTargets": {"top20": {"critical_strike": 1413.0, "haste": 788.0}},
+                "levels": {"hero": {"statTargets": {"stats": {"critical_strike": 1413.0, "haste": 788.0}}}},
                 "targetMetadata": {"gemCount": 1, "enchantCount": 1},
             },
             "bis": {
@@ -44,7 +44,7 @@ class RenderLuaTests(unittest.TestCase):
         data = {"profiles": {"DEATHKNIGHT_FROST": {"goals": {"RAID": {"heroTalents": {"all": context}}}}}}
         namespace = run_addon_namespace(render_lua(data), "t.lua", addon_name="StatVerdict")
         loaded = namespace["ClassCodexTargets"]["profiles"]["DEATHKNIGHT_FROST"]["goals"]["RAID"]["heroTalents"]["all"]
-        self.assertEqual(1413.0, loaded["targets"]["guideTargets"]["top20"]["critical_strike"])
+        self.assertEqual(1413.0, loaded["targets"]["levels"]["hero"]["statTargets"]["stats"]["critical_strike"])
         item = loaded["bis"]["slots"][0]["item"]
         self.assertEqual({"primary": 240983, "secondary": 240908}, loaded["bis"]["gems"])
         self.assertNotIn("gem_ids", item)
@@ -84,8 +84,8 @@ class WowheadFallbackCliTests(unittest.TestCase):
         self.assertEqual(0, code)
         wowhead.assert_called_once()  # only for the spec SimC cannot initialise
         self.assertIn("PALADIN_HOLY/RAID/all: wowhead fallback failed", stderr.getvalue())
-        # The CI log carries the ours-vs-u.gg rating sanity check.
-        self.assertIn("DEATHKNIGHT_FROST/RAID/all: ours 3 vs u.gg top50 n/a", stderr.getvalue())
+        # The CI log carries the tier targets sanity check.
+        self.assertIn("Tier targets sanity", stderr.getvalue())
 
 
 class TrackSwapCliTests(unittest.TestCase):

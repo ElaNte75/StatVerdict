@@ -23,7 +23,6 @@ from tools.classcodex_targets import (
     build_priority_row,
     build_target_context,
     build_all,
-    guide_targets_for,
     format_rating_sanity,
     select_loadout_upgrades,
 )
@@ -671,30 +670,36 @@ class TargetUpgradeTests(unittest.TestCase):
 
 
 class RatingSanityReportTests(unittest.TestCase):
-    def test_reports_our_summed_rating_against_ugg_top50(self) -> None:
+    @staticmethod
+    def context(champion: float, hero: float, top: float) -> dict:
+        def stats(total: float) -> dict:
+            return {"statTargets": {"stats": {"critical_strike": total}}}
+
+        return {"targets": {"statTargets": {"stats": {"critical_strike": top}},
+                            "levels": {"champion": stats(champion), "hero": stats(hero)}}}
+
+    def test_reports_the_contexts_whose_tier_targets_do_not_grow(self) -> None:
         data = {
             "profiles": {
                 "DEATHKNIGHT_FROST": {
                     "goals": {
                         "RAID": {
                             "heroTalents": {
-                                "deathbringer": {
-                                    "targets": {
-                                        "statTargets": {"stats": {"critical_strike": 1500.0, "haste": 1500.0}},
-                                        "guideTargets": {"top50": {"critical_strike": 2000.0, "haste": 2000.0}},
-                                    }
-                                },
-                                "rider": {"targets": {"statTargets": {"stats": {"haste": 100.0}}}},
+                                "deathbringer": self.context(1000, 1100, 1200),
+                                "rider": self.context(1000, 1300, 1200),
+                                "slayer": {"targets": {"statTargets": {"stats": {"haste": 100.0}}}},
                             }
-                        }
+                        },
+                        "PVP": {"heroTalents": {"deathbringer": self.context(2000, 1900, 1900)}},
                     }
                 }
             }
         }
         report = format_rating_sanity(data)
-        self.assertIn("DEATHKNIGHT_FROST/RAID/deathbringer: ours 3000 vs u.gg top50 4000 (ratio 0.75)", report)
-        self.assertIn("DEATHKNIGHT_FROST/RAID/rider: ours 100 vs u.gg top50 n/a", report)
-        self.assertIn("median ratio 0.75 over 1 context(s)", report)
+        self.assertIn("3 context(s) checked, 2 problem(s)", report)
+        self.assertIn("DEATHKNIGHT_FROST/RAID/rider: not growing with the tier (Champion 1000, Hero 1300, Myth 1200)", report)
+        self.assertIn("DEATHKNIGHT_FROST/RAID/slayer: missing Champion/Hero level (Myth 100)", report)
+        self.assertNotIn("deathbringer", report)  # grows; PvP has no tracks and is not judged
 
 
 class BuildAllTests(unittest.TestCase):
@@ -721,57 +726,6 @@ class BuildAllTests(unittest.TestCase):
         self.assertEqual([{"item_id": 9, "bonus_ids": [], "tier": "S"}], mplus_context["trinkets"])
         self.assertEqual(1, len(mplus_context["priorityProfiles"]))
         self.assertNotIn("PVP", profile["goals"])  # no PVP data anywhere in this fixture
-
-    def test_guide_targets_follow_goal_and_hero_with_all_hero_fallback(self) -> None:
-        stat_targets = {
-            "deathbringer": {"mplus": {"top50": {"crit": 1358, "haste": 682}}},
-            "all": {
-                "mplus": {"top50": {"crit": 1}},
-                "raid": {
-                    "top20": {"haste": 788, "mastery": 1180, "versatility": 181, "crit": 1413},
-                    "top50": {"crit": 1300},
-                    "top80": {"crit": 1200, "leech": 5},
-                },
-            },
-        }
-        self.assertEqual(
-            {"top50": {"critical_strike": 1358.0, "haste": 682.0}},
-            guide_targets_for(stat_targets, "deathbringer", "MYTHIC_PLUS"),
-        )
-        raid = guide_targets_for(stat_targets, "deathbringer", "RAID")
-        self.assertEqual(
-            {"critical_strike": 1413.0, "haste": 788.0, "mastery": 1180.0, "versatility": 181.0}, raid["top20"]
-        )
-        self.assertEqual({"critical_strike": 1200.0}, raid["top80"])
-        self.assertIsNone(guide_targets_for(stat_targets, "deathbringer", "PVP"))
-        self.assertIsNone(guide_targets_for(None, "deathbringer", "RAID"))
-
-    def test_build_all_adds_guide_targets_even_after_a_recovered_run(self) -> None:
-        specs = {
-            "DEATHKNIGHT_frost": {
-                "gear": {"value": {"all": {"raid": TargetRecoveryTests.gear}}},
-                "talents": {"value": {"deathbringer": {"raid": [{"export": "X"}]}}},
-                "statTargets": {"value": {"all": {"raid": {"top50": {"crit": 1300, "mastery": 900}}}}},
-            }
-        }
-        error = RuntimeError("Player sv_0001 has an Off-Hand weapon equipped with a 2h weapon")
-        with patch("tools.classcodex_targets.run_simc", side_effect=[error, GOOD]):
-            data = build_all(specs, Path("simc"), goals=("RAID", "PVP"))
-        targets = data["profiles"]["DEATHKNIGHT_FROST"]["goals"]["RAID"]["heroTalents"]["deathbringer"]["targets"]
-        self.assertEqual(["dropped OFF_HAND"], targets["targetMetadata"]["recovery"])
-        self.assertEqual({"top50": {"critical_strike": 1300.0, "mastery": 900.0}}, targets["guideTargets"])
-
-    def test_guide_targets_are_omitted_when_ugg_has_none(self) -> None:
-        specs = {
-            "DEATHKNIGHT_frost": {
-                "gear": {"value": {"all": {"raid": TargetRecoveryTests.gear}}},
-                "talents": {"value": {"deathbringer": {"raid": [{"export": "X"}]}}},
-            }
-        }
-        with patch("tools.classcodex_targets.run_simc", return_value=GOOD):
-            data = build_all(specs, Path("simc"), goals=("RAID",))
-        targets = data["profiles"]["DEATHKNIGHT_FROST"]["goals"]["RAID"]["heroTalents"]["deathbringer"]["targets"]
-        self.assertNotIn("guideTargets", targets)
 
     def test_skips_a_spec_key_not_in_the_catalog(self) -> None:
         specs = {"NOTASPEC_madeup": {"gear": {"value": {}, "source": "ugg"}}}

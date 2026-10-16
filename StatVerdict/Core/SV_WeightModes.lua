@@ -20,9 +20,9 @@ local GUIDE = {
 -- from the character's own stats (see the repository).
 local STAT_TARGET_BINS = {
     { key = "auto", label = "Auto", hint = "Recommended", meaning = "Follows your stats", auto = true },
-    { key = "top80", label = "Tier 1", hint = "Comfortable", meaning = "Targets most players reach" },
-    { key = "top50", label = "Tier 2", hint = "Realistic", meaning = "The stats of a typical player" },
-    { key = "top20", label = "Tier 3", hint = "Demanding", meaning = "The best-equipped players" },
+    { key = "top80", label = "Tier 1", hint = "Comfortable", meaning = "Best gear at Champion level" },
+    { key = "top50", label = "Tier 2", hint = "Realistic", meaning = "Best gear at Hero level" },
+    { key = "top20", label = "Tier 3", hint = "Demanding", meaning = "Best gear at Myth level" },
 }
 local DEFAULT_STAT_TARGET_BIN = "auto"
 
