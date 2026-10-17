@@ -563,7 +563,7 @@ def add_base_stats(stats: dict[str, float], base_stats: dict[str, float] | None)
     """The gear totals plus what the character has without gear, so the targets compare with the character sheet."""
     if not base_stats:
         return dict(stats)
-    return {stat: value + base_stats.get(stat, 0.0) for stat, value in stats.items()}
+    return {stat: stats.get(stat, 0.0) + base_stats.get(stat, 0.0) for stat in {**stats, **base_stats}}
 
 
 def move_loadout_to_track(

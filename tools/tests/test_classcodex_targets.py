@@ -728,6 +728,8 @@ class GearSumTargetsTests(unittest.TestCase):
         self.assertGreater(base["DEATHKNIGHT_FROST"]["critical_strike"], 150)
         self.assertEqual({"critical_strike": 3.0, "haste": 5.0}, add_base_stats({"critical_strike": 1.0, "haste": 2.0}, {"critical_strike": 2.0, "haste": 3.0}))
         self.assertEqual({"haste": 2.0}, add_base_stats({"haste": 2.0}, None))
+        # A stat the pieces do not carry at all still gets the base rating (a list with no Versatility on it).
+        self.assertEqual({"critical_strike": 3.0, "versatility": 2.0}, add_base_stats({"critical_strike": 1.0}, {"critical_strike": 2.0, "versatility": 2.0}))
 
     def test_build_all_uses_the_gear_sums(self) -> None:
         specs = {
