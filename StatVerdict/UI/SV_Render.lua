@@ -203,6 +203,11 @@ function ns.RenderTooltipVerdict(tooltip, context, comparison, isSecondary, show
     else
         -- One line: what it beats (the item itself, not the word loadout), then the points.
         AddLine(tooltip, c.white .. (ruleBlocked and "Would replace " or "Better than ") .. c.reset .. targetName .. c.white .. " :" .. c.reset .. pointsText, 1, 1, 1)
+        if selected.pairPartnerLink then
+            -- Two one-handers against the worn two-hander: the other one of the pair.
+            local partnerName = GetColoredItemName(selected.pairPartnerLink) or GetItemNameFromLink(selected.pairPartnerLink) or "another weapon"
+            AddLine(tooltip, c.white .. "Wear it with " .. c.reset .. partnerName, 1, 1, 1)
+        end
     end
     if selected.ruleReason then
         AddLine(tooltip, c.yellow .. "Reason: " .. selected.ruleReason .. c.reset, 1, 0.85, 0.2, true)

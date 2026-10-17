@@ -432,6 +432,112 @@ function ns.EquipBagSlotInto(bagID, bagSlot, targetSlot)
     return ok2 and true or false
 end
 
+-- A piece that is put on from the bags and replaces another one: the replaced piece is sent back to the bag slot the new one
+-- came from, so the bags stay as the player arranged them (the game puts it in the first free slot, anywhere). The wish is
+-- noted when the new piece is put on and carried out a moment later, once the replaced piece is in the bags.
+local returnQueue = {}
+local RETURN_WINDOW_SECONDS = 12
+
+function ns.NoteBagOrigin(replacedGUID, bagID, bagSlot)
+    if type(replacedGUID) ~= "string" or bagID == nil or bagSlot == nil then return end
+    returnQueue[#returnQueue + 1] = {
+        guid = replacedGUID, bagID = bagID, bagSlot = bagSlot, time = (GetTime and GetTime() or 0),
+    }
+end
+
+-- Where a piece lived in the bags before it was put on (StatVerdictDB.bagHomes[serial] = { bagID, bagSlot, time }): a piece that
+-- the game takes off as a side effect (the off hand when a two-hander goes on) has no "new piece" to follow and goes home.
+local BAG_HOME_KEEP_SECONDS = 14 * 24 * 3600
+local BAG_HOME_MAX = 120
+
+local function BagHomes()
+    if type(StatVerdictDB) ~= "table" then return nil end
+    StatVerdictDB.bagHomes = type(StatVerdictDB.bagHomes) == "table" and StatVerdictDB.bagHomes or {}
+    return StatVerdictDB.bagHomes
+end
+
+local function RememberBagHome(guid, bagID, bagSlot)
+    local homes = BagHomes()
+    if not homes or type(guid) ~= "string" or bagID == nil or bagSlot == nil then return end
+    local now = (time and time()) or 0
+    homes[guid] = { bagID = bagID, bagSlot = bagSlot, time = now }
+    local count = 0
+    for key, home in pairs(homes) do
+        count = count + 1
+        if type(home) ~= "table" or now - (tonumber(home.time) or 0) > BAG_HOME_KEEP_SECONDS then homes[key] = nil; count = count - 1 end
+    end
+    if count > BAG_HOME_MAX then
+        for key in pairs(homes) do
+            if key ~= guid and count > BAG_HOME_MAX then homes[key] = nil; count = count - 1 end
+        end
+    end
+end
+
+local function BagHomeOf(guid)
+    local homes = BagHomes()
+    local home = homes and homes[guid] or nil
+    if type(home) == "table" and home.bagID ~= nil and home.bagSlot ~= nil then return home.bagID, home.bagSlot end
+    return nil
+end
+
+-- A piece is about to be put on from this bag slot, into `targetSlot`. The piece it replaces is sent back to this slot; a
+-- two-hander also sends the off-hand piece away, which goes back to the bag slot it came from. The new piece's own home is kept.
+function ns.NoteEquipFromBag(incomingGUID, bagID, bagSlot, targetSlot, incomingLink)
+    if bagID == nil or bagSlot == nil then return end
+    local displaced = targetSlot and WornGUID(targetSlot) or nil
+    if displaced then ns.NoteBagOrigin(displaced, bagID, bagSlot) end
+    if targetSlot == 16 and incomingLink and ns.GetItemEquipLocation and ns.GetItemEquipLocation(incomingLink) == "INVTYPE_2HWEAPON" then
+        local off = WornGUID(17)
+        local homeBag, homeSlot = BagHomeOf(off)
+        if off and homeBag then ns.NoteBagOrigin(off, homeBag, homeSlot) end
+    end
+    RememberBagHome(incomingGUID, bagID, bagSlot)
+end
+
+-- Returns how many pieces were moved. A piece that is not in the bags yet waits (up to RETURN_WINDOW_SECONDS); a place that
+-- another piece took in the meantime is left alone; nothing in combat or while the cursor holds something.
+function ns.ReturnReplacedPiecesToBagSlots()
+    if #returnQueue == 0 or IsInCombat() then return 0 end
+    if CursorHasItem and CursorHasItem() then return 0 end
+    local pickup = C_Container and C_Container.PickupContainerItem
+    if type(pickup) ~= "function" or not C_Container.GetContainerItemLink then return 0 end
+    local now = (GetTime and GetTime() or 0)
+    local moved, keep = 0, {}
+    for _, entry in ipairs(returnQueue) do
+        if now - entry.time <= RETURN_WINDOW_SECONDS then
+            local bagID, bagSlot = FindBagLocationByGUID(entry.guid)
+            if not bagID then
+                keep[#keep + 1] = entry   -- not in the bags yet
+            elseif bagID == entry.bagID and bagSlot == entry.bagSlot then
+                -- already home
+            elseif C_Container.GetContainerItemLink(entry.bagID, entry.bagSlot) ~= nil then
+                -- the place was taken meanwhile: leave the piece where it is
+            else
+                local ok = pcall(pickup, bagID, bagSlot)
+                if ok then pcall(pickup, entry.bagID, entry.bagSlot) end
+                if CursorHasItem and CursorHasItem() and ClearCursor then ClearCursor() end
+                if ok then moved = moved + 1 end
+            end
+        end
+    end
+    returnQueue = keep
+    return moved
+end
+
+-- The replaced piece lands in the bags a moment after the new one goes on: as soon as the bags have settled (the event the
+-- game sends after a change), the waiting wishes are carried out, so the piece is seen in its place at once.
+if CreateFrame then
+    local returnFrame = CreateFrame("Frame")
+    if returnFrame and returnFrame.RegisterEvent then
+        returnFrame:RegisterEvent("BAG_UPDATE_DELAYED")
+        returnFrame:SetScript("OnEvent", function()
+            if #returnQueue > 0 and type(C_Timer) == "table" and C_Timer.After then
+                C_Timer.After(0.02, ns.ReturnReplacedPiecesToBagSlots)
+            end
+        end)
+    end
+end
+
 -- The spec that is played is compared with its loadout: what is worn, except a piece that is marked for a slot and sits in
 -- the bags (the piece the player means to wear there; with Auto mark that is a piece marked by hand). nil when the worn piece
 -- is the answer. Worked out once a moment, not for every item.
@@ -916,13 +1022,21 @@ function ns.CaptureActiveSpecSnapshot()
         end
     end
 
+    -- A two-hander worn in the main hand leaves no room for an off-hand piece (but a second two-hander, Titan's Grip): an old
+    -- off-hand piece that cannot be worn with it is not part of the loadout any more.
+    local function CannotShareHandsWith(mainLink, offLink)
+        local location = ns.GetItemEquipLocation
+        if type(mainLink) ~= "string" or type(offLink) ~= "string" or type(location) ~= "function" then return false end
+        return location(mainLink) == "INVTYPE_2HWEAPON" and location(offLink) ~= "INVTYPE_2HWEAPON"
+    end
+
     -- Preserve virtual-loadout pieces that were Approved from bags and are still
     -- sitting in bags. A full worn-only replace was wiping MS/OS membership and
     -- flipping those items back to D/S after the next capture refresh.
     local preservedApprove = false
     if previousEquipment then
         for slotKey, prevLink in pairs(previousEquipment) do
-            if type(prevLink) == "string" and prevLink ~= "" then
+            if type(prevLink) == "string" and prevLink ~= "" and not (slotKey == "17" and CannotShareHandsWith(equipment["16"], prevLink)) then
                 local wornLink = equipment[slotKey]
                 -- A piece with a stored serial number is recognised by it; others by item, as before.
                 local storedGUID = previous and type(previous.markedGUID) == "table" and previous.markedGUID[slotKey] or nil
@@ -1282,6 +1396,7 @@ function ns.EquipMarkedLoadoutItems()
         local alreadyWorn = target and (guid and SameSerial(WornGUID(target), guid) or (not guid and worn and SnapshotLinksMatch(worn, link)))
         if target and not alreadyWorn then
             claimed[target] = true
+            if bagID and bagSlot then ns.NoteEquipFromBag(guid, bagID, bagSlot, target, link) end   -- the replaced piece goes back there
             local ok, err
             if guid and copies and copies > 1 then
                 -- Several copies of this item in the bags: the name cannot say which one, so the exact one is picked up.
@@ -1302,6 +1417,9 @@ function ns.EquipMarkedLoadoutItems()
                 SayLoadoutChange(link .. " was put on from the " .. SpecNameByID(specID) .. " loadout.")
             end
         end
+    end
+    if equipped > 0 and type(C_Timer) == "table" and type(C_Timer.After) == "function" then
+        for _, delay in ipairs({ 0.1, 0.3, 0.7, 1.5 }) do C_Timer.After(delay, ns.ReturnReplacedPiecesToBagSlots) end
     end
     return equipped
 end

@@ -219,3 +219,41 @@ class FoundByRandomPlayTests(unittest.TestCase):
         w.set_combat(False)
         w.settle()
         self.assertEqual(g["radiant"], w.marked_guid(OS, 11))
+
+
+TWO_HAND, AXE, SWORD = 272280, 272267, 272283
+
+
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class TwoHanderAndOffHandTests(unittest.TestCase):
+    """The owner's weapons: the Off Spec (Blood) wears a two-hander, the Main Spec (Frost) a sword and an axe."""
+
+    def make(self):
+        w = World({TWO_HAND: ("ring", 5, 5), AXE: ("ring", 5, 5), SWORD: ("ring", 5, 5)}, played=OS)
+        w.ns.GetItemEquipLocation = w.lua.eval(
+            f"function(link) if string.find(link, 'item:{TWO_HAND}:') then return 'INVTYPE_2HWEAPON' end return 'INVTYPE_WEAPON' end")
+        return w
+
+    def test_an_axe_that_cannot_be_worn_with_the_two_hander_is_not_part_of_that_loadout(self):
+        w = self.make()
+        g_two = w.wear(16, TWO_HAND)
+        w.bag(AXE)
+        w.bag(SWORD)
+        # What the owner's saved file held for Blood: the two-hander and, left over from a moment when the game still showed the
+        # old off hand, the axe, which sits in the bags.
+        w.snapshot(OS, equipment={16: TWO_HAND, 17: AXE}, marked={16: TWO_HAND}, markedGUID={16: g_two})
+        w.login()
+        w.settle()
+        held = w.lua.eval('StatVerdictDB.specSnapshots.bySpecID["250"].equipment["17"]')
+        self.assertIsNone(held)
+        self.assertEqual([], w.errors())
+
+    def test_an_off_hand_that_can_be_worn_with_the_main_hand_stays(self):
+        w = self.make()
+        g_main = w.wear(16, SWORD)
+        w.bag(AXE)
+        w.snapshot(OS, equipment={16: SWORD, 17: AXE}, marked={16: SWORD}, markedGUID={16: g_main})
+        w.login()
+        w.settle()
+        held = w.lua.eval('StatVerdictDB.specSnapshots.bySpecID["250"].equipment["17"]')
+        self.assertIn(f"item:{AXE}", str(held))   # a one-hander as the off hand of a one-hander is a normal loadout

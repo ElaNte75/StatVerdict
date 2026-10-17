@@ -497,7 +497,8 @@ local function PrepareSmartEquip(button)
     local itemLink = type(info) == "table" and info.hyperlink or nil
     if not itemLink then return end
     local slots = ns.GetComparableSlots(itemLink)
-    if type(slots) ~= "table" or #slots ~= 2 then return end
+    local oneHandWeapon = ns.GetItemEquipLocation and ns.GetItemEquipLocation(itemLink) == "INVTYPE_WEAPON"
+    if type(slots) ~= "table" or (#slots ~= 2 and not oneHandWeapon) then return end
     local itemGUID = ns.GetBagItemGUID(bagID, bagSlot)
     if not itemGUID then return end
 
@@ -514,6 +515,18 @@ local function PrepareSmartEquip(button)
     local comparison = ns.BuildComparison(itemLink, played.profile)
     local selected = comparison and comparison.selected
     local targetSlot = selected and tonumber(selected.slotID) or nil
+    if selected and selected.pairPartnerLink and (targetSlot == 16 or targetSlot == 17) then
+        -- Two one-handers against a worn two-hander: this weapon goes straight to its own hand (the comparison names it), the
+        -- two-hander it replaces ends up on the cursor and goes back to the bags a moment later.
+        smartEquipPending = { time = GetTime and GetTime() or 0, cursorOnly = true }
+        if ns.NoteEquipFromBag then
+            -- The worn two-hander goes back to the bag slot this weapon comes from.
+            ns.NoteEquipFromBag(itemGUID, bagID, bagSlot, targetSlot, itemLink)
+        end
+        if ns.EquipBagSlotInto then ns.EquipBagSlotInto(bagID, bagSlot, targetSlot) end
+        return
+    end
+    if #slots ~= 2 then return end
     if not targetSlot or (targetSlot ~= slots[1] and targetSlot ~= slots[2]) then return end
 
     local pairGUIDs = {}
@@ -533,6 +546,7 @@ local function PrepareSmartEquip(button)
     }
     -- Straight onto the slot the comparison names: one change, nothing else moves. The piece is then on the cursor (locked
     -- in its bag slot), so the game's own right-click that follows has nothing left to put on.
+    if ns.NoteEquipFromBag then ns.NoteEquipFromBag(itemGUID, bagID, bagSlot, targetSlot, itemLink) end   -- the replaced piece goes back to this bag slot
     if ns.EquipBagSlotInto then
         smartEquipPending.direct = ns.EquipBagSlotInto(bagID, bagSlot, targetSlot)
     end
@@ -558,6 +572,10 @@ smartEquipFrame:SetScript("OnEvent", function()
         if not p or (InCombatLockdown and InCombatLockdown()) then return end
         -- Whatever is still on the cursor (the replaced piece) goes back to the bags.
         if CursorHasItem and CursorHasItem() and ClearCursor then ClearCursor() end
+        if ns.ReturnReplacedPiecesToBagSlots then
+            for _, delay in ipairs({ 0.05, 0.3, 0.8 }) do C_Timer.After(delay, ns.ReturnReplacedPiecesToBagSlots) end
+        end
+        if p.cursorOnly then return end   -- a weapon put straight on its hand: only the replaced piece had to be let go
         local newSlot, targetSlot = nil, nil
         for _, slot in ipairs(p.slots) do
             local guid = ns.GetWornItemGUID(slot)

@@ -170,6 +170,143 @@ local function IsSameComparableItem(candidateLink, equippedLink)
     return candidateItemString ~= nil and candidateItemString == equippedItemString
 end
 
+-- Weapons. The guide decides how a spec holds its weapons: its Best in Slot list has a weapon in the Off Hand slot (two
+-- one-handers, "DUAL"; two-handers in both hands, "DUAL2H") or it has none (a two-hander, or a one-hander with a shield or
+-- a held item, "SINGLE"). nil when the list or the item data is not there yet: nothing changes then.
+local ONE_HAND_WEAPON_LOCATIONS = {
+    INVTYPE_WEAPON = true,
+    INVTYPE_WEAPONMAINHAND = true,
+    INVTYPE_WEAPONOFFHAND = true,
+}
+local PAIR_MAX_WEAPONS = 8          -- the best pair is looked for among at most this many weapons of the bags
+local PAIR_ITEM_LEVEL_SLACK = 10    -- a weapon counts for a pair from this far below the worn two-hander
+-- The guide plays two weapons: a pair that is not far below the worn two-hander is what it asks for (two weapons attack
+-- faster, and the off hand is used), so the pair is worth as much extra as a piece of the Best in Slot list. Weapons with
+-- much worse stats still lose it.
+local DUAL_WIELD_BONUS = 100
+
+function ns.GetGuideWeaponSetup(profile)
+    local context = type(profile) == "table" and profile.generatedContext or nil
+    local slots = type(context) == "table" and type(context.bis) == "table" and context.bis.slots or nil
+    if type(slots) ~= "table" or not ns.GetItemEquipLocation then return nil end
+    local main, off = nil, nil
+    for _, entry in ipairs(slots) do
+        if type(entry) == "table" and type(entry.item) == "table" then
+            if entry.slot == "Main Hand" then main = entry.item end
+            if entry.slot == "Off Hand" then off = entry.item end
+        end
+    end
+    if not main then return nil end
+    if not off then return "SINGLE" end
+    local location = ns.GetItemEquipLocation("item:" .. tostring(off.item_id))
+    if not location or location == "" then return nil end
+    if location == "INVTYPE_2HWEAPON" then return "DUAL2H" end
+    if ONE_HAND_WEAPON_LOCATIONS[location] then return "DUAL" end
+    return "SINGLE"
+end
+
+local function BagLinks()
+    local links = {}
+    if type(C_Container) ~= "table" or not C_Container.GetContainerNumSlots or not C_Container.GetContainerItemLink then
+        return links
+    end
+    local bagIDs = { 0, 1, 2, 3, 4, 5 }
+    if Enum and Enum.BagIndex then
+        local bi = Enum.BagIndex
+        bagIDs = { bi.Backpack or 0, bi.Bag_1 or 1, bi.Bag_2 or 2, bi.Bag_3 or 3, bi.Bag_4 or 4, bi.ReagentBag or 5 }
+    end
+    for _, bagID in ipairs(bagIDs) do
+        for slot = 1, (tonumber(C_Container.GetContainerNumSlots(bagID)) or 0) do
+            local link = C_Container.GetContainerItemLink(bagID, slot)
+            if link then links[#links + 1] = link end
+        end
+    end
+    return links
+end
+
+-- Can this one-hand weapon go in the main hand (or, with `offHand`, in the off hand) of the build?
+local function WeaponFitsHand(link, profile, offHand)
+    local location = ns.GetItemEquipLocation and ns.GetItemEquipLocation(link) or nil
+    if offHand then
+        if location ~= "INVTYPE_WEAPON" and location ~= "INVTYPE_WEAPONOFFHAND" then return false end
+    elseif location ~= "INVTYPE_WEAPON" and location ~= "INVTYPE_WEAPONMAINHAND" then
+        return false
+    end
+    local slotID = offHand and INVSLOT_OFFHAND or INVSLOT_MAINHAND
+    return not ns.IsItemCompatibleWithSlot or ns.IsItemCompatibleWithSlot(link, profile, slotID)
+end
+
+-- The points two one-hand weapons (main hand, off hand) are worth over the two-hander that is worn: the verdict of that
+-- two-hander over the pair, turned around, so that A over B is always the opposite of B over A.
+local function PairDelta(profile, twoHandLink, mainLink, offLink)
+    if not ns.GetWeightedDeltaScoreForEquippedSet then return nil end
+    local delta, rows = ns.GetWeightedDeltaScoreForEquippedSet(twoHandLink, {
+        { link = mainLink, slotID = INVSLOT_MAINHAND },
+        { link = offLink, slotID = INVSLOT_OFFHAND },
+    }, profile, INVSLOT_MAINHAND)
+    if not delta then return nil end
+    local turned = {}
+    for _, row in ipairs(rows or {}) do
+        turned[#turned + 1] = {
+            statKey = row.statKey, statName = row.statName, amount = row.amount, points = row.points,
+            signedPoints = -(tonumber(row.signedPoints) or 0), weight = row.weight, positive = not row.positive,
+        }
+    end
+    return -delta, turned
+end
+
+-- The best pair is worked out once for the same weapons and the same worn two-hander, and kept for a couple of seconds: every
+-- weapon of the bags asks for it when the bags are painted.
+local PAIR_CACHE_SECONDS = 2
+local pairCache = {}
+
+-- Among the one-hand weapons of the bags (and `candidateLink` itself, which may be somewhere else: a vendor, a reward) the
+-- best pair against the worn two-hander: { mainLink, offLink, delta, rows } or nil.
+local function BestWeaponPair(profile, twoHandLink, candidateLink)
+    local minimumLevel = (tonumber(ns.GetItemLevel and ns.GetItemLevel(twoHandLink)) or 0) - PAIR_ITEM_LEVEL_SLACK
+    local weapons, skippedCandidate = {}, false
+    for _, link in ipairs(BagLinks()) do
+        if link == candidateLink and not skippedCandidate then
+            skippedCandidate = true   -- the candidate's own place in the bags: it is added below, once
+        else
+            weapons[#weapons + 1] = link
+        end
+    end
+    weapons[#weapons + 1] = candidateLink
+    local usable = {}
+    for _, link in ipairs(weapons) do
+        local location = ns.GetItemEquipLocation and ns.GetItemEquipLocation(link) or nil
+        local level = tonumber(ns.GetItemLevel and ns.GetItemLevel(link)) or 0
+        if ONE_HAND_WEAPON_LOCATIONS[location] and level >= minimumLevel
+            and (not ns.EvaluateItemEligibility or ns.EvaluateItemEligibility(link, profile).allowed) then
+            usable[#usable + 1] = { link = link, level = level }
+        end
+    end
+    table.sort(usable, function(a, b) return a.level > b.level end)
+    while #usable > PAIR_MAX_WEAPONS do table.remove(usable) end
+    local keyParts = { tostring(profile.id or profile.profileKey or ""), tostring(twoHandLink) }
+    for _, entry in ipairs(usable) do keyParts[#keyParts + 1] = entry.link end
+    local key = table.concat(keyParts, "|")
+    local now = GetTime and GetTime() or 0
+    local cached = pairCache[key]
+    if cached and (now - cached.time) < PAIR_CACHE_SECONDS then return cached.best end
+    local best = nil
+    for i = 1, #usable - 1 do
+        for j = i + 1, #usable do
+            for _, order in ipairs({ { usable[i].link, usable[j].link }, { usable[j].link, usable[i].link } }) do
+                if WeaponFitsHand(order[1], profile, false) and WeaponFitsHand(order[2], profile, true) then
+                    local delta, rows = PairDelta(profile, twoHandLink, order[1], order[2])
+                    if delta and (not best or delta > best.delta) then
+                        best = { mainLink = order[1], offLink = order[2], delta = delta, rows = rows }
+                    end
+                end
+            end
+        end
+    end
+    pairCache = { [key] = { time = now, best = best } }
+    return best
+end
+
 function ns.BuildComparison(itemLink, profile)
     if not itemLink or not profile then
         return nil
@@ -205,6 +342,63 @@ function ns.BuildComparison(itemLink, profile)
     local equippedMainLink = GetCompatibleEquippedLink(INVSLOT_MAINHAND, profile)
     local equippedOffLink = GetCompatibleEquippedLink(INVSLOT_OFFHAND, profile)
     local equippedMainEquipLocation = ns.GetItemEquipLocation and ns.GetItemEquipLocation(equippedMainLink) or nil
+
+    -- The guide's weapon setup decides which weapons are worth a comparison at all.
+    local weaponSetup = ns.GetGuideWeaponSetup(profile)
+    local candidateIsOneHand = ONE_HAND_WEAPON_LOCATIONS[candidateEquipLocation] == true
+    local wearsTwoHand = IsTwoHandEquipLocation(equippedMainEquipLocation) and not equippedOffLink
+    if weaponSetup == "SINGLE" and candidateIsOneHand and wearsTwoHand then
+        -- A two-hander build: a one-hander is never an upgrade over "an empty off hand".
+        return { itemLink = itemLink, candidateScore = candidateScore, comparisons = {}, selected = nil, isUpgrade = false }
+    end
+    if weaponSetup == "DUAL" and IsTwoHandEquipLocation(candidateEquipLocation) and equippedMainLink and equippedOffLink
+        and not IsTwoHandEquipLocation(equippedMainEquipLocation)
+    then
+        -- A dual wield build that wears two one-handers: a two-hander is not what its guide plays.
+        return { itemLink = itemLink, candidateScore = candidateScore, comparisons = {}, selected = nil, isUpgrade = false }
+    end
+    if weaponSetup == "DUAL" and candidateIsOneHand and wearsTwoHand then
+        -- A dual wield build that wears a two-hander: the weapons of the bags count as a pair against it, and only the two
+        -- that make the best pair get the verdict.
+        local pair = BestWeaponPair(profile, equippedMainLink, itemLink)
+        if not pair or (pair.mainLink ~= itemLink and pair.offLink ~= itemLink) then
+            return { itemLink = itemLink, candidateScore = candidateScore, comparisons = {}, selected = nil, isUpgrade = false }
+        end
+        local partner = (pair.mainLink == itemLink) and pair.offLink or pair.mainLink
+        local equippedScore = ns.GetItemProfileScore(equippedMainLink, profile, INVSLOT_MAINHAND) or 0
+        local pairDelta = pair.delta + DUAL_WIELD_BONUS
+        local rows = pair.rows
+        rows[#rows + 1] = {
+            statKey = "STATVERDICT_REFERENCE_BONUS", statName = "Two weapons (guide)", amount = DUAL_WIELD_BONUS,
+            points = DUAL_WIELD_BONUS, signedPoints = DUAL_WIELD_BONUS, weight = 1, positive = true,
+        }
+        local rawPercent = ns.GetUpgradePercent(pairDelta, equippedScore, profile, itemLink, equippedMainLink) or 0
+        -- Each weapon of the pair knows its own hand: the marks, the right-click and the put-on after a spec change use it.
+        local comparison = {
+            slotID = (pair.mainLink == itemLink) and INVSLOT_MAINHAND or INVSLOT_OFFHAND,
+            slotLabel = "Main Hand + Off Hand",
+            equippedLink = equippedMainLink,
+            equippedScore = equippedScore,
+            candidateScore = equippedScore + pairDelta,
+            deltaScore = pairDelta,
+            rawDeltaScore = pairDelta,
+            rawPercent = rawPercent,
+            rawIsUpgrade = pairDelta > 0,
+            percent = rawPercent,
+            isUpgrade = pairDelta > 0 and rawPercent >= MIN_UPGRADE_PERCENT,
+            deltaRows = rows,
+            pairPartnerLink = partner,
+        }
+        local result = {
+            itemLink = itemLink,
+            candidateScore = candidateScore,
+            comparisons = { comparison },
+            selected = comparison,
+            isUpgrade = comparison.isUpgrade,
+        }
+        if ns.ApplyComparisonRules then result = ns.ApplyComparisonRules(itemLink, profile, result) or result end
+        return result
+    end
 
     if IsOneHandMainEquipLocation(candidateEquipLocation)
         and IsTwoHandEquipLocation(equippedMainEquipLocation)

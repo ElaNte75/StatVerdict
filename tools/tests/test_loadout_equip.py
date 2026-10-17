@@ -212,5 +212,110 @@ class MarkTwoPiecesOfAPairTests(unittest.TestCase):
         self.assertIn("item:303", marked[11])
 
 
+@unittest.skipIf(LuaRuntime is None, "lupa not installed")
+class ReturnToBagSlotTests(unittest.TestCase):
+    """A piece that is replaced goes back to the bag slot the new piece came from, not to the first free slot."""
+
+    def setUp(self):
+        self.lua = new_runtime()
+        self.lua.execute(SETUP)
+        self.ns = self.lua.eval("{}")
+        load_addon_file(self.lua, self.ns, "Core/SV_SpecSnapshot.lua")
+        self.lua.execute("""
+        BAGSIZE = 10
+        bag = {}
+        cursor = nil
+        GUIDOF = {}
+        C_Container.GetContainerNumSlots = function(b) if b == 0 then return BAGSIZE end return 0 end
+        C_Container.GetContainerItemLink = function(b, s) if b == 0 then return bag[s] end return nil end
+        C_Container.PickupContainerItem = function(b, s)
+            if b ~= 0 then return end
+            if cursor == nil then cursor = bag[s]; bag[s] = nil else bag[s] = cursor; cursor = nil end
+        end
+        CursorHasItem = function() return cursor ~= nil end
+        ClearCursor = function() if cursor then for i = 1, BAGSIZE do if not bag[i] then bag[i] = cursor; cursor = nil; return end end end end
+        """)
+        self.ns.GetBagItemGUID = self.lua.eval("function(b, s) local l = bag[s]; return l and GUIDOF[l] or nil end")
+        self.lua.execute('GUIDOF["|Hitem:2h::|h[Two-hander]|h"] = "Item-2H"; GUIDOF["|Hitem:ring::|h[Ring]|h"] = "Item-RING"')
+
+    def slots(self):
+        return {i: str(self.lua.eval(f"bag[{i}]")) for i in range(1, 11) if self.lua.eval(f"bag[{i}]")}
+
+    def test_the_replaced_piece_goes_back_to_the_slot_the_new_one_came_from(self) -> None:
+        # the new piece left slot 3; the game put the replaced two-hander in the first free slot, 1
+        self.lua.execute('bag[1] = "|Hitem:2h::|h[Two-hander]|h"; bag[5] = "|Hitem:other::|h[Other]|h"')
+        self.ns.NoteBagOrigin("Item-2H", 0, 3)
+        self.assertEqual(1, self.ns.ReturnReplacedPiecesToBagSlots())
+        self.assertEqual({3: "|Hitem:2h::|h[Two-hander]|h", 5: "|Hitem:other::|h[Other]|h"}, self.slots())
+        self.assertFalse(self.lua.eval("CursorHasItem()"))
+
+    def test_a_piece_already_home_is_left_alone(self) -> None:
+        self.lua.execute('bag[3] = "|Hitem:2h::|h[Two-hander]|h"')
+        self.ns.NoteBagOrigin("Item-2H", 0, 3)
+        self.assertEqual(0, self.ns.ReturnReplacedPiecesToBagSlots())
+        self.assertEqual({3: "|Hitem:2h::|h[Two-hander]|h"}, self.slots())
+
+    def test_a_place_that_another_piece_took_is_left_alone(self) -> None:
+        self.lua.execute('bag[1] = "|Hitem:2h::|h[Two-hander]|h"; bag[3] = "|Hitem:other::|h[Other]|h"')
+        self.ns.NoteBagOrigin("Item-2H", 0, 3)
+        self.assertEqual(0, self.ns.ReturnReplacedPiecesToBagSlots())
+        self.assertEqual({1: "|Hitem:2h::|h[Two-hander]|h", 3: "|Hitem:other::|h[Other]|h"}, self.slots())
+
+    def test_a_piece_that_is_not_in_the_bags_yet_waits_and_is_moved_when_it_arrives(self) -> None:
+        self.ns.NoteBagOrigin("Item-2H", 0, 3)
+        self.assertEqual(0, self.ns.ReturnReplacedPiecesToBagSlots())   # still on the cursor / in the air
+        self.lua.execute('bag[1] = "|Hitem:2h::|h[Two-hander]|h"')
+        self.assertEqual(1, self.ns.ReturnReplacedPiecesToBagSlots())
+        self.assertEqual({3: "|Hitem:2h::|h[Two-hander]|h"}, self.slots())
+
+    def test_nothing_happens_while_the_cursor_holds_something_or_in_combat(self) -> None:
+        self.lua.execute('bag[1] = "|Hitem:2h::|h[Two-hander]|h"; cursor = "|Hitem:x::|h[X]|h"')
+        self.ns.NoteBagOrigin("Item-2H", 0, 3)
+        self.assertEqual(0, self.ns.ReturnReplacedPiecesToBagSlots())
+        self.lua.execute("cursor = nil; InCombatLockdown = function() return true end")
+        self.assertEqual(0, self.ns.ReturnReplacedPiecesToBagSlots())
+        self.lua.execute("InCombatLockdown = function() return false end")
+        self.assertEqual(1, self.ns.ReturnReplacedPiecesToBagSlots())   # the wish was kept
+        self.assertEqual({3: "|Hitem:2h::|h[Two-hander]|h"}, self.slots())
+
+    def test_a_two_hander_sends_the_off_hand_piece_to_its_own_home(self) -> None:
+        # The axe was put on from bag slot 6 (that is its home); later a two-hander from slot 2 goes on: the sword it replaces
+        # goes back to slot 2, and the axe, which the game takes off as a side effect, goes back to slot 6.
+        lua = self.lua
+        lua.execute("""
+        WORN = {}
+        ItemLocation = { CreateFromEquipmentSlot = function(_, slot) return { slot = slot } end }
+        C_Item.GetItemGUID = function(location) return location.slot and WORN[location.slot] or nil end
+        """)
+        self.ns.GetItemEquipLocation = lua.eval("function(link) if string.find(link, 'item:2h:') then return 'INVTYPE_2HWEAPON' end return 'INVTYPE_WEAPON' end")
+        lua.execute('GUIDOF["|Hitem:sword::|h[Sword]|h"] = "Item-SWORD"; GUIDOF["|Hitem:axe::|h[Axe]|h"] = "Item-AXE"')
+        self.ns.NoteEquipFromBag("Item-AXE", 0, 6, 17, "|Hitem:axe::|h[Axe]|h")          # the axe goes on from slot 6
+        lua.execute('WORN[16] = "Item-SWORD"; WORN[17] = "Item-AXE"')
+        self.ns.NoteEquipFromBag("Item-2H", 0, 2, 16, "|Hitem:2h::|h[Two-hander]|h")      # the two-hander goes on from slot 2
+        lua.execute('WORN[16] = "Item-2H"; WORN[17] = nil')
+        lua.execute('bag[1] = "|Hitem:sword::|h[Sword]|h"; bag[3] = "|Hitem:axe::|h[Axe]|h"')   # the game put both in the first free slots
+        self.assertEqual(2, self.ns.ReturnReplacedPiecesToBagSlots())
+        self.assertEqual({2: "|Hitem:sword::|h[Sword]|h", 6: "|Hitem:axe::|h[Axe]|h"}, self.slots())
+
+    def test_a_one_hander_does_not_send_the_off_hand_piece_anywhere(self) -> None:
+        lua = self.lua
+        lua.execute("""
+        WORN = { [16] = "Item-SWORD", [17] = "Item-AXE" }
+        ItemLocation = { CreateFromEquipmentSlot = function(_, slot) return { slot = slot } end }
+        C_Item.GetItemGUID = function(location) return location.slot and WORN[location.slot] or nil end
+        """)
+        self.ns.GetItemEquipLocation = lua.eval("function() return 'INVTYPE_WEAPON' end")
+        self.ns.NoteEquipFromBag("Item-AXE", 0, 6, 17, "|Hitem:axe::|h[Axe]|h")
+        lua.execute('WORN[17] = "Item-AXE"; bag[3] = "|Hitem:other::|h[Other]|h"')
+        self.assertEqual(0, self.ns.ReturnReplacedPiecesToBagSlots())
+
+    def test_an_old_wish_is_forgotten(self) -> None:
+        self.lua.execute('bag[1] = "|Hitem:2h::|h[Two-hander]|h"')
+        self.ns.NoteBagOrigin("Item-2H", 0, 3)
+        self.lua.execute("clock = clock + 60")
+        self.assertEqual(0, self.ns.ReturnReplacedPiecesToBagSlots())
+        self.assertEqual({1: "|Hitem:2h::|h[Two-hander]|h"}, self.slots())
+
+
 if __name__ == "__main__":
     unittest.main()

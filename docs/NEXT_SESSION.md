@@ -219,6 +219,18 @@ Features tab became **Options** with a new look, **Always on top**, **Compact Mo
   `GetQualityHex` in `UI/SV_BisProgressPanel.lua` try C_Item first.
 - **Removed on 2026-10-16:** SimulationCraft (`simc_stat_engine.py`, the GitHub build steps, all its tests), the Method experiment (`method_*.py`, `tools/data/method`),
   the SimC comparison part of the test harness (`item_check_verdict.py` is now `tools/addon_harness.py`), the u.gg bins. Git history has them.
+- **Weapons (2026-10-17, `Core/SV_Comparison.lua`):** `ns.GetGuideWeaponSetup` reads the guide's Best in Slot list ("DUAL" = a weapon in its Off Hand slot, "SINGLE" =
+  none; nil until the item data is there). SINGLE: a one-hander is never compared with the empty off hand of a worn two-hander. DUAL wearing two one-handers: a
+  two-hander is never compared. DUAL wearing a two-hander: the best pair of the bags' one-handers (max 8, item level >= worn two-hander - 10) is compared with it
+  (`BestWeaponPair`, `PairDelta` = the set function turned around, plus `DUAL_WIELD_BONUS` 100 like a Best in Slot piece); only the two weapons of the best pair get a
+  verdict, `selected.slotID` is 16 / 17 for each and `pairPartnerLink` names the other (tooltip line "Wear it with ..."). Right-click (`PrepareSmartEquip`) puts such a
+  weapon straight into its hand. Not seen in the game: an off-hand weapon put on while a two-hander is worn (assumed to take the two-hander off), two-handers in both
+  hands (Warrior), Monk.
+- **Loadout picture (`CaptureActiveSpecSnapshot`):** an old off-hand piece that cannot be worn with the new main-hand two-hander is no longer kept in a loadout (the
+  owner's Blood loadout held the Frost axe, so the axe showed as "both specs").
+- **Bag slots:** `ns.NoteEquipFromBag` / `ns.ReturnReplacedPiecesToBagSlots` (`Core/SV_SpecSnapshot.lua`): a replaced piece goes back to the bag slot the new one came from; a
+  piece the game takes off by itself (the off hand when a two-hander goes on) goes to its remembered home (`StatVerdictDB.bagHomes[serial]`, 14 days). It runs on
+  BAG_UPDATE_DELAYED and a few timers; the piece still appears in the first free slot for a moment (the game puts it there first), which cannot be avoided.
 - Test helper: `tools/tests/wowhead_fakes.py` (`fake_wowhead`) stands in for the Wowhead lookup.
 - **Not verified in the game:** the Hero/Champion numbers of other specs than the ones the owner looked at, the healers without a base rating, how many
   arrows ring scoring gives in real play, and the weekly workflow on GitHub's machines (Wowhead may refuse them).
