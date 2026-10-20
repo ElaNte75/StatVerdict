@@ -48,7 +48,7 @@ $version = Get-TocValue $TocPath "Version"
 if (-not $version) { $version = "1.0.0" }
 
 # Ensure Interface is current for live.
-Set-TocValue $TocPath "Interface" "120100"
+Set-TocValue $TocPath "Interface" "120100, 120105, 120107"
 
 if (-not $SkipBump) {
     if ($version -match "^(\d+)\.(\d+)\.(\d+)$") {

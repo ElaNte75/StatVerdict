@@ -47,6 +47,8 @@ When this file is rewritten, delete what is no longer true. Release notes live i
 - The data pipeline refuses to write targets without the upgrade-track tables (`--allow-missing-track-levels` overrides) and retries the fetch 4 times.
   The data root carries `trackSwap`, `trackTop`, `trackRanks` and `trackItemLevels`.
 - GitHub e-mail: only failed workflows (set by the owner). Do not add experiment workflows.
+- **Game versions in the .toc (owner's rule, 2026-10-20): `## Interface:` always lists the three newest game versions** (now 120100, 120105, 120107 = 12.1.0, 12.1.5,
+  12.1.7); when a new one comes out, add it and drop the oldest, in `StatVerdict.toc` and in `scripts/ship.ps1` (it rewrites the line).
 
 ## What 2.0.40 contains (the changelog file has the full text)
 Fixed: vanished gear leaves saved loadouts (NOT verified in game); Adventure Guide tab flicker; freezes when equipping, opening the window, inspecting;
