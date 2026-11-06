@@ -1,6 +1,6 @@
-# StatVerdict — where we stand (written 2026-10-16, version 2.2.42). The ONLY notes file: replace it, never add another.
+# StatVerdict — where we stand (written 2026-10-16, workflow updated 2026-11-06, version 2.2.42). The ONLY notes file: replace it, never add another.
 
-Read this first, then `git log --oneline -25`, then `StatVerdict/VERIFICATION.md` (the in-game checklist).
+Read this first, then `git log --oneline -25` (see "How we work now" for the git command), then `StatVerdict/VERIFICATION.md` (the in-game checklist).
 When this file is rewritten, delete what is no longer true. Release notes live in `docs/changelog/`, one file per version
 (`<version>_<date>.md`; one being prepared ends in `_pending`).
 
@@ -15,15 +15,27 @@ When this file is rewritten, delete what is no longer true. Release notes live i
 - He prefers things explained by what he sees (tooltip lines, tabs), not by code. Show the expected result as a short text sample.
 
 ## How we work now
-- The repo `C:\Users\ElaNte\Desktop\Projects\StatVerdict_Addon` is the one place to edit. The game folder
-  `D:\Battlenet Games\World of Warcraft\_retail_\Interface\AddOns\StatVerdict` is a COPY the owner tests in: after every change copy the changed
-  files there (compare ignoring CR; `diff -rq --strip-trailing-cr StatVerdict "<game folder>"`). The owner presses a macro that does `/reload`.
-  Changed file LIST (`.toc`) or NEW files (textures) need a full game restart.
-- **Order of work (owner's rule, 2026-10-16): change the code, copy it to the game folder, let him test, and only when he says "ok" / "βάλτα" commit and
-  push. Never commit, push or start a workflow unasked** (this replaces the old "pushes are pre-authorised"). Then: run `python -m unittest discover -s
-  tools/tests` (needs `pip install lupa`), commit with named files (never `git add -A`), `git pull --rebase --autostash` first (the weekly bot changes
-  the version lines and the data file), push `main` and `main:main-myh77p`, wait for the Tests workflow.
-- Temporary diagnostics go in the game copy only, marked TEMP, and are removed before copying. **Never wrap or replace game functions** (it taints
+- **(Owner's rule, 2026-11-06) The GAME FOLDER is the one place to edit:** `D:\Battlenet Games\World of Warcraft\_retail_\Interface\AddOns\StatVerdict`.
+  Changes are seen in the game at once; the owner presses a macro that does `/reload`. Changed file LIST (`.toc`) or NEW files (textures) need a full game restart.
+  The old Desktop repo is gone. `C:\Users\ElaNte\Desktop\Projects\StatVerdict_Addon` now holds ONLY `StatVerdict-<version>_<date>.zip` (the last version the
+  owner approved as working, notes files left out; unzip into AddOns to restore) and a copy of this file. Replace the zip with a new one after each approved change.
+- **Git setup (built 2026-11-06):** Git for Windows is at `C:\Program Files\Git\cmd\git.exe` (may not be on PATH in an old shell). The git store is
+  `C:\Users\ElaNte\.git-repos\StatVerdict.git`, its work tree is the `AddOns` folder (`core.worktree`), sparse checkout `/StatVerdict/` only (non-cone):
+  `tools/`, `docs/`, `.github/` and the root files stay in the repo untouched but are not on disk. `info/exclude` hides the other add-ons and
+  `StatVerdict/NOTES.md`, `StatVerdict/AGENTS.md`. Run every command as: `$env:GIT_DIR="C:\Users\ElaNte\.git-repos\StatVerdict.git"`, cwd = the `AddOns`
+  folder, then `& "C:\Program Files\Git\cmd\git.exe" ...`. Push auth goes through gh (`ElaNte75`, logged in) / Git Credential Manager.
+  Tools or tests needed: clone the repo into the scratchpad for that session (do not keep a second copy on disk).
+- **Notes live in three places and are updated together when a task is approved:** this file in the game folder (`StatVerdict/NOTES.md`, never committed
+  as such), the copy on the Desktop, and `docs/NEXT_SESSION.md` on GitHub (not on disk: write it with `git hash-object -w` + `git update-index --cacheinfo`
+  and commit it with the work).
+- **Order of work (owner's rule, 2026-10-16): change the code in the game folder, let him test, and only when he says "ok" / "βάλτα" commit and
+  push. Never commit, push or start a workflow unasked.** Then: tests (from a scratchpad clone: `python -m unittest discover -s tools/tests`, needs
+  `pip install lupa`) when the change touches code they cover, commit with named files (never `git add -A`), `git pull --rebase --autostash` first (the
+  weekly bot changes the version lines and the data file), push `main` and `main:main-myh77p`, wait for the Tests workflow, update the three notes and the Desktop zip.
+- **Uploading to CurseForge:** the `.bat` files of the old Desktop repo are gone. `StatVerdict/scripts/ship.ps1 -SkipBump` (in the game folder) builds
+  `Desktop\StatVerdict-<version>.zip` with only the add-on files (no .md, no scripts). Its line 51 still writes the old Interface order (oldest first):
+  the GitHub copy was never updated (open, ask the owner before changing).
+- Temporary diagnostics go in the game folder, marked TEMP, and are removed before any commit. **Never wrap or replace game functions** (it taints
   Blizzard code). A debug WINDOW (an EditBox in a frame) is better than chat output.
 - CI runs Python 3.12; the PC runs 3.14. Do not use `Path.read_text(newline=...)` (3.13+). Files mix CRLF/LF: edit with byte-safe code (read bytes,
   replace `\r\n`, write back). In this shell a Python string with a backslash-n written through a heredoc can turn into a real newline: write scripts
@@ -37,18 +49,21 @@ When this file is rewritten, delete what is no longer true. Release notes live i
   `tools/release_prep.py: reset_week`; a missed week is skipped in the number). A functional change raises MINOR (a big one raises MAJOR and zeroes
   MINOR). New year: WEEK restarts at 1 and MINOR goes up by one. Published versions keep their numbers.
 - **The repo is at 2.2.42 (2026-10-16), not yet on CurseForge** (1.1.0 is; 2.0.40 and 2.1.42 were never uploaded, their changes are all in 2.2.42). The
-  changelog is `docs/changelog/2.2.42_pending.md` (also pasted in `StatVerdict/STORE.md`). The owner uploads by hand: `StatVerdict Ship (no bump).bat`
-  builds `StatVerdict-<version>.zip` on his Desktop from the repo's `StatVerdict` folder; `StatVerdict Ship.bat` also bumps the version: do not use it.
+  changelog is `docs/changelog/2.2.42_pending.md` (also pasted in `StatVerdict/STORE.md`). A bump to 2.2.43 was made on the old Desktop repo on 2026-10-21
+  but never pushed, and is lost (only the data refreshes are newer): bump by hand before the next upload (see Known gap). **CurseForge is NOT a full backup:
+  it still has 1.1.0 only; GitHub is the real backup.** Upload: see "Uploading to CurseForge" above.
   Bump helper: `release_prep.write_version(root, version, date)` sets the toc, `ns.VERSION`, `ns.RELEASE_DATE` and the `(vX.Y.Z)` in STORE.md.
 - **Every Wednesday ~12:00 Greek time** `.github/workflows/classcodex-live-refresh.yml` refreshes the guide data and, when it changed, runs
   `tools/release_prep.py` (bumps WEEK, adds a data line to the pending changelog) and opens a GitHub issue ("Ώρα για ανέβασμα ...") that GitHub mails to the
   owner. It never publishes. The stat targets step now looks up about 3000 pieces on Wowhead (~20 minutes); NOT yet run on GitHub's machines (it ran
   locally): if Wowhead blocks them the step fails, the old file stays and the owner gets the failed-workflow mail.
+- **Known gap:** while a pending changelog exists the weekly job keeps its version (it only adds the data line), so the number does NOT follow the week: before an upload,
+  check `reset_week(today)` and bump by hand (`release_prep.write_version`, rename the pending file and the version inside it).
 - The data pipeline refuses to write targets without the upgrade-track tables (`--allow-missing-track-levels` overrides) and retries the fetch 4 times.
   The data root carries `trackSwap`, `trackTop`, `trackRanks` and `trackItemLevels`.
 - GitHub e-mail: only failed workflows (set by the owner). Do not add experiment workflows.
-- **Game versions in the .toc (owner's rule, 2026-10-20): `## Interface:` always lists the three newest game versions** (now 120100, 120105, 120107 = 12.1.0, 12.1.5,
-  12.1.7); when a new one comes out, add it and drop the oldest, in `StatVerdict.toc` and in `scripts/ship.ps1` (it rewrites the line).
+- **Game versions in the .toc (owner's rule, 2026-10-20): `## Interface:` always lists the three newest game versions, the newest FIRST** (now 120107, 120105, 120100 = 12.1.7, 12.1.5,
+  12.1.0); when a new one comes out, put it first and drop the oldest, in `StatVerdict.toc` and in `scripts/ship.ps1` (it rewrites the line).
 
 ## What 2.0.40 contains (the changelog file has the full text)
 Fixed: vanished gear leaves saved loadouts (NOT verified in game); Adventure Guide tab flicker; freezes when equipping, opening the window, inspecting;

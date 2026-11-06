@@ -1,4 +1,4 @@
-﻿## Interface: 120100, 120105, 120107
+﻿## Interface: 120107, 120105, 120100
 ## Title: StatVerdict
 ## Notes: Gear verdicts for your Main Spec and Off Spec builds.
 ## Author: Gchris
