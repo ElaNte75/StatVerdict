@@ -27,7 +27,7 @@ When this file is rewritten, delete what is no longer true. Release notes live i
   Tools or tests needed: clone the repo into the scratchpad for that session (do not keep a second copy on disk).
 - **Notes live in three places and are updated together when a task is approved:** this file in the game folder (`StatVerdict/NOTES.md`, never committed
   as such), the copy on the Desktop, and `docs/NEXT_SESSION.md` on GitHub (not on disk: write it with `git hash-object -w` + `git update-index --cacheinfo`
-  and commit it with the work).
+  and commit it with the work; it is marked `--skip-worktree`, so git does not see it as deleted. If a pull clears that flag, set it again).
 - **Order of work (owner's rule, 2026-10-16): change the code in the game folder, let him test, and only when he says "ok" / "βάλτα" commit and
   push. Never commit, push or start a workflow unasked.** Then: tests (from a scratchpad clone: `python -m unittest discover -s tools/tests`, needs
   `pip install lupa`) when the change touches code they cover, commit with named files (never `git add -A`), `git pull --rebase --autostash` first (the
